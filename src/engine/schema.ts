@@ -59,10 +59,10 @@ const ChallengeSchema = z.object({
   mechanicChecks: z
     .array(MechanicCheckSchema)
     .min(1)
-    .superRefine((checks, ctx) => {
+    .superRefine((checks: z.infer<typeof MechanicCheckSchema>[], ctx: z.RefinementCtx) => {
       // placeholder: attribute ID validation happens in ArcSchema refinement
       for (const check of checks) {
-        const total = check.attributeWeights.reduce((s, w) => s + w.weight, 0);
+        const total = check.attributeWeights.reduce((s: number, w: { weight: number }) => s + w.weight, 0);
         if (Math.abs(total - 1.0) > 0.001) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
@@ -210,63 +210,65 @@ const ArcScalingSchema = z.object({
   scalingRules: z.record(z.unknown()),
 });
 
-export const ArcSchema = z
-  .object({
-    meta: z.object({
-      id: z.string().min(1),
-      name: z.string().min(1),
-      description: z.string(),
-      author: z.string(),
-      version: z.string(),
-      engineVersion: z.string(),
-      domain: z.string(),
-      estimatedCycles: z.number().int().positive(),
-    }),
-    attributes: z.array(ArcAttributeSchema).min(3).max(8),
-    roles: z.array(ArcRoleSchema),
-    tiers: z.array(ArcTierSchema).min(1),
-    currencyName: z.string(),
-    materialName: z.string(),
-    tokenName: z.string(),
-    reputationName: z.string(),
-    tokensPerCycle: z.number().int().positive(),
-    maxTokens: z.number().int().positive(),
-    infrastructureTokenBonus: z.number().min(0).max(1),
-    namePool: z.object({
-      firstNames: z.array(z.string()).min(1),
-      lastNames: z.array(z.string()),
-    }),
-    customTraits: z.array(TraitSchema),
-    progressionTiers: z.array(ProgressionTierSchema),
-    attunementChains: z.array(AttunementChainSchema),
-    challenges: z.array(ChallengeSchema),
-    difficultyModes: z.array(DifficultyModeSchema),
-    items: z.array(ItemSchema),
-    narrativeEvents: z.array(NarrativeEventSchema),
-    scaling: ArcScalingSchema.nullable(),
-  })
-  .superRefine((arc, ctx) => {
-    const attrIds = new Set(arc.attributes.map((a) => a.id));
+const ArcBaseSchema = z.object({
+  meta: z.object({
+    id: z.string().min(1),
+    name: z.string().min(1),
+    description: z.string(),
+    author: z.string(),
+    version: z.string(),
+    engineVersion: z.string(),
+    domain: z.string(),
+    estimatedCycles: z.number().int().positive(),
+  }),
+  attributes: z.array(ArcAttributeSchema).min(3).max(8),
+  roles: z.array(ArcRoleSchema),
+  tiers: z.array(ArcTierSchema).min(1),
+  currencyName: z.string(),
+  materialName: z.string(),
+  tokenName: z.string(),
+  reputationName: z.string(),
+  tokensPerCycle: z.number().int().positive(),
+  maxTokens: z.number().int().positive(),
+  infrastructureTokenBonus: z.number().min(0).max(1),
+  namePool: z.object({
+    firstNames: z.array(z.string()).min(1),
+    lastNames: z.array(z.string()),
+  }),
+  customTraits: z.array(TraitSchema),
+  progressionTiers: z.array(ProgressionTierSchema),
+  attunementChains: z.array(AttunementChainSchema),
+  challenges: z.array(ChallengeSchema),
+  difficultyModes: z.array(DifficultyModeSchema),
+  items: z.array(ItemSchema),
+  narrativeEvents: z.array(NarrativeEventSchema),
+  scaling: ArcScalingSchema.nullable(),
+});
 
-    for (const challenge of arc.challenges) {
-      for (const check of challenge.mechanicChecks) {
-        for (const aw of check.attributeWeights) {
-          if (!attrIds.has(aw.attributeId)) {
-            ctx.addIssue({
-              code: z.ZodIssueCode.custom,
-              message: `Challenge "${challenge.id}", mechanic "${check.id}": unknown attributeId "${aw.attributeId}". Valid: ${[...attrIds].join(", ")}`,
-            });
-          }
+type ArcBase = z.infer<typeof ArcBaseSchema>;
+
+export const ArcSchema = ArcBaseSchema.superRefine((arc: ArcBase, ctx: z.RefinementCtx) => {
+  const attrIds = new Set(arc.attributes.map((a: { id: string }) => a.id));
+
+  for (const challenge of arc.challenges) {
+    for (const check of challenge.mechanicChecks) {
+      for (const aw of check.attributeWeights) {
+        if (!attrIds.has(aw.attributeId)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `Challenge "${challenge.id}", mechanic "${check.id}": unknown attributeId "${aw.attributeId}". Valid: ${[...attrIds].join(", ")}`,
+          });
         }
       }
     }
-  });
+  }
+});
 
 export function validateArc(input: unknown): Arc {
   const result = ArcSchema.safeParse(input);
   if (!result.success) {
     const messages = result.error.errors
-      .map((e) => `[${e.path.join(".") || "root"}] ${e.message}`)
+      .map((e: z.ZodIssue) => `[${e.path.join(".") || "root"}] ${e.message}`)
       .join("\n");
     throw new Error(`Invalid arc:\n${messages}`);
   }

@@ -202,7 +202,7 @@ const CHALLENGES: Challenge[] = [
     timePressure: null,
     outcomes: {
       success: {
-        rewardTable: ["rusty-blade"],
+        rewardTable: [{ itemId: "rusty-blade", dropRate: 1.0 }],
         narrative:
           "The rats scatter before your charter's first coordinated advance. A small victory — but it's a start.",
         reputationGain: 1,
@@ -262,14 +262,14 @@ const CHALLENGES: Challenge[] = [
     timePressure: null,
     outcomes: {
       success: {
-        rewardTable: ["iron-pauldrons", "trollhide-cloak"],
+        rewardTable: [{ itemId: "iron-pauldrons", dropRate: 1.0 }, { itemId: "trollhide-cloak", dropRate: 1.0 }],
         narrative:
           "The troll is driven into the river. The crossing is open, and the merchants are grateful.",
         reputationGain: 2,
         milestoneFlag: "bridge-troll-cleared",
       },
       partial: {
-        rewardTable: ["iron-pauldrons"],
+        rewardTable: [{ itemId: "iron-pauldrons", dropRate: 1.0 }],
         narrative:
           "The troll retreats, wounded. The bridge is passable, though the beast may return.",
         agentDowntimeCycles: 1,
@@ -339,7 +339,7 @@ const CHALLENGES: Challenge[] = [
     timePressure: null,
     outcomes: {
       success: {
-        rewardTable: ["merchants-favor"],
+        rewardTable: [{ itemId: "merchants-favor", dropRate: 1.0 }],
         narrative:
           "The caravan arrives intact. The merchant presses a weighty pouch into your hand and promises to spread word of your charter's reliability.",
         reputationGain: 3,
@@ -421,7 +421,7 @@ const CHALLENGES: Challenge[] = [
     timePressure: null,
     outcomes: {
       success: {
-        rewardTable: ["miners-pick"],
+        rewardTable: [{ itemId: "miners-pick", dropRate: 1.0 }],
         narrative:
           "The last survivor emerges blinking into daylight. The mine foreman clasps your hand, wordless with relief.",
         reputationGain: 3,
@@ -498,7 +498,7 @@ const CHALLENGES: Challenge[] = [
     },
     outcomes: {
       success: {
-        rewardTable: ["bandit-trophy"],
+        rewardTable: [{ itemId: "bandit-trophy", dropRate: 1.0 }],
         narrative:
           "The camp falls. Farmers across the valley can breathe again. Word of your charter spreads.",
         reputationGain: 4,
@@ -596,14 +596,14 @@ const CHALLENGES: Challenge[] = [
     },
     outcomes: {
       success: {
-        rewardTable: ["wardens-blade", "wardens-seal"],
+        rewardTable: [{ itemId: "wardens-blade", dropRate: 1.0 }, { itemId: "wardens-seal", dropRate: 1.0 }],
         narrative:
           "The Warden's banner falls. Your charter stands in the courtyard, bloodied but triumphant. The lord sends his thanks — and an invitation to expand your operations.",
         reputationGain: 6,
         milestoneFlag: "wardens-keep-cleared",
       },
       partial: {
-        rewardTable: ["wardens-seal"],
+        rewardTable: [{ itemId: "wardens-seal", dropRate: 1.0 }],
         narrative:
           "The keep falls, but the cost is steep. Several agents will need time to recover.",
         reputationGain: 3,

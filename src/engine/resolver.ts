@@ -198,21 +198,17 @@ function rollLoot(
   rng: Rng,
 ): LootDrop[] {
   if (outcome === "failure") return [];
-  const rewardTableIds = outcome === "success"
+  const rewardTable = outcome === "success"
     ? challenge.outcomes.success.rewardTable
     : challenge.outcomes.partial.rewardTable;
 
   const drops: LootDrop[] = [];
-  for (const itemId of rewardTableIds) {
-    const item = arc.items.find((it) => it.id === itemId);
+  for (const rewardEntry of rewardTable) {
+    const item = arc.items.find((it) => it.id === rewardEntry.itemId);
     if (!item) continue;
 
-    // Find drop_rate — items store drop rates in arc.items? The reward_table in challenge stores item IDs.
-    // Per spec: "independent rolls per item — if drop_rate=1.0 always drops, 0.15 rolls 15% chance"
-    // The Item type doesn't have a dropRate field, so we treat all listed items as drop_rate=1.0
-    // unless there's a convention. We always drop items in the reward table (drop_rate implicit in inclusion).
     const roll = rng.next();
-    if (roll <= 1.0) { // always drop if in table
+    if (roll <= rewardEntry.dropRate) {
       const eligible = agents.filter((a) => {
         const tierIdx = arc.tiers.findIndex((t) => t.id === a.tier);
         const itemTierIdx = arc.tiers.findIndex((t) => t.id === item.tierRequirement);

@@ -33,8 +33,24 @@ const AccessRequirementsSchema = z.object({
   attunementThreshold: z.number().min(0).max(1).nullable(),
 });
 
+
+const RewardTableEntrySchema = z.union([
+  z.string(),
+  z.object({
+    itemId: z.string(),
+    dropRate: z.number().min(0).max(1),
+  }),
+]);
+
+const normalizeRewardTable = (entries: Array<string | { itemId: string; dropRate: number }>) =>
+  entries.map((entry) =>
+    typeof entry === "string"
+      ? { itemId: entry, dropRate: 1.0 }
+      : { itemId: entry.itemId, dropRate: entry.dropRate },
+  );
+
 const OutcomeSchema = z.object({
-  rewardTable: z.array(z.string()),
+  rewardTable: z.array(RewardTableEntrySchema).transform(normalizeRewardTable),
   narrative: z.string(),
   reputationGain: z.number().int().optional(),
   milestoneFlag: z.string().optional(),

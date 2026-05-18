@@ -189,7 +189,7 @@ describe("validateArc", () => {
           completionCriteria: { type: "all_mechanics_passed", parameters: {} },
           timePressure: null,
           outcomes: {
-            success: { rewardTable: ["item_stalkers_helm"], narrative: "Attumen falls.", reputationGain: 5, milestoneFlag: "attumen_cleared" },
+            success: { rewardTable: [{ itemId: "item_stalkers_helm", dropRate: 1.0 }], narrative: "Attumen falls.", reputationGain: 5, milestoneFlag: "attumen_cleared" },
             partial: { rewardTable: [], narrative: "Partial clear.", agentDowntimeCycles: 1 },
             failure: { rewardTable: [], narrative: "Wipe.", stressPenalty: 2, tokenRefund: 0.5 },
           },

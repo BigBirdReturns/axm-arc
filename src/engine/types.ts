@@ -1,0 +1,430 @@
+// ── Primitives ────────────────────────────────────────────────────────────────
+
+export type Affliction = "Resentful" | "Fearful" | "Defiant" | "Reckless" | "Withdrawn";
+
+export type AfflictionState = { kind: "none" } | { kind: Affliction; sinceCycle: number };
+
+export type RelationshipState =
+  | "Neutral"
+  | "Allied"
+  | "Rivalrous"
+  | "Hostile"
+  | "Mentorship"
+  | "Bonded";
+
+export type RewardDistributionPolicy = "council" | "points" | "rotation";
+
+export type InfrastructureFacility =
+  | "Quarters"
+  | "Production"
+  | "Recreation"
+  | "Research"
+  | "Training"
+  | "Storage"
+  | "Medical";
+
+export type ScalingMode = "fixed" | "scaled" | "invocation";
+
+export type MoraleState = number; // 0-100
+
+export type Tone = "neutral" | "tense" | "triumphant" | "grim" | "comedic";
+
+// ── Trait Effects ─────────────────────────────────────────────────────────────
+
+export type TraitEffect =
+  | { kind: "infraEfficiencyMultiplier"; multiplier: number }
+  | { kind: "moralePenaltyMultiplierOnRewardDisappointment"; multiplier: number }
+  | { kind: "mentorshipTierGapBonus"; reducedGapRequired: number }
+  | { kind: "relationshipFormationMultiplier"; multiplier: number }
+  | { kind: "hostileStressImmunity" }
+  | { kind: "recklessAfflictionChanceBonus"; bonus: number }
+  | { kind: "attributeBonusWhenMoraleHigh"; attributeId: string; threshold: number; bonus: number }
+  | { kind: "stressAccumulationMultiplier"; multiplier: number }
+  | { kind: "moraleGainMultiplier"; multiplier: number }
+  | { kind: "attributeCheckBonus"; attributeId: string; bonus: number }
+  | { kind: "stressOnPartialSuccess"; amount: number }
+  | { kind: "relationshipAffinityMultiplier"; multiplier: number }
+  | { kind: "moraleSensitivityToTeamLoss"; multiplier: number }
+  | { kind: "ambitionSignal" };
+
+// ── Trait & Item ──────────────────────────────────────────────────────────────
+
+export interface Trait {
+  id: string;
+  name: string;
+  description: string;
+  effects: TraitEffect[];
+}
+
+export interface Item {
+  id: string;
+  name: string;
+  slot: string;
+  statBonuses: Record<string, number>;
+  tierRequirement: string;
+  flavorText: string;
+}
+
+// ── Tier & Role ───────────────────────────────────────────────────────────────
+
+export interface Tier {
+  id: string;
+  name: string;
+  statBudgetMin: number;
+  statBudgetMax: number;
+  upkeepCost: number;
+  baseEfficiencyModifier: number;
+}
+
+export interface Role {
+  id: string;
+  name: string;
+  attributeWeights: Record<string, number>;
+}
+
+// ── Agent ─────────────────────────────────────────────────────────────────────
+
+export interface AssignmentRecord {
+  challengeId: string;
+  cycle: number;
+  outcome: "success" | "partial" | "failure";
+}
+
+export interface RewardRecord {
+  itemId: string;
+  cycle: number;
+  challengeId: string;
+}
+
+export interface Agent {
+  id: string;
+  name: string;
+  attributes: Record<string, number>;
+  hiddenAttributes: {
+    loyalty: number;
+    ambition: number;
+    volatility: number;
+    leadership: number;
+  };
+  traits: string[];
+  role: string | null;
+  secondaryRole: string | null;
+  baseEfficiency: number;
+  tier: string;
+  upkeep: number;
+  morale: MoraleState;
+  stress: number;
+  attunements: string[];
+  assignmentHistory: AssignmentRecord[];
+  afflictionHistory: Affliction[];
+  rewardHistory: RewardRecord[];
+  afflictionState: AfflictionState;
+  equippedItems: Record<string, string>;
+  downedUntilCycle: number | null;
+  lastClearCycle: Record<string, number>;
+  revealedHiddenAttrs: number;
+  revealedTraits: number;
+}
+
+// ── Organization ──────────────────────────────────────────────────────────────
+
+export interface Facility {
+  type: InfrastructureFacility;
+  level: number;
+  assignedAgents: string[];
+}
+
+export interface Relationship {
+  agentIds: [string, string];
+  state: RelationshipState;
+  affinity: number;
+}
+
+export interface Precedent {
+  cycle: number;
+  type: "reward" | "promotion" | "benching" | "assignment";
+  decisionBasis: "merit" | "seniority" | "need" | "favoritism" | "rotation";
+  agentsInvolved: string[];
+  winner: string | null;
+  context: Record<string, unknown>;
+}
+
+export interface DramaCardEffect {
+  target: string;
+  type: string;
+  value: number;
+}
+
+export interface DramaCardOption {
+  id: string;
+  label: string;
+  description: string;
+  effects: DramaCardEffect[];
+  hiddenEffects: DramaCardEffect[];
+}
+
+export interface DramaCard {
+  id: string;
+  cycleGenerated: number;
+  triggerType: string;
+  agentsInvolved: string[];
+  narrativeText: string;
+  options: DramaCardOption[];
+}
+
+export interface Organization {
+  id: string;
+  name: string;
+  reputation: number;
+  resources: {
+    currency: number;
+    materials: number;
+    tokens: number;
+  };
+  infrastructure: Record<InfrastructureFacility, Facility>;
+  agents: Record<string, Agent>;
+  relationships: Relationship[];
+  precedents: Precedent[];
+  dramaQueue: DramaCard[];
+  cycle: number;
+  distributionPolicy: RewardDistributionPolicy;
+  rngSeed: number;
+}
+
+// ── Challenge ─────────────────────────────────────────────────────────────────
+
+export interface AttributeWeight {
+  attributeId: string;
+  weight: number;
+}
+
+export interface FailureConsequence {
+  type: "agent_damage" | "team_damage" | "stress" | "debuff" | "cascade";
+  severity: number;
+}
+
+export interface MechanicCheck {
+  id: string;
+  name: string;
+  description: string;
+  attributeWeights: AttributeWeight[];
+  difficultyThreshold: number;
+  scope: "per_agent" | "team_aggregate" | "role_specific";
+  failureConsequence: FailureConsequence;
+}
+
+export interface RosterRequirements {
+  minAgents: number;
+  maxAgents: number;
+  roleRequirements: Array<{ roleId: string; count: number }>;
+}
+
+export interface AccessRequirements {
+  orgMilestones: string[];
+  agentAttunements: string[];
+  attunementThreshold: number | null;
+}
+
+export type CompletionCriteriaType =
+  | "all_mechanics_passed"
+  | "threshold_passed"
+  | "dps_check"
+  | "survival_check"
+  | "composite";
+
+export interface CompletionCriteria {
+  type: CompletionCriteriaType;
+  parameters: Record<string, unknown>;
+}
+
+export interface TimePressure {
+  rounds: number;
+  aggregateThreshold: number;
+  attributeId: string;
+}
+
+export interface Outcome {
+  rewardTable: string[];
+  narrative: string;
+  reputationGain?: number;
+  milestoneFlag?: string;
+  agentDowntimeCycles?: number;
+  stressPenalty?: number;
+  tokenRefund?: number;
+}
+
+export interface Challenge {
+  id: string;
+  name: string;
+  description: string;
+  rosterRequirements: RosterRequirements;
+  accessRequirements: AccessRequirements;
+  difficultyRating: number;
+  mechanicChecks: MechanicCheck[];
+  completionCriteria: CompletionCriteria;
+  timePressure: TimePressure | null;
+  outcomes: {
+    success: Outcome;
+    partial: Outcome;
+    failure: Outcome;
+  };
+}
+
+// ── Run Report ────────────────────────────────────────────────────────────────
+
+export interface MechanicResult {
+  mechanicId: string;
+  score: number;
+  threshold: number;
+  passed: boolean;
+}
+
+export interface AgentRunResult {
+  agentId: string;
+  mechanicResults: MechanicResult[];
+  performanceRating: number;
+  stressGained: number;
+  wasDowned: boolean;
+}
+
+export interface LootDrop {
+  itemId: string;
+  eligibleAgents: string[];
+}
+
+export interface DramaTrigger {
+  type: string;
+  agentsInvolved: string[];
+}
+
+export interface RunReport {
+  challengeId: string;
+  outcome: "success" | "partial" | "failure";
+  cycle: number;
+  assignedAgents: AgentRunResult[];
+  lootDrops: LootDrop[];
+  dramaTriggers: DramaTrigger[];
+  narrativeSeed: number;
+}
+
+// ── Narrative ─────────────────────────────────────────────────────────────────
+
+export interface NarrativeTemplate {
+  trigger: string;
+  tone: Tone;
+  conditions: Record<string, unknown>;
+  text: string;
+}
+
+export interface NarrativeEvent {
+  trigger: {
+    type:
+      | "first_clear"
+      | "tier_complete"
+      | "arc_complete"
+      | "agent_milestone"
+      | "reputation_threshold";
+    target: string;
+  };
+  title: string;
+  text: string;
+  rewards: string[];
+  agentUnlock: { agentTemplate: Record<string, unknown> } | null;
+}
+
+// ── Arc (Part 3 schema) ───────────────────────────────────────────────────────
+
+export interface ArcMeta {
+  id: string;
+  name: string;
+  description: string;
+  author: string;
+  version: string;
+  engineVersion: string;
+  domain: string;
+  estimatedCycles: number;
+}
+
+export interface ArcAttribute {
+  id: string;
+  name: string;
+  description: string;
+}
+
+export interface ArcRole {
+  id: string;
+  name: string;
+  attributeWeights: Record<string, number>;
+}
+
+export interface ArcTier {
+  id: string;
+  name: string;
+  statBudgetMin: number;
+  statBudgetMax: number;
+  upkeepCost: number;
+  baseEfficiencyModifier: number;
+}
+
+export interface AttunementStep {
+  type: "challenge_clear" | "reputation_threshold" | "item_acquire" | "chain_complete";
+  target: string;
+}
+
+export interface AttunementChain {
+  id: string;
+  name: string;
+  steps: AttunementStep[];
+  grantsAccessTo: string[];
+}
+
+export interface ProgressionTier {
+  id: string;
+  name: string;
+  flavorText: string;
+  unlockConditions: {
+    orgMilestones: string[];
+    reputationMinimum: number | null;
+  };
+  challenges: string[];
+  requiredChallenges: string[];
+  optionalChallenges: string[];
+}
+
+export interface DifficultyMode {
+  id: string;
+  name: string;
+  globalModifiers: {
+    difficultyMultiplier: number;
+    rewardMultiplier: number;
+    mechanicAdditions: MechanicCheck[];
+  };
+}
+
+export interface ArcScaling {
+  type: ScalingMode;
+  scalingRules: Record<string, unknown>;
+}
+
+export interface Arc {
+  meta: ArcMeta;
+  attributes: ArcAttribute[];
+  roles: ArcRole[];
+  tiers: ArcTier[];
+  currencyName: string;
+  materialName: string;
+  tokenName: string;
+  reputationName: string;
+  tokensPerCycle: number;
+  maxTokens: number;
+  infrastructureTokenBonus: number;
+  namePool: { firstNames: string[]; lastNames: string[] };
+  customTraits: Trait[];
+  progressionTiers: ProgressionTier[];
+  attunementChains: AttunementChain[];
+  challenges: Challenge[];
+  difficultyModes: DifficultyMode[];
+  items: Item[];
+  narrativeEvents: NarrativeEvent[];
+  scaling: ArcScaling | null;
+}

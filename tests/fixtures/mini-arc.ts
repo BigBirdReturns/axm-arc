@@ -101,13 +101,13 @@ const RAW_ARC = {
       },
       outcomes: {
         success: {
-          rewardTable: ["sword-of-dawn"],
+          rewardTable: [{ itemId: "sword-of-dawn", dropRate: 1.0 }],
           narrative: "Victory!",
           reputationGain: 5,
           milestoneFlag: "mini-challenge-clear",
         },
         partial: {
-          rewardTable: ["shield-shard"],
+          rewardTable: [{ itemId: "shield-shard", dropRate: 1.0 }],
           narrative: "A partial win.",
           agentDowntimeCycles: 1,
         },

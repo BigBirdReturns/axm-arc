@@ -6,11 +6,12 @@ See `DESIGN.md` for the full v1.0 design.
 ## Running
 
 ```
-npm install
+npm ci
 npm run dev       # local dev server (Vite)
 npm test          # run the engine test suite
 npm run build     # production bundle into dist/
 npm run typecheck # tsc --noEmit
+npm run check     # typecheck + tests
 ```
 
 The tutorial arc ("The First Charter") loads by default. Save state persists to `localStorage` under `axm-arc:save:v1`. The UI is mobile-first, portrait-optimized.
@@ -21,7 +22,3 @@ The tutorial arc ("The First Charter") loads by default. Save state persists to 
 - `src/arcs/` — loadable scenario definitions; tutorial arc included
 - `src/game/` — React PWA presentation layer
 - `tests/engine/` — engine + integration test suite
-
-## Build status
-
-124 tests across 11 files. Engine is content-free; arcs are pure data.

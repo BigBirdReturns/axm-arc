@@ -189,7 +189,7 @@ describe("validateArc", () => {
           completionCriteria: { type: "all_mechanics_passed", parameters: {} },
           timePressure: null,
           outcomes: {
-            success: { rewardTable: ["item_stalkers_helm"], narrative: "Attumen falls.", reputationGain: 5, milestoneFlag: "attumen_cleared" },
+            success: { rewardTable: [{ itemId: "item_stalkers_helm", dropRate: 1.0 }], narrative: "Attumen falls.", reputationGain: 5, milestoneFlag: "attumen_cleared" },
             partial: { rewardTable: [], narrative: "Partial clear.", agentDowntimeCycles: 1 },
             failure: { rewardTable: [], narrative: "Wipe.", stressPenalty: 2, tokenRefund: 0.5 },
           },
@@ -202,5 +202,67 @@ describe("validateArc", () => {
     expect(parsed.roles).toHaveLength(4);
     expect(parsed.challenges).toHaveLength(1);
     expect(parsed.challenges[0]!.id).toBe("attumen");
+  });
+
+  it("normalizes legacy string reward entries to dropRate 1.0", () => {
+    const arc = minimalArc({
+      challenges: [
+        {
+          id: "c",
+          name: "C",
+          description: "",
+          rosterRequirements: { minAgents: 1, maxAgents: 1, roleRequirements: [] },
+          accessRequirements: { orgMilestones: [], agentAttunements: [], attunementThreshold: null },
+          difficultyRating: 1,
+          mechanicChecks: [{
+            id: "m", name: "M", description: "",
+            attributeWeights: [{ attributeId: "power", weight: 1 }],
+            difficultyThreshold: 1, scope: "per_agent",
+            failureConsequence: { type: "stress", severity: 0.1 },
+          }],
+          completionCriteria: { type: "all_mechanics_passed", parameters: {} },
+          timePressure: null,
+          outcomes: {
+            success: { rewardTable: ["legacy-item"], narrative: "" },
+            partial: { rewardTable: [], narrative: "" },
+            failure: { rewardTable: [], narrative: "" },
+          },
+        },
+      ],
+    });
+    const parsed = validateArc(arc);
+    expect(parsed.challenges[0]!.outcomes.success.rewardTable).toEqual([
+      { itemId: "legacy-item", dropRate: 1.0 },
+    ]);
+  });
+
+  it("rejects dropRate outside [0, 1]", () => {
+    const make = (dropRate: number) => minimalArc({
+      challenges: [
+        {
+          id: "c",
+          name: "C",
+          description: "",
+          rosterRequirements: { minAgents: 1, maxAgents: 1, roleRequirements: [] },
+          accessRequirements: { orgMilestones: [], agentAttunements: [], attunementThreshold: null },
+          difficultyRating: 1,
+          mechanicChecks: [{
+            id: "m", name: "M", description: "",
+            attributeWeights: [{ attributeId: "power", weight: 1 }],
+            difficultyThreshold: 1, scope: "per_agent",
+            failureConsequence: { type: "stress", severity: 0.1 },
+          }],
+          completionCriteria: { type: "all_mechanics_passed", parameters: {} },
+          timePressure: null,
+          outcomes: {
+            success: { rewardTable: [{ itemId: "x", dropRate }], narrative: "" },
+            partial: { rewardTable: [], narrative: "" },
+            failure: { rewardTable: [], narrative: "" },
+          },
+        },
+      ],
+    });
+    expect(() => validateArc(make(1.5))).toThrow();
+    expect(() => validateArc(make(-0.1))).toThrow();
   });
 });

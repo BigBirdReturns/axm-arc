@@ -181,3 +181,98 @@ describe("resolveChallenge", () => {
     }
   });
 });
+
+describe("rollLoot drop rates", () => {
+  // Build a challenge variant with a controllable drop rate against a guaranteed-success setup.
+  const makeArcWithDropRate = (dropRate: number) => {
+    const base = structuredClone(MINI_ARC);
+    const ch = base.challenges[0]!;
+    // Make the challenge trivial so we get reliable successes — we're testing loot rolls, not difficulty.
+    for (const m of ch.mechanicChecks) m.difficultyThreshold = 1;
+    ch.outcomes.success.rewardTable = [{ itemId: ch.outcomes.success.rewardTable[0]!.itemId, dropRate }];
+    ch.outcomes.partial.rewardTable = [];
+    return base;
+  };
+
+  const strongAgents = () => [makeAgent(1, { tierId: "elite" }), makeAgent(2, { tierId: "elite" }), makeAgent(3, { tierId: "elite" })];
+
+  function dropCount(arc: typeof MINI_ARC, runs: number): number {
+    let drops = 0;
+    for (let i = 0; i < runs; i++) {
+      const agents = strongAgents();
+      const org = { ...makeOrg(agents), rngSeed: 1000 + i };
+      const report = resolveChallenge({
+        challenge: arc.challenges[0]!,
+        assignedAgents: agents,
+        org,
+        arc,
+        rng: new Rng(hashSeed(org.rngSeed, 1, "drop-probe")),
+        cycle: 1,
+      });
+      if (report.outcome !== "success") continue;
+      drops += report.lootDrops.length;
+    }
+    return drops;
+  }
+
+  it("dropRate 0 never drops (true gate)", () => {
+    expect(dropCount(makeArcWithDropRate(0), 100)).toBe(0);
+  });
+
+  it("dropRate 1.0 always drops on success", () => {
+    const arc = makeArcWithDropRate(1.0);
+    let successes = 0, drops = 0;
+    for (let i = 0; i < 50; i++) {
+      const agents = strongAgents();
+      const org = { ...makeOrg(agents), rngSeed: 2000 + i };
+      const report = resolveChallenge({
+        challenge: arc.challenges[0]!, assignedAgents: agents, org, arc,
+        rng: new Rng(0), cycle: 1,
+      });
+      if (report.outcome === "success") {
+        successes++;
+        drops += report.lootDrops.length;
+      }
+    }
+    expect(successes).toBeGreaterThan(0);
+    expect(drops).toBe(successes);
+  });
+
+  it("mid-probability dropRate roughly matches expectation over many seeds", () => {
+    const arc = makeArcWithDropRate(0.5);
+    // 200 success-likely runs, expect ~50% drop rate (allow ±15% slack for noise).
+    const successes: number[] = [];
+    let drops = 0;
+    for (let i = 0; i < 200; i++) {
+      const agents = strongAgents();
+      const org = { ...makeOrg(agents), rngSeed: 3000 + i };
+      const report = resolveChallenge({
+        challenge: arc.challenges[0]!, assignedAgents: agents, org, arc,
+        rng: new Rng(0), cycle: 1,
+      });
+      if (report.outcome === "success") {
+        successes.push(i);
+        drops += report.lootDrops.length;
+      }
+    }
+    const rate = drops / successes.length;
+    expect(successes.length).toBeGreaterThan(20);
+    expect(rate).toBeGreaterThan(0.35);
+    expect(rate).toBeLessThan(0.65);
+  });
+
+  it("dropRate is deterministic per seed", () => {
+    const arc = makeArcWithDropRate(0.5);
+    const agents = strongAgents();
+    const org = { ...makeOrg(agents), rngSeed: 99 };
+    const a = resolveChallenge({
+      challenge: arc.challenges[0]!, assignedAgents: agents, org, arc,
+      rng: new Rng(0), cycle: 7,
+    });
+    const b = resolveChallenge({
+      challenge: arc.challenges[0]!, assignedAgents: agents, org, arc,
+      rng: new Rng(0), cycle: 7,
+    });
+    expect(a.lootDrops).toEqual(b.lootDrops);
+  });
+});

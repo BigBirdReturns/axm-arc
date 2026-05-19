@@ -59,7 +59,7 @@ export const CYCLE_ARC: Arc = {
       completionCriteria: { type: "all_mechanics_passed", parameters: {} },
       timePressure: null,
       outcomes: {
-        success: { rewardTable: ["test-item"], narrative: "Victory!", reputationGain: 3 },
+        success: { rewardTable: [{ itemId: "test-item", dropRate: 1.0 }], narrative: "Victory!", reputationGain: 3 },
         partial: { rewardTable: [], narrative: "Partial." },
         failure: { rewardTable: [], narrative: "Defeat.", stressPenalty: 1 },
       },

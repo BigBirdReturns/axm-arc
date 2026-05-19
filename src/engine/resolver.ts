@@ -207,8 +207,9 @@ function rollLoot(
     const item = arc.items.find((it) => it.id === rewardEntry.itemId);
     if (!item) continue;
 
+    // rng.next() returns [0, 1); strict < ensures dropRate: 0 is a true gate.
     const roll = rng.next();
-    if (roll <= rewardEntry.dropRate) {
+    if (roll < rewardEntry.dropRate) {
       const eligible = agents.filter((a) => {
         const tierIdx = arc.tiers.findIndex((t) => t.id === a.tier);
         const itemTierIdx = arc.tiers.findIndex((t) => t.id === item.tierRequirement);

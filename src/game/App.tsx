@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Agent, Facility, InfrastructureFacility, Organization, RunReport } from "../engine/types.js";
 import { runCycle, type ChallengeAssignment, type PendingRewardChoice, type RewardDecision } from "../engine/cycle.js";
 import {
@@ -47,6 +47,18 @@ function buildNewOrg(): Organization {
   };
 }
 
+function getAdvanceBlocker(opts: {
+  dramaQueueCount: number;
+  pendingRewardChoicesCount: number;
+  rewardDecisionsCount: number;
+}): string | null {
+  if (opts.dramaQueueCount > 0) return "Resolve drama cards before advancing.";
+  if (opts.pendingRewardChoicesCount > opts.rewardDecisionsCount) {
+    return "Resolve all pending reward decisions in Reports.";
+  }
+  return null;
+}
+
 export function App(): JSX.Element {
   const [tab, setTab] = useState<Tab>("Roster");
   const [org, setOrg] = useState<Organization>(() => {
@@ -63,14 +75,19 @@ export function App(): JSX.Element {
     saveSave(org, arc);
   }, [org]);
 
+  const advanceBlocker = useMemo(() => getAdvanceBlocker({
+    dramaQueueCount: org.dramaQueue.length,
+    pendingRewardChoicesCount: pendingRewardChoices.length,
+    rewardDecisionsCount: rewardDecisions.length,
+  }), [org.dramaQueue.length, pendingRewardChoices.length, rewardDecisions.length]);
+
+  const hasAdvancePayload = assignments.length > 0 || lastReports.length > 0;
+  const canAdvanceCycle = hasAdvancePayload && !advanceBlocker;
+
   const advanceCycle = () => {
     setAdvanceError(null);
-    if (org.dramaQueue.length > 0) {
-      setAdvanceError("Resolve drama cards before advancing.");
-      return;
-    }
-    if (pendingRewardChoices.length > rewardDecisions.length) {
-      setAdvanceError("Resolve all pending reward decisions in Reports.");
+    if (advanceBlocker) {
+      setAdvanceError(advanceBlocker);
       return;
     }
     const result = runCycle({
@@ -128,12 +145,13 @@ export function App(): JSX.Element {
       {(tab === "Assign" || tab === "Reports") && (
         <div style={{ padding: "8px 16px", background: "var(--bg-elev)", borderTop: "1px solid var(--border)" }}>
           {advanceError && <div className="warning">{advanceError}</div>}
+          {!advanceError && advanceBlocker && <div className="warning">{advanceBlocker}</div>}
           <button
             className="primary"
-            disabled={assignments.length === 0 && lastReports.length === 0}
+            disabled={!canAdvanceCycle}
             onClick={advanceCycle}
           >
-            Advance Cycle ({assignments.length} contract{assignments.length === 1 ? "" : "s"})
+            {advanceBlocker ? "Advance blocked" : `Advance Cycle (${assignments.length} contract${assignments.length === 1 ? "" : "s"})`}
           </button>
         </div>
       )}

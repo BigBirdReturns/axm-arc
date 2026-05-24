@@ -7,512 +7,490 @@
 <meta name="description" content="A scenario format and a deterministic engine for organizational simulations. Portable JSON arcs. Schema-validated. Offline. Same seed, same run, every time.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,300;1,6..72,400&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Lora:ital,wght@0,400;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-:root{
-  --ink:#0d0f14;--ink2:#1e2028;--ink3:#3a3e48;--ink4:#5a5e68;
-  --paper:#f5f2eb;--warm:#ece7db;--cream:#e4ddd0;--sand:#d2cabb;--stone:#b8b0a0;
-  --accent:#3d5a3a;          /* sage — chosen for axm-arc */
-  --accent-lt:#e3ead9;
-  --accent-mid:rgba(61,90,58,0.18);
-  --accent-dp:#2a3f28;
-  --gold:#b8860b;--green:#2d5a1e;--red:#8b1a1a;
-  --mono:'DM Mono',monospace;
-  --serif:'Newsreader',Georgia,serif;
-  --display:'Instrument Serif',Georgia,serif;
+:root {
+  --paper: #f0ebe0;
+  --paper-alt: #e8e2d5;
+  --ink: #0e0d0c;
+  --ink-2: #2c2a27;
+  --muted: #5e5850;
+  --dim: #948c80;
+  --rule: #b8afa0;
+  --accent: #b01c18;
+  --accent-lt: #f5e5e3;
+  --accent-mid: rgba(176,28,24,0.18);
+  --accent-dp: #8a160f;
+  --scope: #5a5e52;
+  --scope-lt: rgba(90,94,82,0.10);
+  --positive: #3d5a3a;
+  --positive-lt: #e3ead9;
+  --display: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+  --serif: 'Lora', Georgia, serif;
+  --mono: 'IBM Plex Mono', ui-monospace, monospace;
 }
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html{scroll-behavior:smooth}
-body{background:var(--paper);color:var(--ink);font-family:var(--serif);font-size:clamp(16px,1.5vw,19px);line-height:1.72;-webkit-font-smoothing:antialiased;overflow-x:hidden}
-body::after{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");pointer-events:none;z-index:9000}
-.page{max-width:1080px;margin:0 auto;padding:0 clamp(20px,5vw,56px)}
-
-.reveal{opacity:0;transform:translateY(20px);transition:opacity 0.7s ease,transform 0.7s ease}
-.reveal.visible{opacity:1;transform:translateY(0)}
-
-.site-nav{padding:16px 0;display:flex;align-items:center;justify-content:space-between}
-.nav-brand{font-family:var(--mono);font-size:11px;letter-spacing:0.2em;color:var(--ink4);text-transform:uppercase}
-.nav-brand strong{color:var(--ink);font-weight:500}
-.nav-links{display:flex;gap:24px}
-.nav-links a{font-family:var(--mono);font-size:10px;color:var(--ink4);text-decoration:none;letter-spacing:0.08em;text-transform:uppercase;transition:color 0.2s;padding:4px 0}
-.nav-links a:hover{color:var(--accent)}
-
-.hero{padding:clamp(60px,10vw,140px) 0 clamp(40px,5vw,60px);position:relative}
-.hero-layout{max-width:760px}
-.hero-rule{width:40px;height:1px;background:var(--accent);margin-bottom:24px;animation:ruleGrow 1s 0.2s ease both}
-@keyframes ruleGrow{from{width:0;opacity:0}to{width:40px;opacity:1}}
-.hero h1{font-family:var(--display);font-weight:400;font-size:clamp(46px,7.5vw,88px);line-height:1.0;letter-spacing:-0.01em;color:var(--ink);margin-bottom:28px;animation:heroIn 0.8s 0.1s ease both}
-.hero h1 em{font-style:italic;color:var(--accent);display:inline-block;animation:heroEm 0.8s 0.4s ease both}
-@keyframes heroIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
-@keyframes heroEm{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-.hero-sub{font-family:var(--serif);font-weight:300;font-size:clamp(17px,1.8vw,22px);color:var(--ink3);max-width:620px;line-height:1.65;margin-bottom:36px;animation:heroIn 0.8s 0.5s ease both}
-.hero-axiom{font-family:var(--mono);font-size:12px;letter-spacing:0.14em;color:var(--ink4);margin-bottom:40px;animation:heroIn 0.8s 0.7s ease both}
-.hero-axiom span{color:var(--accent);font-weight:500}
-.hero-actions{display:flex;gap:12px;flex-wrap:wrap;animation:heroIn 0.8s 0.85s ease both}
-.btn{font-family:var(--mono);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;padding:12px 28px;border-radius:0;text-decoration:none;transition:all 0.2s;cursor:pointer;border:none;display:inline-block}
-.btn-ink{background:var(--ink);color:var(--paper)}
-.btn-ink:hover{background:var(--accent)}
-.btn-line{background:none;color:var(--ink3);border:1px solid var(--sand)}
-.btn-line:hover{border-color:var(--accent);color:var(--accent)}
-.hero-origin{font-family:var(--serif);font-size:clamp(13px,1.2vw,15px);color:var(--ink4);max-width:620px;line-height:1.7;margin-top:32px;padding-top:24px;border-top:1px solid var(--sand)}
-
-.sect{padding:clamp(36px,5vw,64px) 0;border-top:1px solid var(--sand)}
-.sect-label{font-family:var(--mono);font-size:9px;letter-spacing:0.22em;color:var(--accent);text-transform:uppercase;margin-bottom:12px}
-.sect h2{font-family:var(--display);font-weight:400;font-size:clamp(30px,4.5vw,52px);line-height:1.05;color:var(--ink);margin-bottom:16px}
-.sect h2 em{font-style:italic;color:var(--accent)}
-.sect-intro{max-width:620px;color:var(--ink3);margin-bottom:32px;font-size:clamp(15px,1.4vw,17px)}
-
-/* The arc-anatomy panel — equivalent of axm-chat's shard-visual */
-.arc-explain{display:grid;grid-template-columns:1fr 320px;gap:clamp(32px,5vw,64px);align-items:start}
-.arc-explain p{color:var(--ink3);margin-bottom:14px}
-.arc-explain p strong{color:var(--ink);font-weight:500}
-.arc-visual{background:var(--ink);color:var(--paper);padding:28px;font-family:var(--mono);font-size:11px;line-height:2;border-left:3px solid var(--accent);position:sticky;top:80px}
-.av-label{color:var(--accent);letter-spacing:0.1em;font-size:9px;margin-bottom:8px;text-transform:uppercase}
-.av-line{color:rgba(245,242,235,0.5)}
-.av-line strong{color:var(--paper);font-weight:400}
-.av-line .hl{color:var(--accent)}
-.av-pass{margin-top:12px;padding:6px 10px;background:rgba(45,90,30,0.2);border:1px solid rgba(45,90,30,0.4);color:#6db84e;font-size:10px;letter-spacing:0.08em}
-
-/* Guarantees grid — replaces Glass Onion */
-.guarantees{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:24px}
-.guar{background:var(--warm);border:1px solid var(--sand);padding:24px 22px;position:relative;overflow:hidden;transition:border-color 0.2s}
-.guar::after{content:'';position:absolute;top:0;left:0;width:3px;height:100%;background:var(--accent);transform:scaleY(0);transform-origin:top;transition:transform 0.25s ease}
-.guar:hover{border-color:var(--accent)}
-.guar:hover::after{transform:scaleY(1)}
-.guar-tag{font-family:var(--mono);font-size:9px;letter-spacing:0.12em;color:var(--accent-dp);text-transform:uppercase;margin-bottom:8px}
-.guar-name{font-family:var(--display);font-size:22px;color:var(--ink);margin-bottom:6px}
-.guar-body{font-size:13px;color:var(--ink3);line-height:1.6;margin-bottom:10px}
-.guar-evidence{font-family:var(--mono);font-size:10px;color:var(--ink4);letter-spacing:0.03em;border-top:1px solid var(--sand);padding-top:8px;margin-top:8px}
-.guar-evidence strong{color:var(--accent-dp);font-weight:500}
-
-/* Numbers strip — the stat row */
-.numbers{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin:24px 0 8px;border-top:1px solid var(--ink2);border-bottom:1px solid var(--sand)}
-.num-cell{padding:20px 22px;border-right:1px solid var(--sand)}
-.num-cell:last-child{border-right:0}
-.num-lbl{font-family:var(--mono);font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink4);margin-bottom:6px}
-.num-val{font-family:var(--display);font-size:38px;font-weight:400;line-height:1;color:var(--ink);letter-spacing:-0.01em}
-.num-val em{font-style:italic;color:var(--accent)}
-.num-sub{font-family:var(--mono);font-size:10px;color:var(--ink4);margin-top:4px;line-height:1.4}
-
-/* See-it-work cards */
-.demo-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:8px}
-.demo-card{background:var(--warm);border:1px solid var(--sand);padding:24px 22px;text-decoration:none;color:inherit;display:block;transition:all 0.25s;position:relative;overflow:hidden}
-.demo-card::after{content:'';position:absolute;top:0;left:0;width:3px;height:100%;background:var(--accent);transform:scaleY(0);transform-origin:top;transition:transform 0.25s ease}
-.demo-card:hover{border-color:var(--accent)}
-.demo-card:hover::after{transform:scaleY(1)}
-.dc-domain{font-family:var(--mono);font-size:9px;letter-spacing:0.12em;color:var(--accent-dp);text-transform:uppercase;margin-bottom:8px}
-.dc-title{font-family:var(--display);font-size:22px;color:var(--ink);margin-bottom:6px}
-.dc-body{font-size:13px;color:var(--ink3);line-height:1.55;margin-bottom:10px}
-.dc-stat{font-family:var(--mono);font-size:10px;color:var(--ink4);letter-spacing:0.03em}
-.dc-stat strong{color:var(--accent-dp);font-weight:500}
-
-/* Code-ish block for invocation lines */
-.invoke{background:var(--ink);color:var(--paper);padding:18px 22px;font-family:var(--mono);font-size:12px;line-height:1.8;border-left:3px solid var(--accent);margin:16px 0}
-.invoke .c{color:rgba(245,242,235,0.5)}
-.invoke .hl{color:var(--accent)}
-
-/* Thesis block / why */
-.thesis-block{max-width:680px;margin:0 auto;text-align:center;padding:clamp(32px,4vw,56px) 0}
-.thesis-block blockquote{font-family:var(--display);font-style:italic;font-size:clamp(24px,3.2vw,38px);color:var(--ink);line-height:1.25;margin-bottom:28px}
-.thesis-block blockquote em{font-style:normal;color:var(--accent)}
-.thesis-body{font-size:clamp(14px,1.3vw,16px);color:var(--ink3);line-height:1.7;text-align:left}
-.thesis-body p{margin-bottom:14px}
-.thesis-body strong{color:var(--ink);font-weight:500}
-
-/* Roadmap (honest about what doesn't exist yet) */
-.roadmap{margin-top:24px}
-.rm-row{display:grid;grid-template-columns:140px 1fr 100px;gap:16px;padding:14px 0;border-top:1px solid var(--sand);align-items:baseline}
-.rm-row:last-child{border-bottom:1px solid var(--sand)}
-.rm-when{font-family:var(--mono);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink4)}
-.rm-what{font-size:14px;color:var(--ink2);line-height:1.5}
-.rm-what strong{font-family:var(--display);font-size:17px;font-weight:400;color:var(--ink);display:block;margin-bottom:4px}
-.rm-status{font-family:var(--mono);font-size:10px;letter-spacing:0.08em;text-align:right}
-.rm-status.shipped{color:var(--green)}
-.rm-status.now{color:var(--accent)}
-.rm-status.next{color:var(--ink4)}
-.rm-status.later{color:var(--stone)}
-
-/* FAQ */
-.faq-list{max-width:720px;margin-top:24px}
-.faq-item{border-top:1px solid var(--sand);padding:0}
-.faq-item:last-child{border-bottom:1px solid var(--sand)}
-.faq-q{display:flex;justify-content:space-between;align-items:center;padding:16px 0;cursor:pointer;font-family:var(--serif);font-size:clamp(15px,1.4vw,17px);color:var(--ink2);font-weight:500;gap:16px;transition:color 0.15s}
-.faq-q:hover{color:var(--accent)}
-.faq-q::after{content:'+';font-family:var(--mono);font-size:18px;color:var(--stone);flex-shrink:0;transition:transform 0.2s}
-.faq-item.open .faq-q::after{transform:rotate(45deg);color:var(--accent)}
-.faq-a{max-height:0;overflow:hidden;transition:max-height 0.3s ease,padding 0.3s ease}
-.faq-item.open .faq-a{max-height:500px;padding-bottom:16px}
-.faq-a p{font-size:clamp(13px,1.2vw,15px);color:var(--ink3);line-height:1.7;margin-bottom:8px}
-
-/* Ecosystem strip */
-.eco-strip{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-top:24px}
-.eco-tile{background:var(--warm);border:1px solid var(--sand);padding:18px 16px;text-decoration:none;color:inherit;transition:all 0.2s;display:block}
-.eco-tile:hover{border-color:var(--accent)}
-.eco-tile.self{background:var(--accent-lt);border-color:var(--accent)}
-.eco-type{font-family:var(--mono);font-size:8px;letter-spacing:0.12em;color:var(--stone);text-transform:uppercase;margin-bottom:4px}
-.eco-tile.self .eco-type{color:var(--accent-dp)}
-.eco-name{font-family:var(--display);font-size:19px;color:var(--ink);margin-bottom:3px}
-.eco-desc{font-size:11px;color:var(--ink4);line-height:1.4}
-
-footer{padding:24px 0;border-top:1px solid var(--sand);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
-.f-left{font-family:var(--mono);font-size:10px;color:var(--ink4);letter-spacing:0.05em;line-height:1.8}
-.f-right{font-family:var(--display);font-size:14px;color:var(--stone);font-style:italic}
-
-@media(max-width:860px){
-  .arc-explain{grid-template-columns:1fr}
-  .arc-visual{position:static}
-  .guarantees{grid-template-columns:1fr}
-  .demo-grid{grid-template-columns:1fr}
-  .eco-strip{grid-template-columns:repeat(3,1fr)}
-  .numbers{grid-template-columns:repeat(2,1fr)}
-  .num-cell:nth-child(2){border-right:0}
-  .rm-row{grid-template-columns:1fr;gap:6px}
-  .rm-status{text-align:left}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { background: var(--paper-alt); scroll-behavior: smooth; }
+body {
+  max-width: 860px; margin: 0 auto; background: var(--paper);
+  color: var(--ink-2); font-family: var(--serif); font-size: 17px;
+  line-height: 1.7; padding: 0; -webkit-font-smoothing: antialiased;
 }
-@media(max-width:480px){
-  .hero h1{font-size:38px}
-  .nav-links{gap:10px 14px;flex-wrap:wrap}
-  .nav-links a{font-size:9px}
-  .eco-strip{grid-template-columns:1fr 1fr}
-  footer{flex-direction:column;align-items:flex-start}
+.reveal { opacity: 0; transform: translateY(20px); transition: opacity 0.7s ease, transform 0.7s ease; }
+.reveal.visible { opacity: 1; transform: translateY(0); }
+
+/* ── MASTHEAD ──────────────────────────────────────────────── */
+.masthead { padding: 72px 64px 0; }
+.kicker {
+  font-family: var(--mono); font-size: 10px; font-weight: 600;
+  letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent);
+  display: flex; align-items: center; gap: 12px; margin-bottom: 24px;
+}
+.kicker::before { content: ''; display: block; width: 32px; height: 2px; background: var(--accent); flex-shrink: 0; }
+h1.title {
+  font-family: var(--display); font-weight: 800; font-size: 72px;
+  line-height: 0.95; letter-spacing: -0.02em; color: var(--ink);
+  text-transform: uppercase; margin-bottom: 28px;
+}
+h1.title .accent { color: var(--accent); }
+h1.title .sub {
+  display: block; font-family: var(--mono); font-size: 13px; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
+  margin-top: 16px; line-height: 1.45;
+}
+.meta-grid {
+  border-top: 3px solid var(--ink); padding: 20px 0 22px;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px 40px;
+  font-family: var(--mono); font-size: 11px; line-height: 1.6;
+  color: var(--muted); border-bottom: 1px solid var(--rule); margin-top: 28px;
+}
+.meta-grid strong { color: var(--ink); font-weight: 600; }
+.abstract {
+  margin: 32px 0 0; padding: 0 0 0 24px; border-left: 2px solid var(--ink); max-width: 620px;
+}
+.abstract-label {
+  font-family: var(--mono); font-size: 10px; font-weight: 600;
+  letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent);
+  margin-bottom: 10px; display: block;
+}
+.abstract p { font-family: var(--serif); font-size: 18px; line-height: 1.6; color: var(--ink-2); font-style: normal; margin: 0; }
+.lede::first-letter {
+  font-family: var(--display); font-weight: 800; font-size: 5.4em;
+  line-height: 0.84; float: left; margin: 6px 14px -2px 0;
+  color: var(--accent); letter-spacing: -0.04em;
+}
+
+/* ── ARTICLE ───────────────────────────────────────────────── */
+.article { padding: 0 64px; }
+h2 {
+  font-family: var(--display); font-size: 32px; font-weight: 800;
+  line-height: 1.05; letter-spacing: -0.01em; color: var(--ink);
+  margin: 72px 0 24px; padding-top: 20px; border-top: 2px solid var(--ink);
+  display: flex; gap: 18px; align-items: baseline; text-transform: uppercase;
+}
+h2 .sec-num {
+  font-family: var(--mono); font-size: 11px; font-weight: 600;
+  letter-spacing: 0.12em; color: var(--muted); flex-shrink: 0;
+}
+h3 {
+  font-family: var(--display); font-weight: 700; font-size: 22px;
+  letter-spacing: -0.005em; color: var(--ink); text-transform: uppercase;
+  margin: 36px 0 14px;
+}
+p { margin-bottom: 20px; color: var(--ink-2); }
+strong { font-weight: 600; color: var(--ink); }
+code, .mono {
+  font-family: var(--mono); font-size: 0.92em; color: var(--ink);
+  background: var(--paper-alt); padding: 1px 6px; border-radius: 2px;
+}
+.pull {
+  border-left: 3px solid var(--ink); padding: 20px 28px; margin: 40px 0;
+  background: var(--paper-alt); font-family: var(--display);
+  font-size: 24px; font-weight: 700; line-height: 1.3;
+  letter-spacing: -0.01em; color: var(--ink); text-transform: none;
+}
+.pull.accent { border-color: var(--accent); color: var(--accent); background: var(--accent-lt); }
+.note {
+  font-family: var(--mono); font-size: 10.5px; color: var(--muted);
+  margin: -8px 0 24px; line-height: 1.55;
+}
+
+/* ── STAT STRIP ────────────────────────────────────────────── */
+.stat-strip {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  border-top: 1px solid var(--ink); border-bottom: 1px solid var(--rule); margin: 24px 0;
+}
+.stat-cell { padding: 22px 24px; border-right: 1px solid var(--rule); }
+.stat-cell:last-child { border-right: 0; }
+.stat-lbl {
+  font-family: var(--mono); font-size: 9px; font-weight: 600;
+  letter-spacing: 0.10em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px;
+}
+.stat-val {
+  font-family: var(--display); font-size: 40px; font-weight: 800;
+  line-height: 1; letter-spacing: -0.02em; color: var(--ink);
+}
+.stat-val.accent { color: var(--accent); }
+.stat-sub { font-family: var(--mono); font-size: 10px; color: var(--muted); margin-top: 4px; line-height: 1.45; }
+
+/* ── GUARANTEE CARDS ───────────────────────────────────────── */
+.guar-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin: 24px 0; }
+.guar {
+  border: 1px solid var(--rule); background: var(--paper-alt); padding: 22px;
+  position: relative; overflow: hidden;
+}
+.guar::after {
+  content: ''; position: absolute; top: 0; left: 0; width: 3px; height: 100%;
+  background: var(--accent); transform: scaleY(0); transform-origin: top; transition: transform 0.25s;
+}
+.guar:hover::after { transform: scaleY(1); }
+.guar-tag {
+  font-family: var(--mono); font-size: 9px; font-weight: 600;
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); margin-bottom: 8px;
+}
+.guar-name {
+  font-family: var(--display); font-size: 22px; font-weight: 700;
+  color: var(--ink); text-transform: uppercase; margin-bottom: 8px;
+}
+.guar-body { font-size: 14px; line-height: 1.6; color: var(--ink-2); margin-bottom: 10px; }
+.guar-evidence {
+  font-family: var(--mono); font-size: 10px; color: var(--muted);
+  letter-spacing: 0.04em; border-top: 1px solid var(--rule); padding-top: 8px; margin-top: 8px;
+}
+.guar-evidence strong { color: var(--accent-dp); font-weight: 600; }
+
+/* ── RULES LIST ────────────────────────────────────────────── */
+.rules { list-style: none; margin: 16px 0 24px; border-top: 1px solid var(--rule); }
+.rules li {
+  display: grid; grid-template-columns: 32px 1fr; gap: 16px;
+  padding: 16px 0; border-bottom: 1px solid var(--rule); align-items: baseline;
+}
+.rules li .ix { font-family: var(--mono); font-size: 10px; font-weight: 600; color: var(--accent); letter-spacing: 0.08em; }
+.rules li .what { font-family: var(--serif); font-size: 16px; line-height: 1.55; color: var(--ink-2); }
+.rules li .what strong {
+  display: block; font-family: var(--display); font-weight: 700;
+  font-size: 18px; color: var(--ink); text-transform: uppercase;
+  letter-spacing: -0.005em; margin-bottom: 4px;
+}
+
+/* ── INVOKE BLOCK ──────────────────────────────────────────── */
+.invoke {
+  background: var(--ink); color: var(--paper-alt); padding: 22px 24px;
+  font-family: var(--mono); font-size: 12px; line-height: 1.9;
+  border-left: 3px solid var(--accent); margin: 24px 0;
+}
+.invoke .c { color: rgba(240,235,224,0.45); }
+.invoke .hl { color: var(--accent-lt); }
+
+/* ── ROADMAP ───────────────────────────────────────────────── */
+.roadmap { margin-top: 24px; }
+.rm-row {
+  display: grid; grid-template-columns: 100px 1fr 80px; gap: 16px;
+  padding: 14px 0; border-top: 1px solid var(--rule); align-items: baseline;
+}
+.rm-row:last-child { border-bottom: 1px solid var(--rule); }
+.rm-when { font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); }
+.rm-what { font-size: 14px; color: var(--ink-2); line-height: 1.5; }
+.rm-what strong { font-family: var(--display); font-size: 17px; font-weight: 700; color: var(--ink); display: block; margin-bottom: 2px; text-transform: uppercase; }
+.rm-status { font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; text-align: right; }
+.rm-status.shipped { color: var(--positive); }
+.rm-status.next { color: var(--accent); }
+.rm-status.later { color: var(--dim); }
+
+/* ── ECOSYSTEM STRIP ───────────────────────────────────────── */
+.eco-strip { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin: 24px 0; }
+.eco-tile {
+  background: var(--paper-alt); border: 1px solid var(--rule);
+  padding: 18px 14px; text-decoration: none; color: inherit; transition: border-color 0.2s;
+}
+.eco-tile:hover { border-color: var(--accent); }
+.eco-tile.self { background: var(--accent-lt); border-color: var(--accent); }
+.eco-type { font-family: var(--mono); font-size: 8px; letter-spacing: 0.12em; color: var(--dim); text-transform: uppercase; margin-bottom: 4px; }
+.eco-tile.self .eco-type { color: var(--accent-dp); }
+.eco-name { font-family: var(--display); font-size: 19px; font-weight: 700; color: var(--ink); text-transform: uppercase; margin-bottom: 3px; }
+.eco-desc { font-size: 11px; color: var(--muted); line-height: 1.4; }
+
+/* ── FAQ ───────────────────────────────────────────────────── */
+.faq-list { max-width: 680px; margin-top: 24px; }
+.faq-item { border-top: 1px solid var(--rule); }
+.faq-item:last-child { border-bottom: 1px solid var(--rule); }
+.faq-q {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 16px 0; cursor: pointer; font-family: var(--serif);
+  font-size: 17px; color: var(--ink-2); font-weight: 600; gap: 16px; transition: color 0.15s;
+}
+.faq-q:hover { color: var(--accent); }
+.faq-q::after { content: '+'; font-family: var(--mono); font-size: 18px; color: var(--dim); flex-shrink: 0; transition: transform 0.2s; }
+.faq-item.open .faq-q::after { transform: rotate(45deg); color: var(--accent); }
+.faq-a { max-height: 0; overflow: hidden; transition: max-height 0.3s ease, padding 0.3s ease; }
+.faq-item.open .faq-a { max-height: 500px; padding-bottom: 16px; }
+.faq-a p { font-size: 15px; color: var(--ink-2); line-height: 1.7; }
+
+/* ── VERDICT ───────────────────────────────────────────────── */
+.verdict-wrap {
+  background: var(--ink); margin: 60px -64px 0; padding: 56px 64px 60px;
+}
+.verdict-eyebrow {
+  font-family: var(--mono); font-size: 10px; font-weight: 600;
+  letter-spacing: 0.14em; text-transform: uppercase; color: rgba(240,235,224,0.45);
+  margin-bottom: 18px; display: flex; align-items: center; gap: 14px;
+}
+.verdict-eyebrow::before { content: ''; display: block; width: 24px; height: 1px; background: var(--accent); }
+.verdict-wrap h2 {
+  font-family: var(--display); font-weight: 800; font-size: 52px;
+  line-height: 0.95; letter-spacing: -0.02em; text-transform: uppercase;
+  color: var(--paper); border: 0; padding: 0; margin: 0 0 32px; display: block;
+}
+.verdict-wrap h2 span { color: var(--accent); }
+.verdict-wrap p {
+  font-family: var(--serif); font-size: 17px; line-height: 1.65;
+  color: rgba(240,235,224,0.78); margin-bottom: 16px; max-width: 660px;
+}
+.verdict-wrap p strong { color: var(--paper); font-weight: 600; }
+.punch {
+  font-family: var(--display); font-weight: 800; font-size: 48px;
+  line-height: 0.95; letter-spacing: -0.02em; color: var(--accent);
+  text-transform: uppercase; margin-top: 28px;
+}
+
+/* ── COLOPHON ──────────────────────────────────────────────── */
+.colophon { padding: 36px 64px 48px; border-top: 1px solid var(--rule); }
+.colophon h3 {
+  font-family: var(--mono); font-size: 10px; font-weight: 600;
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 14px;
+}
+.colophon p { font-family: var(--mono); font-size: 11px; line-height: 1.65; color: var(--muted); margin-bottom: 8px; }
+
+@media (max-width: 720px) {
+  body { font-size: 16px; }
+  h1.title { font-size: 48px; }
+  .masthead, .article, .colophon { padding-left: 28px; padding-right: 28px; }
+  .verdict-wrap { padding: 40px 28px 44px; margin: 60px -28px 0; }
+  .verdict-wrap h2 { font-size: 38px; }
+  .punch { font-size: 34px; }
+  .meta-grid, .stat-strip, .guar-grid, .eco-strip { grid-template-columns: 1fr 1fr; }
+  h2 { font-size: 24px; }
+  .rm-row { grid-template-columns: 1fr; gap: 4px; }
+  .rm-status { text-align: left; }
+}
+@media (max-width: 480px) {
+  h1.title { font-size: 36px; }
+  .eco-strip { grid-template-columns: 1fr 1fr; }
+  .stat-strip { grid-template-columns: 1fr 1fr; }
+  .guar-grid { grid-template-columns: 1fr; }
 }
 </style>
 </head>
 <body>
-<div class="page">
 
-<nav class="site-nav">
-  <div class="nav-brand"><strong>AXM</strong> &nbsp;Arc</div>
-  <div class="nav-links">
-    <a href="#what">Arc</a>
-    <a href="#guarantees">Guarantees</a>
-    <a href="#see">See it</a>
-    <a href="#why">Why</a>
-    <a href="#roadmap">Roadmap</a>
-    <a href="#faq">FAQ</a>
-    <a href="#eco">Family</a>
-    <a href="https://github.com/BigBirdReturns/axm-arc" target="_blank">GitHub</a>
+<div class="masthead">
+  <div class="kicker">AXM Arc / v1.0 / 2026</div>
+  <h1 class="title">Deterministic worlds you can <span class="accent">hand someone</span>
+    <span class="sub">A scenario format and simulation engine for organizational decision-making under constraint</span>
+  </h1>
+  <div class="meta-grid">
+    <div><strong>Engine:</strong> TypeScript, deterministic, content-free, 130+ tests</div>
+    <div><strong>Format:</strong> Portable JSON arcs, Zod-validated at the trust boundary</div>
+    <div><strong>UI:</strong> React PWA, mobile-first portrait, AXM House Style</div>
+    <div><strong>First arc:</strong> "The First Charter" — 6 challenges, 8 items, 6-agent roster</div>
+    <div><strong>Status:</strong> v1.0 shipped. Karazhan arc next. Signing on the roadmap.</div>
+    <div><strong>Family:</strong> Member of the AXM ecosystem. Same thesis, different artifact.</div>
   </div>
-</nav>
-
-<section class="hero">
-<div class="hero-layout">
-  <div class="hero-rule"></div>
-  <h1>Deterministic worlds<br>you can <em>hand someone</em></h1>
-  <p class="hero-sub">A scenario format and a deterministic engine for organizational simulations. Arcs are portable JSON. The engine runs them the same way, every time, with the same seed. Offline. Auditable. Reproducible.</p>
-  <div class="hero-axiom"><span>P</span>ortable &middot; <span>D</span>eterministic &middot; <span>S</span>chema-validated</div>
-  <div style="font-family:var(--display);font-size:clamp(13px,1.2vw,15px);color:var(--stone);font-style:italic;margin-bottom:40px;">A member of the AXM family. The portable-artifact thesis, applied to simulation.</div>
-  <div class="hero-actions">
-    <a href="#what" class="btn btn-ink">What is an arc</a>
-    <a href="https://github.com/BigBirdReturns/axm-arc" class="btn btn-line" target="_blank">Source</a>
-  </div>
-  <p class="hero-origin">This started as a guild-management game. It ended as something more honest: an engine for any group of agents facing structured challenges under constraint, with their interpersonal dynamics mechanically affecting outcomes. The first arc is fantasy. The second could be Karazhan, a startup's first year, a defense program's milestone cycle, or a hospital's staffing crisis. The engine doesn't care. It runs the simulation.</p>
+  <aside class="abstract">
+    <span class="abstract-label">Abstract</span>
+    <p>An arc is a portable JSON scenario that defines a domain (agents, attributes, roles, challenges, rewards, narrative). The engine runs it the same way every time, with the same seed. No inference cost, no API, no network. The player assigns agents to challenges. The engine resolves them. The drama is mechanical, not decorative.</p>
+  </aside>
 </div>
-</section>
+
+<div class="article">
+
+<h2><span class="sec-num">I</span>What is an arc</h2>
+
+<p class="lede">An arc is a single JSON file that declares a complete organizational scenario: how many attributes exist, what roles agents can fill, the tier structure, challenges with mechanic checks and difficulty thresholds, reward tables with drop rates, narrative events, and progression chains. The engine knows nothing about the domain. It processes agents, attributes, and relationships. Load a different arc and you have a different world.</p>
+
+<p>The first arc is fantasy. A guild of six agents takes on contracts of increasing difficulty. The second could be Karazhan — the most beloved raid instance in MMO history, faithfully modeled with attunement chains and a 10-to-25 expansion moment. The third could be a defense program office, a startup's first year, or a hospital's staffing crisis. <strong>Same engine. Different domain. Same guarantees.</strong></p>
+
+<div class="pull accent">The arc is the contract. If it passes validateArc(), it will run.</div>
 
 
-<section class="sect reveal" id="what">
-<div class="sect-label">The artifact</div>
-<h2>An arc is a <em>portable scenario</em></h2>
-<div class="arc-explain">
-<div>
-<p>An arc is a single JSON file. It declares the domain: how many attributes, what they're called, which roles exist (if any), the tier structure, the resource economy, the progression chain, every challenge, every reward, every narrative event.</p>
-<p>The engine knows nothing about the domain. It processes agents, attributes, challenges, and relationships. Load a different arc and you have a different simulation — same engine, same guarantees.</p>
-<p><strong>The arc is the contract.</strong> Schema validation at the trust boundary rejects bad data before it reaches the engine. If an arc passes <code>validateArc(...)</code>, it will run.</p>
-<p>This is the compilation thesis applied to play: <strong>declare the world once, simulate it forever, hand the file to someone else.</strong> A balance discussion becomes evidence, not anecdote. A replay is a seed, not a memory.</p>
-</div>
-<div class="arc-visual">
-<div class="av-label">arc/first-charter/</div>
-<div class="av-line"><strong>meta</strong></div>
-<div class="av-line">&nbsp; id: <span class="hl">"first-charter"</span></div>
-<div class="av-line">&nbsp; version: <span class="hl">"1.0.0"</span></div>
-<div class="av-line">&nbsp; engineVersion: <span class="hl">"1.0.0"</span></div>
-<div class="av-line"><strong>attributes</strong></div>
-<div class="av-line">&nbsp; 4 &middot; power, wits, spirit, mettle</div>
-<div class="av-line"><strong>roles</strong></div>
-<div class="av-line">&nbsp; 3 &middot; vanguard, skirmisher, mender</div>
-<div class="av-line"><strong>challenges</strong></div>
-<div class="av-line">&nbsp; 6 across 2 progression tiers</div>
-<div class="av-line"><strong>items</strong></div>
-<div class="av-line">&nbsp; 8 with tier-gated rewards</div>
-<div class="av-pass">validateArc: PASS</div>
-</div>
-</div>
-</section>
+<h2><span class="sec-num">II</span>Four guarantees</h2>
 
-
-<section class="sect reveal" id="guarantees">
-<div class="sect-label">The engine</div>
-<h2>Four <em>guarantees</em></h2>
-<p class="sect-intro">An arc is portable because the engine that runs it is honest about what it promises. Four things hold; everything else is content.</p>
-
-<div class="guarantees">
+<div class="guar-grid">
   <div class="guar">
-    <div class="guar-tag">Guarantee 01</div>
+    <div class="guar-tag">01</div>
     <div class="guar-name">Determinism</div>
-    <div class="guar-body">Given the same arc, the same starting organization, and the same seed, the engine produces the same run report. Same scores. Same loot rolls. Same drama triggers. Same narrative seed for the template renderer.</div>
-    <div class="guar-evidence">Seed derivation: <strong>hashSeed(orgSeed, cycle, challengeId)</strong> &middot; covered by determinism tests in resolver + integration suites.</div>
+    <div class="guar-body">Same arc + same seed = same run report. Same scores, same loot rolls, same drama triggers. A balance discussion becomes a seed you can hand someone.</div>
+    <div class="guar-evidence"><strong>hashSeed(orgSeed, cycle, challengeId)</strong> · covered by resolver + integration tests</div>
   </div>
   <div class="guar">
-    <div class="guar-tag">Guarantee 02</div>
+    <div class="guar-tag">02</div>
     <div class="guar-name">Schema validation</div>
-    <div class="guar-body">Arcs are validated at the trust boundary. Attribute weights must sum to 1.0. Drop rates are clamped to [0, 1]. Referenced attribute IDs must exist. The arc is either runnable or it throws — never half-correct.</div>
-    <div class="guar-evidence">Zod schema in <strong>src/engine/schema.ts</strong> &middot; <strong>validateArc(input)</strong> returns a typed Arc or throws.</div>
+    <div class="guar-body">Attribute weights must sum to 1.0. Drop rates clamped to [0, 1]. Referenced IDs must exist. The arc is runnable or it throws — never half-correct.</div>
+    <div class="guar-evidence"><strong>validateArc()</strong> · Zod schema in src/engine/schema.ts</div>
   </div>
   <div class="guar">
-    <div class="guar-tag">Guarantee 03</div>
+    <div class="guar-tag">03</div>
     <div class="guar-name">Content-free engine</div>
-    <div class="guar-body">No challenge name, no item, no attribute label is hard-coded in engine code. The engine processes arc data through pure functions. Swap arcs without touching a line. The first arc happens to be fantasy. The next one doesn't have to be.</div>
-    <div class="guar-evidence">Engine in <strong>src/engine/</strong> &middot; tutorial arc in <strong>src/arcs/</strong> &middot; no cross-imports from engine into arcs.</div>
+    <div class="guar-body">No challenge name, no item, no attribute label is hardcoded. The engine processes arc data through pure functions. Swap arcs without touching a line of engine code.</div>
+    <div class="guar-evidence"><strong>src/engine/</strong> has zero imports from <strong>src/arcs/</strong></div>
   </div>
   <div class="guar">
-    <div class="guar-tag">Guarantee 04</div>
-    <div class="guar-name">Offline-first save</div>
-    <div class="guar-body">Versioned save format. Maps serialize as arrays of pairs. Migrations are a typed dictionary. Loading a save against a different arc throws. Loading a save against a different engine version with no migration throws. Your decisions don't vanish on session end.</div>
-    <div class="guar-evidence">Save key <strong>axm-arc:save:v1</strong> &middot; localStorage today, IndexedDB-ready for larger states.</div>
+    <div class="guar-tag">04</div>
+    <div class="guar-name">Offline-first</div>
+    <div class="guar-body">No network. No inference. No API call. Save state persists to localStorage. Come back in a month — your drama events are waiting, your decisions still matter.</div>
+    <div class="guar-evidence"><strong>axm-arc:save:v1</strong> · versioned with migration dictionary</div>
   </div>
 </div>
 
-<div class="numbers">
-  <div class="num-cell">
-    <div class="num-lbl">Engine tests</div>
-    <div class="num-val"><em>130+</em></div>
-    <div class="num-sub">vitest, 11 files, full suite under 2s</div>
+<div class="stat-strip">
+  <div class="stat-cell">
+    <div class="stat-lbl">Engine tests</div>
+    <div class="stat-val accent">130+</div>
+    <div class="stat-sub">11 files, full suite under 2s</div>
   </div>
-  <div class="num-cell">
-    <div class="num-lbl">Cycle steps</div>
-    <div class="num-val">11</div>
-    <div class="num-sub">resolution → reward → stress → relationships → morale → infra → recruit → token → drama → reveal → save</div>
+  <div class="stat-cell">
+    <div class="stat-lbl">Cycle steps</div>
+    <div class="stat-val">11</div>
+    <div class="stat-sub">resolve → reward → stress → relationships → morale → infra → recruit → tokens → drama → reveal → save</div>
   </div>
-  <div class="num-cell">
-    <div class="num-lbl">First arc</div>
-    <div class="num-val">6 / 2</div>
-    <div class="num-sub">challenges across 2 tiers, 8 items, 6-agent starting roster</div>
+  <div class="stat-cell">
+    <div class="stat-lbl">First arc</div>
+    <div class="stat-val">6</div>
+    <div class="stat-sub">challenges, 2 tiers, 8 items</div>
   </div>
-  <div class="num-cell">
-    <div class="num-lbl">External calls per query</div>
-    <div class="num-val"><em>0</em></div>
-    <div class="num-sub">no inference cost. no API. no network.</div>
+  <div class="stat-cell">
+    <div class="stat-lbl">API calls at runtime</div>
+    <div class="stat-val accent">0</div>
+    <div class="stat-sub">no inference, no network</div>
   </div>
 </div>
-</section>
 
 
-<section class="sect reveal" id="see">
-<div class="sect-label">Proof</div>
-<h2>Run it <em>yourself</em></h2>
-<p class="sect-intro">Everything below is in the repo. The engine, the tutorial arc, the React presentation layer. Two commands to local. No accounts, no keys, no cloud.</p>
+<h2><span class="sec-num">III</span>The engine</h2>
+
+<p>The player assigns agents to challenges. The engine resolves them deterministically and returns a structured report. <strong>The player never directly controls an agent in a challenge.</strong> They manage — assigning, equipping, resting, resolving drama — and read what happened.</p>
+
+<p>Every agent has primary attributes, hidden attributes (loyalty, ambition, volatility, leadership), personality traits with mechanical effects, morale, stress, and a relationship web with every other agent. These aren't flavor text. When stress hits 10, a resolution event fires: 75% chance of affliction (Resentful, Fearful, Defiant, Reckless, Withdrawn), 25% chance of Resolve — the clutch moment that lifts the team. An afflicted agent generates barks that stress nearby agents, creating cascade risk. <strong>This is the organizational death spiral. It happens in real guilds. It happens in real companies.</strong></p>
+
+<p>Reward decisions feed the relationship system. Every allocation is logged in a precedent store. Violate the established pattern and high-ambition agents notice. The player's decisions teach the organization what to expect — and violations of those expectations cost more than the initial decision would have.</p>
+
+<div class="pull">The drama has consequences because the drama has stat effects. Flavor text without mechanical weight is not a consequence.</div>
+
+
+<h2><span class="sec-num">IV</span>Run it</h2>
 
 <div class="invoke">
-<span class="c"># clone &amp; install</span><br>
-git clone <span class="hl">https://github.com/BigBirdReturns/axm-arc.git</span> &amp;&amp; cd axm-arc<br>
-npm ci<br>
+<span class="c"># clone and install</span><br>
+git clone <span class="hl">https://github.com/BigBirdReturns/axm-arc.git</span><br>
+cd axm-arc && npm ci<br>
 <br>
-<span class="c"># run the test suite (engine + integration)</span><br>
+<span class="c"># verify everything works</span><br>
 npm run check<br>
 <br>
-<span class="c"># launch the React PWA on localhost:5173</span><br>
+<span class="c"># launch on localhost:5173</span><br>
 npm run dev
 </div>
 
-<div class="demo-grid">
-  <a class="demo-card" href="https://github.com/BigBirdReturns/axm-arc/blob/main/DESIGN.md" target="_blank">
-    <div class="dc-domain">Design authority</div>
-    <div class="dc-title">DESIGN.md</div>
-    <div class="dc-body">The full v1.0 design. Engine concepts, agent model, resolution formula, drama-card rules, advance-cycle sequence. The reference Karazhan arc is described section by section.</div>
-    <div class="dc-stat">1,245 lines &middot; <strong>the source of truth</strong></div>
-  </a>
-  <a class="demo-card" href="https://github.com/BigBirdReturns/axm-arc/blob/main/src/arcs/first-charter.ts" target="_blank">
-    <div class="dc-domain">Tutorial arc</div>
-    <div class="dc-title">The First Charter</div>
-    <div class="dc-body">A 6-challenge fantasy arc that teaches every system in sequence: assignment, role composition, reward decisions, drama resolution, recruitment, attunement, infrastructure unlock.</div>
-    <div class="dc-stat">4 attributes &middot; 3 roles &middot; <strong>schema-validated</strong></div>
-  </a>
-  <a class="demo-card" href="https://github.com/BigBirdReturns/axm-arc/blob/main/src/engine/cycle.ts" target="_blank">
-    <div class="dc-domain">Engine core</div>
-    <div class="dc-title">runCycle()</div>
-    <div class="dc-body">The 11-step advance-cycle orchestrator. Composes resolver, stress, relationships, drama, rewards, infrastructure, recruitment, save. Pure-ish: takes an org, returns a new org and a structured result.</div>
-    <div class="dc-stat">deterministic &middot; <strong>no I/O</strong></div>
-  </a>
-  <a class="demo-card" href="https://github.com/BigBirdReturns/axm-arc/blob/main/tests/engine/integration.test.ts" target="_blank">
-    <div class="dc-domain">Integration test</div>
-    <div class="dc-title">End-to-end tutorial run</div>
-    <div class="dc-body">Plays through the tutorial arc from cycle 1 to mid-tier-2. Asserts cycle progression, reputation accrual, drama triggers from the seeded rivalrous pair, recruitment, and full save round-trip.</div>
-    <div class="dc-stat">7 scenarios &middot; <strong>every assertion deterministic</strong></div>
-  </a>
-</div>
-</section>
+<p class="note">Requires Node 18+. No accounts, no keys, no cloud. The tutorial arc loads automatically.</p>
 
 
-<section class="sect reveal" id="why">
-<div class="thesis-block">
-<blockquote>A balance discussion becomes <em>evidence</em></blockquote>
-<div class="thesis-body">
-<p><strong>Why AXM cares about arcs.</strong> The AXM family is built on one thesis: portable, verifiable, traceable artifacts beat black-box runtimes. <em>axm-chat</em> applies it to conversations. <em>axm-show</em> applies it to drone choreography. <em>axm-embodied</em> applies it to forensic flight records. <em>axm-arc</em> applies it to simulated organizations.</p>
-<p>The structural property in every case is the same. The interesting work happens at compile time (extract claims, define an arc, plan a show). The artifact is then portable, schema-validated, and queryable forever without further inference. The runtime is deterministic local math, not a network call.</p>
-<p><strong>What this buys you.</strong> A community can disagree about whether a Karazhan tuning is too forgiving and produce signed replay seeds to settle it. A research team can publish an arc representing a hypothesis about team dynamics and hand it to a reviewer. A training program can ship a scenario as a single file that runs the same way on every machine, offline, with no version drift.</p>
-<p>An arc is the opposite of a balance patch you can't remember being applied.</p>
-</div>
-</div>
-</section>
+<h2><span class="sec-num">V</span>Honest roadmap</h2>
 
-
-<section class="sect reveal" id="roadmap">
-<div class="sect-label">Honest roadmap</div>
-<h2>What's <em>shipped</em>, what isn't</h2>
-<p class="sect-intro">AXM the family converges on one direction: signed, content-addressed, portable artifacts. axm-arc isn't there yet. It satisfies the spirit (portable, deterministic, schema-validated) and not the letter (signed shards via Genesis). Here's the gap, honestly.</p>
+<p>AXM converges on signed, content-addressed, portable artifacts. axm-arc satisfies the spirit (portable, deterministic, schema-validated) and not yet the letter (signed shards via Genesis). Here is the gap, honestly.</p>
 
 <div class="roadmap">
   <div class="rm-row">
-    <div class="rm-when">v1.0 today</div>
-    <div class="rm-what"><strong>Deterministic engine</strong>Resolver, stress, relationships, drama, rewards, infrastructure, recruitment, save/load. All eleven cycle steps. 130+ tests covering every subsystem and the end-to-end tutorial flow.</div>
+    <div class="rm-when">v1.0</div>
+    <div class="rm-what"><strong>Deterministic engine</strong>11-step cycle loop, 130+ tests, resolver, stress, relationships, drama, rewards, infrastructure, recruitment, save/load.</div>
     <div class="rm-status shipped">SHIPPED</div>
   </div>
   <div class="rm-row">
-    <div class="rm-when">v1.0 today</div>
-    <div class="rm-what"><strong>Portable arc JSON</strong>Single-file scenario format. Schema validation at the boundary via Zod. The First Charter tutorial arc ships in the repo as the reference implementation.</div>
+    <div class="rm-when">v1.0</div>
+    <div class="rm-what"><strong>Portable arc format</strong>Schema-validated JSON. Tutorial arc "The First Charter" included.</div>
     <div class="rm-status shipped">SHIPPED</div>
   </div>
   <div class="rm-row">
-    <div class="rm-when">v1.0 today</div>
-    <div class="rm-what"><strong>Versioned save format</strong>localStorage-backed, migration dictionary, version refused on mismatch. Survives sessions; doesn't survive arc-mismatch (intentionally throws).</div>
+    <div class="rm-when">v1.0</div>
+    <div class="rm-what"><strong>House Style UI</strong>AXM visual system applied to the game. Mobile-first portrait + desktop Situation Room layout.</div>
     <div class="rm-status shipped">SHIPPED</div>
   </div>
   <div class="rm-row">
     <div class="rm-when">next</div>
-    <div class="rm-what"><strong>Karazhan arc</strong>The reference arc described in DESIGN.md. T4 10-man + 25-man content, attunement chains, the 10→25 expansion moment as a designed organizational scaling event. Proves the schema holds a real, beloved raid tier.</div>
-    <div class="rm-status now">NEXT</div>
-  </div>
-  <div class="rm-row">
-    <div class="rm-when">soon</div>
-    <div class="rm-what"><strong>Replay seeds as evidence</strong>Export a run as a deterministic seed bundle (arc id + arc hash + org seed + cycle range). Anyone with the same arc can replay byte-identical results. Turns "this build is broken" into "here is the seed."</div>
-    <div class="rm-status next">SOON</div>
+    <div class="rm-what"><strong>Karazhan arc</strong>Burning Crusade Phase 1. 10-man + 25-man, attunement chains, the 10→25 expansion moment.</div>
+    <div class="rm-status next">NEXT</div>
   </div>
   <div class="rm-row">
     <div class="rm-when">later</div>
-    <div class="rm-what"><strong>Signed arcs via Genesis</strong>Merkle root over the canonical arc bytes; ML-DSA-44 signature; <code>axm-verify</code> on an arc returns PASS or rejects with a byte-range failure. This is what makes axm-arc a full member of the AXM family, not a sibling.</div>
+    <div class="rm-what"><strong>Replay seeds</strong>Export a run as a seed bundle. Same arc + same seed = same result. "This build is broken" becomes a verifiable claim.</div>
     <div class="rm-status later">LATER</div>
   </div>
   <div class="rm-row">
     <div class="rm-when">later</div>
-    <div class="rm-what"><strong>Community arc registry</strong>A market of verified configs. Browse arcs by domain, sort by engine version, filter to signed-only. Subscribe to an author's arcs the way you'd watch a repo.</div>
+    <div class="rm-what"><strong>Signed arcs via Genesis</strong>Merkle root over arc bytes. ML-DSA-44 signature. axm-verify on an arc returns PASS or rejects.</div>
     <div class="rm-status later">LATER</div>
   </div>
 </div>
-</section>
 
 
-<section class="sect reveal" id="faq">
-<div class="sect-label">Questions</div>
-<h2>Before you ask</h2>
+<h2><span class="sec-num">VI</span>FAQ</h2>
+
 <div class="faq-list">
-
-<div class="faq-item">
-<div class="faq-q" onclick="this.parentElement.classList.toggle('open')">Is this a game or an engine?</div>
-<div class="faq-a">
-<p>Both, deliberately. The engine is a generic organizational simulator: agents with attributes, relationships, stress, and morale, facing challenges under resource constraint. The first arc (The First Charter) is a small fantasy guild scenario that teaches the systems. The intended second arc is Karazhan — a faithful Burning Crusade Phase 1 raid tier. The intended third arc could be anything: a defense program's milestone cycle, a startup's first year, a hospital's staffing crisis. Same engine, different domain.</p>
-</div>
-</div>
-
-<div class="faq-item">
-<div class="faq-q" onclick="this.parentElement.classList.toggle('open')">Why deterministic? Doesn't that make outcomes feel scripted?</div>
-<div class="faq-a">
-<p>Determinism is about reproducibility from the same starting state, not about removing variance. With the same seed, same arc, same roster, you get the same run. Change any input and the run changes. What determinism buys: replayable interesting runs, regression tests when you change the resolver, the ability to publish a run as evidence, and the ability for two people to argue about a balance decision with the same data.</p>
-</div>
-</div>
-
-<div class="faq-item">
-<div class="faq-q" onclick="this.parentElement.classList.toggle('open')">Can I write my own arc?</div>
-<div class="faq-a">
-<p>Yes. Arcs are JSON. The schema is defined in <code>src/engine/schema.ts</code> with explanatory errors. Look at <code>src/arcs/first-charter.ts</code> for a worked example with 4 attributes, 3 roles, 3 tiers, 6 challenges, and a small item set. The schema enforces correctness (weights sum to 1.0, referenced IDs exist, drop rates in [0, 1]) so a malformed arc fails loudly at load.</p>
-</div>
-</div>
-
-<div class="faq-item">
-<div class="faq-q" onclick="this.parentElement.classList.toggle('open')">Does this need the AXM Protocol installed?</div>
-<div class="faq-a">
-<p>Not today. axm-arc runs standalone. It is TypeScript / React / Node — no Python sidecar, no shard emission, no key management. The protocol-membership claim is about the design principles (portable artifact, deterministic runtime, no inference at query time) that arcs honor. Full integration — emitting arcs as signed Genesis shards — is on the roadmap, not in the ship.</p>
-</div>
+  <div class="faq-item">
+    <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">Is this a game or an engine?</div>
+    <div class="faq-a"><p>Both. The engine is a generic organizational simulator. The first arc is a fantasy guild scenario. The second could model any domain: defense programs, startups, hospitals, raid tiers. Same engine, different arc file.</p></div>
+  </div>
+  <div class="faq-item">
+    <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">Why deterministic?</div>
+    <div class="faq-a"><p>Reproducibility. Same seed, same arc, same roster = same run. Change any input and the run changes. This means replayable runs, regression tests when you change the resolver, and balance discussions backed by evidence instead of memory.</p></div>
+  </div>
+  <div class="faq-item">
+    <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">Can I write my own arc?</div>
+    <div class="faq-a"><p>Yes. Arcs are JSON. The schema is in src/engine/schema.ts. Look at src/arcs/first-charter.ts for a worked example. The schema enforces correctness — weights sum to 1.0, referenced IDs exist, drop rates in [0, 1] — so malformed arcs fail at load, not at runtime.</p></div>
+  </div>
+  <div class="faq-item">
+    <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">Does this need the AXM Protocol?</div>
+    <div class="faq-a"><p>Not today. axm-arc runs standalone — TypeScript, React, Node, no Python, no shard emission. The design principles (portable artifact, deterministic runtime, no inference at query time) align with the AXM family. Full Genesis integration is on the roadmap.</p></div>
+  </div>
+  <div class="faq-item">
+    <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">What does AXM stand for?</div>
+    <div class="faq-a"><p>Agnostic, Extensible, Modular. Any extractor, any domain, any deployment. For axm-arc: any arc, any organization, any engine version that satisfies the arc's engineVersion floor.</p></div>
+  </div>
 </div>
 
-<div class="faq-item">
-<div class="faq-q" onclick="this.parentElement.classList.toggle('open')">Will arcs ever be cryptographically signed?</div>
-<div class="faq-a">
-<p>That's the plan. The arc bytes are already canonical (the JSON shape is stable; engine version is pinned in meta). What's missing is the Merkle root, the signature, and the verifier. Once an arc is signed, "this is the same arc the author published" becomes a one-line local check. A community registry on top of that becomes possible.</p>
-</div>
-</div>
 
-<div class="faq-item">
-<div class="faq-q" onclick="this.parentElement.classList.toggle('open')">How is this different from a tabletop sim or Twine?</div>
-<div class="faq-a">
-<p>Tabletop is human-resolved. Twine is graph-of-passages narrative. axm-arc is a mechanical resolver: a player doesn't make choices in a fight, they assign agents and read the report. The interpersonal dynamics — stress cascades, drama events, precedent violations — are first-class mechanics with stat effects. The game is the audit, not the play.</p>
-</div>
-</div>
+<h2><span class="sec-num">VII</span>The family</h2>
 
-<div class="faq-item">
-<div class="faq-q" onclick="this.parentElement.classList.toggle('open')">What does AXM stand for?</div>
-<div class="faq-a">
-<p>Agnostic, Extensible, Modular — for the protocol family. Any extractor, any domain, any deployment. For axm-arc specifically: any arc, any organization, any engine version that satisfies the arc's <code>engineVersion</code> floor.</p>
-</div>
-</div>
+<p>axm-arc is the simulation member of a larger ecosystem. The siblings handle conversations, drone shows, forensic records, and the verifier kernel.</p>
 
-</div>
-</section>
-
-
-<section class="sect reveal" id="eco">
-<div class="sect-label">The family</div>
-<h2>Five spokes, <em>one principle</em></h2>
-<p class="sect-intro">axm-arc is the simulation member of a larger family. The protocol siblings handle conversations, drone shows, forensic records, and the verifier kernel that ties them together.</p>
 <div class="eco-strip">
-  <a class="eco-tile" href="https://github.com/BigBirdReturns/axm-genesis" target="_blank">
-    <div class="eco-type">Kernel</div>
-    <div class="eco-name">Genesis</div>
-    <div class="eco-desc">Spec. Compiler. Verifier. Frozen.</div>
-  </a>
-  <a class="eco-tile" href="https://github.com/BigBirdReturns/axm-core" target="_blank">
-    <div class="eco-type">Hub</div>
-    <div class="eco-name">Core</div>
-    <div class="eco-desc">Forge. Spectra. Clarion.</div>
-  </a>
-  <a class="eco-tile" href="https://github.com/BigBirdReturns/axm-chat" target="_blank">
-    <div class="eco-type">Spoke</div>
-    <div class="eco-name">Chat</div>
-    <div class="eco-desc">Conversations to shards.</div>
-  </a>
-  <a class="eco-tile" href="https://github.com/BigBirdReturns/axm-show" target="_blank">
-    <div class="eco-type">Spoke</div>
-    <div class="eco-name">Show</div>
-    <div class="eco-desc">Drone show compliance.</div>
-  </a>
-  <a class="eco-tile" href="https://github.com/BigBirdReturns/axm-embodied" target="_blank">
-    <div class="eco-type">Spoke</div>
-    <div class="eco-name">Embodied</div>
-    <div class="eco-desc">Forensic flight recorder.</div>
-  </a>
-  <a class="eco-tile self" href="https://github.com/BigBirdReturns/axm-arc" target="_blank">
-    <div class="eco-type">Sibling</div>
-    <div class="eco-name">Arc</div>
-    <div class="eco-desc">Deterministic organizational sim.</div>
-  </a>
+  <a class="eco-tile" href="https://github.com/BigBirdReturns/axm-genesis" target="_blank"><div class="eco-type">Kernel</div><div class="eco-name">Genesis</div><div class="eco-desc">Spec. Compiler. Verifier.</div></a>
+  <a class="eco-tile" href="https://github.com/BigBirdReturns/axm-core" target="_blank"><div class="eco-type">Hub</div><div class="eco-name">Core</div><div class="eco-desc">Forge. Spectra. Clarion.</div></a>
+  <a class="eco-tile" href="https://github.com/BigBirdReturns/axm-chat" target="_blank"><div class="eco-type">Spoke</div><div class="eco-name">Chat</div><div class="eco-desc">Conversations to shards.</div></a>
+  <a class="eco-tile" href="https://github.com/BigBirdReturns/axm-show" target="_blank"><div class="eco-type">Spoke</div><div class="eco-name">Show</div><div class="eco-desc">Drone show compliance.</div></a>
+  <a class="eco-tile" href="https://github.com/BigBirdReturns/axm-embodied" target="_blank"><div class="eco-type">Spoke</div><div class="eco-name">Embodied</div><div class="eco-desc">Forensic flight recorder.</div></a>
+  <a class="eco-tile self" href="https://github.com/BigBirdReturns/axm-arc" target="_blank"><div class="eco-type">Sibling</div><div class="eco-name">Arc</div><div class="eco-desc">Organizational sim engine.</div></a>
 </div>
-</section>
 
-<footer>
-<div class="f-left">AXM Arc &middot; MIT &middot; TypeScript / React / Vitest<br>Portable &middot; Deterministic &middot; Schema-validated</div>
-<div class="f-right">A balance discussion becomes evidence.</div>
-</footer>
+</div>
 
+<div class="verdict-wrap">
+  <div class="verdict-eyebrow">Final note</div>
+  <h2>The arc is the <span>contract</span>.<br>The engine is the <span>audit</span>.</h2>
+  <p>Every decision the player makes — who to assign, who to reward, who to bench — is logged, weighted, and fed back into the organization's dynamics. The precedent store remembers what you taught the team to expect. The stress system remembers who you pushed too hard. The relationship web remembers who you put next to whom.</p>
+  <p><strong>Swap "guild" for "program office" and "raid boss" for "contract deliverable" and you are modeling any organization facing structured challenges under resource constraints with imperfect information about its own people.</strong></p>
+  <div class="punch">The game is the proof of concept.<br>The engine is the product.</div>
+</div>
+
+<div class="colophon">
+  <h3>Colophon</h3>
+  <p><strong style="color:var(--ink-2);">Type:</strong> Barlow Condensed (verdicts), Lora (argument), IBM Plex Mono (evidence). AXM House Style v1.0.</p>
+  <p><strong style="color:var(--ink-2);">Stack:</strong> TypeScript, React 18, Vite, Vitest, Zod. No runtime dependencies beyond React.</p>
+  <p><strong style="color:var(--ink-2);">License:</strong> MIT. The engine, the tutorial arc, and the UI are all open.</p>
 </div>
 
 <script>
 const obs = new IntersectionObserver(es => {
-  es.forEach(e => {
-    if (e.isIntersecting) {
-      e.target.classList.add('visible');
-      obs.unobserve(e.target);
-    }
-  });
+  es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); obs.unobserve(e.target); } });
 }, { threshold: 0.12 });
 document.querySelectorAll('.reveal').forEach(el => obs.observe(el));
 </script>

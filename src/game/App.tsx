@@ -18,6 +18,7 @@ import { agentInitials } from "./lib/ui-helpers.js";
 type Tab = "Roster" | "Assign" | "Drama" | "Base" | "Reports";
 
 const arc = FIRST_CHARTER;
+const INTENT_KEY = "axm-arc:intent:v1";
 
 function defaultFacilities(): Record<InfrastructureFacility, Facility> {
   const names: InfrastructureFacility[] = [
@@ -73,9 +74,20 @@ export function App(): JSX.Element {
   const [rewardDecisions, setRewardDecisions] = useState<RewardDecision[]>([]);
   const [advanceError, setAdvanceError] = useState<string | null>(null);
 
+  // Intent — player-authored pull-quote, persisted separately from game state
+  const [intent, setIntent] = useState<string>(() => {
+    try { return localStorage.getItem(INTENT_KEY) ?? ""; } catch { return ""; }
+  });
+  const [editingIntent, setEditingIntent] = useState(false);
+  const [intentDraft, setIntentDraft] = useState("");
+
   useEffect(() => {
     saveSave(org, arc);
   }, [org]);
+
+  useEffect(() => {
+    try { localStorage.setItem(INTENT_KEY, intent); } catch { /* noop */ }
+  }, [intent]);
 
   const advanceBlocker = useMemo(() => getAdvanceBlocker({
     dramaQueueCount: org.dramaQueue.length,
@@ -88,16 +100,8 @@ export function App(): JSX.Element {
 
   const advanceCycle = () => {
     setAdvanceError(null);
-    if (advanceBlocker) {
-      setAdvanceError(advanceBlocker);
-      return;
-    }
-    const result = runCycle({
-      org,
-      arc,
-      assignments,
-      pendingRewardDecisions: rewardDecisions,
-    });
+    if (advanceBlocker) { setAdvanceError(advanceBlocker); return; }
+    const result = runCycle({ org, arc, assignments, pendingRewardDecisions: rewardDecisions });
     setOrg(result.org);
     setLastReports(result.reports);
     setPendingRewardChoices(result.pendingRewardChoices);
@@ -109,11 +113,13 @@ export function App(): JSX.Element {
   const resetGame = () => {
     if (!confirm("Reset the game? All progress will be lost.")) return;
     clearSave();
+    try { localStorage.removeItem(INTENT_KEY); } catch { /* noop */ }
     setOrg(buildNewOrg());
     setLastReports([]);
     setPendingRewardChoices([]);
     setRewardDecisions([]);
     setAssignments([]);
+    setIntent("");
     setTab("Roster");
   };
 
@@ -136,6 +142,49 @@ export function App(): JSX.Element {
   const upkeep = Object.values(org.agents).reduce((s, a) => s + a.upkeep, 0);
   const agentList = Object.values(org.agents);
 
+  // ── Intent block (shared across mobile + desktop) ────────────────────────
+  const intentBlock = (
+    <div className="intent-block">
+      <div className="intent-label">
+        <span>Intent · This Cycle</span>
+        <button
+          onClick={() => {
+            if (editingIntent) {
+              setIntent(intentDraft);
+              setEditingIntent(false);
+            } else {
+              setIntentDraft(intent);
+              setEditingIntent(true);
+            }
+          }}
+        >
+          {editingIntent ? "Save" : "Edit"}
+        </button>
+      </div>
+      {editingIntent ? (
+        <textarea
+          autoFocus
+          rows={2}
+          value={intentDraft}
+          placeholder="e.g. Run Attumen on farm. Push Moroes for first clear."
+          onChange={(e) => setIntentDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              setIntent(intentDraft);
+              setEditingIntent(false);
+            }
+          }}
+        />
+      ) : (
+        <div className="intent-text">
+          {intent || <span style={{ color: "var(--dim)", fontWeight: 400, fontSize: 14 }}>No intent set. Tap Edit to add one.</span>}
+        </div>
+      )}
+    </div>
+  );
+
+  // ── Stat strip ────────────────────────────────────────────────────────────
   const statStrip = (
     <div className="stat-strip">
       <div className="stat-cell">
@@ -163,8 +212,9 @@ export function App(): JSX.Element {
 
   const advanceButton = (
     <div className="advance-footer">
-      {advanceError && <div className="warning">{advanceError}</div>}
-      {!advanceError && advanceBlocker && <div className="warning">{advanceBlocker}</div>}
+      {(advanceError ?? advanceBlocker) && (
+        <div className="warning">{advanceError ?? advanceBlocker}</div>
+      )}
       <button
         className={`primary${!advanceBlocker ? " accent" : ""}`}
         disabled={!canAdvanceCycle}
@@ -179,9 +229,19 @@ export function App(): JSX.Element {
     <>
       {tab === "Roster" && <RosterScreen agents={agentList} arc={arc} />}
       {tab === "Assign" && (
-        <AssignScreen arc={arc} org={org} assignments={assignments} setAssignments={setAssignments} />
+        <>
+          <AssignScreen arc={arc} org={org} assignments={assignments} setAssignments={setAssignments} />
+        </>
       )}
-      {tab === "Drama" && <DramaScreen org={org} setOrg={setOrg} cycle={org.cycle} />}
+      {tab === "Drama" && (
+        <DramaScreen
+          org={org}
+          arc={arc}
+          setOrg={setOrg}
+          cycle={org.cycle}
+          pendingRewardChoices={pendingRewardChoices}
+        />
+      )}
       {tab === "Base" && <BaseScreen arc={arc} org={org} setOrg={setOrg} />}
       {tab === "Reports" && (
         <ReportsScreen
@@ -196,18 +256,23 @@ export function App(): JSX.Element {
 
   return (
     <>
-      {/* ── HEADER ─────────────────────────────────────────────── */}
+      {/* ── HEADER ── */}
       <header className="app-header">
         <div className="top-row">
           <div className="kicker">Situation Room · Cycle {String(org.cycle).padStart(2, "0")}</div>
-          <div className="imprint">AXM · Arc 01</div>
+          {/* Gap 5: Wordmark */}
+          <div className="wordmark">
+            <em>AXM</em>
+            <span className="sep">·</span>
+            <span className="arc-num">ARC 01</span>
+          </div>
         </div>
         <h1>{arc.meta.name}</h1>
         <div className="subtitle">
           {arc.meta.domain} · Tier I · {cleared.size} of {arc.challenges.length} cleared
         </div>
 
-        {/* Desktop: inline stat strip + action buttons */}
+        {/* Desktop inline stat strip */}
         <div className="desktop-header-stats" style={{ display: "none" }}>
           {[
             { lbl: arc.tokenName, val: org.resources.tokens, sub: `+${arc.tokensPerCycle} next` },
@@ -235,14 +300,15 @@ export function App(): JSX.Element {
         </div>
       </header>
 
-      {/* ── MOBILE: stat strip + tab-switched screens ──────────── */}
+      {/* ── MOBILE ── */}
       <div className="mobile-only">
         {statStrip}
+        {tab === "Assign" && intentBlock}
         {activeScreen}
         {(tab === "Assign" || tab === "Reports") && advanceButton}
       </div>
 
-      {/* ── DESKTOP: 3-column Situation Room ───────────────────── */}
+      {/* ── DESKTOP: 3-column Situation Room ── */}
       <div className="situation-room">
         <div className="situation-roster">
           <div className="row between" style={{ marginBottom: 8 }}>
@@ -277,15 +343,17 @@ export function App(): JSX.Element {
         </div>
 
         <div className="situation-main">
+          {/* Intent block above contracts in desktop main column */}
+          {tab === "Assign" && intentBlock}
           {activeScreen}
         </div>
 
         <div className="situation-sidebar">
-          <SituationSidebar arc={arc} org={org} lastReports={lastReports} />
+          <SituationSidebar arc={arc} org={org} lastReports={lastReports} intent={intent} />
         </div>
       </div>
 
-      {/* ── MOBILE: tab bar ────────────────────────────────────── */}
+      {/* ── MOBILE: tab bar ── */}
       <nav className="tabbar">
         {(["Roster", "Assign", "Drama", "Base", "Reports"] as Tab[]).map((t) => (
           <button

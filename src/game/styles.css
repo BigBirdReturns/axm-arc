@@ -889,3 +889,210 @@ button.icon:hover { border-color: var(--ink); color: var(--ink); }
   .stat-strip { grid-template-columns: repeat(2, 1fr); }
   .stat-cell:nth-child(2) { border-right: 0; }
 }
+/* ════════════════════════════════════════════════════════════════
+   AXM ARC — Gap-closing additions
+   Append to src/game/styles.css
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── WORDMARK — italic AXM top-right ────────────────────────────── */
+
+.wordmark {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 16px;
+  font-style: normal;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  user-select: none;
+}
+.wordmark em {
+  font-style: italic;
+}
+
+.wordmark .sep {
+  font-weight: 400;
+  font-style: normal;
+  color: var(--rule-dk);
+  margin: 0 6px;
+}
+
+.wordmark .arc-num {
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+
+/* ── INTENT PULL-QUOTE ──────────────────────────────────────────── */
+
+.intent-block {
+  border-left: 3px solid var(--ink);
+  padding: 10px 16px;
+  margin: 12px 0;
+  background: var(--paper-alt);
+}
+
+.intent-block .intent-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.intent-block .intent-label button {
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--dim);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  min-height: 0;
+  text-transform: uppercase;
+}
+
+.intent-block .intent-text {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 17px;
+  line-height: 1.3;
+  color: var(--ink);
+}
+
+.intent-block textarea {
+  width: 100%;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 17px;
+  color: var(--ink);
+  background: transparent;
+  border: none;
+  outline: none;
+  resize: none;
+  line-height: 1.3;
+  padding: 0;
+}
+
+/* ── BASIS / VISIBLE / HIDDEN TAG LABELS ────────────────────────── */
+
+.tag-label {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin-top: 1px;
+}
+
+.tag-label.basis {
+  background: var(--paper-dk);
+  color: var(--muted);
+  border: 1px solid var(--rule);
+}
+
+.tag-label.visible {
+  background: var(--paper-alt);
+  color: var(--muted);
+  border: 1px solid var(--rule);
+}
+
+.tag-label.hidden {
+  background: var(--accent);
+  color: #fff;
+  border: 1px solid var(--accent-dp);
+}
+
+/* ── RESOLVE / AFFLICTION CALLOUT (ensure distinct from narrative) ── */
+
+/* Already defined in base, but ensure resolve callout has agent name treatment */
+.callout .agent-highlight {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 20px;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+}
+
+/* ── FIELD REPORT: per-agent narrative line under audit row ──────── */
+
+.audit-agent-line {
+  font-family: var(--serif);
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 4px;
+  font-style: italic;
+  line-height: 1.5;
+}
+
+/* ── STAT BONUS ACCENT LINE (below item name in drops) ──────────── */
+
+.stat-bonus-line {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  margin-top: 2px;
+  text-transform: uppercase;
+}
+
+/* ── SIDEBAR ALERT SEVERITY FRAME ───────────────────────────────── */
+
+.sidebar-alert-critical {
+  border-left: 3px solid var(--accent);
+  padding: 10px 12px;
+  background: var(--accent-lt);
+  margin-bottom: 8px;
+}
+
+.sidebar-alert-critical .alert-headline {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 15px;
+  color: var(--accent);
+  text-transform: uppercase;
+  line-height: 1.2;
+  margin-bottom: 3px;
+}
+
+.sidebar-alert-warning {
+  border-left: 3px solid var(--rule-dk);
+  padding: 10px 12px;
+  background: var(--paper-alt);
+  margin-bottom: 8px;
+}
+
+.sidebar-alert-warning .alert-headline {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 14px;
+  color: var(--ink);
+  text-transform: uppercase;
+  line-height: 1.2;
+  margin-bottom: 3px;
+}
+
+/* ── INTENT AREA in Assign screen ───────────────────────────────── */
+
+.intent-edit-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+/* ── POSITIVE stat val color (already defined but ensure alias) ──── */
+.stat-val.clean { color: var(--positive); }

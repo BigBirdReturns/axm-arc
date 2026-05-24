@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Agent, Facility, InfrastructureFacility, Organization, RunReport } from "../engine/types.js";
 import { runCycle, type ChallengeAssignment, type PendingRewardChoice, type RewardDecision } from "../engine/cycle.js";
 import {
@@ -12,6 +12,8 @@ import { AssignScreen } from "./components/AssignScreen.js";
 import { DramaScreen } from "./components/DramaScreen.js";
 import { BaseScreen } from "./components/BaseScreen.js";
 import { ReportsScreen } from "./components/ReportsScreen.js";
+import { SituationSidebar } from "./components/SituationSidebar.js";
+import { agentInitials } from "./lib/ui-helpers.js";
 
 type Tab = "Roster" | "Assign" | "Drama" | "Base" | "Reports";
 
@@ -47,6 +49,18 @@ function buildNewOrg(): Organization {
   };
 }
 
+function getAdvanceBlocker(opts: {
+  dramaQueueCount: number;
+  pendingRewardChoicesCount: number;
+  rewardDecisionsCount: number;
+}): string | null {
+  if (opts.dramaQueueCount > 0) return "Resolve drama cards before advancing.";
+  if (opts.pendingRewardChoicesCount > opts.rewardDecisionsCount) {
+    return "Resolve all pending reward decisions in Reports.";
+  }
+  return null;
+}
+
 export function App(): JSX.Element {
   const [tab, setTab] = useState<Tab>("Roster");
   const [org, setOrg] = useState<Organization>(() => {
@@ -63,14 +77,19 @@ export function App(): JSX.Element {
     saveSave(org, arc);
   }, [org]);
 
+  const advanceBlocker = useMemo(() => getAdvanceBlocker({
+    dramaQueueCount: org.dramaQueue.length,
+    pendingRewardChoicesCount: pendingRewardChoices.length,
+    rewardDecisionsCount: rewardDecisions.length,
+  }), [org.dramaQueue.length, pendingRewardChoices.length, rewardDecisions.length]);
+
+  const hasAdvancePayload = assignments.length > 0 || lastReports.length > 0;
+  const canAdvanceCycle = hasAdvancePayload && !advanceBlocker;
+
   const advanceCycle = () => {
     setAdvanceError(null);
-    if (org.dramaQueue.length > 0) {
-      setAdvanceError("Resolve drama cards before advancing.");
-      return;
-    }
-    if (pendingRewardChoices.length > rewardDecisions.length) {
-      setAdvanceError("Resolve all pending reward decisions in Reports.");
+    if (advanceBlocker) {
+      setAdvanceError(advanceBlocker);
       return;
     }
     const result = runCycle({
@@ -98,17 +117,67 @@ export function App(): JSX.Element {
     setTab("Roster");
   };
 
-  return (
-    <>
-      <header className="app-header">
-        <h1>axm-arc</h1>
-        <div className="meta">
-          Cycle {org.cycle} · Tokens {org.resources.tokens} · {org.reputation} {arc.reputationName}
-          <button className="icon" style={{ marginLeft: 8 }} onClick={resetGame}>Reset</button>
-        </div>
-      </header>
+  const agentCount = Object.keys(org.agents).length;
+  const cleared = new Set<string>();
+  for (const a of Object.values(org.agents)) {
+    for (const r of a.assignmentHistory) {
+      if (r.outcome === "success") cleared.add(r.challengeId);
+    }
+  }
 
-      {tab === "Roster" && <RosterScreen agents={Object.values(org.agents)} arc={arc} />}
+  const tabCounts: Record<Tab, number | string> = {
+    Roster: agentCount,
+    Assign: assignments.length,
+    Drama: org.dramaQueue.length,
+    Base: Object.values(org.infrastructure).filter((f) => f.level > 0).length,
+    Reports: lastReports.length > 0 ? lastReports.length : "—",
+  };
+
+  const upkeep = Object.values(org.agents).reduce((s, a) => s + a.upkeep, 0);
+  const agentList = Object.values(org.agents);
+
+  const statStrip = (
+    <div className="stat-strip">
+      <div className="stat-cell">
+        <div className="stat-lbl">{arc.tokenName}</div>
+        <div className="stat-val">{org.resources.tokens}</div>
+        <div className="stat-sub">+{arc.tokensPerCycle} next cycle</div>
+      </div>
+      <div className="stat-cell">
+        <div className="stat-lbl">{arc.currencyName}</div>
+        <div className="stat-val">{org.resources.currency.toLocaleString()}</div>
+        <div className="stat-sub">-{upkeep} upkeep</div>
+      </div>
+      <div className="stat-cell">
+        <div className="stat-lbl">{arc.reputationName}</div>
+        <div className="stat-val">{org.reputation}</div>
+        <div className="stat-sub">of 50 to T II</div>
+      </div>
+      <div className="stat-cell">
+        <div className="stat-lbl">Drama</div>
+        <div className={`stat-val${org.dramaQueue.length > 0 ? " accent" : ""}`}>{org.dramaQueue.length}</div>
+        <div className="stat-sub">queued</div>
+      </div>
+    </div>
+  );
+
+  const advanceButton = (
+    <div className="advance-footer">
+      {advanceError && <div className="warning">{advanceError}</div>}
+      {!advanceError && advanceBlocker && <div className="warning">{advanceBlocker}</div>}
+      <button
+        className={`primary${!advanceBlocker ? " accent" : ""}`}
+        disabled={!canAdvanceCycle}
+        onClick={advanceCycle}
+      >
+        {advanceBlocker ? "Advance blocked" : "Advance Cycle →"}
+      </button>
+    </div>
+  );
+
+  const activeScreen = (
+    <>
+      {tab === "Roster" && <RosterScreen agents={agentList} arc={arc} />}
       {tab === "Assign" && (
         <AssignScreen arc={arc} org={org} assignments={assignments} setAssignments={setAssignments} />
       )}
@@ -116,36 +185,116 @@ export function App(): JSX.Element {
       {tab === "Base" && <BaseScreen arc={arc} org={org} setOrg={setOrg} />}
       {tab === "Reports" && (
         <ReportsScreen
-          arc={arc}
-          org={org}
-          reports={lastReports}
+          arc={arc} org={org} reports={lastReports}
           pendingRewardChoices={pendingRewardChoices}
           rewardDecisions={rewardDecisions}
           setRewardDecisions={setRewardDecisions}
         />
       )}
+    </>
+  );
 
-      {(tab === "Assign" || tab === "Reports") && (
-        <div style={{ padding: "8px 16px", background: "var(--bg-elev)", borderTop: "1px solid var(--border)" }}>
-          {advanceError && <div className="warning">{advanceError}</div>}
+  return (
+    <>
+      {/* ── HEADER ─────────────────────────────────────────────── */}
+      <header className="app-header">
+        <div className="top-row">
+          <div className="kicker">Situation Room · Cycle {String(org.cycle).padStart(2, "0")}</div>
+          <div className="imprint">AXM · Arc 01</div>
+        </div>
+        <h1>{arc.meta.name}</h1>
+        <div className="subtitle">
+          {arc.meta.domain} · Tier I · {cleared.size} of {arc.challenges.length} cleared
+        </div>
+
+        {/* Desktop: inline stat strip + action buttons */}
+        <div className="desktop-header-stats" style={{ display: "none" }}>
+          {[
+            { lbl: arc.tokenName, val: org.resources.tokens, sub: `+${arc.tokensPerCycle} next` },
+            { lbl: arc.currencyName, val: org.resources.currency.toLocaleString(), sub: `-${upkeep}` },
+            { lbl: arc.reputationName, val: `${org.reputation} / 50`, sub: "to T II" },
+            { lbl: "Drama", val: org.dramaQueue.length, sub: "queued", accent: org.dramaQueue.length > 0 },
+          ].map((s) => (
+            <div key={s.lbl} className="stat-cell">
+              <div className="stat-lbl">{s.lbl}</div>
+              <div className={`stat-val${s.accent ? " accent" : ""}`}>{s.val}</div>
+              <div className="stat-sub">{s.sub}</div>
+            </div>
+          ))}
+        </div>
+        <div className="desktop-actions" style={{ display: "none" }}>
+          <button className="secondary" onClick={() => saveSave(org, arc)}>Save</button>
           <button
-            className="primary"
-            disabled={assignments.length === 0 && lastReports.length === 0}
+            className={`primary${!advanceBlocker ? " accent" : ""}`}
+            disabled={!canAdvanceCycle}
             onClick={advanceCycle}
+            style={{ width: "auto" }}
           >
-            Advance Cycle ({assignments.length} contract{assignments.length === 1 ? "" : "s"})
+            {advanceBlocker ? "Blocked" : "Advance Cycle →"}
           </button>
         </div>
-      )}
+      </header>
 
+      {/* ── MOBILE: stat strip + tab-switched screens ──────────── */}
+      <div className="mobile-only">
+        {statStrip}
+        {activeScreen}
+        {(tab === "Assign" || tab === "Reports") && advanceButton}
+      </div>
+
+      {/* ── DESKTOP: 3-column Situation Room ───────────────────── */}
+      <div className="situation-room">
+        <div className="situation-roster">
+          <div className="row between" style={{ marginBottom: 8 }}>
+            <span style={{ fontFamily: "var(--mono)", fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--muted)" }}>
+              Roster · {String(agentCount).padStart(2, "0")}
+            </span>
+            <button className="icon" onClick={resetGame} style={{ fontSize: 9, padding: "3px 6px", minHeight: 0 }}>Reset</button>
+          </div>
+          {agentList.map((a) => {
+            const role = arc.roles.find((r) => r.id === a.role);
+            return (
+              <div key={a.id} className="card" style={{ cursor: "default" }}>
+                <div className="row" style={{ gap: 8 }}>
+                  <div className={`portrait${a.stress >= 8 ? " accent" : ""}`}>{agentInitials(a.name)}</div>
+                  <div style={{ flex: 1, overflow: "hidden" }}>
+                    <div className="agent-name">{a.name}</div>
+                    <div className="agent-meta">{role?.name ?? "Flex"}</div>
+                  </div>
+                  <span className="badge role">{a.tier.slice(0, 2).toUpperCase()}</span>
+                </div>
+                <div className="row" style={{ marginTop: 4, gap: 8 }}>
+                  <div className="bar-wrap">
+                    <div className="bar morale"><div className="fill" style={{ width: `${a.morale}%` }} /></div>
+                  </div>
+                  <div className="bar-wrap">
+                    <div className="bar stress"><div className="fill" style={{ width: `${a.stress * 10}%` }} /></div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="situation-main">
+          {activeScreen}
+        </div>
+
+        <div className="situation-sidebar">
+          <SituationSidebar arc={arc} org={org} lastReports={lastReports} />
+        </div>
+      </div>
+
+      {/* ── MOBILE: tab bar ────────────────────────────────────── */}
       <nav className="tabbar">
         {(["Roster", "Assign", "Drama", "Base", "Reports"] as Tab[]).map((t) => (
           <button
             key={t}
-            className={tab === t ? "active" : ""}
+            className={`${tab === t ? "active" : ""}${t === "Drama" && org.dramaQueue.length > 0 ? " drama-active" : ""}`}
             onClick={() => setTab(t)}
           >
-            {t}{t === "Drama" && org.dramaQueue.length > 0 ? ` (${org.dramaQueue.length})` : ""}
+            <span className="tab-count">{tabCounts[t]}</span>
+            {t}
           </button>
         ))}
       </nav>

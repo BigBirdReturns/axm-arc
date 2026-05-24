@@ -1,7 +1,8 @@
 import { useState } from "react";
 import type { Agent, Arc, Challenge, Organization } from "../../engine/types.js";
 import type { ChallengeAssignment } from "../../engine/cycle.js";
-import { agentInitials, tierBadgeColor } from "../lib/ui-helpers.js";
+import { projectMechanics, type MechanicProjection } from "../../engine/projections.js";
+import { agentInitials } from "../lib/ui-helpers.js";
 
 interface Props {
   arc: Arc;
@@ -17,7 +18,6 @@ function unlockedChallenges(arc: Arc, org: Organization): Challenge[] {
       if (r.outcome === "success") cleared.add(`${r.challengeId}-cleared`);
     }
   }
-  // Determine which progression tiers are unlocked
   const unlockedTiers = new Set<string>();
   for (const pt of arc.progressionTiers) {
     const milestonesMet = pt.unlockConditions.orgMilestones.every((m) => cleared.has(m));
@@ -31,6 +31,16 @@ function unlockedChallenges(arc: Arc, org: Organization): Challenge[] {
   return arc.challenges.filter((c) => challengeIds.has(c.id));
 }
 
+function clearCount(org: Organization, challengeId: string): number {
+  let count = 0;
+  for (const a of Object.values(org.agents)) {
+    for (const r of a.assignmentHistory) {
+      if (r.challengeId === challengeId && r.outcome === "success") { count++; break; }
+    }
+  }
+  return count;
+}
+
 export function AssignScreen({ arc, org, assignments, setAssignments }: Props): JSX.Element {
   const [picking, setPicking] = useState<Challenge | null>(null);
   const challenges = unlockedChallenges(arc, org);
@@ -39,48 +49,84 @@ export function AssignScreen({ arc, org, assignments, setAssignments }: Props): 
 
   return (
     <div className="screen">
-      <h2>Assign Contracts</h2>
-      <div className="card row between">
-        <strong>{arc.tokenName}: {tokensLeft} / {org.resources.tokens}</strong>
-        <span className="dim">{assignments.length} queued</span>
-      </div>
+      <h2>Contracts <span className="count">Tier I · {challenges.length} available</span></h2>
 
-      {assignments.length > 0 && (
-        <>
-          <h3 style={{ fontSize: 15, color: "var(--accent)", marginTop: 16 }}>Queued</h3>
-          {assignments.map((a, i) => {
-            const c = arc.challenges.find((cc) => cc.id === a.challengeId);
-            return (
-              <div key={i} className="card">
-                <div className="row between">
-                  <strong>{c?.name ?? a.challengeId}</strong>
-                  <button className="icon" onClick={() => setAssignments(assignments.filter((_, j) => j !== i))}>
-                    Remove
-                  </button>
-                </div>
-                <div className="tiny">{a.agentIds.length} agents · {a.tokensSpent} tokens</div>
+      {assignments.length > 0 && assignments.map((a, i) => {
+        const c = arc.challenges.find((cc) => cc.id === a.challengeId);
+        const agents = a.agentIds.map((id) => org.agents[id]).filter(Boolean) as Agent[];
+        const projections = c ? projectMechanics({ challenge: c, assignedAgents: agents, org, arc }) : [];
+        const isFirstClear = c ? clearCount(org, c.id) === 0 : false;
+
+        return (
+          <div key={i} className={`card${isFirstClear ? " danger" : ""}`} style={{ padding: 0 }}>
+            <div style={{ padding: "10px 14px", background: isFirstClear ? "var(--ink)" : "var(--paper-dk)", color: isFirstClear ? "var(--paper)" : "var(--ink)" }}>
+              <div className="row between">
+                <span style={{ fontFamily: "var(--mono)", fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: isFirstClear ? "var(--accent-lt)" : "var(--muted)" }}>
+                  Contract {String(i + 1).padStart(2, "0")} · {isFirstClear ? "First Clear Push" : "Farm"}
+                </span>
+                <span className="badge" style={isFirstClear ? { background: "var(--accent)", color: "#fff", border: 0 } : {}}>
+                  Diff {c?.difficultyRating ?? "?"}
+                </span>
               </div>
-            );
-          })}
-        </>
-      )}
+              <div style={{ fontFamily: "var(--display)", fontWeight: 800, fontSize: 22, textTransform: "uppercase", letterSpacing: "-0.01em", marginTop: 4 }}>
+                {c?.name ?? a.challengeId}
+              </div>
+              <div style={{ fontFamily: "var(--mono)", fontSize: 10, marginTop: 2, color: isFirstClear ? "rgba(240,235,224,0.6)" : "var(--dim)" }}>
+                {a.agentIds.length} / {c?.rosterRequirements.maxAgents ?? "?"} assigned · {a.tokensSpent} lockout
+              </div>
+            </div>
 
-      <h3 style={{ fontSize: 15, color: "var(--accent)", marginTop: 16 }}>Available</h3>
+            <div style={{ padding: 14 }}>
+              <div className="row" style={{ gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+                {agents.map((ag) => (
+                  <div key={ag.id} style={{ textAlign: "center" }}>
+                    <div className="portrait small">{agentInitials(ag.name)}</div>
+                    <div style={{ fontFamily: "var(--mono)", fontSize: 9, color: "var(--muted)", marginTop: 2 }}>
+                      {ag.name.split(" ")[0]}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {projections.length > 0 && (
+                <>
+                  <div className="audit-section">Projected Mechanics · {projections.length} checks</div>
+                  {projections.map((p) => (
+                    <ProjectionRow key={p.mechanicId} p={p} />
+                  ))}
+                </>
+              )}
+
+              <button
+                className="icon"
+                style={{ width: "100%", marginTop: 8 }}
+                onClick={() => setAssignments(assignments.filter((_, j) => j !== i))}
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+        );
+      })}
+
+      <h3 style={{ marginTop: 16 }}>Available</h3>
       {challenges.length === 0 && <div className="empty">Nothing unlocked yet.</div>}
       {challenges.map((c) => {
         const alreadyQueued = assignments.some((a) => a.challengeId === c.id);
+        const isCleared = clearCount(org, c.id) > 0;
         return (
-          <div key={c.id} className={alreadyQueued ? "card" : "card clickable"} onClick={() => !alreadyQueued && setPicking(c)}>
+          <div key={c.id} className={`card${alreadyQueued ? "" : " clickable"}`} onClick={() => !alreadyQueued && setPicking(c)}>
             <div className="row between">
-              <strong>{c.name}</strong>
-              <span className="badge" style={{ background: "var(--accent-dim)" }}>Diff {c.difficultyRating}</span>
+              <span className="agent-name" style={{ fontSize: 14 }}>{c.name}</span>
+              <span className="badge">{isCleared ? `Cleared` : `Diff ${c.difficultyRating}`}</span>
             </div>
-            <div className="dim" style={{ marginTop: 4 }}>{c.description}</div>
-            <div className="tiny" style={{ marginTop: 6 }}>
+            <div style={{ fontFamily: "var(--serif)", fontSize: 13, color: "var(--muted)", marginTop: 4 }}>{c.description}</div>
+            <div className="agent-meta" style={{ marginTop: 6 }}>
               {c.rosterRequirements.minAgents}-{c.rosterRequirements.maxAgents} agents
               {c.rosterRequirements.roleRequirements.length > 0 && " · "}
               {c.rosterRequirements.roleRequirements.map((r) => `${r.count}× ${r.roleId}`).join(", ")}
               {alreadyQueued && " · Queued"}
+              {isCleared && !alreadyQueued && " · 0 lockout (farm)"}
             </div>
           </div>
         );
@@ -98,6 +144,28 @@ export function AssignScreen({ arc, org, assignments, setAssignments }: Props): 
           }}
         />
       )}
+    </div>
+  );
+}
+
+function ProjectionRow({ p }: { p: MechanicProjection }): JSX.Element {
+  const pct = Math.min(100, Math.max(0, (p.projectedScore / Math.max(p.threshold, 1)) * 100));
+  return (
+    <div className="mechanic-row" style={{ paddingTop: 6, paddingBottom: 6 }}>
+      <div className="row between">
+        <span className="mechanic-name" style={{ fontSize: 13 }}>{p.mechanicName}</span>
+        <span className={`badge ${p.assessment === "fail" ? "fail" : p.assessment === "tight" ? "pending" : "pass"}`}>
+          {p.assessment.toUpperCase()}
+        </span>
+      </div>
+      <div className="mechanic-detail">
+        {p.agentName ?? "Team"} · {p.projectedScore} / {p.threshold}
+      </div>
+      <div className="mechanic-bar-row">
+        <div className={`bar mechanic${p.assessment === "fail" ? " fail" : ""}`} style={{ flex: 1 }}>
+          <div className="fill" style={{ width: `${pct}%` }} />
+        </div>
+      </div>
     </div>
   );
 }
@@ -139,41 +207,31 @@ function RosterPicker({
           <h3>{challenge.name}</h3>
           <button className="icon" onClick={onCancel}>Cancel</button>
         </div>
-        <div className="dim">Pick {min}-{max} agents · {selected.size} selected</div>
-        <div style={{ marginTop: 12 }}>
-          {available.map((a) => {
-            const role = arc.roles.find((r) => r.id === a.role)?.name ?? "Flex";
-            return (
-              <label key={a.id} className="checkbox-row">
-                <input
-                  type="checkbox"
-                  checked={selected.has(a.id)}
-                  onChange={() => toggle(a.id)}
-                />
-                <div className="portrait" style={{ width: 28, height: 28, fontSize: 12 }}>
-                  {agentInitials(a.name)}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div>{a.name}</div>
-                  <div className="tiny">
-                    <span className="badge" style={{ background: tierBadgeColor(a.tier) }}>{a.tier}</span>
-                    {" "}{role} · M{a.morale} S{a.stress}
-                  </div>
-                </div>
-              </label>
-            );
-          })}
+        <div className="agent-meta" style={{ marginBottom: 12 }}>
+          Pick {min}-{max} agents · {selected.size} selected
         </div>
-        <div style={{ marginTop: 16 }}>
-          {!reqsMet && <div className="warning">Role requirements not met.</div>}
-          <button
-            className="primary"
-            disabled={selected.size < min || selected.size > max || !reqsMet}
-            onClick={() => onSubmit(Array.from(selected), 1)}
-          >
-            Confirm ({selected.size} agents, 1 token)
-          </button>
-        </div>
+        {available.map((a) => {
+          const role = arc.roles.find((r) => r.id === a.role)?.name ?? "Flex";
+          return (
+            <label key={a.id} className="checkbox-row">
+              <input type="checkbox" checked={selected.has(a.id)} onChange={() => toggle(a.id)} />
+              <div className="portrait small">{agentInitials(a.name)}</div>
+              <div style={{ flex: 1 }}>
+                <div className="agent-name" style={{ fontSize: 13 }}>{a.name}</div>
+                <div className="agent-meta">{role} · {a.tier} · M{a.morale} S{a.stress}</div>
+              </div>
+            </label>
+          );
+        })}
+        {!reqsMet && <div className="warning">Role requirements not met.</div>}
+        <button
+          className="primary accent"
+          disabled={selected.size < min || selected.size > max || !reqsMet}
+          onClick={() => onSubmit(Array.from(selected), 1)}
+          style={{ marginTop: 8 }}
+        >
+          Slot Roster ({selected.size} agents, 1 lockout)
+        </button>
       </div>
     </div>
   );

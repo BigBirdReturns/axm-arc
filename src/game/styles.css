@@ -688,12 +688,201 @@ button.icon:hover { border-color: var(--ink); color: var(--ink); }
   border-top: 1px solid var(--rule);
 }
 
-/* ── RESPONSIVE: Desktop Situation Room (≥960px) ─────────────── */
+/* ── SIDEBAR (desktop right column) ──────────────────────────── */
+
+.sidebar {
+  display: none;
+}
+
+.sidebar-section {
+  margin-bottom: 20px;
+}
+
+.sidebar-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.sidebar-alert {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 8px;
+}
+
+.sidebar-card {
+  background: var(--paper-alt);
+  border: 1px solid var(--rule);
+  padding: 12px;
+  margin-bottom: 8px;
+}
+.sidebar-card.danger {
+  border-left: 3px solid var(--accent);
+}
+
+.sidebar-card-type {
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+
+.sidebar-card-headline {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 1.2;
+  text-transform: uppercase;
+  color: var(--ink);
+  margin-bottom: 4px;
+}
+
+.sidebar-card-body {
+  font-family: var(--serif);
+  font-size: 13px;
+  color: var(--ink-2);
+  line-height: 1.5;
+}
+
+.sidebar-card-meta {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--dim);
+  letter-spacing: 0.04em;
+}
+
+.sidebar-list {
+  list-style: none;
+  padding: 0;
+}
+.sidebar-list li {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-2);
+  padding: 6px 0 6px 16px;
+  position: relative;
+  border-bottom: 1px solid var(--rule);
+  line-height: 1.5;
+}
+.sidebar-list li::before {
+  content: '◇';
+  position: absolute;
+  left: 0;
+  color: var(--accent);
+  font-size: 10px;
+}
+
+/* ── SITUATION ROOM: Desktop 3-column layout ─────────────────── */
+
+.situation-room {
+  display: none;
+}
 
 @media (min-width: 960px) {
   #root {
     max-width: 1360px;
   }
+
+  /* Header stretches full-width with inline stat strip */
+  .app-header {
+    display: flex;
+    align-items: baseline;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .app-header .top-row { flex: 0 0 auto; }
+  .app-header h1 { flex: 0 0 auto; margin-bottom: 0; }
+  .app-header .subtitle { flex: 0 0 auto; }
+
+  /* Desktop stat strip renders inline in header area */
+  .mobile-stat-strip { display: none; }
+  .desktop-header-stats {
+    display: flex !important;
+    margin-left: auto;
+    gap: 0;
+    border: 1px solid var(--rule);
+  }
+  .desktop-header-stats .stat-cell {
+    padding: 8px 14px;
+    border-right: 1px solid var(--rule);
+    border-top: 0;
+    border-bottom: 0;
+  }
+  .desktop-header-stats .stat-cell:last-child { border-right: 0; }
+  .desktop-header-stats .stat-val { font-size: 22px; }
+
+  /* 3-column body */
+  .situation-room {
+    display: grid;
+    grid-template-columns: 220px 1fr 280px;
+    gap: 0;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  .situation-roster {
+    border-right: 1px solid var(--rule);
+    padding: 12px;
+    overflow-y: auto;
+    max-height: calc(100vh - 120px);
+  }
+
+  .situation-main {
+    padding: 16px;
+    overflow-y: auto;
+    max-height: calc(100vh - 120px);
+  }
+
+  .situation-sidebar {
+    border-left: 1px solid var(--rule);
+    padding: 12px;
+    overflow-y: auto;
+    max-height: calc(100vh - 120px);
+  }
+
+  .sidebar { display: block; }
+
+  /* Hide mobile tabbar + screens; desktop uses situation-room */
+  .mobile-only { display: none !important; }
+  .tabbar { display: none; }
+
+  /* Desktop header buttons */
+  .desktop-actions {
+    display: flex !important;
+    gap: 8px;
+    margin-left: 16px;
+  }
+  .desktop-actions button {
+    white-space: nowrap;
+  }
+
+  /* Compact agent rows in left column */
+  .situation-roster .card { padding: 8px 10px; margin-bottom: 6px; }
+  .situation-roster .portrait { width: 28px; height: 28px; font-size: 11px; border-width: 1px; }
+  .situation-roster .agent-name { font-size: 12px; }
+  .situation-roster .bar { height: 4px; }
+  .situation-roster .bar-label { font-size: 8px; }
+}
+
+/* ── MOBILE: hide desktop pieces ─────────────────────────────── */
+
+@media (max-width: 959px) {
+  .desktop-header-stats { display: none !important; }
+  .desktop-actions { display: none !important; }
+  .situation-room { display: none !important; }
 }
 
 @media (max-width: 380px) {

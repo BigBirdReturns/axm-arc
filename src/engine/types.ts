@@ -243,8 +243,13 @@ export interface TimePressure {
   attributeId: string;
 }
 
+export interface RewardTableEntry {
+  itemId: string;
+  dropRate: number;
+}
+
 export interface Outcome {
-  rewardTable: string[];
+  rewardTable: RewardTableEntry[];
   narrative: string;
   reputationGain?: number;
   milestoneFlag?: string;

@@ -115,15 +115,61 @@ export function App(): JSX.Element {
     setTab("Roster");
   };
 
+  const agentCount = Object.keys(org.agents).length;
+  const cleared = new Set<string>();
+  for (const a of Object.values(org.agents)) {
+    for (const r of a.assignmentHistory) {
+      if (r.outcome === "success") cleared.add(r.challengeId);
+    }
+  }
+
+  const tabCounts: Record<Tab, number | string> = {
+    Roster: agentCount,
+    Assign: assignments.length,
+    Drama: org.dramaQueue.length,
+    Base: Object.values(org.infrastructure).filter((f) => f.level > 0).length,
+    Reports: lastReports.length > 0 ? lastReports.length : "—",
+  };
+
   return (
     <>
       <header className="app-header">
-        <h1>axm-arc</h1>
-        <div className="meta">
-          Cycle {org.cycle} · Tokens {org.resources.tokens} · {org.reputation} {arc.reputationName}
-          <button className="icon" style={{ marginLeft: 8 }} onClick={resetGame}>Reset</button>
+        <div className="top-row">
+          <div className="kicker">Cycle / Week {org.cycle}</div>
+          <div className="imprint">AXM · Arc 01</div>
+        </div>
+        <h1>{arc.meta.name}</h1>
+        <div className="subtitle">
+          {arc.meta.domain} · Tier I · {cleared.size} of {arc.challenges.length} cleared
         </div>
       </header>
+
+      <div className="stat-strip">
+        <div className="stat-cell">
+          <div className="stat-lbl">{arc.tokenName}</div>
+          <div className="stat-val">{org.resources.tokens}</div>
+          <div className="stat-sub">+{arc.tokensPerCycle} next cycle</div>
+        </div>
+        <div className="stat-cell">
+          <div className="stat-lbl">{arc.currencyName}</div>
+          <div className="stat-val">{org.resources.currency.toLocaleString()}</div>
+          <div className="stat-sub">
+            -{Object.values(org.agents).reduce((s, a) => s + a.upkeep, 0)} upkeep
+          </div>
+        </div>
+        <div className="stat-cell">
+          <div className="stat-lbl">{arc.reputationName}</div>
+          <div className="stat-val">{org.reputation}</div>
+          <div className="stat-sub">of 50 to T II</div>
+        </div>
+        <div className="stat-cell">
+          <div className="stat-lbl">Drama</div>
+          <div className={`stat-val${org.dramaQueue.length > 0 ? " accent" : ""}`}>
+            {org.dramaQueue.length}
+          </div>
+          <div className="stat-sub">queued</div>
+        </div>
+      </div>
 
       {tab === "Roster" && <RosterScreen agents={Object.values(org.agents)} arc={arc} />}
       {tab === "Assign" && (
@@ -143,15 +189,17 @@ export function App(): JSX.Element {
       )}
 
       {(tab === "Assign" || tab === "Reports") && (
-        <div style={{ padding: "8px 16px", background: "var(--bg-elev)", borderTop: "1px solid var(--border)" }}>
+        <div className="advance-footer">
           {advanceError && <div className="warning">{advanceError}</div>}
           {!advanceError && advanceBlocker && <div className="warning">{advanceBlocker}</div>}
           <button
-            className="primary"
+            className={`primary${!advanceBlocker ? " accent" : ""}`}
             disabled={!canAdvanceCycle}
             onClick={advanceCycle}
           >
-            {advanceBlocker ? "Advance blocked" : `Advance Cycle (${assignments.length} contract${assignments.length === 1 ? "" : "s"})`}
+            {advanceBlocker
+              ? "Advance blocked"
+              : `Advance Cycle →`}
           </button>
         </div>
       )}
@@ -160,10 +208,11 @@ export function App(): JSX.Element {
         {(["Roster", "Assign", "Drama", "Base", "Reports"] as Tab[]).map((t) => (
           <button
             key={t}
-            className={tab === t ? "active" : ""}
+            className={`${tab === t ? "active" : ""}${t === "Drama" && org.dramaQueue.length > 0 ? " drama-active" : ""}`}
             onClick={() => setTab(t)}
           >
-            {t}{t === "Drama" && org.dramaQueue.length > 0 ? ` (${org.dramaQueue.length})` : ""}
+            <span className="tab-count">{tabCounts[t]}</span>
+            {t}
           </button>
         ))}
       </nav>

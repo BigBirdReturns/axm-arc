@@ -8,6 +8,8 @@ The first arc is a guild management game. The first raid is Karazhan.
 
 > Swap "guild" for "program office" and "raid boss" for "contract deliverable" and you are modeling any organization facing structured challenges under resource constraints with imperfect information about its own people.
 
+**[Play the tutorial arc](https://bigbirdreturns.github.io/axm-arc/game/)** · [Landing page](https://bigbirdreturns.github.io/axm-arc/) · [Design spec](DESIGN.md)
+
 ---
 
 ## What this repo contains
@@ -18,7 +20,8 @@ The first arc is a guild management game. The first raid is Karazhan.
 | **Arc format** | `src/arcs/` | Portable JSON scenario definitions. The tutorial arc "The First Charter" ships here: 4 attributes, 3 roles, 3 tiers, 6 challenges across 2 progression tiers, 8 items, 6-agent starting roster with a seeded rivalrous pair. |
 | **Game UI** | `src/game/` | React PWA in the AXM House Style (Barlow Condensed / Lora / IBM Plex Mono, cream paper, brick-red accent). Mobile-first portrait layout with a desktop "Situation Room" 3-column view at ≥960px. |
 | **Tests** | `tests/engine/` | 130+ tests across 11 files. Engine subsystem tests, resolver edge cases (drop-rate gates, determinism, gear bonus, hostile relationships), schema validation, and a full end-to-end integration test that plays through the tutorial arc. |
-| **Landing page** | `docs/index.html` | AXM House Style static page. Enable GitHub Pages from `main /docs` to serve it. |
+| **Landing page** | `docs/index.html` | AXM House Style static page. Live at [bigbirdreturns.github.io/axm-arc](https://bigbirdreturns.github.io/axm-arc/). |
+| **Game (built)** | `docs/game/` | Compiled PWA output. Live at [bigbirdreturns.github.io/axm-arc/game](https://bigbirdreturns.github.io/axm-arc/game/). |
 | **Design spec** | `DESIGN.md` | The full v1.0 design authority document. 1,245 lines covering every system, the arc schema, the Karazhan reference arc, schema stress tests (EQ, FFXIV, OSRS, GW1, XCOM), and the non-game applications of the engine. |
 
 ---
@@ -26,14 +29,15 @@ The first arc is a guild management game. The first raid is Karazhan.
 ## Quick start
 
 ```bash
+# requires Node 18+
 git clone https://github.com/BigBirdReturns/axm-arc.git
 cd axm-arc
 npm ci
 npm run check     # typecheck + full test suite
-npm run dev       # Vite dev server on localhost:5173
+npm run dev       # opens the game UI at localhost:5173 — the tutorial arc loads automatically
 ```
 
-Requires Node 18+. No accounts, no keys, no cloud.
+No accounts, no keys, no cloud. Or just [play in the browser](https://bigbirdreturns.github.io/axm-arc/game/) — no install required.
 
 ---
 
@@ -45,7 +49,7 @@ Requires Node 18+. No accounts, no keys, no cloud.
 
 **Content-free engine.** No domain knowledge is hardcoded. The engine processes agents, attributes, challenges, and relationships. The arc and the game layer provide all domain specifics.
 
-**Offline-first save.** Versioned JSON in localStorage. Migration dictionary for future versions. Arc-ID mismatch throws. Your decisions persist across sessions and survive indefinitely.
+**Offline-first save.** Versioned JSON in localStorage (`axm-arc:save:v1` for game state, `axm-arc:intent:v1` for the player's cycle intent note). Migration dictionary for future versions. Arc-ID mismatch throws. Your decisions persist across sessions and survive indefinitely.
 
 ---
 
@@ -71,11 +75,12 @@ When the player advances a cycle, the engine processes these steps in order:
 
 | Command | What |
 |---|---|
-| `npm run dev` | Vite dev server |
+| `npm run dev` | Vite dev server (localhost:5173) |
 | `npm test` | Vitest (engine + integration) |
+| `npm run test:watch` | Vitest in watch mode |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run check` | typecheck + tests |
-| `npm run build` | Production bundle |
+| `npm run build` | Production bundle → `docs/game/` |
 
 ---
 
@@ -89,7 +94,24 @@ Arcs are JSON files validated by the Zod schema in `src/engine/schema.ts`. See `
 - Drop rates in [0, 1] (legacy string entries normalize to 1.0)
 - Roles, tiers, progression tiers, attunement chains, items, narrative events — all typed
 
-A passing `validateArc()` call guarantees the arc will run on any engine version satisfying its `engineVersion` floor.
+A passing `validateArc()` call guarantees the arc will run on any engine version satisfying its `engineVersion` floor — or it throws loudly. Never half-correct.
+
+---
+
+## Known issues
+
+Two engine debts tracked here so contributors see them without reading git log:
+
+- **Resolve detection is heuristic.** `headline.ts` detects Resolve events by finding agents with zero stress gained and perfect performance rating on an otherwise stressed roster. The engine should emit an explicit `resolveEvent` field on `RunReport` instead.
+- **Reward-dispute item threading.** The `reward_dispute` drama trigger uses an `item` field (string) rather than `itemId`, inconsistent with the rest of the schema. Low severity but should be normalized when drama card types are next refactored.
+
+---
+
+## Contributing
+
+Engine code has zero imports from `src/arcs/`. Arc files have zero assumptions about engine internals beyond the published schema. **This is the invariant that makes the engine portable — don't break it.**
+
+The game UI (`src/game/`) uses `localStorage` and CSS custom properties. It works in every current browser. The PWA install prompt requires HTTPS — `localhost` works for dev, but `http://` served from a file server won't trigger it.
 
 ---
 
@@ -159,7 +181,7 @@ axm-arc is the simulation member of the [AXM](https://github.com/BigBirdReturns)
 | [axm-chat](https://github.com/BigBirdReturns/axm-chat) | Spoke — conversations to shards |
 | [axm-show](https://github.com/BigBirdReturns/axm-show) | Spoke — drone show compliance |
 | [axm-embodied](https://github.com/BigBirdReturns/axm-embodied) | Spoke — forensic flight recorder |
-| **axm-arc** | **Sibling — organizational simulation engine** |
+| **axm-arc** (this repo) | Organizational simulation engine |
 
 ---
 

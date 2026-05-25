@@ -3,7 +3,7 @@
    Cream paper, brick-red accent, Barlow Condensed / Lora / Plex Mono.
    ════════════════════════════════════════════════════════════════ */
 
-@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Lora:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Lora:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&family=Playfair+Display:ital,wght@0,900;1,900&display=swap');
 
 :root {
   --paper: #f0ebe0;
@@ -25,6 +25,7 @@
   --display: 'Barlow Condensed', 'Arial Narrow', sans-serif;
   --serif: 'Lora', Georgia, serif;
   --mono: 'IBM Plex Mono', ui-monospace, monospace;
+  --imprint: 'Playfair Display', Georgia, serif;
 
   --gap-xs: 8px;
   --gap-s: 16px;
@@ -1096,3 +1097,270 @@ button.icon:hover { border-color: var(--ink); color: var(--ink); }
 
 /* ── POSITIVE stat val color (already defined but ensure alias) ──── */
 .stat-val.clean { color: var(--positive); }
+
+/* ════════════════════════════════════════════════════════════════
+   CYCLE TRANSITION — 3-beat interstitial
+   Beat 1: WEEK PASSING (auto-advance)
+   Beat 2: HEADLINE (tap to dismiss)
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── Beat 1: PASSING ───────────────────────────────────────────── */
+
+.beat-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: var(--paper);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  overflow: hidden;
+}
+
+.passing-stamp {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 32px;
+  opacity: 0;
+  animation: passing-fade-in 0.18s 0.05s forwards;
+}
+@keyframes passing-fade-in { to { opacity: 1; } }
+
+.passing-cycle {
+  position: relative;
+  width: 100%;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.passing-cycle .cycle-old,
+.passing-cycle .cycle-new {
+  position: absolute;
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 140px;
+  line-height: 0.85;
+  letter-spacing: -0.04em;
+  color: var(--ink);
+}
+.passing-cycle .cycle-old {
+  animation: cycle-old 0.55s ease-in forwards;
+}
+.passing-cycle .cycle-new {
+  opacity: 0;
+  animation: cycle-new 0.55s 0.18s ease-out forwards;
+}
+@keyframes cycle-old {
+  0%   { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(-14px); opacity: 0; }
+}
+@keyframes cycle-new {
+  0%   { transform: translateY(14px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+.press-band {
+  position: absolute;
+  left: 0; right: 0;
+  height: 2px;
+  background: var(--ink);
+  top: 50%;
+  transform: scaleX(0);
+  transform-origin: left center;
+  animation: press-sweep 1.4s 0.05s cubic-bezier(0.55, 0.1, 0.3, 1) forwards;
+}
+@keyframes press-sweep {
+  0%        { transform: scaleX(0); transform-origin: left center; }
+  50%       { transform: scaleX(1); transform-origin: left center; }
+  50.01%    { transform-origin: right center; }
+  100%      { transform: scaleX(0); transform-origin: right center; }
+}
+
+.passing-ticker {
+  margin-top: 24px;
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-height: 80px;
+}
+.passing-ticker .ticker-line {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink);
+  text-align: center;
+  white-space: nowrap;
+  line-height: 1.3;
+  opacity: 0;
+  animation: ticker-arrive 0.22s ease-out forwards;
+}
+.passing-ticker .ticker-line.accent { color: var(--accent); }
+@keyframes ticker-arrive {
+  0%   { opacity: 0; transform: translateY(14px); }
+  60%  { opacity: 1; transform: translateY(0); }
+  100% { opacity: 1; transform: translateY(-2px); }
+}
+
+.passing-label {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 18px;
+  height: 14px;
+}
+.passing-label .tick {
+  display: inline-block;
+  opacity: 0;
+  animation: tick-pulse 0.7s ease-out forwards;
+}
+.passing-label .tick.t1 { animation-delay: 0.08s; }
+.passing-label .tick.t2 { animation-delay: 0.22s; }
+.passing-label .tick.t3 { animation-delay: 0.36s; }
+.passing-label .tick.t4 { animation-delay: 0.5s; }
+@keyframes tick-pulse {
+  0%   { opacity: 0; }
+  30%  { opacity: 1; color: var(--ink); }
+  100% { opacity: 1; color: var(--muted); }
+}
+
+/* ── Beat 2: HEADLINE ──────────────────────────────────────────── */
+
+.headline-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: var(--paper);
+  display: flex;
+  flex-direction: column;
+  padding: 24px 20px;
+  overflow: hidden;
+  cursor: pointer;
+  animation: headline-arrive 0.32s ease;
+}
+@keyframes headline-arrive {
+  from { background: var(--ink); }
+  to   { background: var(--paper); }
+}
+
+.headline-masthead {
+  font-family: var(--imprint);
+  font-style: italic;
+  font-weight: 900;
+  font-size: 32px;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+  line-height: 0.9;
+  opacity: 0;
+  animation: hl-line 0.4s 0.05s forwards;
+}
+
+.headline-rule {
+  width: 100%;
+  height: 1px;
+  background: var(--ink);
+  margin: 8px 0;
+  opacity: 0;
+  animation: hl-line 0.4s 0.1s forwards;
+}
+
+.headline-meta {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding-bottom: 18px;
+  border-bottom: 4px double var(--ink);
+  margin-bottom: 22px;
+  opacity: 0;
+  animation: hl-line 0.4s 0.18s forwards;
+}
+.headline-meta .accent { color: var(--accent); }
+
+.headline-kicker {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 12px;
+  opacity: 0;
+  animation: hl-line 0.4s 0.32s forwards;
+}
+
+.headline-headline {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 56px;
+  line-height: 0.88;
+  letter-spacing: -0.025em;
+  text-transform: uppercase;
+  color: var(--ink);
+  flex: 1;
+  display: block;
+  text-wrap: balance;
+  opacity: 0;
+  animation: hl-headline 0.5s 0.42s ease-out forwards;
+}
+.headline-headline .hl-qualifier { color: var(--accent); }
+
+@keyframes hl-line { to { opacity: 1; } }
+@keyframes hl-headline {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.headline-deck {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--ink-2);
+  border-top: 1px solid var(--ink);
+  padding-top: 10px;
+  margin-top: 8px;
+  opacity: 0;
+  animation: hl-line 0.5s 0.85s forwards;
+}
+
+.headline-tap {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--dim);
+  text-align: center;
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--rule);
+  opacity: 0;
+  animation: hl-line 0.5s 1.2s forwards, tap-blink 1.4s 1.6s ease-in-out infinite;
+}
+@keyframes tap-blink {
+  0%, 100% { opacity: 0.45; }
+  50%      { opacity: 1; }
+}
+
+@media (max-width: 480px) {
+  .headline-headline { font-size: 44px; }
+  .passing-cycle .cycle-old,
+  .passing-cycle .cycle-new { font-size: 110px; }
+}

@@ -141,3 +141,7 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# Do not ignore the built game (served via GitHub Pages)
+!docs/game/
+!docs/

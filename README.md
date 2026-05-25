@@ -93,6 +93,38 @@ A passing `validateArc()` call guarantees the arc will run on any engine version
 
 ---
 
+## Browser product roadmap
+
+The playable build at `docs/game/` ships a title screen, tutorial, and the full cycle loop. The roadmap for evolving it from single-arc player to platform:
+
+| Phase | What | Status |
+|---|---|---|
+| **1. Shell** | Title screen with continue/new game, save awareness, onboarding coach, cycle transition interstitial | Shipped |
+| **2. Arc Library** | List bundled + imported arcs, import arc JSON via file picker, validate with schema, store in browser | Next |
+| **3. Settings & Data** | Export/import save bundles, accessibility prefs (text scale, reduced motion), animation toggle, data controls | Next |
+| **4. Arc Creator** | Guided form editor over the Zod schema, live validation panel, test-one-cycle-in-editor with fixed seed | Later |
+| **5. Mods** | Enable/disable installed arc packs, compatibility warnings, optional trust levels (unsigned/signed) | Later |
+
+### Architecture
+
+The app uses a top-level `mode` state that gates between screens. Currently `"title"` and `"play"`. Adding `"library"`, `"settings"`, `"creator"` is additive — each mode gets its own screen component. The engine/content split means arc import is `validateArc()` + localStorage. The creator is a form over the existing schema.
+
+### Scaling stress tests (designed, not yet implemented)
+
+DESIGN.md specifies five schema stress tests proving the engine holds structurally different formats:
+
+| Format | Roster | Key mechanic |
+|---|---|---|
+| EverQuest: Planes of Power | 72 agents | Per-agent flagging, 85% attunement threshold |
+| FFXIV: Savage Raiding | 8 agents, strict comp | 6+ sub-roles, Normal/Savage/Ultimate difficulty modes |
+| OSRS: Tombs of Amascut | 1–8 agents, no roles | Invocation-style difficulty modifiers, non-linear scaling |
+| Guild Wars 1: GvG | 8v8 PvP | Opposing roster as threshold source (v2) |
+| XCOM / Fire Emblem | 4–12 agents | Permadeath weight, high per-agent stat budgets |
+
+The Karazhan arc (10-to-25 expansion moment) is the designed next arc after The First Charter.
+
+---
+
 ## AXM family
 
 axm-arc is the simulation member of the [AXM](https://github.com/BigBirdReturns) ecosystem. The design principles — portable artifacts, deterministic runtime, no inference at query time — are shared across the family. Full Genesis integration (signed arcs, Merkle roots, `axm-verify`) is on the roadmap.

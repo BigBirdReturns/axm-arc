@@ -218,19 +218,26 @@ export function ReportsScreen({
                     </span>
                   </div>
                   <div className="mechanic-detail">
-                    {agentForMech ? `${agentForMech.name} · ${roleName}` : roleName} · {Math.round(repResult.score)} vs threshold {repResult.threshold}
+                    {agentForMech ? agentForMech.name : roleName}
                     {agentForMech && (() => {
                       const ar = r.assignedAgents.find(a => a.agentId === agentForMech.id);
                       if (!ar) return null;
                       const allPassed = ar.mechanicResults.every(m => m.passed);
                       return (
                         <>
-                          {ar.stressGained > 0 && <span className="delta-tag stress">+{ar.stressGained} stress</span>}
-                          {ar.wasDowned && <span className="delta-tag downed">Downed</span>}
-                          {allPassed && ar.stressGained === 0 && <span className="delta-tag clean">Clean</span>}
+                          {ar.stressGained > 0 && (
+                            <span className="tag-label delta-stress">{` +${ar.stressGained} STRESS`}</span>
+                          )}
+                          {ar.wasDowned && (
+                            <span className="tag-label delta-downed">DOWNED</span>
+                          )}
+                          {allPassed && !ar.wasDowned && (
+                            <span className="tag-label delta-clean">CLEAN</span>
+                          )}
                         </>
                       );
                     })()}
+                    {agentForMech ? ` · ${roleName}` : ""} · {Math.round(repResult.score)} vs threshold {repResult.threshold}
                   </div>
                   <div className={`bar mechanic${!repResult.passed ? " fail" : ""}`}>
                     <div className="fill" style={{ width: `${pct}%` }} />

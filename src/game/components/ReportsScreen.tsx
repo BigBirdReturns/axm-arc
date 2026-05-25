@@ -79,15 +79,39 @@ export function ReportsScreen({
                   {p.eligibleAgentIds.map((aid) => {
                     const a = agentMap.get(aid);
                     const chosen = decided?.winner === aid;
+                    const bonusLines = item
+                      ? Object.entries(item.statBonuses).map(([attrId, bonus]) => {
+                          const attr = arc.attributes.find((at) => at.id === attrId);
+                          const current = a?.attributes[attrId] ?? 0;
+                          return { name: attr?.name ?? attrId, current, bonus };
+                        })
+                      : [];
+                    const roleName = a?.role ? arc.roles.find((r) => r.id === a.role)?.name : null;
                     return (
-                      <button
+                      <div
                         key={aid}
-                        className={chosen ? "primary" : "secondary"}
-                        style={{ width: "100%", marginTop: 4 }}
+                        className={`loot-candidate${chosen ? " chosen" : ""}`}
                         onClick={() => award(p, aid)}
                       >
-                        {chosen ? `→ ${a?.name ?? aid}` : `Award ${a?.name ?? aid}`}
-                      </button>
+                        <div className="row between">
+                          <div>
+                            <div className="agent-name" style={{ fontSize: 13 }}>{a?.name ?? aid}</div>
+                            <div className="agent-meta">
+                              {roleName ?? "Flex"} · M{a?.morale ?? 0} S{a?.stress ?? 0}
+                            </div>
+                          </div>
+                          {chosen && <span className="badge pass">Awarded</span>}
+                        </div>
+                        {bonusLines.length > 0 && (
+                          <div className="loot-stats">
+                            {bonusLines.map((b) => (
+                              <span key={b.name} className="loot-stat-chip">
+                                {b.name} {b.current} → <strong>{b.current + b.bonus}</strong>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     );
                   })}
                 </div>

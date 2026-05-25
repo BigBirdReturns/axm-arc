@@ -376,7 +376,20 @@ export function App(): JSX.Element {
         </div>
 
         <div className="situation-main">
-          {/* Intent block above contracts in desktop main column */}
+          <nav className="desktop-tabstrip">
+            {(["Assign", "Drama", "Base", "Reports"] as Tab[]).map((t) => (
+              <button
+                key={t}
+                className={tab === t ? "active" : ""}
+                onClick={() => setTab(t)}
+              >
+                {t}
+                {t === "Drama" && org.dramaQueue.length > 0 && (
+                  <span className="tab-badge">{org.dramaQueue.length}</span>
+                )}
+              </button>
+            ))}
+          </nav>
           {tab === "Assign" && intentBlock}
           {activeScreen}
         </div>

@@ -878,6 +878,52 @@ button.icon:hover { border-color: var(--ink); color: var(--ink); }
   .situation-roster .bar-label { font-size: 8px; }
 }
 
+/* ── Desktop tab strip (replaces mobile tabbar) ───────────────── */
+
+.desktop-tabstrip {
+  display: none;
+}
+
+@media (min-width: 960px) {
+  .desktop-tabstrip {
+    display: flex;
+    gap: 0;
+    border-bottom: 2px solid var(--ink);
+    margin-bottom: 16px;
+  }
+  .desktop-tabstrip button {
+    flex: 1;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    padding: 8px 12px;
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    cursor: pointer;
+    transition: color 0.15s;
+    position: relative;
+  }
+  .desktop-tabstrip button:hover { color: var(--ink); }
+  .desktop-tabstrip button.active {
+    color: var(--ink);
+    border-bottom-color: var(--accent);
+  }
+  .desktop-tabstrip .tab-badge {
+    display: inline-block;
+    background: var(--accent);
+    color: #fff;
+    font-size: 9px;
+    padding: 0 5px;
+    margin-left: 6px;
+    line-height: 1.5;
+  }
+}
+
 /* ── MOBILE: hide desktop pieces ─────────────────────────────── */
 
 @media (max-width: 959px) {
@@ -1553,4 +1599,42 @@ button.icon:hover { border-color: var(--ink); color: var(--ink); }
   border: 1px solid var(--positive);
   margin-left: 6px;
   vertical-align: middle;
+}
+
+/* ── Loot award candidates ─────────────────────────────────────── */
+
+.loot-candidate {
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  padding: 10px 12px;
+  margin-top: 6px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.loot-candidate:hover {
+  border-color: var(--ink);
+  background: var(--paper-alt);
+}
+.loot-candidate.chosen {
+  border-color: var(--accent);
+  background: var(--accent-lt);
+}
+
+.loot-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.loot-stat-chip {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  background: var(--paper-dk);
+  padding: 2px 7px;
+}
+.loot-stat-chip strong {
+  color: var(--accent);
+  font-weight: 600;
 }

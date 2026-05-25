@@ -109,6 +109,29 @@ The playable build at `docs/game/` ships a title screen, tutorial, and the full 
 
 The app uses a top-level `mode` state that gates between screens. Currently `"title"` and `"play"`. Adding `"library"`, `"settings"`, `"creator"` is additive — each mode gets its own screen component. The engine/content split means arc import is `validateArc()` + localStorage. The creator is a form over the existing schema.
 
+### Phase 2 design notes: Arc Library as trust boundary
+
+Phase 1 has one arc, bundled, implicitly trusted. The moment "Import JSON" exists, untrusted arcs enter the system. The library data model should carry a trust taxonomy from day one:
+
+| Level | Meaning |
+|---|---|
+| **Bundled** | Shipped with this build, implicitly trusted |
+| **Verified** | Signed, chain resolves via axm-verify, author identity shown |
+| **Imported (unsigned)** | Schema-valid, runs, but flagged — the natural state for "I'm authoring this" |
+| **Quarantined** | Schema-valid but signature failed or was revoked |
+
+Only "bundled" and "imported" need to be exercised initially. But if the field exists in the data model, the Creator outputs "imported (unsigned)" by default, Mods is a list view filtered by trust level, and the research-deploy story ("publish a signed arc + seed + result hash, any reviewer can re-run") becomes a natural extension instead of a retrofit.
+
+### Deploy variants (same codebase, different lobby)
+
+The title screen's mode state supports build-time configuration for different audiences:
+
+- **Game deploy** — lobby shows Continue / New Game against the bundled arc, Library is secondary
+- **Enterprise deploy** — lobby shows "Open arc..." first, no bundled arc, no marketing copy
+- **Research deploy** — lobby shows arc + seed + reviewer-mode toggle, "New Game" is suppressed
+
+This is a build-time flag, not three codebases. The Library components should not assume a bundled tutorial arc always exists.
+
 ### Scaling stress tests (designed, not yet implemented)
 
 DESIGN.md specifies five schema stress tests proving the engine holds structurally different formats:

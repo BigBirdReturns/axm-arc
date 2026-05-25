@@ -279,6 +279,38 @@ code, .mono {
   .stat-strip { grid-template-columns: 1fr 1fr; }
   .guar-grid { grid-template-columns: 1fr; }
 }
+
+.play-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--ink);
+  color: var(--paper);
+  text-decoration: none;
+  padding: 18px 24px;
+  margin: 16px 0;
+  border-left: 3px solid var(--accent);
+  transition: background 0.15s;
+}
+.play-link:hover { background: var(--accent); }
+.play-label {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 28px;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+  color: var(--paper);
+}
+.play-link:hover .play-label { color: #fff; }
+.play-sub {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(240,235,224,0.55);
+}
+.rm-status.live { color: var(--accent); font-weight: 600; }
 </style>
 </head>
 <body>
@@ -391,6 +423,11 @@ npm run check<br>
 npm run dev
 </div>
 
+<a href="./game/" class="play-link">
+  <span class="play-label">Play</span>
+  <span class="play-sub">The First Charter · browser · no install</span>
+</a>
+
 <p class="note">Requires Node 18+. No accounts, no keys, no cloud. The tutorial arc loads automatically.</p>
 
 
@@ -399,6 +436,17 @@ npm run dev
 <p>AXM converges on signed, content-addressed, portable artifacts. axm-arc satisfies the spirit (portable, deterministic, schema-validated) and not yet the letter (signed shards via Genesis). Here is the gap, honestly.</p>
 
 <div class="roadmap">
+  <div class="rm-row">
+    <div class="rm-when">live</div>
+    <div class="rm-what">
+      <strong>Playable build</strong>
+      The First Charter. Browser, no install.
+      <a href="./game/" style="font-family:var(--mono);font-size:10px;color:var(--accent);letter-spacing:0.06em;">
+        bigbirdreturns.github.io/axm-arc/game/ →
+      </a>
+    </div>
+    <div class="rm-status live">LIVE</div>
+  </div>
   <div class="rm-row">
     <div class="rm-when">v1.0</div>
     <div class="rm-what"><strong>Deterministic engine</strong>11-step cycle loop, 130+ tests, resolver, stress, relationships, drama, rewards, infrastructure, recruitment, save/load.</div>

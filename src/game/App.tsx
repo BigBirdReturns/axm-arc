@@ -13,6 +13,7 @@ import { DramaScreen } from "./components/DramaScreen.js";
 import { BaseScreen } from "./components/BaseScreen.js";
 import { ReportsScreen } from "./components/ReportsScreen.js";
 import { SituationSidebar } from "./components/SituationSidebar.js";
+import { CycleTransition } from "./components/CycleTransition.js";
 import { agentInitials } from "./lib/ui-helpers.js";
 
 type Tab = "Roster" | "Assign" | "Drama" | "Base" | "Reports";
@@ -73,6 +74,7 @@ export function App(): JSX.Element {
   const [pendingRewardChoices, setPendingRewardChoices] = useState<PendingRewardChoice[]>([]);
   const [rewardDecisions, setRewardDecisions] = useState<RewardDecision[]>([]);
   const [advanceError, setAdvanceError] = useState<string | null>(null);
+  const [cycleTransition, setCycleTransition] = useState<{ fromCycle: number; toCycle: number } | null>(null);
 
   // Intent — player-authored pull-quote, persisted separately from game state
   const [intent, setIntent] = useState<string>(() => {
@@ -101,13 +103,14 @@ export function App(): JSX.Element {
   const advanceCycle = () => {
     setAdvanceError(null);
     if (advanceBlocker) { setAdvanceError(advanceBlocker); return; }
+    const fromCycle = org.cycle;
     const result = runCycle({ org, arc, assignments, pendingRewardDecisions: rewardDecisions });
     setOrg(result.org);
     setLastReports(result.reports);
     setPendingRewardChoices(result.pendingRewardChoices);
     setRewardDecisions([]);
     setAssignments([]);
-    setTab("Reports");
+    setCycleTransition({ fromCycle, toCycle: result.org.cycle });
   };
 
   const resetGame = () => {
@@ -256,6 +259,21 @@ export function App(): JSX.Element {
 
   return (
     <>
+      {/* ── CYCLE TRANSITION OVERLAY ── */}
+      {cycleTransition && (
+        <CycleTransition
+          fromCycle={cycleTransition.fromCycle}
+          toCycle={cycleTransition.toCycle}
+          reports={lastReports}
+          arc={arc}
+          org={org}
+          onComplete={() => {
+            setCycleTransition(null);
+            setTab("Reports");
+          }}
+        />
+      )}
+
       {/* ── HEADER ── */}
       <header className="app-header">
         <div className="top-row">

@@ -101,7 +101,8 @@ function makeOption(
   return { id, label, description, effects, hiddenEffects };
 }
 
-function optionsForTrigger(trigger: DramaTriggerInput, _rng: Rng): DramaCardOption[] {
+function optionsForTrigger(trigger: DramaTriggerInput, _rng: Rng, org: Organization): DramaCardOption[] {
+  const n = (id: string) => org.agents[id]?.name ?? id;
   switch (trigger.type) {
     case "reward_dispute": {
       const [first, second] = trigger.eligible;
@@ -110,15 +111,15 @@ function optionsForTrigger(trigger: DramaTriggerInput, _rng: Rng): DramaCardOpti
       return [
         makeOption(
           "award_a",
-          `Award to ${a}`,
-          `Give the item to ${a}. Other eligible agents may be disappointed.`,
+          `Award to ${n(a)}`,
+          `Give the item to ${n(a)}. Other eligible agents may be disappointed.`,
           [makeEffect(a, "equip_item", 1), makeEffect(trigger.winner, "morale", 5)],
           [makeEffect(b, "affinity_toward_winner", -5), makeEffect("_org_", "loyalty_loss", -2)],
         ),
         makeOption(
           "award_b",
-          `Award to ${b}`,
-          `Give the item to ${b}. Changes the power distribution in the org.`,
+          `Award to ${n(b)}`,
+          `Give the item to ${n(b)}. Changes the power distribution in the org.`,
           [makeEffect(b, "equip_item", 1), makeEffect(b, "morale", 5)],
           [makeEffect(a, "affinity_toward_winner", -5), makeEffect("_org_", "loyalty_loss", -2)],
         ),
@@ -144,7 +145,7 @@ function optionsForTrigger(trigger: DramaTriggerInput, _rng: Rng): DramaCardOpti
         makeOption(
           "separate",
           "Separate them",
-          `Reassign ${agentA} or ${agentB} to different challenges.`,
+          `Reassign ${n(agentA)} or ${n(agentB)} to different challenges.`,
           [makeEffect(agentA, "stress", -1), makeEffect(agentB, "stress", -1)],
           [makeEffect(agentA, "morale", -5)],
         ),
@@ -163,7 +164,7 @@ function optionsForTrigger(trigger: DramaTriggerInput, _rng: Rng): DramaCardOpti
         makeOption(
           "promise_rotation",
           "Promise rotation",
-          `Commit to reassigning ${agentId} next cycle. High morale upside, high expectation risk.`,
+          `Commit to reassigning ${n(agentId)} next cycle. High morale upside, high expectation risk.`,
           [makeEffect(agentId, "morale", 10)],
           [makeEffect(agentId, "loyalty", 3)],
         ),
@@ -177,7 +178,7 @@ function optionsForTrigger(trigger: DramaTriggerInput, _rng: Rng): DramaCardOpti
         makeOption(
           "promote_officer",
           "Promote to officer",
-          `Elevate ${agentId}'s role. Addresses grievance through status rather than action.`,
+          `Elevate ${n(agentId)}'s role. Addresses grievance through status rather than action.`,
           [makeEffect(agentId, "morale", 15), makeEffect(agentId, "stress", -2)],
           [makeEffect("_org_", "precedent_favoritism", 1)],
         ),
@@ -189,14 +190,14 @@ function optionsForTrigger(trigger: DramaTriggerInput, _rng: Rng): DramaCardOpti
         makeOption(
           "acknowledge",
           "Acknowledge publicly",
-          `Recognize ${agentId}'s state in front of the team. Builds culture.`,
+          `Recognize ${n(agentId)}'s state in front of the team. Builds culture.`,
           [makeEffect(agentId, "morale", 8), makeEffect("_org_", "morale_all", 3)],
           [],
         ),
         makeOption(
           "private_talk",
           "Private conversation",
-          `Talk to ${agentId} one-on-one. Lower visibility but more personal.`,
+          `Talk to ${n(agentId)} one-on-one. Lower visibility but more personal.`,
           [makeEffect(agentId, "morale", 5), makeEffect(agentId, "loyalty", 2)],
           [],
         ),
@@ -215,7 +216,7 @@ function optionsForTrigger(trigger: DramaTriggerInput, _rng: Rng): DramaCardOpti
         makeOption(
           "rest_treatment",
           "Send to rest",
-          `Assign ${agentId} to Recreation this cycle. Reduces stress, delays affliction impact.`,
+          `Assign ${n(agentId)} to Recreation this cycle. Reduces stress, delays affliction impact.`,
           [makeEffect(agentId, "stress", -2), makeEffect(agentId, "morale", 5)],
           [],
         ),
@@ -265,7 +266,7 @@ function optionsForTrigger(trigger: DramaTriggerInput, _rng: Rng): DramaCardOpti
       return [
         makeOption(
           "acknowledge_winner",
-          `Highlight ${agentA}'s performance`,
+          `Highlight ${n(agentA)}'s performance`,
           "Acknowledge the gap. Motivates the winner; stings the loser.",
           [makeEffect(agentA, "morale", 5)],
           [makeEffect(agentB, "stress", 2)],
@@ -273,7 +274,7 @@ function optionsForTrigger(trigger: DramaTriggerInput, _rng: Rng): DramaCardOpti
         makeOption(
           "mentor_pair",
           "Set up coaching",
-          `Pair ${agentA} and ${agentB} in Training. May reduce rivalry, may increase tension.`,
+          `Pair ${n(agentA)} and ${n(agentB)} in Training. May reduce rivalry, may increase tension.`,
           [makeEffect(agentB, "attributes", 1)],
           [makeEffect(agentA, "morale", -3)],
         ),
@@ -292,14 +293,14 @@ function optionsForTrigger(trigger: DramaTriggerInput, _rng: Rng): DramaCardOpti
         makeOption(
           "memorial",
           "Commemorate the loss",
-          `Honor the partner publicly. ${agentId} needs to feel it acknowledged.`,
+          `Honor the partner publicly. ${n(agentId)} needs to feel it acknowledged.`,
           [makeEffect(agentId, "morale", 5), makeEffect("_org_", "morale_all", 2)],
           [makeEffect(agentId, "stress", -1)],
         ),
         makeOption(
           "new_assignment",
           "Keep them busy",
-          `Assign ${agentId} immediately. Work as coping mechanism.`,
+          `Assign ${n(agentId)} immediately. Work as coping mechanism.`,
           [],
           [makeEffect(agentId, "stress", 2)],
         ),
@@ -371,15 +372,15 @@ export function generateDramaCards(
 
     // Build narrative text variables
     const vars: Record<string, string> = {};
-    if ("agentA" in trigger) vars["agentA"] = trigger.agentA;
-    if ("agentB" in trigger) vars["agentB"] = trigger.agentB;
-    if ("agentId" in trigger) vars["agent"] = trigger.agentId;
+    if ("agentA" in trigger) vars["agentA"] = org.agents[trigger.agentA]?.name ?? trigger.agentA;
+    if ("agentB" in trigger) vars["agentB"] = org.agents[trigger.agentB]?.name ?? trigger.agentB;
+    if ("agentId" in trigger) vars["agent"] = org.agents[trigger.agentId]?.name ?? trigger.agentId;
     if ("cyclesBenched" in trigger) vars["cycles"] = String(trigger.cyclesBenched);
 
     const template = pickTemplate(rng, trigger.type);
     const narrativeText = fillTemplate(template, vars);
 
-    const options = optionsForTrigger(trigger, rng);
+    const options = optionsForTrigger(trigger, rng, org);
 
     cards.push({
       id,

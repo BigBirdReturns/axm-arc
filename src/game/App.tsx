@@ -15,6 +15,7 @@ import { ReportsScreen } from "./components/ReportsScreen.js";
 import { SituationSidebar } from "./components/SituationSidebar.js";
 import { CycleTransition } from "./components/CycleTransition.js";
 import { CoachOverlay, useCoachDone } from "./components/CoachOverlay.js";
+import { TitleScreen } from "./components/TitleScreen.js";
 import { agentInitials } from "./lib/ui-helpers.js";
 
 type Tab = "Roster" | "Assign" | "Drama" | "Base" | "Reports";
@@ -65,6 +66,7 @@ function getAdvanceBlocker(opts: {
 }
 
 export function App(): JSX.Element {
+  const [mode, setMode] = useState<"title" | "play">("title");
   const [coachDone, dismissCoach] = useCoachDone();
   const [tab, setTab] = useState<Tab>("Roster");
   const [org, setOrg] = useState<Organization>(() => {
@@ -268,6 +270,29 @@ export function App(): JSX.Element {
       )}
     </>
   );
+
+  if (mode === "title") {
+    return (
+      <TitleScreen
+        arc={arc}
+        onContinue={() => {
+          const loaded = loadSave(arc);
+          if (loaded) setOrg(loaded.org);
+          setMode("play");
+        }}
+        onNewGame={() => {
+          clearSave();
+          setOrg(buildNewOrg());
+          setLastReports([]);
+          setPendingRewardChoices([]);
+          setRewardDecisions([]);
+          setAssignments([]);
+          setTab("Roster");
+          setMode("play");
+        }}
+      />
+    );
+  }
 
   return (
     <>

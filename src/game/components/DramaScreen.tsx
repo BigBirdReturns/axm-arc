@@ -28,7 +28,7 @@ export function DramaScreen({ org, arc, setOrg, cycle, pendingRewardChoices }: P
   return (
     <div className="screen">
       {queue.length === 0 ? (
-        <div className="empty">All quiet for now.</div>
+        <div className="empty">No drama cards in the queue. Drama generates after each cycle from stress events, relationship shifts, and contract outcomes.</div>
       ) : (
         <>
           <div className="row between" style={{ marginBottom: 16 }}>

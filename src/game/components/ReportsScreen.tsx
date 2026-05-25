@@ -41,7 +41,7 @@ export function ReportsScreen({
   return (
     <div className="screen">
       {reports.length === 0 && pendingRewardChoices.length === 0 && (
-        <div className="empty">No reports yet. Assign agents and advance the cycle.</div>
+        <div className="empty">No reports yet. Go to Assign, slot a roster on a contract, then hit Advance Cycle.</div>
       )}
 
       {/* ── Pending reward decisions ── */}
@@ -219,6 +219,18 @@ export function ReportsScreen({
                   </div>
                   <div className="mechanic-detail">
                     {agentForMech ? `${agentForMech.name} · ${roleName}` : roleName} · {Math.round(repResult.score)} vs threshold {repResult.threshold}
+                    {agentForMech && (() => {
+                      const ar = r.assignedAgents.find(a => a.agentId === agentForMech.id);
+                      if (!ar) return null;
+                      const allPassed = ar.mechanicResults.every(m => m.passed);
+                      return (
+                        <>
+                          {ar.stressGained > 0 && <span className="delta-tag stress">+{ar.stressGained} stress</span>}
+                          {ar.wasDowned && <span className="delta-tag downed">Downed</span>}
+                          {allPassed && ar.stressGained === 0 && <span className="delta-tag clean">Clean</span>}
+                        </>
+                      );
+                    })()}
                   </div>
                   <div className={`bar mechanic${!repResult.passed ? " fail" : ""}`}>
                     <div className="fill" style={{ width: `${pct}%` }} />

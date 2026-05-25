@@ -51,6 +51,12 @@ export function AssignScreen({ arc, org, assignments, setAssignments }: Props): 
     <div className="screen">
       <h2>Contracts <span className="count">Tier I · {challenges.length} available</span></h2>
 
+      {assignments.length === 0 && (
+        <div className="guidance-callout">
+          Pick a contract below, then choose agents to send. Each contract costs 1 lockout token.
+        </div>
+      )}
+
       {assignments.length > 0 && assignments.map((a, i) => {
         const c = arc.challenges.find((cc) => cc.id === a.challengeId);
         const agents = a.agentIds.map((id) => org.agents[id]).filter(Boolean) as Agent[];

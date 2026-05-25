@@ -14,6 +14,7 @@ import { BaseScreen } from "./components/BaseScreen.js";
 import { ReportsScreen } from "./components/ReportsScreen.js";
 import { SituationSidebar } from "./components/SituationSidebar.js";
 import { CycleTransition } from "./components/CycleTransition.js";
+import { CoachOverlay, useCoachDone } from "./components/CoachOverlay.js";
 import { agentInitials } from "./lib/ui-helpers.js";
 
 type Tab = "Roster" | "Assign" | "Drama" | "Base" | "Reports";
@@ -64,6 +65,7 @@ function getAdvanceBlocker(opts: {
 }
 
 export function App(): JSX.Element {
+  const [coachDone, dismissCoach] = useCoachDone();
   const [tab, setTab] = useState<Tab>("Roster");
   const [org, setOrg] = useState<Organization>(() => {
     const loaded = loadSave(arc);
@@ -213,8 +215,18 @@ export function App(): JSX.Element {
     </div>
   );
 
+  const readbackMessage = (() => {
+    if (assignments.length === 0) return { text: "No contracts assigned. Go to Assign to slot agents.", blocking: false };
+    if (org.dramaQueue.length > 0) return { text: `Resolve ${org.dramaQueue.length} drama card${org.dramaQueue.length === 1 ? "" : "s"} first.`, blocking: true };
+    if (pendingRewardChoices.length > rewardDecisions.length) return { text: "Award pending loot in Reports first.", blocking: true };
+    return { text: `Ready. ${assignments.length} contract${assignments.length === 1 ? "" : "s"} queued.`, blocking: false };
+  })();
+
   const advanceButton = (
     <div className="advance-footer">
+      <div className={`advance-readback${readbackMessage.blocking ? " blocking" : ""}`}>
+        {readbackMessage.text}
+      </div>
       {(advanceError ?? advanceBlocker) && (
         <div className="warning">{advanceError ?? advanceBlocker}</div>
       )}
@@ -259,6 +271,9 @@ export function App(): JSX.Element {
 
   return (
     <>
+      {/* ── COACH OVERLAY (first launch) ── */}
+      {!coachDone && <CoachOverlay onDismiss={dismissCoach} />}
+
       {/* ── CYCLE TRANSITION OVERLAY ── */}
       {cycleTransition && (
         <CycleTransition

@@ -8,6 +8,63 @@ import {
   nextRevealHint,
 } from "../lib/ui-helpers.js";
 
+// ── Bark library ──────────────────────────────────────────────────────────────
+
+const BARKS_THRESHOLD = [
+  "I can do one more. Maybe.",
+  "Don't put me next to them again.",
+  "The numbers are fine. I'm fine.",
+];
+
+const BARKS_AFFLICTED = [
+  "I'm done volunteering.",
+  "Ask someone who still cares.",
+  "You already know what I think.",
+];
+
+const BARKS_HIGH_MORALE = [
+  "Put me in. Any contract.",
+  "We're better than what we've been running.",
+  "This is what it's supposed to feel like.",
+];
+
+const BARKS_LOW_MORALE = [
+  "Whatever you decide.",
+  "I'll be on the bench if you need me.",
+  "Starting to wonder what the point is.",
+];
+
+function pickBark(agent: Agent): string | null {
+  const idx = agent.id.charCodeAt(0) % 3;
+  const isAfflicted = agent.afflictionState.kind !== "none";
+  const nearThreshold = agent.stress >= 8 && !isAfflicted;
+
+  if (isAfflicted) return BARKS_AFFLICTED[idx]!;
+  if (nearThreshold) return BARKS_THRESHOLD[idx]!;
+  if (agent.morale < 30) return BARKS_LOW_MORALE[idx]!;
+  if (agent.morale > 75) return BARKS_HIGH_MORALE[idx]!;
+  return null;
+}
+
+// ── Portrait state helpers ────────────────────────────────────────────────────
+
+function portraitStateClass(agent: Agent): string {
+  const isAfflicted = agent.afflictionState.kind !== "none";
+  if (isAfflicted) return "portrait-afflicted";
+  if (agent.stress >= 8) return "portrait-danger";
+  if (agent.stress >= 6) return "portrait-warn";
+  return "";
+}
+
+function portraitGlyph(agent: Agent): { glyph: string; kind: string } | null {
+  const isAfflicted = agent.afflictionState.kind !== "none";
+  if (isAfflicted) return { glyph: "×", kind: "glyph-afflicted" };
+  if (agent.stress >= 8) return { glyph: "!", kind: "glyph-threshold" };
+  if (agent.afflictionState.kind === "none" && agent.morale > 80)
+    return { glyph: "↑", kind: "glyph-resolve" };
+  return null;
+}
+
 interface Props {
   agents: Agent[];
   arc: Arc;
@@ -32,12 +89,16 @@ function AgentRow({ agent, arc, onClick }: { agent: Agent; arc: Arc; onClick: ()
   const tier = arc.tiers.find((t) => t.id === agent.tier);
   const role = arc.roles.find((r) => r.id === agent.role);
   const nearThreshold = agent.stress >= 8 && agent.afflictionState.kind === "none";
+  const stateClass = portraitStateClass(agent);
+  const glyphInfo = portraitGlyph(agent);
+  const bark = pickBark(agent);
 
   return (
     <div className={`card clickable${nearThreshold ? " danger" : ""}`} onClick={onClick}>
       <div className="row">
-        <div className={`portrait${nearThreshold ? " accent" : ""}`}>
+        <div className={`portrait ${stateClass}`}>
           {agentInitials(agent.name)}
+          {glyphInfo && <span className={`corner-glyph ${glyphInfo.kind}`}>{glyphInfo.glyph}</span>}
         </div>
         <div style={{ flex: 1 }}>
           <div className="row between">
@@ -72,6 +133,7 @@ function AgentRow({ agent, arc, onClick }: { agent: Agent; arc: Arc; onClick: ()
       {nearThreshold && (
         <div className="warning" style={{ marginTop: 6 }}>Stress threshold near</div>
       )}
+      {bark && <div className="bark">{bark}</div>}
     </div>
   );
 }

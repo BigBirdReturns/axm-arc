@@ -878,6 +878,52 @@ button.icon:hover { border-color: var(--ink); color: var(--ink); }
   .situation-roster .bar-label { font-size: 8px; }
 }
 
+/* ── Desktop tab strip (replaces mobile tabbar) ───────────────── */
+
+.desktop-tabstrip {
+  display: none;
+}
+
+@media (min-width: 960px) {
+  .desktop-tabstrip {
+    display: flex;
+    gap: 0;
+    border-bottom: 2px solid var(--ink);
+    margin-bottom: 16px;
+  }
+  .desktop-tabstrip button {
+    flex: 1;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    padding: 8px 12px;
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    cursor: pointer;
+    transition: color 0.15s;
+    position: relative;
+  }
+  .desktop-tabstrip button:hover { color: var(--ink); }
+  .desktop-tabstrip button.active {
+    color: var(--ink);
+    border-bottom-color: var(--accent);
+  }
+  .desktop-tabstrip .tab-badge {
+    display: inline-block;
+    background: var(--accent);
+    color: #fff;
+    font-size: 9px;
+    padding: 0 5px;
+    margin-left: 6px;
+    line-height: 1.5;
+  }
+}
+
 /* ── MOBILE: hide desktop pieces ─────────────────────────────── */
 
 @media (max-width: 959px) {
@@ -1363,4 +1409,232 @@ button.icon:hover { border-color: var(--ink); color: var(--ink); }
   .headline-headline { font-size: 44px; }
   .passing-cycle .cycle-old,
   .passing-cycle .cycle-new { font-size: 110px; }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   COACH OVERLAY — first-launch onboarding cards
+   ════════════════════════════════════════════════════════════════ */
+
+.coach-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  background: rgba(14,13,12,0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.coach-card {
+  background: var(--paper);
+  border-top: 3px solid var(--accent);
+  width: 100%;
+  max-width: 400px;
+  padding: 28px 24px 24px;
+}
+
+.coach-step {
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--dim);
+  margin-bottom: 12px;
+}
+
+.coach-title {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 28px;
+  line-height: 1.0;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  text-transform: uppercase;
+  margin: 0 0 12px;
+}
+
+.coach-body {
+  font-family: var(--serif);
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--ink-2);
+  margin: 0 0 20px;
+}
+
+/* ── GUIDANCE CALLOUT (Assign screen empty hint) ──────────────── */
+
+.guidance-callout {
+  font-family: var(--serif);
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--ink-2);
+  padding: 12px 16px;
+  border-left: 3px solid var(--accent);
+  background: var(--paper-alt);
+  margin-bottom: 16px;
+}
+
+/* ── ADVANCE READBACK ─────────────────────────────────────────── */
+
+.advance-readback {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--dim);
+  padding: 6px 0;
+  text-transform: uppercase;
+}
+
+.advance-readback.blocking {
+  color: var(--accent);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   PORTRAIT STATE + BARKS — aliveness layer
+   ════════════════════════════════════════════════════════════════ */
+
+.portrait { position: relative; }
+
+.portrait.portrait-warn {
+  box-shadow: 0 0 0 3px var(--accent-mid);
+}
+
+.portrait.portrait-danger {
+  border-color: var(--accent);
+  background: var(--accent-lt);
+  color: var(--accent-dp);
+  box-shadow: 0 0 0 3px var(--accent-mid);
+}
+
+.portrait.portrait-afflicted {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+  box-shadow: 0 0 0 3px var(--accent);
+}
+
+.corner-glyph {
+  position: absolute;
+  bottom: -3px;
+  right: -3px;
+  background: var(--paper);
+  border: 1px solid var(--ink);
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 11px;
+  line-height: 1;
+  width: 14px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink);
+}
+
+.corner-glyph.glyph-threshold {
+  background: var(--accent-lt);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.corner-glyph.glyph-afflicted {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.corner-glyph.glyph-resolve {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+
+.bark {
+  margin-top: 8px;
+  padding: 8px 12px 8px 28px;
+  position: relative;
+  background: var(--paper-alt);
+  border-left: 2px solid var(--ink);
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--ink);
+}
+.bark::before {
+  content: '\201C';
+  position: absolute;
+  left: 8px;
+  top: 3px;
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 24px;
+  color: var(--accent);
+  line-height: 1;
+}
+
+/* ── Delta labels (inline badges after agent name in audit) ────── */
+
+.tag-label.delta-stress {
+  background: var(--accent-lt);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.tag-label.delta-downed {
+  background: var(--accent);
+  color: #fff;
+  border: 1px solid var(--accent-dp);
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.tag-label.delta-clean {
+  background: var(--positive-lt);
+  color: var(--positive);
+  border: 1px solid var(--positive);
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+/* ── Loot award candidates ─────────────────────────────────────── */
+
+.loot-candidate {
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  padding: 10px 12px;
+  margin-top: 6px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.loot-candidate:hover {
+  border-color: var(--ink);
+  background: var(--paper-alt);
+}
+.loot-candidate.chosen {
+  border-color: var(--accent);
+  background: var(--accent-lt);
+}
+
+.loot-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.loot-stat-chip {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  background: var(--paper-dk);
+  padding: 2px 7px;
+}
+.loot-stat-chip strong {
+  color: var(--accent);
+  font-weight: 600;
 }

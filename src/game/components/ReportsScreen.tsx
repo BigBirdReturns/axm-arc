@@ -41,7 +41,7 @@ export function ReportsScreen({
   return (
     <div className="screen">
       {reports.length === 0 && pendingRewardChoices.length === 0 && (
-        <div className="empty">No reports yet. Assign agents and advance the cycle.</div>
+        <div className="empty">No reports yet. Go to Assign, slot a roster on a contract, then hit Advance Cycle.</div>
       )}
 
       {/* ── Pending reward decisions ── */}
@@ -79,15 +79,39 @@ export function ReportsScreen({
                   {p.eligibleAgentIds.map((aid) => {
                     const a = agentMap.get(aid);
                     const chosen = decided?.winner === aid;
+                    const bonusLines = item
+                      ? Object.entries(item.statBonuses).map(([attrId, bonus]) => {
+                          const attr = arc.attributes.find((at) => at.id === attrId);
+                          const current = a?.attributes[attrId] ?? 0;
+                          return { name: attr?.name ?? attrId, current, bonus };
+                        })
+                      : [];
+                    const roleName = a?.role ? arc.roles.find((r) => r.id === a.role)?.name : null;
                     return (
-                      <button
+                      <div
                         key={aid}
-                        className={chosen ? "primary" : "secondary"}
-                        style={{ width: "100%", marginTop: 4 }}
+                        className={`loot-candidate${chosen ? " chosen" : ""}`}
                         onClick={() => award(p, aid)}
                       >
-                        {chosen ? `→ ${a?.name ?? aid}` : `Award ${a?.name ?? aid}`}
-                      </button>
+                        <div className="row between">
+                          <div>
+                            <div className="agent-name" style={{ fontSize: 13 }}>{a?.name ?? aid}</div>
+                            <div className="agent-meta">
+                              {roleName ?? "Flex"} · M{a?.morale ?? 0} S{a?.stress ?? 0}
+                            </div>
+                          </div>
+                          {chosen && <span className="badge pass">Awarded</span>}
+                        </div>
+                        {bonusLines.length > 0 && (
+                          <div className="loot-stats">
+                            {bonusLines.map((b) => (
+                              <span key={b.name} className="loot-stat-chip">
+                                {b.name} {b.current} → <strong>{b.current + b.bonus}</strong>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     );
                   })}
                 </div>
@@ -218,7 +242,26 @@ export function ReportsScreen({
                     </span>
                   </div>
                   <div className="mechanic-detail">
-                    {agentForMech ? `${agentForMech.name} · ${roleName}` : roleName} · {Math.round(repResult.score)} vs threshold {repResult.threshold}
+                    {agentForMech ? agentForMech.name : roleName}
+                    {agentForMech && (() => {
+                      const ar = r.assignedAgents.find(a => a.agentId === agentForMech.id);
+                      if (!ar) return null;
+                      const allPassed = ar.mechanicResults.every(m => m.passed);
+                      return (
+                        <>
+                          {ar.stressGained > 0 && (
+                            <span className="tag-label delta-stress">{` +${ar.stressGained} STRESS`}</span>
+                          )}
+                          {ar.wasDowned && (
+                            <span className="tag-label delta-downed">DOWNED</span>
+                          )}
+                          {allPassed && !ar.wasDowned && (
+                            <span className="tag-label delta-clean">CLEAN</span>
+                          )}
+                        </>
+                      );
+                    })()}
+                    {agentForMech ? ` · ${roleName}` : ""} · {Math.round(repResult.score)} vs threshold {repResult.threshold}
                   </div>
                   <div className={`bar mechanic${!repResult.passed ? " fail" : ""}`}>
                     <div className="fill" style={{ width: `${pct}%` }} />

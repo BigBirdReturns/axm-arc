@@ -348,6 +348,25 @@ html, body, #root {
   margin-bottom: 12px;
 }
 
+/* ── REPORT SUMMARY (situation room brief) ───────────────────── */
+
+.report-summary {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--ink);
+  border-left: 3px solid var(--rule-dk);
+  padding-left: 12px;
+  margin-bottom: 12px;
+}
+.report-summary.outcome-success {
+  border-left-color: var(--positive);
+}
+.report-summary.outcome-failure {
+  border-left-color: var(--accent);
+}
+
 /* ── ABSTRACT (pull-quote style callout) ─────────────────────── */
 
 .abstract {

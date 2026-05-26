@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import type { Agent, Facility, InfrastructureFacility, Organization, RunReport } from "../engine/types.js";
+import type { Agent, DramaCard, Facility, InfrastructureFacility, Organization, RunReport } from "../engine/types.js";
 import { runCycle, type ChallengeAssignment, type PendingRewardChoice, type RewardDecision } from "../engine/cycle.js";
 import {
   FIRST_CHARTER,
   FIRST_CHARTER_STARTING_ROSTER,
   FIRST_CHARTER_STARTING_RELATIONSHIPS,
+  FIRST_CHARTER_STARTING_SKIRMISHERS,
 } from "../arcs/index.js";
 import { loadSave, saveSave, clearSave } from "./lib/storage.js";
 import { RosterScreen } from "./components/RosterScreen.js";
@@ -37,6 +38,43 @@ function defaultFacilities(): Record<InfrastructureFacility, Facility> {
 function buildNewOrg(): Organization {
   const agents: Record<string, Agent> = {};
   for (const a of FIRST_CHARTER_STARTING_ROSTER) agents[a.id] = a;
+
+  const { veteran: vet, recruit: rec } = FIRST_CHARTER_STARTING_SKIRMISHERS;
+  const vetFirst = vet.name.split(" ")[0]!;
+  const recFirst = rec.name.split(" ")[0]!;
+
+  const openingCard: DramaCard = {
+    id: "opening-rivalry",
+    cycleGenerated: 0,
+    triggerType: "rivalrous_perf_gap",
+    agentsInvolved: [vet.id, rec.id],
+    narrativeText: `${vet.name} has history. ${rec.name} arrived with ambition. Both skirmishers, both watching to see who gets slotted first. You haven't run a contract yet.`,
+    options: [
+      {
+        id: "acknowledge_winner",
+        label: `Acknowledge ${vetFirst}'s edge`,
+        description: `Pull ${vetFirst} aside. Their record speaks for itself. Draw the line before the first contract runs.`,
+        effects: [
+          { target: vet.id, type: "morale", value: 4 },
+          { target: rec.id, type: "morale", value: -2 },
+        ],
+        hiddenEffects: [
+          { target: vet.id, type: "loyalty", value: 2 },
+        ],
+      },
+      {
+        id: "let_it_play",
+        label: "Run them both. See what the field produces.",
+        description: `Assign both to the same contract. Either they figure it out or the friction tells you what you need to know.`,
+        effects: [
+          { target: vet.id, type: "stress", value: 1 },
+          { target: rec.id, type: "stress", value: 1 },
+        ],
+        hiddenEffects: [],
+      },
+    ],
+  };
+
   return {
     id: "player-charter",
     name: "Your Charter",
@@ -46,7 +84,7 @@ function buildNewOrg(): Organization {
     agents,
     relationships: [...FIRST_CHARTER_STARTING_RELATIONSHIPS],
     precedents: [],
-    dramaQueue: [],
+    dramaQueue: [openingCard],
     cycle: 0,
     distributionPolicy: "council",
     rngSeed: Math.floor(Math.random() * 2 ** 31),
@@ -67,7 +105,7 @@ function getAdvanceBlocker(opts: {
 
 export function App(): JSX.Element {
   const [mode, setMode] = useState<"title" | "play">("title");
-  const [coachDone, dismissCoach] = useCoachDone();
+  const [coachDone, dismissCoach, resetCoach] = useCoachDone();
   const [tab, setTab] = useState<Tab>("Roster");
   const [org, setOrg] = useState<Organization>(() => {
     const loaded = loadSave(arc);
@@ -127,7 +165,8 @@ export function App(): JSX.Element {
     setRewardDecisions([]);
     setAssignments([]);
     setIntent("");
-    setTab("Roster");
+    setTab("Drama");
+    resetCoach();
   };
 
   const agentCount = Object.keys(org.agents).length;
@@ -287,7 +326,8 @@ export function App(): JSX.Element {
           setPendingRewardChoices([]);
           setRewardDecisions([]);
           setAssignments([]);
-          setTab("Roster");
+          setTab("Drama");
+          resetCoach();
           setMode("play");
         }}
       />
@@ -296,8 +336,17 @@ export function App(): JSX.Element {
 
   return (
     <>
-      {/* ── COACH OVERLAY (first launch) ── */}
-      {!coachDone && <CoachOverlay onDismiss={dismissCoach} />}
+      {/* ── COACH OVERLAY (first launch / replay) ── */}
+      {!coachDone && (
+        <CoachOverlay
+          onDismiss={dismissCoach}
+          skirmisherNames={[
+            FIRST_CHARTER_STARTING_SKIRMISHERS.veteran.name,
+            FIRST_CHARTER_STARTING_SKIRMISHERS.recruit.name,
+          ]}
+          setTab={setTab}
+        />
+      )}
 
       {/* ── CYCLE TRANSITION OVERLAY ── */}
       {cycleTransition && (
@@ -318,11 +367,20 @@ export function App(): JSX.Element {
       <header className="app-header">
         <div className="top-row">
           <div className="kicker">Situation Room · Cycle {String(org.cycle).padStart(2, "0")}</div>
-          {/* Gap 5: Wordmark */}
-          <div className="wordmark">
-            <em>AXM</em>
-            <span className="sep">·</span>
-            <span className="arc-num">ARC 01</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <button
+              className="icon"
+              title="Replay tutorial"
+              style={{ fontSize: 11, padding: "2px 7px", minHeight: 0, color: "var(--dim)" }}
+              onClick={resetCoach}
+            >
+              ?
+            </button>
+            <div className="wordmark">
+              <em>AXM</em>
+              <span className="sep">·</span>
+              <span className="arc-num">ARC 01</span>
+            </div>
           </div>
         </div>
         <h1>{arc.meta.name}</h1>

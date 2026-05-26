@@ -1,27 +1,44 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 
 const COACH_KEY = "axm-arc:coach-done";
 
-const CARDS = [
-  {
-    title: "YOU RUN THIS GUILD",
-    body: "Six agents. Each with stats you can see, traits you can’t, and opinions about each other. Tap anyone on the Roster to learn what you know about them.",
-  },
-  {
-    title: "CONTRACTS COST TOKENS",
-    body: "Go to Assign. Pick a contract. Slot your roster. Each run costs 1 lockout token — you get 2 per cycle, so choose carefully.",
-  },
-  {
-    title: "THE ENGINE RESOLVES",
-    body: "Hit Advance Cycle. The engine runs every check deterministically. Same roster, same seed, same result. You’ll see what happened in the Field Report.",
-  },
-  {
-    title: "DRAMA IS MECHANICAL",
-    body: "Stress cascades. Relationships shift. Drama cards fire. These aren’t flavor — they have stat effects. Resolve them before you can advance again.",
-  },
-];
+type Tab = "Roster" | "Assign" | "Drama" | "Base" | "Reports";
 
-export function useCoachDone(): [boolean, () => void] {
+interface CoachCard {
+  title: string;
+  body: string;
+  tab: Tab;
+}
+
+function makeCards(vetName: string, recName: string): CoachCard[] {
+  const vet = vetName.split(" ")[0]!;
+  const rec = recName.split(" ")[0]!;
+  return [
+    {
+      tab: "Drama",
+      title: "SOMETHING ALREADY HAPPENED",
+      body: `${vet} and ${rec} are both skirmishers. ${vet} has history. ${rec} arrived with ambition. The tension is already there — and a decision about them is queued before you've run a single contract.`,
+    },
+    {
+      tab: "Drama",
+      title: "DRAMA COMES FIRST",
+      body: `One card in the queue. Two options, real stat effects. Visible effects apply immediately — hidden effects surface later. You can't advance to the next cycle until the queue is clear.`,
+    },
+    {
+      tab: "Assign",
+      title: "THEN ASSIGN AND ADVANCE",
+      body: `Pick a contract — start with The Cellar. Slot your agents. You have 2 lockout tokens this cycle. When the queue is clear and agents are slotted, hit Advance Cycle.`,
+    },
+    {
+      tab: "Reports",
+      title: "READ THE FIELD REPORT",
+      body: `After the cycle runs, the Field Report shows stress gains, loot drops, and any new drama cards. That report is the engine showing you what happened. It's the whole point.`,
+    },
+  ];
+}
+
+export function useCoachDone(): [boolean, () => void, () => void] {
   const [done, setDone] = useState(() => {
     try {
       return localStorage.getItem(COACH_KEY) === "1";
@@ -39,13 +56,36 @@ export function useCoachDone(): [boolean, () => void] {
     setDone(true);
   };
 
-  return [done, dismiss];
+  const reset = () => {
+    try {
+      localStorage.removeItem(COACH_KEY);
+    } catch {
+      /* noop */
+    }
+    setDone(false);
+  };
+
+  return [done, dismiss, reset];
 }
 
-export function CoachOverlay({ onDismiss }: { onDismiss: () => void }): JSX.Element {
+export function CoachOverlay({
+  onDismiss,
+  skirmisherNames,
+  setTab,
+}: {
+  onDismiss: () => void;
+  skirmisherNames: [string, string];
+  setTab: (tab: Tab) => void;
+}): JSX.Element {
   const [step, setStep] = useState(0);
+  const CARDS = makeCards(skirmisherNames[0], skirmisherNames[1]);
   const card = CARDS[step]!;
   const isLast = step === CARDS.length - 1;
+
+  // Navigate to the relevant tab when each card is shown
+  useEffect(() => {
+    setTab(card.tab);
+  }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const advance = () => {
     if (isLast) {
@@ -55,7 +95,7 @@ export function CoachOverlay({ onDismiss }: { onDismiss: () => void }): JSX.Elem
     }
   };
 
-  return (
+  return createPortal(
     <div className="coach-backdrop" onClick={advance}>
       <div className="coach-card" onClick={(e) => e.stopPropagation()}>
         <div className="coach-step">
@@ -64,9 +104,10 @@ export function CoachOverlay({ onDismiss }: { onDismiss: () => void }): JSX.Elem
         <h2 className="coach-title">{card.title}</h2>
         <p className="coach-body">{card.body}</p>
         <button className="primary accent" onClick={advance}>
-          {isLast ? "Got it" : "Next"}
+          {isLast ? "Let's go" : "Next →"}
         </button>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

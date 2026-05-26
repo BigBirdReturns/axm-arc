@@ -68,11 +68,14 @@ describe("FIRST_CHARTER arc", () => {
       expect(a.id).toBeTruthy();
       expect(Object.keys(a.attributes).sort()).toEqual(["mettle", "power", "spirit", "wits"]);
       expect(a.traits.length).toBeGreaterThanOrEqual(2);
-      expect(a.morale).toBe(50);
-      expect(a.stress).toBe(0);
     }
     const skirmishers = FIRST_CHARTER_STARTING_ROSTER.filter((a) => a.role === "skirmisher");
     expect(skirmishers.length).toBeGreaterThanOrEqual(2);
+    // Veteran skirmisher starts at stress 3; recruit starts at morale 38 — intentional seeding
+    const vetSkirm = skirmishers.find((a) => a.tier === "veteran");
+    const recSkirm = skirmishers.find((a) => a.tier === "recruit");
+    expect(vetSkirm?.stress).toBe(3);
+    expect(recSkirm?.morale).toBe(38);
     expect(FIRST_CHARTER_STARTING_RELATIONSHIPS).toHaveLength(1);
     expect(FIRST_CHARTER_STARTING_RELATIONSHIPS[0]?.state).toBe("Rivalrous");
   });

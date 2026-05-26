@@ -6,7 +6,7 @@ import {
   FIRST_CHARTER_STARTING_ROSTER,
   FIRST_CHARTER_STARTING_RELATIONSHIPS,
 } from "../arcs/index.js";
-import { loadSave, saveSave, clearSave } from "./lib/storage.js";
+import { loadSave, saveSave, clearSave, loadArcLibrary, upsertBundledArc, loadSettings, saveSettings, type UserSettings, type ArcLibraryEntry } from "./lib/storage.js";
 import { RosterScreen } from "./components/RosterScreen.js";
 import { AssignScreen } from "./components/AssignScreen.js";
 import { DramaScreen } from "./components/DramaScreen.js";
@@ -16,6 +16,8 @@ import { SituationSidebar } from "./components/SituationSidebar.js";
 import { CycleTransition } from "./components/CycleTransition.js";
 import { CoachOverlay, useCoachDone } from "./components/CoachOverlay.js";
 import { TitleScreen } from "./components/TitleScreen.js";
+import { LibraryScreen } from "./components/LibraryScreen.js";
+import { SettingsScreen } from "./components/SettingsScreen.js";
 import { agentInitials } from "./lib/ui-helpers.js";
 
 type Tab = "Roster" | "Assign" | "Drama" | "Base" | "Reports";
@@ -66,7 +68,9 @@ function getAdvanceBlocker(opts: {
 }
 
 export function App(): JSX.Element {
-  const [mode, setMode] = useState<"title" | "play">("title");
+  const [mode, setMode] = useState<"title" | "play" | "library" | "settings">("title");
+  const [libraryEntries, setLibraryEntries] = useState<ArcLibraryEntry[]>(() => upsertBundledArc(arc));
+  const [settings, setSettings] = useState<UserSettings>(() => loadSettings());
   const [coachDone, dismissCoach] = useCoachDone();
   const [tab, setTab] = useState<Tab>("Roster");
   const [org, setOrg] = useState<Organization>(() => {
@@ -94,6 +98,14 @@ export function App(): JSX.Element {
   useEffect(() => {
     try { localStorage.setItem(INTENT_KEY, intent); } catch { /* noop */ }
   }, [intent]);
+
+  useEffect(() => {
+    saveSettings(settings);
+    const root = document.documentElement;
+    root.style.setProperty("--text-scale", settings.textScale === "sm" ? "0.95" : settings.textScale === "lg" ? "1.08" : "1");
+    if (settings.reducedMotion) root.classList.add("reduce-motion");
+    else root.classList.remove("reduce-motion");
+  }, [settings]);
 
   const advanceBlocker = useMemo(() => getAdvanceBlocker({
     dramaQueueCount: org.dramaQueue.length,
@@ -290,6 +302,32 @@ export function App(): JSX.Element {
           setTab("Roster");
           setMode("play");
         }}
+        onLibrary={() => {
+          setLibraryEntries(loadArcLibrary());
+          setMode("library");
+        }}
+        onSettings={() => setMode("settings")}
+      />
+    );
+  }
+
+  if (mode === "library") {
+    return (
+      <LibraryScreen
+        arcs={libraryEntries}
+        bundledArc={arc}
+        onBack={() => setMode("title")}
+        onRefresh={() => setLibraryEntries(loadArcLibrary())}
+      />
+    );
+  }
+
+  if (mode === "settings") {
+    return (
+      <SettingsScreen
+        settings={settings}
+        setSettings={setSettings}
+        onBack={() => setMode("title")}
       />
     );
   }

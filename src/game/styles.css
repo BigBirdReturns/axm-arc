@@ -31,6 +31,7 @@
   --gap-s: 16px;
   --gap-m: 24px;
   --gap-l: 48px;
+  --text-scale: 1;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -40,9 +41,14 @@ html, body, #root {
   background: var(--paper-alt);
   color: var(--ink-2);
   font-family: var(--serif);
-  font-size: 16px;
+  font-size: calc(16px * var(--text-scale));
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
+}
+
+.reduce-motion *, .reduce-motion *::before, .reduce-motion *::after {
+  animation: none !important;
+  transition: none !important;
 }
 
 #root {

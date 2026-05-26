@@ -15,7 +15,7 @@ import { BaseScreen } from "./components/BaseScreen.js";
 import { ReportsScreen } from "./components/ReportsScreen.js";
 import { SituationSidebar } from "./components/SituationSidebar.js";
 import { CycleTransition } from "./components/CycleTransition.js";
-import { CoachOverlay, useCoachDone } from "./components/CoachOverlay.js";
+import { TutorialGuide, useTutorial, deriveTutorialStep, tutorialPulseTab, tutorialPulseAdvance } from "./components/TutorialGuide.js";
 import { TitleScreen } from "./components/TitleScreen.js";
 import { agentInitials } from "./lib/ui-helpers.js";
 
@@ -105,7 +105,7 @@ function getAdvanceBlocker(opts: {
 
 export function App(): JSX.Element {
   const [mode, setMode] = useState<"title" | "play">("title");
-  const [coachDone, dismissCoach, resetCoach] = useCoachDone();
+  const tutorial = useTutorial();
   const [tab, setTab] = useState<Tab>("Roster");
   const [org, setOrg] = useState<Organization>(() => {
     const loaded = loadSave(arc);
@@ -132,6 +132,16 @@ export function App(): JSX.Element {
   useEffect(() => {
     try { localStorage.setItem(INTENT_KEY, intent); } catch { /* noop */ }
   }, [intent]);
+
+  // ── Tutorial: step derived from game state ──────────────────────────────
+  const tutorialStep = deriveTutorialStep(
+    tutorial.active,
+    org.dramaQueue.length,
+    assignments.length,
+    org.cycle,
+  );
+  const pulseTab = tutorialPulseTab(tutorialStep);
+  const pulseAdvance = tutorialPulseAdvance(tutorialStep);
 
   const advanceBlocker = useMemo(() => getAdvanceBlocker({
     dramaQueueCount: org.dramaQueue.length,
@@ -166,7 +176,7 @@ export function App(): JSX.Element {
     setAssignments([]);
     setIntent("");
     setTab("Drama");
-    resetCoach();
+    tutorial.start();
   };
 
   const agentCount = Object.keys(org.agents).length;
@@ -272,7 +282,7 @@ export function App(): JSX.Element {
         <div className="warning">{advanceError ?? advanceBlocker}</div>
       )}
       <button
-        className={`primary${!advanceBlocker ? " accent" : ""}`}
+        className={`primary${!advanceBlocker ? " accent" : ""}${pulseAdvance && canAdvanceCycle ? " tutorial-pulse-btn" : ""}`}
         disabled={!canAdvanceCycle}
         onClick={advanceCycle}
       >
@@ -327,7 +337,7 @@ export function App(): JSX.Element {
           setRewardDecisions([]);
           setAssignments([]);
           setTab("Drama");
-          resetCoach();
+          tutorial.start();
           setMode("play");
         }}
       />
@@ -336,15 +346,12 @@ export function App(): JSX.Element {
 
   return (
     <>
-      {/* ── COACH OVERLAY (first launch / replay) ── */}
-      {!coachDone && (
-        <CoachOverlay
-          onDismiss={dismissCoach}
-          skirmisherNames={[
-            FIRST_CHARTER_STARTING_SKIRMISHERS.veteran.name,
-            FIRST_CHARTER_STARTING_SKIRMISHERS.recruit.name,
-          ]}
+      {/* ── TUTORIAL GUIDE (nudge bar) ── */}
+      {tutorialStep !== null && (
+        <TutorialGuide
+          step={tutorialStep}
           setTab={setTab}
+          onDismiss={tutorial.dismiss}
         />
       )}
 
@@ -372,7 +379,7 @@ export function App(): JSX.Element {
               className="icon"
               title="Replay tutorial"
               style={{ fontSize: 11, padding: "2px 7px", minHeight: 0, color: "var(--dim)" }}
-              onClick={resetCoach}
+              onClick={tutorial.start}
             >
               ?
             </button>
@@ -463,7 +470,7 @@ export function App(): JSX.Element {
             {(["Assign", "Drama", "Base", "Reports"] as Tab[]).map((t) => (
               <button
                 key={t}
-                className={tab === t ? "active" : ""}
+                className={`${tab === t ? "active" : ""}${pulseTab === t ? " tutorial-pulse" : ""}`}
                 onClick={() => setTab(t)}
               >
                 {t}
@@ -487,7 +494,7 @@ export function App(): JSX.Element {
         {(["Roster", "Assign", "Drama", "Base", "Reports"] as Tab[]).map((t) => (
           <button
             key={t}
-            className={`${tab === t ? "active" : ""}${t === "Drama" && org.dramaQueue.length > 0 ? " drama-active" : ""}`}
+            className={`${tab === t ? "active" : ""}${t === "Drama" && org.dramaQueue.length > 0 ? " drama-active" : ""}${pulseTab === t ? " tutorial-pulse" : ""}`}
             onClick={() => setTab(t)}
           >
             <span className="tab-count">{tabCounts[t]}</span>

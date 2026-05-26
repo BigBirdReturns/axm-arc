@@ -1474,6 +1474,72 @@ button.icon:hover { border-color: var(--ink); color: var(--ink); }
   margin: 0 0 20px;
 }
 
+/* ── TUTORIAL NUDGE BAR ─────────────────────────────────────── */
+
+.tutorial-nudge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: var(--accent-lt);
+  border-left: 3px solid var(--accent);
+  font-family: var(--serif);
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--ink-2);
+}
+
+.tutorial-step {
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.tutorial-msg {
+  flex: 1;
+}
+
+.tutorial-skip {
+  background: none;
+  border: none;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dim);
+  cursor: pointer;
+  padding: 4px 8px;
+  white-space: nowrap;
+}
+.tutorial-skip:hover {
+  color: var(--ink);
+}
+
+/* Pulsing tab button during tutorial */
+.tabbar button.tutorial-pulse,
+.desktop-tabstrip button.tutorial-pulse {
+  animation: tab-glow 1.4s ease-in-out infinite;
+}
+
+@keyframes tab-glow {
+  0%, 100% { border-top-color: transparent; }
+  50% { border-top-color: var(--accent); }
+}
+
+/* Pulsing advance button during tutorial */
+button.tutorial-pulse-btn {
+  animation: btn-glow 1.4s ease-in-out infinite;
+}
+
+@keyframes btn-glow {
+  0%, 100% { box-shadow: none; }
+  50% { box-shadow: 0 0 0 3px var(--accent-mid); }
+}
+
 /* ── GUIDANCE CALLOUT (Assign screen empty hint) ──────────────── */
 
 .guidance-callout {

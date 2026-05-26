@@ -355,6 +355,7 @@ export function App(): JSX.Element {
           reports={lastReports}
           arc={arc}
           org={org}
+          intent={intent}
           onComplete={() => {
             setCycleTransition(null);
             setTab("Reports");

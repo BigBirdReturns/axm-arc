@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import type { RunReport, Arc, Organization, Agent } from "../../engine/types.js";
 import { generateHeadline, type Headline } from "../lib/headline.js";
+import { evaluateIntent, type IntentOutcome } from "../lib/intent-eval.js";
 
 type Beat = "passing" | "headline" | "done";
 
@@ -137,7 +138,14 @@ interface CycleTransitionProps {
   reports: RunReport[];
   arc: Arc;
   org: Organization;
+  intent: string;
   onComplete: () => void;
+}
+
+function intentColor(outcome: IntentOutcome): string {
+  if (outcome === "achieved") return "var(--positive)";
+  if (outcome === "missed") return "var(--accent)";
+  return "var(--dim)";
 }
 
 export function CycleTransition({
@@ -146,6 +154,7 @@ export function CycleTransition({
   reports,
   arc,
   org,
+  intent,
   onComplete,
 }: CycleTransitionProps): JSX.Element {
   const [beat, setBeat] = useState<Beat>("passing");
@@ -186,6 +195,11 @@ export function CycleTransition({
   const deck = useMemo(
     () => (headline ? buildDeck(headline, reports, arc) : ""),
     [headline, reports, arc],
+  );
+
+  const intentResult = useMemo(
+    () => evaluateIntent(intent, reports, arc),
+    [intent, reports, arc],
   );
 
   // Beat 1: reveal ticker lines one by one, then auto-advance
@@ -268,6 +282,25 @@ export function CycleTransition({
       )}
 
       <div className="headline-deck">{deck}</div>
+
+      {intentResult && (
+        <div className="intent-recap">
+          <div className="intent-recap-label">INTENT</div>
+          <div className="intent-recap-overall" style={{ color: intentColor(intentResult.overall) }}>
+            {intentResult.overall === "achieved" ? "ACHIEVED" : intentResult.overall === "missed" ? "MISSED" : "PARTIAL"}
+          </div>
+          <div className="intent-recap-matches">
+            {intentResult.matches.map((m) => (
+              <div key={m.challenge} className="intent-recap-row">
+                <span className="intent-recap-challenge">{m.challenge}</span>
+                <span style={{ color: intentColor(m.outcome) }}>
+                  {m.outcome === "achieved" ? "Achieved" : m.outcome === "missed" ? "Missed" : "Partial"}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="headline-tap">TAP TO CONTINUE</div>
     </div>

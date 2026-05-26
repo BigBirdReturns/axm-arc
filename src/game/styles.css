@@ -1416,6 +1416,52 @@ button.icon:hover { border-color: var(--ink); color: var(--ink); }
   animation: hl-line 0.5s 0.85s forwards;
 }
 
+/* ── INTENT RECAP (in cycle transition) ──────────────────────── */
+
+.intent-recap {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--rule);
+  opacity: 0;
+  animation: hl-line 0.5s 0.9s forwards;
+}
+
+.intent-recap-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  color: var(--dim);
+  margin-bottom: 4px;
+}
+
+.intent-recap-overall {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 22px;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+.intent-recap-matches {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.intent-recap-row {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.intent-recap-challenge { color: var(--ink-2); }
+
 .headline-tap {
   font-family: var(--mono);
   font-size: 9.5px;

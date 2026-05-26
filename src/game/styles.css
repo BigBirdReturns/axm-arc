@@ -1481,12 +1481,13 @@ button.icon:hover { border-color: var(--ink); color: var(--ink); }
   align-items: center;
   gap: 10px;
   padding: 10px 16px;
-  background: var(--accent-lt);
-  border-left: 3px solid var(--accent);
-  font-family: var(--serif);
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--display);
+  font-weight: 600;
   font-size: 14px;
-  line-height: 1.4;
-  color: var(--ink-2);
+  letter-spacing: 0.02em;
+  line-height: 1.3;
 }
 
 .tutorial-step {
@@ -1510,13 +1511,13 @@ button.icon:hover { border-color: var(--ink); color: var(--ink); }
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--dim);
+  color: rgba(240,235,224,0.45);
   cursor: pointer;
   padding: 4px 8px;
   white-space: nowrap;
 }
 .tutorial-skip:hover {
-  color: var(--ink);
+  color: var(--paper);
 }
 
 /* Pulsing tab button during tutorial */

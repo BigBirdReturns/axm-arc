@@ -1554,19 +1554,33 @@ button.tutorial-pulse-btn {
   margin-bottom: 16px;
 }
 
-/* ── ADVANCE READBACK ─────────────────────────────────────────── */
+/* ── CYCLE CHECKLIST ──────────────────────────────────────────── */
 
-.advance-readback {
+.cycle-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 0 6px;
+}
+
+.check-item {
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.06em;
-  color: var(--dim);
-  padding: 6px 0;
   text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
-.advance-readback.blocking {
-  color: var(--accent);
+.check-item.ok { color: var(--positive); }
+.check-item.blocked { color: var(--accent); }
+
+.check-mark {
+  font-size: 11px;
+  font-weight: 600;
+  width: 14px;
+  text-align: center;
 }
 
 /* ════════════════════════════════════════════════════════════════

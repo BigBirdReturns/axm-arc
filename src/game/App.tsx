@@ -17,6 +17,7 @@ import { SituationSidebar } from "./components/SituationSidebar.js";
 import { CycleTransition } from "./components/CycleTransition.js";
 import { TutorialGuide, useTutorial, deriveTutorialStep, tutorialPulseTab, tutorialPulseAdvance } from "./components/TutorialGuide.js";
 import { TitleScreen } from "./components/TitleScreen.js";
+import { CycleChecklist } from "./components/CycleChecklist.js";
 import { agentInitials } from "./lib/ui-helpers.js";
 
 type Tab = "Roster" | "Assign" | "Drama" | "Base" | "Reports";
@@ -266,18 +267,14 @@ export function App(): JSX.Element {
     </div>
   );
 
-  const readbackMessage = (() => {
-    if (assignments.length === 0) return { text: "No contracts assigned. Go to Assign to slot agents.", blocking: false };
-    if (org.dramaQueue.length > 0) return { text: `Resolve ${org.dramaQueue.length} drama card${org.dramaQueue.length === 1 ? "" : "s"} first.`, blocking: true };
-    if (pendingRewardChoices.length > rewardDecisions.length) return { text: "Award pending loot in Reports first.", blocking: true };
-    return { text: `Ready. ${assignments.length} contract${assignments.length === 1 ? "" : "s"} queued.`, blocking: false };
-  })();
-
   const advanceButton = (
     <div className="advance-footer">
-      <div className={`advance-readback${readbackMessage.blocking ? " blocking" : ""}`}>
-        {readbackMessage.text}
-      </div>
+      <CycleChecklist
+        dramaCount={org.dramaQueue.length}
+        rewardsResolved={rewardDecisions.length}
+        rewardsTotal={pendingRewardChoices.length}
+        assignmentCount={assignments.length}
+      />
       {(advanceError ?? advanceBlocker) && (
         <div className="warning">{advanceError ?? advanceBlocker}</div>
       )}

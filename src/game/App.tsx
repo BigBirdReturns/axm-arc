@@ -8,6 +8,7 @@ import {
   FIRST_CHARTER_STARTING_SKIRMISHERS,
 } from "../arcs/index.js";
 import { loadSave, saveSave, clearSave } from "./lib/storage.js";
+import { getAdvanceBlockers, isAdvanceBlocked } from "./lib/advance-blockers.js";
 import { RosterScreen } from "./components/RosterScreen.js";
 import { AssignScreen } from "./components/AssignScreen.js";
 import { DramaScreen } from "./components/DramaScreen.js";
@@ -92,18 +93,6 @@ function buildNewOrg(): Organization {
   };
 }
 
-function getAdvanceBlocker(opts: {
-  dramaQueueCount: number;
-  pendingRewardChoicesCount: number;
-  rewardDecisionsCount: number;
-}): string | null {
-  if (opts.dramaQueueCount > 0) return "Resolve drama cards before advancing.";
-  if (opts.pendingRewardChoicesCount > opts.rewardDecisionsCount) {
-    return "Resolve all pending reward decisions in Reports.";
-  }
-  return null;
-}
-
 export function App(): JSX.Element {
   const [mode, setMode] = useState<"title" | "play">("title");
   const tutorial = useTutorial();
@@ -144,18 +133,19 @@ export function App(): JSX.Element {
   const pulseTab = tutorialPulseTab(tutorialStep);
   const pulseAdvance = tutorialPulseAdvance(tutorialStep);
 
-  const advanceBlocker = useMemo(() => getAdvanceBlocker({
+  const advanceBlockers = useMemo(() => getAdvanceBlockers({
     dramaQueueCount: org.dramaQueue.length,
     pendingRewardChoicesCount: pendingRewardChoices.length,
     rewardDecisionsCount: rewardDecisions.length,
   }), [org.dramaQueue.length, pendingRewardChoices.length, rewardDecisions.length]);
 
+  const blocked = isAdvanceBlocked(advanceBlockers);
   const hasAdvancePayload = assignments.length > 0 || lastReports.length > 0;
-  const canAdvanceCycle = hasAdvancePayload && !advanceBlocker;
+  const canAdvanceCycle = hasAdvancePayload && !blocked;
 
   const advanceCycle = () => {
     setAdvanceError(null);
-    if (advanceBlocker) { setAdvanceError(advanceBlocker); return; }
+    if (blocked) { setAdvanceError(advanceBlockers.map((b) => b.message).join(" ")); return; }
     const fromCycle = org.cycle;
     const result = runCycle({ org, arc, assignments, pendingRewardDecisions: rewardDecisions });
     setOrg(result.org);
@@ -275,15 +265,15 @@ export function App(): JSX.Element {
         rewardsTotal={pendingRewardChoices.length}
         assignmentCount={assignments.length}
       />
-      {(advanceError ?? advanceBlocker) && (
-        <div className="warning">{advanceError ?? advanceBlocker}</div>
+      {advanceError && (
+        <div className="warning">{advanceError}</div>
       )}
       <button
-        className={`primary${!advanceBlocker ? " accent" : ""}${pulseAdvance && canAdvanceCycle ? " tutorial-pulse-btn" : ""}`}
+        className={`primary${!blocked ? " accent" : ""}${pulseAdvance && canAdvanceCycle ? " tutorial-pulse-btn" : ""}`}
         disabled={!canAdvanceCycle}
         onClick={advanceCycle}
       >
-        {advanceBlocker ? "Advance blocked" : "Advance Cycle →"}
+        {blocked ? "Advance blocked" : "Advance Cycle →"}
       </button>
     </div>
   );
@@ -410,12 +400,12 @@ export function App(): JSX.Element {
         <div className="desktop-actions" style={{ display: "none" }}>
           <button className="secondary" onClick={() => saveSave(org, arc)}>Save</button>
           <button
-            className={`primary${!advanceBlocker ? " accent" : ""}`}
+            className={`primary${!blocked ? " accent" : ""}`}
             disabled={!canAdvanceCycle}
             onClick={advanceCycle}
             style={{ width: "auto" }}
           >
-            {advanceBlocker ? "Blocked" : "Advance Cycle →"}
+            {blocked ? "Blocked" : "Advance Cycle →"}
           </button>
         </div>
       </header>

@@ -313,7 +313,12 @@ export function App(): JSX.Element {
         arc={arc}
         onContinue={() => {
           const loaded = loadSave(arc);
-          if (loaded) setOrg(loaded.org);
+          if (loaded) {
+            setOrg(loaded.org);
+            // Land returning players where action is needed: drama queue first,
+            // otherwise the Assign tab so they can slot agents and advance.
+            setTab(loaded.org.dramaQueue.length > 0 ? "Drama" : "Assign");
+          }
           setMode("play");
         }}
         onNewGame={() => {

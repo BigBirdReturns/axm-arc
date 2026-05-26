@@ -1,27 +1,32 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 
 const COACH_KEY = "axm-arc:coach-done";
 
-const CARDS = [
-  {
-    title: "YOU RUN THIS GUILD",
-    body: "Six agents. Each with stats you can see, traits you can’t, and opinions about each other. Tap anyone on the Roster to learn what you know about them.",
-  },
-  {
-    title: "CONTRACTS COST TOKENS",
-    body: "Go to Assign. Pick a contract. Slot your roster. Each run costs 1 lockout token — you get 2 per cycle, so choose carefully.",
-  },
-  {
-    title: "THE ENGINE RESOLVES",
-    body: "Hit Advance Cycle. The engine runs every check deterministically. Same roster, same seed, same result. You’ll see what happened in the Field Report.",
-  },
-  {
-    title: "DRAMA IS MECHANICAL",
-    body: "Stress cascades. Relationships shift. Drama cards fire. These aren’t flavor — they have stat effects. Resolve them before you can advance again.",
-  },
-];
+function makeCards(vetName: string, recName: string) {
+  const vet = vetName.split(" ")[0]!;
+  const rec = recName.split(" ")[0]!;
+  return [
+    {
+      title: "SOMETHING ALREADY HAPPENED",
+      body: `${vet} and ${rec} are both skirmishers. ${vet} has history. ${rec} arrived with ambition. The tension is already there — and the first decision about them is queued before you've run a single contract.`,
+    },
+    {
+      title: "DRAMA COMES FIRST",
+      body: `There's a card in the Drama queue. Two options, real stat effects. You can't advance to the next cycle until the queue is clear. Resolve it, then assign contracts.`,
+    },
+    {
+      title: "ASSIGN AND ADVANCE",
+      body: `Go to Assign. Pick a contract — start with The Cellar. Slot your agents. You have 2 lockout tokens this cycle. Hit Advance Cycle when you're ready.`,
+    },
+    {
+      title: "READ THE FIELD REPORT",
+      body: `After the cycle runs, go to Reports. Stress gains, loot drops, maybe another drama card. The engine is showing you what happened. That report is the whole point.`,
+    },
+  ];
+}
 
-export function useCoachDone(): [boolean, () => void] {
+export function useCoachDone(): [boolean, () => void, () => void] {
   const [done, setDone] = useState(() => {
     try {
       return localStorage.getItem(COACH_KEY) === "1";
@@ -39,11 +44,27 @@ export function useCoachDone(): [boolean, () => void] {
     setDone(true);
   };
 
-  return [done, dismiss];
+  const reset = () => {
+    try {
+      localStorage.removeItem(COACH_KEY);
+    } catch {
+      /* noop */
+    }
+    setDone(false);
+  };
+
+  return [done, dismiss, reset];
 }
 
-export function CoachOverlay({ onDismiss }: { onDismiss: () => void }): JSX.Element {
+export function CoachOverlay({
+  onDismiss,
+  skirmisherNames,
+}: {
+  onDismiss: () => void;
+  skirmisherNames: [string, string];
+}): JSX.Element {
   const [step, setStep] = useState(0);
+  const CARDS = makeCards(skirmisherNames[0], skirmisherNames[1]);
   const card = CARDS[step]!;
   const isLast = step === CARDS.length - 1;
 
@@ -55,7 +76,7 @@ export function CoachOverlay({ onDismiss }: { onDismiss: () => void }): JSX.Elem
     }
   };
 
-  return (
+  return createPortal(
     <div className="coach-backdrop" onClick={advance}>
       <div className="coach-card" onClick={(e) => e.stopPropagation()}>
         <div className="coach-step">
@@ -64,9 +85,10 @@ export function CoachOverlay({ onDismiss }: { onDismiss: () => void }): JSX.Elem
         <h2 className="coach-title">{card.title}</h2>
         <p className="coach-body">{card.body}</p>
         <button className="primary accent" onClick={advance}>
-          {isLast ? "Got it" : "Next"}
+          {isLast ? "Let's go" : "Next"}
         </button>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

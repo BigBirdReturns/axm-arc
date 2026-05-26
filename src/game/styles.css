@@ -510,9 +510,15 @@ button.icon:hover { border-color: var(--ink); color: var(--ink); }
 .tabbar {
   display: flex;
   background: var(--ink);
-  position: sticky;
+  position: fixed;
   bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 480px;
   z-index: 10;
+  /* iOS home indicator — background bleeds under the bar */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 .tabbar button {
@@ -930,6 +936,11 @@ button.icon:hover { border-color: var(--ink); color: var(--ink); }
   .desktop-header-stats { display: none !important; }
   .desktop-actions { display: none !important; }
   .situation-room { display: none !important; }
+
+  /* Clearance for fixed tabbar so bottom content isn't hidden */
+  .mobile-only {
+    padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px));
+  }
 }
 
 @media (max-width: 380px) {

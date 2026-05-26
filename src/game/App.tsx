@@ -336,7 +336,7 @@ export function App(): JSX.Element {
 
   return (
     <>
-      {/* ── COACH OVERLAY (first launch) ── */}
+      {/* ── COACH OVERLAY (first launch / replay) ── */}
       {!coachDone && (
         <CoachOverlay
           onDismiss={dismissCoach}
@@ -344,6 +344,7 @@ export function App(): JSX.Element {
             FIRST_CHARTER_STARTING_SKIRMISHERS.veteran.name,
             FIRST_CHARTER_STARTING_SKIRMISHERS.recruit.name,
           ]}
+          setTab={setTab}
         />
       )}
 
@@ -366,11 +367,20 @@ export function App(): JSX.Element {
       <header className="app-header">
         <div className="top-row">
           <div className="kicker">Situation Room · Cycle {String(org.cycle).padStart(2, "0")}</div>
-          {/* Gap 5: Wordmark */}
-          <div className="wordmark">
-            <em>AXM</em>
-            <span className="sep">·</span>
-            <span className="arc-num">ARC 01</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <button
+              className="icon"
+              title="Replay tutorial"
+              style={{ fontSize: 11, padding: "2px 7px", minHeight: 0, color: "var(--dim)" }}
+              onClick={resetCoach}
+            >
+              ?
+            </button>
+            <div className="wordmark">
+              <em>AXM</em>
+              <span className="sep">·</span>
+              <span className="arc-num">ARC 01</span>
+            </div>
           </div>
         </div>
         <h1>{arc.meta.name}</h1>

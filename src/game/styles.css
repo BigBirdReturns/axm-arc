@@ -1889,3 +1889,166 @@ button.tutorial-pulse-btn {
   width: 100%;
   text-align: center;
 }
+
+/* ════════════════════════════════════════════════════════════════
+   AXM ARC — Mobile density pass (max-width: 600px)
+   Target: ~20% fewer visible lines above the fold on 480px viewport.
+   Isolated here so changes are reversible without touching base rules.
+   ════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 600px) {
+
+  /* ── Screen padding: tighten container breathing room ── */
+  .screen {
+    padding: 12px;
+  }
+
+  /* ── Card: reduce internal padding and inter-card gap ── */
+  .card {
+    padding: 10px;
+    margin-bottom: 8px;
+  }
+
+  /* ── Card content line-height ── */
+  .card,
+  .card p,
+  .card .narrative {
+    line-height: 1.4;
+  }
+
+  /* ── Section headers: reduce top margin ── */
+  .screen h3 {
+    margin: 14px 0 6px;
+  }
+
+  /* ── Audit section label: reduce margins ── */
+  .audit-section {
+    margin: 10px 0 6px;
+  }
+
+  /* ── Mechanic projection rows: tighter padding and smaller type ── */
+  .mechanic-row {
+    padding: 6px 0;
+  }
+
+  .mechanic-name {
+    font-size: 13px;
+  }
+
+  .mechanic-detail {
+    font-size: 9px;
+  }
+
+  .mechanic-score {
+    font-size: 9px;
+  }
+
+  /* ── Narrative text in cards: reduce size and line-height ── */
+  .narrative {
+    font-size: 14px;
+    line-height: 1.4;
+    margin: 8px 0;
+  }
+
+  /* ── Report headline: reduce size ── */
+  .report-headline {
+    font-size: 24px;
+    margin: 8px 0;
+  }
+
+  /* ── Report meta: reduce bottom margin ── */
+  .report-meta {
+    margin-bottom: 6px;
+  }
+
+  /* ── Abstract callout: tighter padding ── */
+  .abstract {
+    padding: 8px 0 8px 12px;
+    margin: 8px 0;
+  }
+
+  .abstract p {
+    font-size: 14px;
+    line-height: 1.4;
+  }
+
+  /* ── Callout blocks: tighter padding ── */
+  .callout {
+    padding: 8px 12px;
+    margin: 8px 0;
+  }
+
+  .callout p {
+    font-size: 15px;
+    line-height: 1.25;
+  }
+
+  /* ── Intent block: reduce margins and font ── */
+  .intent-block {
+    padding: 8px 12px;
+    margin: 8px 0;
+  }
+
+  .intent-block .intent-text,
+  .intent-block textarea {
+    font-size: 15px;
+  }
+
+  /* ── Drama card narrative context paragraph ── */
+  .card > div p[style*="serif"] {
+    font-size: 13px;
+    line-height: 1.4;
+  }
+
+  /* ── Drama card: reduce headline and option padding ── */
+  .card .report-headline {
+    font-size: 22px;
+    margin: 6px 0 8px;
+  }
+
+  /* ── Attr grid cells ── */
+  .attr {
+    font-size: 10px;
+    padding: 4px 8px;
+  }
+
+  /* ── Stat strip within reports: compact ── */
+  .stat-strip .stat-cell {
+    padding: 8px 10px;
+  }
+
+  .stat-strip .stat-val {
+    font-size: 22px;
+  }
+
+  .stat-strip .stat-sub {
+    font-size: 8px;
+  }
+
+  /* ── Sidebar alerts (if visible on mobile) ── */
+  .sidebar-alert-critical,
+  .sidebar-alert-warning {
+    padding: 8px 10px;
+    margin-bottom: 6px;
+  }
+
+  /* ── Drama screen headline row ── */
+  .screen > .row .report-headline {
+    font-size: 22px;
+  }
+
+  /* ── Audit agent narrative line ── */
+  .audit-agent-line {
+    font-size: 12px;
+    margin-top: 2px;
+  }
+
+  /* ── Drama card option rows: tighter padding ── */
+  /* These use inline styles, so target by context where possible */
+  /* The option padding (14px 16px) can be approximated via child selectors */
+  .card > div > div[style*="borderTop"] {
+    padding-top: 10px !important;
+    padding-bottom: 10px !important;
+  }
+
+}

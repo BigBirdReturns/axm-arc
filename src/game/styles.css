@@ -646,6 +646,45 @@ button.icon:hover { border-color: var(--ink); color: var(--ink); }
 .precedent-strip .p-cell.rotation { background: var(--rule-dk); color: var(--ink); }
 .precedent-strip .p-cell.pending { background: var(--accent-lt); color: var(--accent); border: 1px dashed var(--accent); }
 
+/* ── RESOLVE TOAST (drama feedback) ─────────────────────────── */
+
+.resolve-toast {
+  padding: 10px 14px;
+  background: var(--ink);
+  color: var(--paper);
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  cursor: pointer;
+  animation: toast-in 0.2s ease-out;
+}
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.resolve-toast-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  color: var(--accent);
+}
+.resolve-toast-action {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 16px;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+}
+.resolve-toast-fx {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: rgba(240,235,224,0.6);
+  text-transform: uppercase;
+}
+
 /* ── EMPTY STATE ─────────────────────────────────────────────── */
 
 .empty {

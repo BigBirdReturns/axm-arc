@@ -201,6 +201,26 @@ function RosterPicker({
     setSelected(next);
   };
 
+  const autoFill = () => {
+    const filled = new Set<string>();
+    for (const req of challenge.rosterRequirements.roleRequirements) {
+      const candidates = available
+        .filter((a) => a.role === req.roleId && !filled.has(a.id))
+        .sort((a, b) => a.stress !== b.stress ? a.stress - b.stress : b.morale - a.morale);
+      for (let i = 0; i < req.count && i < candidates.length; i++) {
+        filled.add(candidates[i]!.id);
+      }
+    }
+    const rest = available
+      .filter((a) => !filled.has(a.id))
+      .sort((a, b) => a.stress !== b.stress ? a.stress - b.stress : b.morale - a.morale);
+    for (const a of rest) {
+      if (filled.size >= min) break;
+      filled.add(a.id);
+    }
+    setSelected(filled);
+  };
+
   const reqsMet = challenge.rosterRequirements.roleRequirements.every((req) => {
     const count = available.filter((a) => selected.has(a.id) && a.role === req.roleId).length;
     return count >= req.count;
@@ -213,18 +233,23 @@ function RosterPicker({
           <h3>{challenge.name}</h3>
           <button className="icon" onClick={onCancel}>Cancel</button>
         </div>
-        <div className="agent-meta" style={{ marginBottom: 12 }}>
-          Pick {min}-{max} agents · {selected.size} selected
+        <div className="row between" style={{ marginBottom: 12 }}>
+          <div className="agent-meta">Pick {min}-{max} agents · {selected.size} selected</div>
+          <button className="icon" onClick={autoFill} disabled={available.length < min}>Auto-fill</button>
         </div>
         {available.map((a) => {
           const role = arc.roles.find((r) => r.id === a.role)?.name ?? "Flex";
+          const stressClass = a.stress >= 8 ? "portrait-danger" : a.stress >= 6 ? "portrait-warn" : "";
           return (
             <label key={a.id} className="checkbox-row">
               <input type="checkbox" checked={selected.has(a.id)} onChange={() => toggle(a.id)} />
-              <div className="portrait small">{agentInitials(a.name)}</div>
+              <div className={`portrait small${stressClass ? ` ${stressClass}` : ""}`}>{agentInitials(a.name)}</div>
               <div style={{ flex: 1 }}>
                 <div className="agent-name" style={{ fontSize: 13 }}>{a.name}</div>
-                <div className="agent-meta">{role} · {a.tier} · M{a.morale} S{a.stress}</div>
+                <div className="agent-meta">
+                  {role} · {a.tier} · M{a.morale} S{a.stress}
+                  {a.stress >= 8 && <span className="badge fail" style={{ marginLeft: 6, fontSize: 8, padding: "1px 5px" }}>STRESS</span>}
+                </div>
               </div>
             </label>
           );

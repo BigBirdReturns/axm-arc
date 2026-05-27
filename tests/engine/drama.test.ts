@@ -41,7 +41,7 @@ describe("generateDramaCards", () => {
     const org = makeTestOrg([a, b]);
     const rng = new Rng(42);
     const triggers: DramaTriggerInput[] = [
-      { type: "reward_dispute", item: "sword-1", eligible: ["a1", "a2"], winner: "a1" },
+      { type: "reward_dispute", itemId: "sword-1", eligible: ["a1", "a2"], winner: "a1" },
     ];
     const cards = generateDramaCards(triggers, org, rng, 1);
     expect(cards[0]!.options).toHaveLength(3);

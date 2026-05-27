@@ -177,8 +177,8 @@ const CHALLENGES: Challenge[] = [
     description:
       "A nest of giant rats has infested the guild cellar. An easy first contract to get your charter on its feet.",
     rosterRequirements: {
-      minAgents: 3,
-      maxAgents: 5,
+      minAgents: 6,
+      maxAgents: 6,
       roleRequirements: [],
     },
     accessRequirements: {

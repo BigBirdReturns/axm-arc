@@ -7,7 +7,7 @@ import { hashSeed } from "./prng.js";
 
 export type DramaTriggerInput =
   | { type: "relationship_transition"; agentA: string; agentB: string; from: string; to: string }
-  | { type: "reward_dispute"; item: string; eligible: string[]; winner: string }
+  | { type: "reward_dispute"; itemId: string; eligible: string[]; winner: string }
   | { type: "precedent_violation"; affectedAgents: string[]; basis: string; dominant: string }
   | { type: "morale_extreme"; agentId: string; morale: number }
   | { type: "affliction_threshold"; agentId: string; affliction: string }

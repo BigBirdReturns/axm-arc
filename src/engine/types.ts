@@ -290,6 +290,7 @@ export interface AgentRunResult {
   performanceRating: number;
   stressGained: number;
   wasDowned: boolean;
+  isHeroic: boolean;
 }
 
 export interface LootDrop {

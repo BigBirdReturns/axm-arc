@@ -121,7 +121,7 @@ function scoreAgent(
   const relMod = getRelMod(agent, others, org);
   const moraleMod = (agent.morale - 50) / 10;
   const afflictionMod = getAfflictionMod(agent);
-  const variance = rng.uniform(-8, 8);
+  const variance = rng.uniform(-4, 4);
 
   // Reckless forces max volatility
   const effectiveVolatility =
@@ -267,7 +267,9 @@ export function resolveChallenge(opts: ResolveChallengeOpts): RunReport {
         const teamScore = assignedAgents.reduce((s, a) => {
           return s + scoreAgent(a, check, assignedAgents.filter((o) => o.id !== a.id), org, arc, rng);
         }, 0);
-        score = teamScore;
+        // Macro variance prevents large teams from flatlining via law of large numbers
+        const macroVariance = rng.uniform(-3, 3) * (assignedAgents.length / 2);
+        score = teamScore + macroVariance;
         threshold = check.difficultyThreshold * assignedAgents.length;
         passed = score >= threshold;
       }
@@ -289,6 +291,7 @@ export function resolveChallenge(opts: ResolveChallengeOpts): RunReport {
       performanceRating,
       stressGained,
       wasDowned,
+      isHeroic: false,
     });
   }
 
@@ -299,6 +302,14 @@ export function resolveChallenge(opts: ResolveChallengeOpts): RunReport {
       if (!ar.wasDowned) {
         (ar as { stressGained: number }).stressGained += 2;
       }
+    }
+  }
+
+  // Deterministic heroic moment: perfect run, zero stress, while team took a beating
+  const totalStress = agentResults.reduce((s, ar) => s + ar.stressGained, 0);
+  for (const ar of agentResults) {
+    if (ar.performanceRating === 1.0 && ar.stressGained === 0 && totalStress >= 5) {
+      (ar as { isHeroic: boolean }).isHeroic = true;
     }
   }
 

@@ -30,10 +30,7 @@ export function TitleScreen({ arc, onContinue, onNewGame }: Props): JSX.Element 
           )}
           <button
             className={hasSave ? "secondary" : "primary accent"}
-            onClick={() => {
-              if (hasSave && !confirm("Start a new game? Your current save will be overwritten.")) return;
-              onNewGame();
-            }}
+            onClick={onNewGame}
           >
             New Game
           </button>

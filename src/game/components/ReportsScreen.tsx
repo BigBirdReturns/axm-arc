@@ -136,8 +136,15 @@ export function ReportsScreen({
         const clutchAgent = headline.clutchAgent;
         const collapseAgent = headline.collapseAgent;
 
+        const summaryClass = `report-summary outcome-${r.outcome}`;
+
         return (
           <div key={i} style={{ marginBottom: 32 }}>
+            {/* ── Situation room summary ── */}
+            <div className={summaryClass}>
+              {buildSummary(r, challenge, agentMap)}
+            </div>
+
             {/* ── Kicker ── */}
             <div className="report-meta">
               Field Report / No. {String(org.cycle).padStart(2, "0")} · {arc.meta.domain} · Tier I
@@ -321,6 +328,68 @@ export function ReportsScreen({
       })}
     </div>
   );
+}
+
+function buildSummary(
+  report: RunReport,
+  challenge: import("../../engine/types.js").Challenge,
+  agentMap: Map<string, import("../../engine/types.js").Agent>,
+): string {
+  const totalChecks = challenge.mechanicChecks.length;
+  const passedCount = report.assignedAgents[0]?.mechanicResults.filter((m) => m.passed).length ?? 0;
+  const totalStress = report.assignedAgents.reduce((s, a) => s + a.stressGained, 0);
+  const downedAgents = report.assignedAgents.filter((a) => a.wasDowned);
+  const highStressAgents = report.assignedAgents.filter((a) => {
+    const agent = agentMap.get(a.agentId);
+    return agent && agent.stress >= 7;
+  });
+
+  // 1. Outcome statement
+  const outcomeLabel =
+    report.outcome === "success" ? "Clean" :
+    report.outcome === "partial" ? "Partial" :
+    "Wipe";
+  const outcome = `${challenge.name}: ${outcomeLabel}.`;
+
+  // 2. Key delta
+  let delta: string;
+  if (report.outcome === "success" && passedCount === totalChecks) {
+    if (report.lootDrops.length > 0) {
+      delta = `Full clear — all ${totalChecks} checks passed. ${report.lootDrops.length} loot drop${report.lootDrops.length > 1 ? "s" : ""}.`;
+    } else {
+      delta = `Full clear — all ${totalChecks} checks passed.${totalStress > 0 ? ` Total stress accrued: +${totalStress}.` : " Zero stress."}`;
+    }
+  } else if (report.outcome === "partial") {
+    const failedCount = totalChecks - passedCount;
+    const stressPart = totalStress > 0 ? ` +${totalStress} stress across roster.` : "";
+    delta = `${passedCount} of ${totalChecks} checks passed; ${failedCount} failed.${stressPart}`;
+  } else {
+    const stressPart = totalStress > 0 ? ` +${totalStress} stress distributed.` : "";
+    const downPart = downedAgents.length > 0
+      ? ` ${downedAgents.map((a) => agentMap.get(a.agentId)?.name?.split(" ")[0] ?? a.agentId).join(", ")} downed.`
+      : "";
+    delta = `${passedCount} of ${totalChecks} checks met.${stressPart}${downPart}`;
+  }
+
+  // 3. Action cue
+  let action: string;
+  if (report.outcome === "success" && report.lootDrops.length > 0) {
+    action = "Award the drop below.";
+  } else if (report.outcome === "success") {
+    action = highStressAgents.length > 0
+      ? `Consider resting ${highStressAgents.map((a) => agentMap.get(a.agentId)?.name?.split(" ")[0] ?? a.agentId).join(", ")} before next deployment.`
+      : "Team is ready to advance.";
+  } else if (report.outcome === "partial") {
+    action = highStressAgents.length > 0
+      ? `Consider resting high-stress agents before retry.`
+      : `Re-evaluate roster composition before retry.`;
+  } else {
+    action = downedAgents.length > 0
+      ? `Downed agents are unavailable next cycle. Re-evaluate roster for retry.`
+      : `Re-evaluate roster for retry.`;
+  }
+
+  return `${outcome} ${delta} ${action}`;
 }
 
 function buildAbstract(

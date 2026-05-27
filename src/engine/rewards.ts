@@ -217,7 +217,7 @@ export function applyRewardDecision(
   if (eligible.length >= 2) {
     dramaTriggers.push({
       type: "reward_dispute",
-      item: item.id,
+      itemId: item.id,
       eligible,
       winner,
     });

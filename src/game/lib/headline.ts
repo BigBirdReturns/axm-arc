@@ -67,10 +67,6 @@ export function generateHeadline(
   const closestPass = closePasses[0];
   const biggestPass = bigPasses[0];
 
-  const resolveAgent = report.assignedAgents.find(
-    (ar) => ar.stressGained === 0 && ar.performanceRating === 1.0,
-  );
-
   // ── Priority 1: Full wipe / failure ────────────────────────────────────────
   if (report.outcome === "failure") {
     const allFailed = report.assignedAgents.every((ar) =>
@@ -123,17 +119,15 @@ export function generateHeadline(
     };
   }
 
-  // ── Priority 3: Success with a Resolve event ────────────────────────────────
-  // Resolve is tracked via lastClearCycle; we detect it heuristically from
-  // a 0-stress, perfect-rating agent on an otherwise stressed roster.
-  const totalStress = report.assignedAgents.reduce((s, ar) => s + ar.stressGained, 0);
-  if (resolveAgent && totalStress >= 5) {
-    const name = agentMap.get(resolveAgent.agentId)?.name?.split(" ")[0] ?? "someone";
+  // ── Priority 3: Heroic moment (engine-authoritative, not heuristic) ─────────
+  const heroicAgent = report.assignedAgents.find((ar) => ar.isHeroic);
+  if (heroicAgent) {
+    const name = agentMap.get(heroicAgent.agentId)?.name?.split(" ")[0] ?? "someone";
     return {
       challenge: challengeName,
       qualifier: "",
       primary: `${name.toUpperCase()} CARRIED IT.`,
-      resolveAgent: agentMap.get(resolveAgent.agentId)?.name,
+      resolveAgent: agentMap.get(heroicAgent.agentId)?.name,
     };
   }
 

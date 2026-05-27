@@ -43,6 +43,7 @@ function clearCount(org: Organization, challengeId: string): number {
 
 export function AssignScreen({ arc, org, assignments, setAssignments }: Props): JSX.Element {
   const [picking, setPicking] = useState<Challenge | null>(null);
+  const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const challenges = unlockedChallenges(arc, org);
   const tokensUsed = assignments.reduce((s, a) => s + a.tokensSpent, 0);
   const tokensLeft = org.resources.tokens - tokensUsed;
@@ -62,6 +63,16 @@ export function AssignScreen({ arc, org, assignments, setAssignments }: Props): 
         const agents = a.agentIds.map((id) => org.agents[id]).filter(Boolean) as Agent[];
         const projections = c ? projectMechanics({ challenge: c, assignedAgents: agents, org, arc }) : [];
         const isFirstClear = c ? clearCount(org, c.id) === 0 : false;
+        const isExpanded = expanded.has(i);
+        const passCount = projections.filter((p) => p.assessment === "comfortable").length;
+        const tightCount = projections.filter((p) => p.assessment === "tight").length;
+        const failCount = projections.filter((p) => p.assessment === "fail").length;
+        const toggleExpanded = () => {
+          const next = new Set(expanded);
+          if (next.has(i)) next.delete(i);
+          else next.add(i);
+          setExpanded(next);
+        };
 
         return (
           <div key={i} className={`card${isFirstClear ? " danger" : ""}`} style={{ padding: 0 }}>
@@ -96,10 +107,34 @@ export function AssignScreen({ arc, org, assignments, setAssignments }: Props): 
 
               {projections.length > 0 && (
                 <>
-                  <div className="audit-section">Projected Mechanics · {projections.length} checks</div>
-                  {projections.map((p) => (
-                    <ProjectionRow key={p.mechanicId} p={p} />
-                  ))}
+                  <div
+                    onClick={toggleExpanded}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 6,
+                      padding: "8px 0", borderBottom: "1px solid var(--rule)",
+                      fontFamily: "var(--mono)", fontSize: 10,
+                      textTransform: "uppercase", letterSpacing: "0.06em",
+                      color: "var(--muted)", cursor: "pointer",
+                    }}
+                  >
+                    <span style={{ color: "var(--accent)" }}>{isExpanded ? "▾" : "▸"}</span>
+                    <span>{projections.length} checks</span>
+                    {!isExpanded && (
+                      <>
+                        {passCount > 0 && <span className="badge pass" style={{ fontSize: 8, padding: "1px 5px" }}>{passCount} pass</span>}
+                        {tightCount > 0 && <span className="badge pending" style={{ fontSize: 8, padding: "1px 5px" }}>{tightCount} tight</span>}
+                        {failCount > 0 && <span className="badge fail" style={{ fontSize: 8, padding: "1px 5px" }}>{failCount} fail</span>}
+                      </>
+                    )}
+                  </div>
+                  {isExpanded && (
+                    <>
+                      <div className="audit-section">Projected Mechanics · {projections.length} checks</div>
+                      {projections.map((p) => (
+                        <ProjectionRow key={p.mechanicId} p={p} />
+                      ))}
+                    </>
+                  )}
                 </>
               )}
 

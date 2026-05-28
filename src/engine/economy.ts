@@ -74,10 +74,12 @@ export function accrueChallengeRewards(
 
   const outcome = challenge.outcomes[report.outcome];
   const repGain = outcome.reputationGain ?? 0;
-  if (repGain === 0) return org;
+  const currencyReward = outcome.currencyReward ?? 0;
+  if (repGain === 0 && currencyReward === 0) return org;
 
   return {
     ...org,
     reputation: org.reputation + repGain,
+    resources: { ...org.resources, currency: org.resources.currency + currencyReward },
   };
 }

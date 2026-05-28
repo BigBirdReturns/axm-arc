@@ -252,6 +252,7 @@ export interface Outcome {
   rewardTable: RewardTableEntry[];
   narrative: string;
   reputationGain?: number;
+  currencyReward?: number;
   milestoneFlag?: string;
   agentDowntimeCycles?: number;
   stressPenalty?: number;

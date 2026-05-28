@@ -206,6 +206,7 @@ const CHALLENGES: Challenge[] = [
         narrative:
           "The rats scatter before your charter's first coordinated advance. A small victory — but it's a start.",
         reputationGain: 1,
+        currencyReward: 30,
         milestoneFlag: "cellar-cleared",
       },
       partial: {
@@ -266,6 +267,7 @@ const CHALLENGES: Challenge[] = [
         narrative:
           "The troll is driven into the river. The crossing is open, and the merchants are grateful.",
         reputationGain: 2,
+        currencyReward: 50,
         milestoneFlag: "bridge-troll-cleared",
       },
       partial: {
@@ -343,6 +345,7 @@ const CHALLENGES: Challenge[] = [
         narrative:
           "The caravan arrives intact. The merchant presses a weighty pouch into your hand and promises to spread word of your charter's reliability.",
         reputationGain: 3,
+        currencyReward: 70,
         milestoneFlag: "merchant-escort-cleared",
       },
       partial: {
@@ -425,6 +428,7 @@ const CHALLENGES: Challenge[] = [
         narrative:
           "The last survivor emerges blinking into daylight. The mine foreman clasps your hand, wordless with relief.",
         reputationGain: 3,
+        currencyReward: 90,
         milestoneFlag: "mine-collapse-cleared",
       },
       partial: {
@@ -502,6 +506,7 @@ const CHALLENGES: Challenge[] = [
         narrative:
           "The camp falls. Farmers across the valley can breathe again. Word of your charter spreads.",
         reputationGain: 4,
+        currencyReward: 120,
         milestoneFlag: "bandit-camp-cleared",
       },
       partial: {
@@ -600,6 +605,7 @@ const CHALLENGES: Challenge[] = [
         narrative:
           "The Warden's banner falls. Your charter stands in the courtyard, bloodied but triumphant. The lord sends his thanks — and an invitation to expand your operations.",
         reputationGain: 6,
+        currencyReward: 180,
         milestoneFlag: "wardens-keep-cleared",
       },
       partial: {

@@ -43,6 +43,7 @@ function clearCount(org: Organization, challengeId: string): number {
 
 export function AssignScreen({ arc, org, assignments, setAssignments }: Props): JSX.Element {
   const [picking, setPicking] = useState<Challenge | null>(null);
+  const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const challenges = unlockedChallenges(arc, org);
   const tokensUsed = assignments.reduce((s, a) => s + a.tokensSpent, 0);
   const tokensLeft = org.resources.tokens - tokensUsed;
@@ -62,6 +63,16 @@ export function AssignScreen({ arc, org, assignments, setAssignments }: Props): 
         const agents = a.agentIds.map((id) => org.agents[id]).filter(Boolean) as Agent[];
         const projections = c ? projectMechanics({ challenge: c, assignedAgents: agents, org, arc }) : [];
         const isFirstClear = c ? clearCount(org, c.id) === 0 : false;
+        const isExpanded = expanded.has(i);
+        const passCount = projections.filter((p) => p.assessment === "comfortable").length;
+        const tightCount = projections.filter((p) => p.assessment === "tight").length;
+        const failCount = projections.filter((p) => p.assessment === "fail").length;
+        const toggleExpanded = () => {
+          const next = new Set(expanded);
+          if (next.has(i)) next.delete(i);
+          else next.add(i);
+          setExpanded(next);
+        };
 
         return (
           <div key={i} className={`card${isFirstClear ? " danger" : ""}`} style={{ padding: 0 }}>
@@ -96,10 +107,34 @@ export function AssignScreen({ arc, org, assignments, setAssignments }: Props): 
 
               {projections.length > 0 && (
                 <>
-                  <div className="audit-section">Projected Mechanics · {projections.length} checks</div>
-                  {projections.map((p) => (
-                    <ProjectionRow key={p.mechanicId} p={p} />
-                  ))}
+                  <div
+                    onClick={toggleExpanded}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 6,
+                      padding: "8px 0", borderBottom: "1px solid var(--rule)",
+                      fontFamily: "var(--mono)", fontSize: 10,
+                      textTransform: "uppercase", letterSpacing: "0.06em",
+                      color: "var(--muted)", cursor: "pointer",
+                    }}
+                  >
+                    <span style={{ color: "var(--accent)" }}>{isExpanded ? "▾" : "▸"}</span>
+                    <span>{projections.length} checks</span>
+                    {!isExpanded && (
+                      <>
+                        {passCount > 0 && <span className="badge pass" style={{ fontSize: 8, padding: "1px 5px" }}>{passCount} pass</span>}
+                        {tightCount > 0 && <span className="badge pending" style={{ fontSize: 8, padding: "1px 5px" }}>{tightCount} tight</span>}
+                        {failCount > 0 && <span className="badge fail" style={{ fontSize: 8, padding: "1px 5px" }}>{failCount} fail</span>}
+                      </>
+                    )}
+                  </div>
+                  {isExpanded && (
+                    <>
+                      <div className="audit-section">Projected Mechanics · {projections.length} checks</div>
+                      {projections.map((p) => (
+                        <ProjectionRow key={p.mechanicId} p={p} />
+                      ))}
+                    </>
+                  )}
                 </>
               )}
 
@@ -201,6 +236,26 @@ function RosterPicker({
     setSelected(next);
   };
 
+  const autoFill = () => {
+    const filled = new Set<string>();
+    for (const req of challenge.rosterRequirements.roleRequirements) {
+      const candidates = available
+        .filter((a) => a.role === req.roleId && !filled.has(a.id))
+        .sort((a, b) => a.stress !== b.stress ? a.stress - b.stress : b.morale - a.morale);
+      for (let i = 0; i < req.count && i < candidates.length; i++) {
+        filled.add(candidates[i]!.id);
+      }
+    }
+    const rest = available
+      .filter((a) => !filled.has(a.id))
+      .sort((a, b) => a.stress !== b.stress ? a.stress - b.stress : b.morale - a.morale);
+    for (const a of rest) {
+      if (filled.size >= min) break;
+      filled.add(a.id);
+    }
+    setSelected(filled);
+  };
+
   const reqsMet = challenge.rosterRequirements.roleRequirements.every((req) => {
     const count = available.filter((a) => selected.has(a.id) && a.role === req.roleId).length;
     return count >= req.count;
@@ -213,18 +268,23 @@ function RosterPicker({
           <h3>{challenge.name}</h3>
           <button className="icon" onClick={onCancel}>Cancel</button>
         </div>
-        <div className="agent-meta" style={{ marginBottom: 12 }}>
-          Pick {min}-{max} agents · {selected.size} selected
+        <div className="row between" style={{ marginBottom: 12 }}>
+          <div className="agent-meta">Pick {min}-{max} agents · {selected.size} selected</div>
+          <button className="icon" onClick={autoFill} disabled={available.length < min}>Auto-fill</button>
         </div>
         {available.map((a) => {
           const role = arc.roles.find((r) => r.id === a.role)?.name ?? "Flex";
+          const stressClass = a.stress >= 8 ? "portrait-danger" : a.stress >= 6 ? "portrait-warn" : "";
           return (
             <label key={a.id} className="checkbox-row">
               <input type="checkbox" checked={selected.has(a.id)} onChange={() => toggle(a.id)} />
-              <div className="portrait small">{agentInitials(a.name)}</div>
+              <div className={`portrait small${stressClass ? ` ${stressClass}` : ""}`}>{agentInitials(a.name)}</div>
               <div style={{ flex: 1 }}>
                 <div className="agent-name" style={{ fontSize: 13 }}>{a.name}</div>
-                <div className="agent-meta">{role} · {a.tier} · M{a.morale} S{a.stress}</div>
+                <div className="agent-meta">
+                  {role} · {a.tier} · M{a.morale} S{a.stress}
+                  {a.stress >= 8 && <span className="badge fail" style={{ marginLeft: 6, fontSize: 8, padding: "1px 5px" }}>STRESS</span>}
+                </div>
               </div>
             </label>
           );

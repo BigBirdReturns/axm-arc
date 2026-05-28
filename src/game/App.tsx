@@ -140,6 +140,19 @@ export function App(): JSX.Element {
   }), [org.dramaQueue.length, pendingRewardChoices.length, rewardDecisions.length]);
 
   const blocked = isAdvanceBlocked(advanceBlockers);
+  const cycleContext = useMemo(() => {
+    const dramaCount = org.dramaQueue.length;
+    const unresolvedRewards = pendingRewardChoices.length - rewardDecisions.length;
+    const totalDeployed = assignments.reduce((s, a) => s + a.agentIds.length, 0);
+    if (dramaCount > 0)
+      return { text: `${dramaCount} decision${dramaCount !== 1 ? "s" : ""} pending`, color: "var(--accent)" };
+    if (unresolvedRewards > 0)
+      return { text: `${unresolvedRewards} reward${unresolvedRewards !== 1 ? "s" : ""} to assign`, color: "var(--accent)" };
+    if (assignments.length > 0)
+      return { text: `${assignments.length} contract${assignments.length !== 1 ? "s" : ""} queued · ${totalDeployed} deployed`, color: "var(--muted)" };
+    return { text: "Ready to advance", color: "var(--positive)" };
+  }, [org.dramaQueue.length, pendingRewardChoices.length, rewardDecisions.length, assignments]);
+
   const hasAdvancePayload = assignments.length > 0 || lastReports.length > 0;
   const canAdvanceCycle = hasAdvancePayload && !blocked;
 
@@ -419,6 +432,14 @@ export function App(): JSX.Element {
       {/* ── MOBILE ── */}
       <div className="mobile-only">
         {statStrip}
+        <div style={{
+          fontFamily: "var(--mono)", fontSize: 10, fontWeight: 600,
+          letterSpacing: "0.08em", textTransform: "uppercase" as const,
+          padding: "6px 16px", borderBottom: "1px solid var(--rule)",
+          background: "var(--paper-alt)", color: cycleContext.color,
+        }}>
+          {cycleContext.text}
+        </div>
         {tab === "Assign" && intentBlock}
         {activeScreen}
         {(tab === "Assign" || tab === "Reports") && advanceButton}

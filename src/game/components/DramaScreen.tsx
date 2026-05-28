@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { Arc, DramaCard, Organization } from "../../engine/types.js";
 import type { PendingRewardChoice } from "../../engine/cycle.js";
 import { resolveDramaCard } from "../../engine/drama.js";
@@ -15,18 +15,43 @@ interface Props {
 
 export function DramaScreen({ org, arc, setOrg, cycle, pendingRewardChoices }: Props): JSX.Element {
   const [openIdx, setOpenIdx] = useState(0);
+  const [feedback, setFeedback] = useState<{ label: string; effects: string[] } | null>(null);
   const queue = org.dramaQueue;
   const card = queue[openIdx] ?? null;
 
+  useEffect(() => {
+    if (!feedback) return;
+    const t = setTimeout(() => setFeedback(null), 2500);
+    return () => clearTimeout(t);
+  }, [feedback]);
+
   const resolve = (optionId: string) => {
     if (!card) return;
-    const { org: next } = resolveDramaCard(org, card.id, optionId, cycle);
+    const option = card.options.find((o) => o.id === optionId);
+    const { org: next, revealedHidden } = resolveDramaCard(org, card.id, optionId, cycle);
+    const lines = revealedHidden
+      .map((e) => {
+        if (e.target === "_org_") return `${e.value > 0 ? "+" : ""}${e.value} ${e.type.replace(/_/g, " ")}`;
+        const name = org.agents[e.target]?.name?.split(" ")[0];
+        return name ? `${e.value > 0 ? "+" : ""}${e.value} ${e.type} · ${name}` : null;
+      })
+      .filter((s): s is string => s !== null);
+    setFeedback({ label: option?.label ?? optionId, effects: lines });
     setOrg(next);
     if (openIdx >= next.dramaQueue.length) setOpenIdx(Math.max(0, next.dramaQueue.length - 1));
   };
 
   return (
     <div className="screen">
+      {feedback && (
+        <div className="resolve-toast" onClick={() => setFeedback(null)}>
+          <span className="resolve-toast-label">PRECEDENT LOGGED</span>
+          <span className="resolve-toast-action">{feedback.label}</span>
+          {feedback.effects.length > 0 && (
+            <span className="resolve-toast-fx">{feedback.effects.join(" · ")}</span>
+          )}
+        </div>
+      )}
       {queue.length === 0 ? (
         <div className="empty">No drama cards in the queue. Drama generates after each cycle from stress events, relationship shifts, and contract outcomes.</div>
       ) : (

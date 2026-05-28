@@ -130,16 +130,18 @@ export function ReportsScreen({
         const passedCount = r.assignedAgents[0]?.mechanicResults.filter((m) => m.passed).length ?? 0;
         const totalChecks = challenge.mechanicChecks.length;
         const totalStress = r.assignedAgents.reduce((s, a) => s + a.stressGained, 0);
-        const anyResolved = r.assignedAgents.some(
-          (ar) => ar.stressGained === 0 && ar.performanceRating === 1.0 && totalStress >= 4,
-        );
+        const heroicAgent = r.assignedAgents.find((ar) => ar.isHeroic);
         const clutchAgent = headline.clutchAgent;
         const collapseAgent = headline.collapseAgent;
 
         const summaryClass = `report-summary outcome-${r.outcome}`;
 
         return (
-          <div key={i} style={{ marginBottom: 32 }}>
+          <div key={i} style={{
+            marginBottom: 32,
+            borderLeft: r.outcome === "success" ? "3px solid var(--positive)" : r.outcome === "failure" ? "3px solid var(--accent)" : "3px solid var(--rule-dk)",
+            paddingLeft: 14,
+          }}>
             {/* ── Situation room summary ── */}
             <div className={summaryClass}>
               {buildSummary(r, challenge, agentMap)}
@@ -200,7 +202,7 @@ export function ReportsScreen({
             </div>
 
             {/* ── Resolve callout (distinct event, not buried in narrative) ── */}
-            {anyResolved && headline.resolveAgent && (
+            {heroicAgent && headline.resolveAgent && (
               <div className="callout resolve" style={{ marginBottom: 14 }}>
                 <p>
                   <span className="highlight">{headline.resolveAgent.split(" ")[0]}</span> hit their stress ceiling and rolled{" "}
@@ -211,7 +213,7 @@ export function ReportsScreen({
             )}
 
             {/* ── Clutch callout ── */}
-            {clutchAgent && !anyResolved && r.outcome !== "failure" && (
+            {clutchAgent && !heroicAgent && r.outcome !== "failure" && (
               <div className="callout" style={{ marginBottom: 14 }}>
                 <p>
                   <span className="highlight">{clutchAgent.split(" ")[0]}</span> pulled the party through.
@@ -250,6 +252,9 @@ export function ReportsScreen({
                   </div>
                   <div className="mechanic-detail">
                     {agentForMech ? agentForMech.name : roleName}
+                    {agentForMech && r.assignedAgents.find((ar) => ar.agentId === agentForMech.id)?.isHeroic && (
+                      <span className="badge pass" style={{ marginLeft: 6, fontSize: 8, padding: "1px 5px" }}>HEROIC</span>
+                    )}
                     {agentForMech && (() => {
                       const ar = r.assignedAgents.find(a => a.agentId === agentForMech.id);
                       if (!ar) return null;

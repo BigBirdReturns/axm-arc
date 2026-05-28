@@ -312,6 +312,7 @@ export interface RunReport {
   lootDrops: LootDrop[];
   dramaTriggers: DramaTrigger[];
   narrativeSeed: number;
+  rewardsGranted?: { currency: number; reputation: number };
 }
 
 // ── Narrative ─────────────────────────────────────────────────────────────────

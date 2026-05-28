@@ -18,7 +18,7 @@ import {
 import { applyRewardDecision, evaluateLootEligibility } from "./rewards.js";
 import { tickInfrastructure } from "./infrastructure.js";
 import { refreshOpenPool } from "./recruitment.js";
-import { regenerateTokens, spendTokens, accrueChallengeRewards } from "./economy.js";
+import { regenerateTokens, spendTokens, accrueChallengeRewards, chargeUpkeep } from "./economy.js";
 import { serializeGame } from "./save.js";
 import { Rng, hashSeed } from "./prng.js";
 import {
@@ -110,6 +110,16 @@ export function runCycle(opts: {
   const allDramaTriggers: DramaTriggerInput[] = [];
   const warnings: string[] = [];
 
+  // ── STEP 0: Downed-agent recovery ─────────────────────────────────────────
+  // Agents return to duty once their downtime has elapsed, regardless of a
+  // Medical facility (Medical only accelerates recovery during STEP 6).
+  for (const [agentId, agent] of Object.entries(org.agents)) {
+    if (agent.downedUntilCycle !== null && cycle >= agent.downedUntilCycle) {
+      org = patchAgent(org, agentId, { downedUntilCycle: null });
+      events.push({ type: "recovered", agentId, data: { cycle } });
+    }
+  }
+
   // ── STEP 1: Challenge Resolution ──────────────────────────────────────────
 
   const reports: RunReport[] = [];
@@ -176,8 +186,11 @@ export function runCycle(opts: {
       org = patchAgent(org, ar.agentId, patch);
     }
 
-    // Accrue reputation from challenge outcomes
-    org = accrueChallengeRewards(org, report, arc);
+    // Accrue currency + reputation from the outcome. First clear pays full;
+    // re-clears pay a reduced share (see accrueChallengeRewards).
+    const accrued = accrueChallengeRewards(org, report, arc);
+    org = accrued.org;
+    report.rewardsGranted = { currency: accrued.currencyGranted, reputation: accrued.reputationGranted };
 
     // Collect drama triggers from report (resolver may populate in future)
     // report.dramaTriggers is typed as DramaTrigger[] (generic {type,agentsInvolved})
@@ -358,6 +371,18 @@ export function runCycle(opts: {
   // ── STEP 8: Token Regeneration ────────────────────────────────────────────
 
   org = regenerateTokens(org, arc);
+
+  // ── STEP 8b: Upkeep ───────────────────────────────────────────────────────
+
+  const afterUpkeep = chargeUpkeep(org, cycle);
+  const upkeepPaid = org.resources.currency - afterUpkeep.resources.currency;
+  if (upkeepPaid !== 0) {
+    events.push({ type: "upkeep_charged", data: { amount: upkeepPaid, deficit: afterUpkeep.negativeBalance ?? false } });
+  }
+  if (afterUpkeep.negativeBalance) {
+    warnings.push("Treasury in deficit — agent upkeep exceeds currency reserves.");
+  }
+  org = { ...org, resources: afterUpkeep.resources };
 
   // ── STEP 9: Drama Card Queue Finalization ─────────────────────────────────
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { Arc, DramaCard, Organization } from "../../engine/types.js";
 import type { PendingRewardChoice } from "../../engine/cycle.js";
 import { resolveDramaCard } from "../../engine/drama.js";
@@ -15,14 +15,27 @@ interface Props {
 
 export function DramaScreen({ org, arc, setOrg, cycle, pendingRewardChoices }: Props): JSX.Element {
   const [openIdx, setOpenIdx] = useState(0);
+  const [resolvingOptionId, setResolvingOptionId] = useState<string | null>(null);
   const queue = org.dramaQueue;
   const card = queue[openIdx] ?? null;
+  const resolvingOption = useMemo(
+    () => (card && resolvingOptionId ? card.options.find((opt) => opt.id === resolvingOptionId) ?? null : null),
+    [card, resolvingOptionId],
+  );
 
   const resolve = (optionId: string) => {
     if (!card) return;
     const { org: next } = resolveDramaCard(org, card.id, optionId, cycle);
     setOrg(next);
     if (openIdx >= next.dramaQueue.length) setOpenIdx(Math.max(0, next.dramaQueue.length - 1));
+  };
+
+  const handleResolveWithFeedback = (optionId: string) => {
+    setResolvingOptionId(optionId);
+    window.setTimeout(() => {
+      resolve(optionId);
+      setResolvingOptionId(null);
+    }, 1200);
   };
 
   return (
@@ -65,7 +78,8 @@ export function DramaScreen({ org, arc, setOrg, cycle, pendingRewardChoices }: P
               org={org}
               arc={arc}
               pendingRewardChoices={pendingRewardChoices}
-              onResolve={resolve}
+              onResolve={handleResolveWithFeedback}
+              resolvingOption={resolvingOption}
             />
           )}
         </>
@@ -95,11 +109,12 @@ export function DramaScreen({ org, arc, setOrg, cycle, pendingRewardChoices }: P
 }
 
 function CouncilCard({
-  card, index, total, org, arc, pendingRewardChoices, onResolve,
+  card, index, total, org, arc, pendingRewardChoices, onResolve, resolvingOption,
 }: {
   card: DramaCard; index: number; total: number; org: Organization;
   arc: Arc; pendingRewardChoices: PendingRewardChoice[];
   onResolve: (optionId: string) => void;
+  resolvingOption: import("../../engine/types.js").DramaCardOption | null;
 }): JSX.Element {
   const isRewardDispute = card.triggerType === "reward_dispute";
 
@@ -117,6 +132,24 @@ function CouncilCard({
     : null;
 
   const contextSentence = buildContextSentence(card, org, rewardItem);
+
+  if (resolvingOption) {
+    return (
+      <div className="card drama-resolving" style={{ padding: 16 }}>
+        <div className="report-meta" style={{ marginBottom: 8 }}>AUTHORITY LOGGED</div>
+        <div className="report-headline" style={{ fontSize: 24, marginBottom: 12 }}>
+          EXECUTING: {resolvingOption.label.toUpperCase()}
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {resolvingOption.effects.map((fx, i) => (
+            <div key={`${fx.target}-${fx.type}-${i}`} className="agent-meta" style={{ fontSize: 11 }}>
+              &gt; {fx.value > 0 ? "+" : ""}{fx.value} {fx.type} on {fx.target}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="card" style={{ padding: 0 }}>

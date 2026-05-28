@@ -374,6 +374,13 @@ export function generateDramaCards(
     const vars: Record<string, string> = {};
     if ("agentA" in trigger) vars["agentA"] = org.agents[trigger.agentA]?.name ?? trigger.agentA;
     if ("agentB" in trigger) vars["agentB"] = org.agents[trigger.agentB]?.name ?? trigger.agentB;
+    if (trigger.type === "reward_dispute") {
+      const [first, second] = trigger.eligible;
+      const agentA = first ?? trigger.winner;
+      const agentB = second ?? agentA;
+      vars["agentA"] = org.agents[agentA]?.name ?? agentA;
+      vars["agentB"] = org.agents[agentB]?.name ?? agentB;
+    }
     if ("agentId" in trigger) vars["agent"] = org.agents[trigger.agentId]?.name ?? trigger.agentId;
     if ("cyclesBenched" in trigger) vars["cycles"] = String(trigger.cyclesBenched);
 

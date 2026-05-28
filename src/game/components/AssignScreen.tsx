@@ -130,7 +130,10 @@ export function AssignScreen({ arc, org, assignments, setAssignments }: Props): 
             <div className="agent-meta" style={{ marginTop: 6 }}>
               {c.rosterRequirements.minAgents}-{c.rosterRequirements.maxAgents} agents
               {c.rosterRequirements.roleRequirements.length > 0 && " · "}
-              {c.rosterRequirements.roleRequirements.map((r) => `${r.count}× ${r.roleId}`).join(", ")}
+              {c.rosterRequirements.roleRequirements.map((r) => {
+                const role = arc.roles.find((ro) => ro.id === r.roleId);
+                return `${r.count}× ${role?.name ?? r.roleId}`;
+              }).join(", ")}
               {alreadyQueued && " · Queued"}
               {isCleared && !alreadyQueued && " · 0 lockout (farm)"}
             </div>
@@ -165,13 +168,15 @@ function ProjectionRow({ p }: { p: MechanicProjection }): JSX.Element {
         </span>
       </div>
       <div className="mechanic-detail">
-        {p.agentName ?? "Team"} · {p.projectedScore} / {p.threshold}
+        Reads {p.attributeSummary} · {p.agentName ?? "Team"} · {p.projectedScore} / {p.threshold}
       </div>
       <div className="mechanic-bar-row">
         <div className={`bar mechanic${p.assessment === "fail" ? " fail" : ""}`} style={{ flex: 1 }}>
           <div className="fill" style={{ width: `${pct}%` }} />
         </div>
       </div>
+      <div className="projection-cause">{p.targetSummary}</div>
+      <div className={`projection-hint${p.assessment === "fail" ? " fail" : ""}`}>{p.improvementHint}</div>
     </div>
   );
 }
@@ -201,10 +206,24 @@ function RosterPicker({
     setSelected(next);
   };
 
+  const selectedAgents = available.filter((a) => selected.has(a.id));
+  const projections = selectedAgents.length > 0
+    ? projectMechanics({ challenge, assignedAgents: selectedAgents, org, arc })
+    : [];
   const reqsMet = challenge.rosterRequirements.roleRequirements.every((req) => {
     const count = available.filter((a) => selected.has(a.id) && a.role === req.roleId).length;
     return count >= req.count;
   });
+
+  const handleAutoFill = () => {
+    const sortedRoster = [...available].sort((a, b) => {
+      if (a.stress !== b.stress) return a.stress - b.stress;
+      if (a.morale !== b.morale) return b.morale - a.morale;
+      return b.tier.localeCompare(a.tier);
+    });
+    const autoSelectedIds = sortedRoster.slice(0, min).map((a) => a.id);
+    setSelected(new Set(autoSelectedIds));
+  };
 
   return (
     <div className="modal-backdrop" onClick={onCancel}>
@@ -216,20 +235,39 @@ function RosterPicker({
         <div className="agent-meta" style={{ marginBottom: 12 }}>
           Pick {min}-{max} agents · {selected.size} selected
         </div>
+        {projections.length > 0 && (
+          <div className="projection-preview">
+            <div className="audit-section">Live Readout · before you slot</div>
+            {projections.map((p) => <ProjectionRow key={p.mechanicId} p={p} />)}
+          </div>
+        )}
         {available.map((a) => {
           const role = arc.roles.find((r) => r.id === a.role)?.name ?? "Flex";
+          const isSelected = selected.has(a.id);
+          const isBreaking = a.stress >= 8;
           return (
-            <label key={a.id} className="checkbox-row">
-              <input type="checkbox" checked={selected.has(a.id)} onChange={() => toggle(a.id)} />
+            <label key={a.id} className={`checkbox-row agent-card${isSelected ? " selected" : ""}${isBreaking ? " danger-stress" : ""}`}>
+              <input type="checkbox" checked={isSelected} onChange={() => toggle(a.id)} />
               <div className="portrait small">{agentInitials(a.name)}</div>
               <div style={{ flex: 1 }}>
-                <div className="agent-name" style={{ fontSize: 13 }}>{a.name}</div>
+                <div className="row between">
+                  <div className="agent-name" style={{ fontSize: 13 }}>{a.name}</div>
+                  {isBreaking && <span className="badge critical">CRITICAL</span>}
+                </div>
                 <div className="agent-meta">{role} · {a.tier} · M{a.morale} S{a.stress}</div>
               </div>
             </label>
           );
         })}
         {!reqsMet && <div className="warning">Role requirements not met.</div>}
+        <button
+          className="secondary"
+          onClick={handleAutoFill}
+          disabled={available.length < min}
+          style={{ marginTop: 8 }}
+        >
+          AUTO-FILL: LOWEST STRESS
+        </button>
         <button
           className="primary accent"
           disabled={selected.size < min || selected.size > max || !reqsMet}

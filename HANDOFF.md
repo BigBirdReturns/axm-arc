@@ -6,14 +6,14 @@ Organizational simulation engine + browser game. Deterministic, offline-first, s
 
 **Live:** https://bigbirdreturns.github.io/axm-arc/game/
 **Repo:** https://github.com/BigBirdReturns/axm-arc
-**Branch:** `main` (all work merges here; working branch was `claude/confident-keller-R3vHN`, now merged)
+**Branch:** `main` (all work merges here; working branch was `claude/cool-johnson-CILZb`, now merged)
 
 ## How to run
 
 ```bash
 npm ci
 npm run dev        # localhost:5173
-npm test           # 130 tests, 11 files — all passing
+npm test           # 147 tests, 14 files — all passing
 npm run typecheck  # tsc --noEmit
 npm run build      # output → docs/game/ (GitHub Pages)
 ```
@@ -24,7 +24,7 @@ npm run build      # output → docs/game/ (GitHub Pages)
 src/engine/   — deterministic simulation (zero imports from src/arcs/)
 src/arcs/     — portable JSON scenario definitions (zero engine internals)
 src/game/     — React PWA, AXM House Style
-tests/engine/ — 130+ tests
+tests/engine/ — 147 tests across 14 files (tests/engine/ + tests/game/)
 docs/game/    — built PWA (committed, served by GitHub Pages)
 docs/index.html — landing page
 ```

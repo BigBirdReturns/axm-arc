@@ -199,6 +199,15 @@ export function ReportsScreen({
                   {r.lootDrops.length > 0 ? `${pendingRewardChoices.length} pending` : "no drops"}
                 </div>
               </div>
+              <div className="stat-cell">
+                <div className="stat-lbl">{arc.currencyName}</div>
+                <div className="stat-val" style={(r.rewardsGranted?.currency ?? 0) > 0 ? { color: "var(--positive)" } : {}}>
+                  {(r.rewardsGranted?.currency ?? 0) > 0 ? `+${r.rewardsGranted!.currency}` : "0"}
+                </div>
+                <div className="stat-sub">
+                  {(r.rewardsGranted?.reputation ?? 0) > 0 ? `+${r.rewardsGranted!.reputation} rep` : "no rep"}
+                </div>
+              </div>
             </div>
 
             {/* ── Resolve callout (distinct event, not buried in narrative) ── */}

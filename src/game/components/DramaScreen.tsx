@@ -141,7 +141,7 @@ function CouncilCard({
     ? precedentContextSentence(org.precedents.filter((p) => p.type === "reward"))
     : null;
 
-  const contextSentence = buildContextSentence(card, org, rewardItem);
+  const contextSentence = buildContextSentence(card, org, arc, rewardItem);
 
   return (
     <div className="card" style={{ padding: 0 }}>
@@ -317,6 +317,7 @@ function formatCardHeadline(
 function buildContextSentence(
   card: DramaCard,
   org: Organization,
+  arc: Arc,
   item: import("../../engine/types.js").Item | null,
 ): string {
   if (card.triggerType !== "reward_dispute" || !item) return card.narrativeText;
@@ -328,7 +329,8 @@ function buildContextSentence(
   if (eligible.length < 2) return card.narrativeText;
 
   const [a, b] = eligible;
-  const parts: string[] = [`Two ${a!.role ?? "agent"}s are eligible.`];
+  const roleName = arc.roles.find((r) => r.id === a!.role)?.name ?? "agent";
+  const parts: string[] = [`Two ${roleName}s are eligible.`];
 
   const aLast = a!.rewardHistory[a!.rewardHistory.length - 1];
   const bLast = b!.rewardHistory[b!.rewardHistory.length - 1];

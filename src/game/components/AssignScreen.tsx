@@ -290,6 +290,7 @@ function RosterPicker({
         )}
         {available.map((a) => {
           const role = arc.roles.find((r) => r.id === a.role)?.name ?? "Flex";
+          const tierName = arc.tiers.find((t) => t.id === a.tier)?.name ?? a.tier;
           const stressClass = a.stress >= 8 ? "portrait-danger" : a.stress >= 6 ? "portrait-warn" : "";
           return (
             <label key={a.id} className="checkbox-row">
@@ -298,7 +299,7 @@ function RosterPicker({
               <div style={{ flex: 1 }}>
                 <div className="agent-name" style={{ fontSize: 13 }}>{a.name}</div>
                 <div className="agent-meta">
-                  {role} · {a.tier} · M{a.morale} S{a.stress}
+                  {role} · {tierName} · M{a.morale} S{a.stress}
                   {a.stress >= 8 && <span className="badge fail" style={{ marginLeft: 6, fontSize: 8, padding: "1px 5px" }}>STRESS</span>}
                 </div>
               </div>

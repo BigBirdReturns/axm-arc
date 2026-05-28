@@ -165,7 +165,10 @@ export function AssignScreen({ arc, org, assignments, setAssignments }: Props): 
             <div className="agent-meta" style={{ marginTop: 6 }}>
               {c.rosterRequirements.minAgents}-{c.rosterRequirements.maxAgents} agents
               {c.rosterRequirements.roleRequirements.length > 0 && " · "}
-              {c.rosterRequirements.roleRequirements.map((r) => `${r.count}× ${r.roleId}`).join(", ")}
+              {c.rosterRequirements.roleRequirements.map((r) => {
+                const role = arc.roles.find((ro) => ro.id === r.roleId);
+                return `${r.count}× ${role?.name ?? r.roleId}`;
+              }).join(", ")}
               {alreadyQueued && " · Queued"}
               {isCleared && !alreadyQueued && " · 0 lockout (farm)"}
             </div>
@@ -200,13 +203,15 @@ function ProjectionRow({ p }: { p: MechanicProjection }): JSX.Element {
         </span>
       </div>
       <div className="mechanic-detail">
-        {p.agentName ?? "Team"} · {p.projectedScore} / {p.threshold}
+        Reads {p.attributeSummary} · {p.agentName ?? "Team"} · {p.projectedScore} / {p.threshold}
       </div>
       <div className="mechanic-bar-row">
         <div className={`bar mechanic${p.assessment === "fail" ? " fail" : ""}`} style={{ flex: 1 }}>
           <div className="fill" style={{ width: `${pct}%` }} />
         </div>
       </div>
+      <div className="projection-cause">{p.targetSummary}</div>
+      <div className={`projection-hint${p.assessment === "fail" ? " fail" : ""}`}>{p.improvementHint}</div>
     </div>
   );
 }
@@ -256,6 +261,11 @@ function RosterPicker({
     setSelected(filled);
   };
 
+  const selectedAgents = available.filter((a) => selected.has(a.id));
+  const projections = selectedAgents.length > 0
+    ? projectMechanics({ challenge, assignedAgents: selectedAgents, org, arc })
+    : [];
+
   const reqsMet = challenge.rosterRequirements.roleRequirements.every((req) => {
     const count = available.filter((a) => selected.has(a.id) && a.role === req.roleId).length;
     return count >= req.count;
@@ -272,6 +282,12 @@ function RosterPicker({
           <div className="agent-meta">Pick {min}-{max} agents · {selected.size} selected</div>
           <button className="icon" onClick={autoFill} disabled={available.length < min}>Auto-fill</button>
         </div>
+        {projections.length > 0 && (
+          <div className="projection-preview">
+            <div className="audit-section">Live Readout · before you slot</div>
+            {projections.map((p) => <ProjectionRow key={p.mechanicId} p={p} />)}
+          </div>
+        )}
         {available.map((a) => {
           const role = arc.roles.find((r) => r.id === a.role)?.name ?? "Flex";
           const stressClass = a.stress >= 8 ? "portrait-danger" : a.stress >= 6 ? "portrait-warn" : "";

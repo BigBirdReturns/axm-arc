@@ -37,12 +37,13 @@ export function deriveTutorialStep(
   dramaQueueLength: number,
   assignmentCount: number,
   cycle: number,
+  reportCount: number,
 ): number | null {
   if (!active) return null;
   if (dramaQueueLength > 0) return 0;
   if (cycle === 0 && assignmentCount === 0) return 1;
   if (cycle === 0 && assignmentCount > 0) return 2;
-  if (cycle > 0) return 3;
+  if (cycle > 0 && reportCount > 0) return 3;
   return null;
 }
 

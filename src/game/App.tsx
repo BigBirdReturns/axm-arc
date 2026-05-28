@@ -132,6 +132,7 @@ export function App(): JSX.Element {
     org.dramaQueue.length,
     assignments.length,
     org.cycle,
+    lastReports.length,
   );
   const pulseTab = tutorialPulseTab(tutorialStep);
   const pulseAdvance = tutorialPulseAdvance(tutorialStep);

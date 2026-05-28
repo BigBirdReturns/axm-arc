@@ -21,6 +21,9 @@ import { TitleScreen } from "./components/TitleScreen.js";
 import { CycleChecklist } from "./components/CycleChecklist.js";
 import { agentInitials } from "./lib/ui-helpers.js";
 
+declare const __BUILD_SHA__: string;
+const BUILD_SHA = typeof __BUILD_SHA__ === "string" ? __BUILD_SHA__ : "dev";
+
 type Tab = "Roster" | "Assign" | "Drama" | "Base" | "Reports";
 
 const arc = FIRST_CHARTER;
@@ -398,7 +401,7 @@ export function App(): JSX.Element {
         </div>
         <h1>{arc.meta.name}</h1>
         <div className="subtitle">
-          {arc.meta.domain} · Tier I · {cleared.size} of {arc.challenges.length} cleared
+          {arc.meta.domain} · Tier I · {cleared.size} of {arc.challenges.length} cleared · build {BUILD_SHA}
         </div>
 
         {/* Desktop inline stat strip */}

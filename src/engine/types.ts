@@ -252,6 +252,7 @@ export interface Outcome {
   rewardTable: RewardTableEntry[];
   narrative: string;
   reputationGain?: number;
+  currencyReward?: number;
   milestoneFlag?: string;
   agentDowntimeCycles?: number;
   stressPenalty?: number;
@@ -311,6 +312,7 @@ export interface RunReport {
   lootDrops: LootDrop[];
   dramaTriggers: DramaTrigger[];
   narrativeSeed: number;
+  rewardsGranted?: { currency: number; reputation: number };
 }
 
 // ── Narrative ─────────────────────────────────────────────────────────────────

@@ -53,6 +53,7 @@ const OutcomeSchema = z.object({
   rewardTable: z.array(RewardTableEntrySchema).transform(normalizeRewardTable),
   narrative: z.string(),
   reputationGain: z.number().int().optional(),
+  currencyReward: z.number().int().min(0).optional(),
   milestoneFlag: z.string().optional(),
   agentDowntimeCycles: z.number().int().optional(),
   stressPenalty: z.number().int().optional(),

@@ -132,6 +132,7 @@ export function App(): JSX.Element {
     org.dramaQueue.length,
     assignments.length,
     org.cycle,
+    lastReports.length,
   );
   const pulseTab = tutorialPulseTab(tutorialStep);
   const pulseAdvance = tutorialPulseAdvance(tutorialStep);
@@ -205,6 +206,12 @@ export function App(): JSX.Element {
   const upkeep = Object.values(org.agents).reduce((s, a) => s + a.upkeep, 0);
   const agentList = Object.values(org.agents);
 
+  // Next reputation gate, read from arc progression tiers (not hardcoded).
+  const nextRepGate = arc.progressionTiers
+    .map((pt) => pt.unlockConditions.reputationMinimum)
+    .filter((m): m is number => m !== null && m > org.reputation)
+    .sort((a, b) => a - b)[0];
+
   // ── Intent block (shared across mobile + desktop) ────────────────────────
   const intentBlock = (
     <div className="intent-block">
@@ -263,7 +270,7 @@ export function App(): JSX.Element {
       <div className="stat-cell">
         <div className="stat-lbl">{arc.reputationName}</div>
         <div className="stat-val">{org.reputation}</div>
-        <div className="stat-sub">of 50 to T II</div>
+        <div className="stat-sub">{nextRepGate !== undefined ? `of ${nextRepGate} to next tier` : "top tier"}</div>
       </div>
       <div className="stat-cell">
         <div className="stat-lbl">Drama</div>
@@ -409,7 +416,7 @@ export function App(): JSX.Element {
           {[
             { lbl: arc.tokenName, val: org.resources.tokens, sub: `+${arc.tokensPerCycle} next` },
             { lbl: arc.currencyName, val: org.resources.currency.toLocaleString(), sub: `-${upkeep}` },
-            { lbl: arc.reputationName, val: `${org.reputation} / 50`, sub: "to T II" },
+            { lbl: arc.reputationName, val: nextRepGate !== undefined ? `${org.reputation} / ${nextRepGate}` : `${org.reputation}`, sub: nextRepGate !== undefined ? "to next tier" : "top tier" },
             { lbl: "Drama", val: org.dramaQueue.length, sub: "queued", accent: org.dramaQueue.length > 0 },
           ].map((s) => (
             <div key={s.lbl} className="stat-cell">

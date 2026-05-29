@@ -63,21 +63,51 @@ export function chargeUpkeep(org: Organization, _cycle: number): OrgWithBalance 
 
 // ── accrueChallengeRewards ────────────────────────────────────────────────────
 
-export function accrueChallengeRewards(
-  org: Organization,
-  report: RunReport,
-  arc: Arc,
-): Organization {
-  // Bump reputation by the outcome's reputationGain if applicable
+// Re-clearing an already-beaten challenge ("farming") still pays, but at a
+// fraction of the first-clear reward — enough to sustain upkeep, not enough to
+// trivialise the economy. Reputation is only awarded once per challenge.
+export const REPEAT_CLEAR_REWARD_FACTOR = 0.25;
+
+export interface AccruedRewards {
+  org: Organization;
+  currencyGranted: number;
+  reputationGranted: number;
+}
+
+function hasPriorSuccess(org: Organization, challengeId: string, currentCycle: number): boolean {
+  for (const agent of Object.values(org.agents)) {
+    for (const entry of agent.assignmentHistory) {
+      if (entry.challengeId === challengeId && entry.outcome === "success" && entry.cycle < currentCycle) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+export function accrueChallengeRewards(org: Organization, report: RunReport, arc: Arc): AccruedRewards {
   const challenge = arc.challenges.find((c) => c.id === report.challengeId);
-  if (!challenge) return org;
+  if (!challenge) return { org, currencyGranted: 0, reputationGranted: 0 };
 
   const outcome = challenge.outcomes[report.outcome];
-  const repGain = outcome.reputationGain ?? 0;
-  if (repGain === 0) return org;
+  const baseCurrency = outcome.currencyReward ?? 0;
+  const baseReputation = outcome.reputationGain ?? 0;
+
+  const isRepeatClear = report.outcome === "success" && hasPriorSuccess(org, report.challengeId, report.cycle);
+  const currencyGranted = isRepeatClear ? Math.floor(baseCurrency * REPEAT_CLEAR_REWARD_FACTOR) : baseCurrency;
+  const reputationGranted = isRepeatClear ? 0 : baseReputation;
+
+  if (currencyGranted === 0 && reputationGranted === 0) {
+    return { org, currencyGranted: 0, reputationGranted: 0 };
+  }
 
   return {
-    ...org,
-    reputation: org.reputation + repGain,
+    org: {
+      ...org,
+      reputation: org.reputation + reputationGranted,
+      resources: { ...org.resources, currency: org.resources.currency + currencyGranted },
+    },
+    currencyGranted,
+    reputationGranted,
   };
 }

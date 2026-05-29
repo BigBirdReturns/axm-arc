@@ -11,6 +11,9 @@ export interface MechanicProjection {
   threshold: number;
   margin: number;
   assessment: "comfortable" | "tight" | "fail";
+  attributeSummary: string;
+  targetSummary: string;
+  improvementHint: string;
 }
 
 export function projectMechanics(opts: {
@@ -29,6 +32,7 @@ export function projectMechanics(opts: {
       );
       const threshold = check.difficultyThreshold * assignedAgents.length;
       const margin = teamScore - threshold;
+      const averageScore = assignedAgents.length > 0 ? teamScore / assignedAgents.length : 0;
       results.push({
         mechanicId: check.id,
         mechanicName: check.name,
@@ -39,6 +43,11 @@ export function projectMechanics(opts: {
         threshold,
         margin: Math.round(margin),
         assessment: margin >= 10 ? "comfortable" : margin >= 0 ? "tight" : "fail",
+        attributeSummary: describeAttributeWeights(check, arc),
+        targetSummary: `Team average ${Math.round(averageScore)} vs required ${check.difficultyThreshold} each (${Math.round(teamScore)} / ${threshold} total).`,
+        improvementHint: margin < 0
+          ? `Raise average ${primaryAttributeName(check, arc)}: train, gear, or recruit stronger agents. More bodies only help if they beat the required average.`
+          : `Keep average ${primaryAttributeName(check, arc)} above ${check.difficultyThreshold}; extra low-score agents can drag this check down.`,
       });
     } else if (check.scope === "role_specific") {
       const roleReqs = challenge.rosterRequirements.roleRequirements;
@@ -59,6 +68,11 @@ export function projectMechanics(opts: {
         threshold: check.difficultyThreshold,
         margin: Math.round(margin),
         assessment: margin >= 10 ? "comfortable" : margin >= 0 ? "tight" : "fail",
+        attributeSummary: describeAttributeWeights(check, arc),
+        targetSummary: `${target.name} is the checked role agent for this mechanic (${Math.round(score)} / ${check.difficultyThreshold}).`,
+        improvementHint: margin < 0
+          ? `Pick or improve a ${arc.roles.find((r) => r.id === target.role)?.name ?? "required-role"} with stronger ${primaryAttributeName(check, arc)}.`
+          : `${target.name.split(" ")[0]} has enough ${primaryAttributeName(check, arc)} for this role check.`,
       });
     } else {
       // per_agent: show the weakest agent as representative
@@ -80,10 +94,29 @@ export function projectMechanics(opts: {
         threshold: check.difficultyThreshold,
         margin: Math.round(score - check.difficultyThreshold),
         assessment: worstMargin >= 10 ? "comfortable" : worstMargin >= 0 ? "tight" : "fail",
+        attributeSummary: describeAttributeWeights(check, arc),
+        targetSummary: `Weakest projected agent: ${worstAgent.name} (${Math.round(score)} / ${check.difficultyThreshold}).`,
+        improvementHint: worstMargin < 0
+          ? `This checks every assigned agent. Swap, train, gear, or rest the weakest ${primaryAttributeName(check, arc)} performer.`
+          : `Everyone clears the ${primaryAttributeName(check, arc)} bar; watch stress and morale before rerunning.`,
       });
     }
   }
   return results;
+}
+
+function describeAttributeWeights(check: MechanicCheck, arc: Arc): string {
+  return check.attributeWeights
+    .map((aw) => {
+      const attr = arc.attributes.find((a) => a.id === aw.attributeId);
+      return `${attr?.name ?? aw.attributeId} ${Math.round(aw.weight * 100)}%`;
+    })
+    .join(" · ");
+}
+
+function primaryAttributeName(check: MechanicCheck, arc: Arc): string {
+  const primary = check.attributeWeights.reduce((best, aw) => aw.weight > best.weight ? aw : best, check.attributeWeights[0]!);
+  return arc.attributes.find((a) => a.id === primary.attributeId)?.name ?? primary.attributeId;
 }
 
 function estimateScore(

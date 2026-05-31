@@ -7,10 +7,14 @@ export default function CodexOverlay({
   arc,
   open,
   onClose,
+  onReplayTutorial,
+  onReplayTutorialLabel = "Replay tutorial",
 }: {
   arc: Arc;
   open: boolean;
   onClose: () => void;
+  onReplayTutorial?: () => void;
+  onReplayTutorialLabel?: string;
 }): JSX.Element | null {
   // Escape key + body scroll lock while open.
   useEffect(() => {
@@ -63,6 +67,20 @@ export default function CodexOverlay({
             {s.render()}
           </section>
         ))}
+        {onReplayTutorial && (
+          <div className="codex-footer">
+            <button
+              type="button"
+              className="codex-footer-action"
+              onClick={() => {
+                onReplayTutorial();
+                onClose();
+              }}
+            >
+              {onReplayTutorialLabel}
+            </button>
+          </div>
+        )}
       </aside>
     </div>
   );

@@ -363,7 +363,12 @@ export function App(): JSX.Element {
 
   return (
     <>
-      <CodexOverlay arc={arc} open={codexOpen} onClose={() => setCodexOpen(false)} />
+      <CodexOverlay
+        arc={arc}
+        open={codexOpen}
+        onClose={() => setCodexOpen(false)}
+        onReplayTutorial={tutorial.start}
+      />
 
       {/* ── TUTORIAL GUIDE (nudge bar) ── */}
       {tutorialStep !== null && (
@@ -395,14 +400,6 @@ export function App(): JSX.Element {
         <div className="top-row">
           <div className="kicker">Situation Room · Cycle {String(org.cycle).padStart(2, "0")}</div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <button
-              className="icon"
-              title="Replay tutorial"
-              style={{ fontSize: 11, padding: "2px 7px", minHeight: 0, color: "var(--dim)" }}
-              onClick={tutorial.start}
-            >
-              ?
-            </button>
             <button
               className="codex-trigger"
               aria-label="Open manual"

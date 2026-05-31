@@ -2016,6 +2016,27 @@ button.tutorial-pulse-btn {
   text-align: center;
 }
 
+.title-secondary-links {
+  width: 100%;
+  text-align: center;
+  margin-top: 10px;
+}
+.title-secondary-link {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--dim);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--rule);
+  padding-bottom: 1px;
+}
+.title-secondary-link:hover,
+.title-secondary-link:focus-visible {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
 /* ════════════════════════════════════════════════════════════════
    AXM ARC — Mobile density pass (max-width: 600px)
    Target: ~20% fewer visible lines above the fold on 480px viewport.
@@ -2363,6 +2384,29 @@ button.tutorial-pulse-btn {
 }
 .codex-meta-row li {
   padding: 1px 0;
+}
+
+.codex-footer {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--rule);
+  display: flex;
+  justify-content: flex-start;
+}
+.codex-footer-action {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: none;
+  border: none;
+  padding: 4px 0;
+  color: var(--muted);
+  cursor: pointer;
+}
+.codex-footer-action:hover,
+.codex-footer-action:focus-visible {
+  color: var(--accent);
 }
 
 @media (max-width: 760px) {

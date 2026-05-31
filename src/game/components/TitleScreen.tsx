@@ -1,5 +1,7 @@
+import { useState } from "react";
 import type { Arc } from "../../engine/types.js";
 import { loadSave } from "../lib/storage.js";
+import { CodexOverlay } from "../../codex/index.js";
 
 interface Props {
   arc: Arc;
@@ -10,6 +12,7 @@ interface Props {
 export function TitleScreen({ arc, onContinue, onNewGame }: Props): JSX.Element {
   const existing = loadSave(arc);
   const hasSave = existing !== null;
+  const [manualOpen, setManualOpen] = useState(false);
 
   return (
     <div className="title-screen">
@@ -33,6 +36,12 @@ export function TitleScreen({ arc, onContinue, onNewGame }: Props): JSX.Element 
             onClick={onNewGame}
           >
             New Game
+          </button>
+          <button
+            className="secondary"
+            onClick={() => setManualOpen(true)}
+          >
+            Manual
           </button>
         </div>
 
@@ -64,7 +73,22 @@ export function TitleScreen({ arc, onContinue, onNewGame }: Props): JSX.Element 
         <div className="title-colophon">
           AXM Arc · v{arc.meta.version} · Engine {arc.meta.engineVersion}
         </div>
+        <div className="title-secondary-links">
+          <a
+            href="../designer-prototype/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="title-secondary-link"
+          >
+            Designer Prototype
+          </a>
+        </div>
       </div>
+      <CodexOverlay
+        arc={arc}
+        open={manualOpen}
+        onClose={() => setManualOpen(false)}
+      />
     </div>
   );
 }

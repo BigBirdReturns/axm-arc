@@ -19,7 +19,7 @@ import { CycleTransition } from "./components/CycleTransition.js";
 import { TutorialGuide, useTutorial, deriveTutorialStep, tutorialPulseTab, tutorialPulseAdvance } from "./components/TutorialGuide.js";
 import { TitleScreen } from "./components/TitleScreen.js";
 import { CycleChecklist } from "./components/CycleChecklist.js";
-import { agentInitials } from "./lib/ui-helpers.js";
+import { Portrait } from "./components/Portrait.js";
 
 declare const __BUILD_SHA__: string;
 const BUILD_SHA = typeof __BUILD_SHA__ === "string" ? __BUILD_SHA__ : "dev";
@@ -469,7 +469,7 @@ export function App(): JSX.Element {
             return (
               <div key={a.id} className="card" style={{ cursor: "default" }}>
                 <div className="row" style={{ gap: 8 }}>
-                  <div className={`portrait${a.stress >= 8 ? " accent" : ""}`}>{agentInitials(a.name)}</div>
+                  <Portrait agent={a} size="small" state={a.stress >= 8 ? "accent" : "normal"} />
                   <div style={{ flex: 1, overflow: "hidden" }}>
                     <div className="agent-name">{a.name}</div>
                     <div className="agent-meta">{role?.name ?? "Flex"}</div>

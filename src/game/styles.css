@@ -21,6 +21,25 @@
   --accent-dp: #8a160f;
   --positive: #3d5a3a;
   --positive-lt: #e3ead9;
+  --on-accent: #fff;
+
+  --bar-track: var(--paper-dk);
+  --bar-morale: var(--ink);
+  --bar-stress: var(--accent);
+  --bar-mechanic: var(--ink);
+  --bar-mechanic-fail: var(--accent);
+
+  --portrait-bg: var(--paper-dk);
+  --portrait-border: var(--rule-dk);
+  --portrait-ink: var(--ink);
+  --portrait-warn-ring: var(--accent-mid);
+  --portrait-danger-bg: var(--accent-lt);
+  --portrait-danger-border: var(--accent);
+  --portrait-danger-ink: var(--accent-dp);
+  --portrait-afflicted-bg: var(--ink);
+  --portrait-afflicted-border: var(--ink);
+  --portrait-afflicted-ink: var(--paper);
+  --portrait-afflicted-ring: var(--accent);
 
   --display: 'Barlow Condensed', 'Arial Narrow', sans-serif;
   --serif: 'Lora', Georgia, serif;
@@ -220,9 +239,9 @@ html, body, #root {
 .portrait {
   width: 40px;
   height: 40px;
-  border: 2px solid var(--rule-dk);
-  background: var(--paper-dk);
-  color: var(--ink);
+  border: 2px solid var(--portrait-border);
+  background: var(--portrait-bg);
+  color: var(--portrait-ink);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -231,7 +250,8 @@ html, body, #root {
   font-size: 14px;
   flex-shrink: 0;
 }
-.portrait.accent { border-color: var(--accent); color: var(--accent); }
+.portrait.accent,
+.portrait.portrait-accent { border-color: var(--accent); color: var(--accent); }
 .portrait.small { width: 28px; height: 28px; font-size: 11px; border-width: 1px; }
 
 /* ── BADGE ───────────────────────────────────────────────────── */
@@ -312,14 +332,14 @@ html, body, #root {
 .bar {
   width: 100%;
   height: 6px;
-  background: var(--paper-dk);
+  background: var(--bar-track);
   overflow: hidden;
 }
 .bar > .fill { height: 100%; transition: width 0.2s; }
-.bar.morale > .fill { background: var(--ink); }
-.bar.stress > .fill { background: var(--accent); }
-.bar.mechanic > .fill { background: var(--ink); }
-.bar.mechanic.fail > .fill { background: var(--accent); }
+.bar.morale > .fill { background: var(--bar-morale); }
+.bar.stress > .fill { background: var(--bar-stress); }
+.bar.mechanic > .fill { background: var(--bar-mechanic); }
+.bar.mechanic.fail > .fill { background: var(--bar-mechanic-fail); }
 
 /* ── AGENT NAME TYPOGRAPHY ───────────────────────────────────── */
 
@@ -1735,21 +1755,21 @@ button.tutorial-pulse-btn {
 .portrait { position: relative; }
 
 .portrait.portrait-warn {
-  box-shadow: 0 0 0 3px var(--accent-mid);
+  box-shadow: 0 0 0 3px var(--portrait-warn-ring);
 }
 
 .portrait.portrait-danger {
-  border-color: var(--accent);
-  background: var(--accent-lt);
-  color: var(--accent-dp);
-  box-shadow: 0 0 0 3px var(--accent-mid);
+  border-color: var(--portrait-danger-border);
+  background: var(--portrait-danger-bg);
+  color: var(--portrait-danger-ink);
+  box-shadow: 0 0 0 3px var(--portrait-warn-ring);
 }
 
 .portrait.portrait-afflicted {
-  background: var(--ink);
-  color: var(--paper);
-  border-color: var(--ink);
-  box-shadow: 0 0 0 3px var(--accent);
+  background: var(--portrait-afflicted-bg);
+  color: var(--portrait-afflicted-ink);
+  border-color: var(--portrait-afflicted-border);
+  box-shadow: 0 0 0 3px var(--portrait-afflicted-ring);
 }
 
 .corner-glyph {
@@ -1779,7 +1799,7 @@ button.tutorial-pulse-btn {
 .corner-glyph.glyph-afflicted {
   background: var(--accent);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 .corner-glyph.glyph-resolve {

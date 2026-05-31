@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { Agent, Arc, Challenge, Organization } from "../../engine/types.js";
 import type { ChallengeAssignment } from "../../engine/cycle.js";
 import { projectMechanics, type MechanicProjection } from "../../engine/projections.js";
-import { agentInitials } from "../lib/ui-helpers.js";
+import { Portrait, portraitStateForAgent } from "./Portrait.js";
 
 interface Props {
   arc: Arc;
@@ -81,7 +81,7 @@ export function AssignScreen({ arc, org, assignments, setAssignments }: Props): 
                 <span style={{ fontFamily: "var(--mono)", fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: isFirstClear ? "var(--accent-lt)" : "var(--muted)" }}>
                   Contract {String(i + 1).padStart(2, "0")} · {isFirstClear ? "First Clear Push" : "Farm"}
                 </span>
-                <span className="badge" style={isFirstClear ? { background: "var(--accent)", color: "#fff", border: 0 } : {}}>
+                <span className="badge" style={isFirstClear ? { background: "var(--accent)", color: "var(--on-accent)", border: 0 } : {}}>
                   Diff {c?.difficultyRating ?? "?"}
                 </span>
               </div>
@@ -97,7 +97,7 @@ export function AssignScreen({ arc, org, assignments, setAssignments }: Props): 
               <div className="row" style={{ gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
                 {agents.map((ag) => (
                   <div key={ag.id} style={{ textAlign: "center" }}>
-                    <div className="portrait small">{agentInitials(ag.name)}</div>
+                    <Portrait agent={ag} size="small" state="normal" />
                     <div style={{ fontFamily: "var(--mono)", fontSize: 9, color: "var(--muted)", marginTop: 2 }}>
                       {ag.name.split(" ")[0]}
                     </div>
@@ -291,11 +291,11 @@ function RosterPicker({
         {available.map((a) => {
           const role = arc.roles.find((r) => r.id === a.role)?.name ?? "Flex";
           const tierName = arc.tiers.find((t) => t.id === a.tier)?.name ?? a.tier;
-          const stressClass = a.stress >= 8 ? "portrait-danger" : a.stress >= 6 ? "portrait-warn" : "";
+          const portraitState = portraitStateForAgent(a);
           return (
             <label key={a.id} className="checkbox-row">
               <input type="checkbox" checked={selected.has(a.id)} onChange={() => toggle(a.id)} />
-              <div className={`portrait small${stressClass ? ` ${stressClass}` : ""}`}>{agentInitials(a.name)}</div>
+              <Portrait agent={a} size="small" state={portraitState} />
               <div style={{ flex: 1 }}>
                 <div className="agent-name" style={{ fontSize: 13 }}>{a.name}</div>
                 <div className="agent-meta">

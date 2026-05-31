@@ -3,7 +3,7 @@ import type { Arc, DramaCard, Organization } from "../../engine/types.js";
 import type { PendingRewardChoice } from "../../engine/cycle.js";
 import { resolveDramaCard } from "../../engine/drama.js";
 import { precedentContextSentence } from "../lib/headline.js";
-import { agentInitials } from "../lib/ui-helpers.js";
+import { Portrait } from "./Portrait.js";
 
 interface Props {
   org: Organization;
@@ -198,7 +198,7 @@ function CouncilCard({
           return (
             <div key={opt.id} style={{ borderTop: "1px solid var(--rule)", padding: "14px 16px" }}>
               <div className="row" style={{ gap: 10, marginBottom: 12 }}>
-                {agentObj && <div className="portrait small">{agentInitials(agentObj.name)}</div>}
+                {agentObj && <Portrait agent={agentObj} size="small" state="normal" />}
                 <div style={{ flex: 1 }}>
                   <div className="agent-name" style={{ fontSize: 15 }}>{agentObj?.name ?? opt.label}</div>
                   <div className="agent-meta">

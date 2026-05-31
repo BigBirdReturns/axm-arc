@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { Agent, Arc } from "../../engine/types.js";
+import { Portrait } from "./Portrait.js";
 import {
-  agentInitials,
   visibleAttrs,
   isTraitVisible,
   hiddenAttrVisibleCount,
@@ -46,25 +46,6 @@ function pickBark(agent: Agent): string | null {
   return null;
 }
 
-// ── Portrait state helpers ────────────────────────────────────────────────────
-
-function portraitStateClass(agent: Agent): string {
-  const isAfflicted = agent.afflictionState.kind !== "none";
-  if (isAfflicted) return "portrait-afflicted";
-  if (agent.stress >= 8) return "portrait-danger";
-  if (agent.stress >= 6) return "portrait-warn";
-  return "";
-}
-
-function portraitGlyph(agent: Agent): { glyph: string; kind: string } | null {
-  const isAfflicted = agent.afflictionState.kind !== "none";
-  if (isAfflicted) return { glyph: "×", kind: "glyph-afflicted" };
-  if (agent.stress >= 8) return { glyph: "!", kind: "glyph-threshold" };
-  if (agent.afflictionState.kind === "none" && agent.morale > 80)
-    return { glyph: "↑", kind: "glyph-resolve" };
-  return null;
-}
-
 interface Props {
   agents: Agent[];
   arc: Arc;
@@ -89,17 +70,12 @@ function AgentRow({ agent, arc, onClick }: { agent: Agent; arc: Arc; onClick: ()
   const tier = arc.tiers.find((t) => t.id === agent.tier);
   const role = arc.roles.find((r) => r.id === agent.role);
   const nearThreshold = agent.stress >= 8 && agent.afflictionState.kind === "none";
-  const stateClass = portraitStateClass(agent);
-  const glyphInfo = portraitGlyph(agent);
   const bark = pickBark(agent);
 
   return (
     <div className={`card clickable${nearThreshold ? " danger" : ""}`} onClick={onClick}>
       <div className="row">
-        <div className={`portrait ${stateClass}`}>
-          {agentInitials(agent.name)}
-          {glyphInfo && <span className={`corner-glyph ${glyphInfo.kind}`}>{glyphInfo.glyph}</span>}
-        </div>
+        <Portrait agent={agent} showGlyph />
         <div style={{ flex: 1 }}>
           <div className="row between">
             <span className="agent-name">{agent.name}</span>

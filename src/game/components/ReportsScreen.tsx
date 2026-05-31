@@ -1,7 +1,6 @@
 import type { Arc, Organization, RunReport } from "../../engine/types.js";
 import type { PendingRewardChoice, RewardDecision } from "../../engine/cycle.js";
 import { generateHeadline, agentRunLine } from "../lib/headline.js";
-import { agentInitials } from "../lib/ui-helpers.js";
 
 interface Props {
   arc: Arc;

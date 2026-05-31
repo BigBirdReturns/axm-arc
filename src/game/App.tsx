@@ -18,6 +18,7 @@ import { SituationSidebar } from "./components/SituationSidebar.js";
 import { CycleTransition } from "./components/CycleTransition.js";
 import { TutorialGuide, useTutorial, deriveTutorialStep, tutorialPulseTab, tutorialPulseAdvance } from "./components/TutorialGuide.js";
 import { TitleScreen } from "./components/TitleScreen.js";
+import { CountUp } from "../liveness/index.js";
 import { CycleChecklist } from "./components/CycleChecklist.js";
 import { agentInitials } from "./lib/ui-helpers.js";
 import { CodexOverlay } from "../codex/index.js";
@@ -261,17 +262,17 @@ export function App(): JSX.Element {
     <div className="stat-strip">
       <div className="stat-cell">
         <div className="stat-lbl">{arc.tokenName}</div>
-        <div className="stat-val">{org.resources.tokens}</div>
+        <div className="stat-val"><CountUp value={org.resources.tokens} /></div>
         <div className="stat-sub">+{arc.tokensPerCycle} next cycle</div>
       </div>
       <div className="stat-cell">
         <div className="stat-lbl">{arc.currencyName}</div>
-        <div className="stat-val">{org.resources.currency.toLocaleString()}</div>
+        <div className="stat-val"><CountUp value={org.resources.currency} /></div>
         <div className="stat-sub">-{upkeep} upkeep</div>
       </div>
       <div className="stat-cell">
         <div className="stat-lbl">{arc.reputationName}</div>
-        <div className="stat-val">{org.reputation}</div>
+        <div className="stat-val"><CountUp value={org.reputation} /></div>
         <div className="stat-sub">{nextRepGate !== undefined ? `of ${nextRepGate} to next tier` : "top tier"}</div>
       </div>
       <div className="stat-cell">

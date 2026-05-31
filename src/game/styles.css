@@ -2178,3 +2178,58 @@ button.tutorial-pulse-btn {
   }
 
 }
+
+/* ── DECISION SUPPORT: assignment coach/readiness ─────────────── */
+
+.contract-readiness,
+.recommendation-card,
+.mechanic-explainer {
+  margin-top: 8px;
+}
+
+.contract-readiness {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px;
+  align-items: start;
+  font-family: var(--serif);
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--muted);
+}
+
+.recommendation-card {
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--accent);
+  background: var(--paper-alt);
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
+
+.recommendation-body,
+.mechanic-explainer {
+  font-family: var(--serif);
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.mechanic-explainer {
+  border-left: 2px solid var(--rule);
+  padding-left: 8px;
+}
+
+.mechanic-explainer strong {
+  color: var(--ink);
+  font-family: var(--display);
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 480px) {
+  .contract-readiness {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}

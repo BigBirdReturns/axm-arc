@@ -1,4 +1,9 @@
-import type { Arc, Facility, InfrastructureFacility, Organization } from "../../engine/types.js";
+import type {
+  Arc,
+  Facility,
+  InfrastructureFacility,
+  Organization,
+} from "../../engine/types.js";
 
 interface Props {
   arc: Arc;
@@ -7,12 +12,19 @@ interface Props {
 }
 
 const FACILITY_ORDER: InfrastructureFacility[] = [
-  "Quarters", "Recreation", "Production", "Training", "Research", "Medical", "Storage",
+  "Quarters",
+  "Recreation",
+  "Production",
+  "Training",
+  "Research",
+  "Medical",
+  "Storage",
 ];
 
 const FACILITY_DESC: Record<InfrastructureFacility, string> = {
   Quarters: "Roster capacity (5 per level).",
-  Production: "Crafts gear. Output scales with assigned agents' base efficiency.",
+  Production:
+    "Crafts gear. Output scales with assigned agents' base efficiency.",
   Recreation: "Stress recovery. Improves recruitment pool quality.",
   Research: "Unlocks challenge intel and arc lore.",
   Training: "Accelerates stat growth for assigned agents.",
@@ -21,16 +33,25 @@ const FACILITY_DESC: Record<InfrastructureFacility, string> = {
 };
 
 const FACILITY_WHY: Record<InfrastructureFacility, string> = {
-  Quarters: "Raises roster cap, so you can carry more specialists without cutting veterans.",
-  Production: "Turns assigned agents into materials each cycle; materials feed future crafting/content loops.",
-  Recreation: "Assigned agents recover 2 stress and get a morale floor of level × 10.",
-  Research: "Assigned agents generate intel events; this is where hidden context/lore should surface.",
-  Training: "Assigned agents gain random attributes over time — the direct answer to failed stat checks.",
-  Storage: "Intended to protect larger resource stockpiles as the economy expands.",
-  Medical: "Shortens downed-agent recovery using facility level plus assigned staff resilience.",
+  Quarters:
+    "Raises roster cap, so you can carry more specialists without cutting veterans.",
+  Production:
+    "Turns assigned agents into materials each cycle; materials feed future crafting/content loops.",
+  Recreation:
+    "Assigned agents recover 2 stress and get a morale floor of level × 10.",
+  Research:
+    "Assigned agents generate intel events; this is where hidden context/lore should surface.",
+  Training:
+    "Assigned agents gain random attributes over time — the direct answer to failed stat checks.",
+  Storage:
+    "Intended to protect larger resource stockpiles as the economy expands.",
+  Medical:
+    "Shortens downed-agent recovery using facility level plus assigned staff resilience.",
 };
 
-function upgradeCost(level: number): number { return (level + 1) * 50; }
+function upgradeCost(level: number): number {
+  return (level + 1) * 50;
+}
 
 export function BaseScreen({ arc, org, setOrg }: Props): JSX.Element {
   const upgrade = (key: InfrastructureFacility) => {
@@ -40,28 +61,68 @@ export function BaseScreen({ arc, org, setOrg }: Props): JSX.Element {
     setOrg({
       ...org,
       resources: { ...org.resources, currency: org.resources.currency - cost },
-      infrastructure: { ...org.infrastructure, [key]: { ...fac, level: fac.level + 1 } },
+      infrastructure: {
+        ...org.infrastructure,
+        [key]: { ...fac, level: fac.level + 1 },
+      },
     });
   };
 
-  const builtCount = Object.values(org.infrastructure).filter((f) => f.level > 0).length;
-  const totalFacilityLevel = Object.values(org.infrastructure).reduce((sum, f) => sum + f.level, 0);
-  const tokenBonusPct = Math.min(50, Math.round(totalFacilityLevel * arc.infrastructureTokenBonus * 100));
+  const builtCount = Object.values(org.infrastructure).filter(
+    (f) => f.level > 0,
+  ).length;
+  const totalFacilityLevel = Object.values(org.infrastructure).reduce(
+    (sum, f) => sum + f.level,
+    0,
+  );
+  const tokenBonusPct = Math.min(
+    50,
+    Math.round(totalFacilityLevel * arc.infrastructureTokenBonus * 100),
+  );
+  const highStressCount = Object.values(org.agents).filter(
+    (a) => a.stress >= 7,
+  ).length;
+  const recommendedFacility: InfrastructureFacility =
+    highStressCount > 0 ? "Recreation" : "Training";
+  const recommendedReason =
+    highStressCount > 0
+      ? `${highStressCount} agent${highStressCount === 1 ? " is" : "s are"} near stress trouble. Recreation buys safer repeat runs.`
+      : "Training is the cleanest answer when assignment readouts say the roster is not ready.";
 
   return (
     <div className="screen">
-      <h2>Base <span className="count">{builtCount} Facilities</span></h2>
+      <h2>
+        Base <span className="count">{builtCount} Facilities</span>
+      </h2>
 
       <div className="guidance-callout">
-        Gold upgrades facilities. Every facility level increases next-cycle {arc.tokenName.toLowerCase()} regeneration
-        by {Math.round(arc.infrastructureTokenBonus * 100)}% (currently +{tokenBonusPct}%, capped at +50%).
-        Training is the long-term lever for failed stat checks; Recreation is the short-term stress valve.
+        Gold upgrades facilities. Every facility level increases next-cycle{" "}
+        {arc.tokenName.toLowerCase()} regeneration by{" "}
+        {Math.round(arc.infrastructureTokenBonus * 100)}% (currently +
+        {tokenBonusPct}%, capped at +50%). Training is the long-term lever for
+        failed stat checks; Recreation is the short-term stress valve.
+      </div>
+
+      <div className="recommendation-card">
+        <div className="row between">
+          <span className="audit-section" style={{ margin: 0 }}>
+            Recommended base move
+          </span>
+          <span className="badge pending">{recommendedFacility}</span>
+        </div>
+        <div className="recommendation-body">
+          {recommendedReason} Base levels also raise next-cycle{" "}
+          {arc.tokenName.toLowerCase()} income, so upgrades turn into more
+          contract attempts.
+        </div>
       </div>
 
       <div className="stat-strip" style={{ marginBottom: 16 }}>
         <div className="stat-cell">
           <div className="stat-lbl">{arc.currencyName}</div>
-          <div className="stat-val">{org.resources.currency.toLocaleString()}</div>
+          <div className="stat-val">
+            {org.resources.currency.toLocaleString()}
+          </div>
         </div>
         <div className="stat-cell">
           <div className="stat-lbl">{arc.materialName}</div>
@@ -69,11 +130,15 @@ export function BaseScreen({ arc, org, setOrg }: Props): JSX.Element {
         </div>
         <div className="stat-cell">
           <div className="stat-lbl">Roster cap</div>
-          <div className="stat-val">{(org.infrastructure["Quarters"]?.level ?? 1) * 5}</div>
+          <div className="stat-val">
+            {(org.infrastructure["Quarters"]?.level ?? 1) * 5}
+          </div>
         </div>
         <div className="stat-cell">
           <div className="stat-lbl">Upkeep/cycle</div>
-          <div className="stat-val accent">{Object.values(org.agents).reduce((s, a) => s + a.upkeep, 0)}</div>
+          <div className="stat-val accent">
+            {Object.values(org.agents).reduce((s, a) => s + a.upkeep, 0)}
+          </div>
         </div>
       </div>
 
@@ -86,10 +151,21 @@ export function BaseScreen({ arc, org, setOrg }: Props): JSX.Element {
         return (
           <div key={key} className="card">
             <div className="row between">
-              <span className="agent-name" style={{ fontSize: 14 }}>{key}</span>
-              <span className={`badge${fac.level > 0 ? " pass" : ""}`}>L{fac.level}</span>
+              <span className="agent-name" style={{ fontSize: 14 }}>
+                {key}
+              </span>
+              <span className={`badge${fac.level > 0 ? " pass" : ""}`}>
+                L{fac.level}
+              </span>
             </div>
-            <div style={{ fontFamily: "var(--serif)", fontSize: 13, color: "var(--muted)", marginTop: 4 }}>
+            <div
+              style={{
+                fontFamily: "var(--serif)",
+                fontSize: 13,
+                color: "var(--muted)",
+                marginTop: 4,
+              }}
+            >
               {FACILITY_DESC[key]}
             </div>
             <FacilityDetail fac={fac} />
@@ -100,7 +176,8 @@ export function BaseScreen({ arc, org, setOrg }: Props): JSX.Element {
               disabled={!canAfford}
               onClick={() => upgrade(key)}
             >
-              Upgrade to L{fac.level + 1} ({cost} {arc.currencyName.toLowerCase()})
+              Upgrade to L{fac.level + 1} ({cost}{" "}
+              {arc.currencyName.toLowerCase()})
             </button>
           </div>
         );
@@ -111,7 +188,11 @@ export function BaseScreen({ arc, org, setOrg }: Props): JSX.Element {
 
 function FacilityDetail({ fac }: { fac: Facility }): JSX.Element {
   if (fac.level === 0) {
-    return <div className="agent-meta" style={{ marginTop: 4 }}>Unbuilt</div>;
+    return (
+      <div className="agent-meta" style={{ marginTop: 4 }}>
+        Unbuilt
+      </div>
+    );
   }
   return (
     <div className="agent-meta" style={{ marginTop: 4 }}>

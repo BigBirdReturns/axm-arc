@@ -17,17 +17,20 @@ const STEPS: Step[] = [
     tab: "Drama",
   },
   {
-    message: "Good. Now go to Assign — pick a contract and slot agents.",
+    message:
+      "Good. Now go to Assign — use the recommended roster and read why each check passes or fails.",
     tab: "Assign",
     pulseTab: "Assign",
   },
   {
-    message: "Agents slotted. Hit Advance Cycle to run the contract.",
+    message:
+      "Agents slotted. If the readout says Good or Risky, hit Advance Cycle. If it says Not ready, build Training or adjust the roster.",
     tab: "Assign",
     pulseAdvance: true,
   },
   {
-    message: "Your first Field Report. Stress, loot, new drama — this is the game.",
+    message:
+      "Your first Field Report. The loop is contract → report → loot/base upgrade → harder contract.",
     tab: "Reports",
   },
 ];
@@ -57,12 +60,20 @@ export function useTutorial() {
   });
 
   const start = () => {
-    try { localStorage.setItem(TUTORIAL_KEY, "active"); } catch { /* noop */ }
+    try {
+      localStorage.setItem(TUTORIAL_KEY, "active");
+    } catch {
+      /* noop */
+    }
     setActive(true);
   };
 
   const dismiss = () => {
-    try { localStorage.setItem(TUTORIAL_KEY, "done"); } catch { /* noop */ }
+    try {
+      localStorage.setItem(TUTORIAL_KEY, "done");
+    } catch {
+      /* noop */
+    }
     setActive(false);
   };
 
@@ -108,9 +119,13 @@ export function TutorialGuide({
 
   return (
     <div className="tutorial-nudge">
-      <div className="tutorial-step">{step + 1}/{STEPS.length}</div>
+      <div className="tutorial-step">
+        {step + 1}/{STEPS.length}
+      </div>
       <span className="tutorial-msg">{s.message}</span>
-      <button className="tutorial-skip" onClick={onDismiss}>skip</button>
+      <button className="tutorial-skip" onClick={onDismiss}>
+        skip
+      </button>
     </div>
   );
 }

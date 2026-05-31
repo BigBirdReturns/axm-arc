@@ -20,6 +20,7 @@ import { TutorialGuide, useTutorial, deriveTutorialStep, tutorialPulseTab, tutor
 import { TitleScreen } from "./components/TitleScreen.js";
 import { CycleChecklist } from "./components/CycleChecklist.js";
 import { agentInitials } from "./lib/ui-helpers.js";
+import { CodexOverlay } from "../codex/index.js";
 
 declare const __BUILD_SHA__: string;
 const BUILD_SHA = typeof __BUILD_SHA__ === "string" ? __BUILD_SHA__ : "dev";
@@ -110,6 +111,7 @@ export function App(): JSX.Element {
   const [rewardDecisions, setRewardDecisions] = useState<RewardDecision[]>([]);
   const [advanceError, setAdvanceError] = useState<string | null>(null);
   const [cycleTransition, setCycleTransition] = useState<{ fromCycle: number; toCycle: number } | null>(null);
+  const [codexOpen, setCodexOpen] = useState(false);
 
   // Intent — player-authored pull-quote, persisted separately from game state
   const [intent, setIntent] = useState<string>(() => {
@@ -361,6 +363,8 @@ export function App(): JSX.Element {
 
   return (
     <>
+      <CodexOverlay arc={arc} open={codexOpen} onClose={() => setCodexOpen(false)} />
+
       {/* ── TUTORIAL GUIDE (nudge bar) ── */}
       {tutorialStep !== null && (
         <TutorialGuide
@@ -396,6 +400,13 @@ export function App(): JSX.Element {
               title="Replay tutorial"
               style={{ fontSize: 11, padding: "2px 7px", minHeight: 0, color: "var(--dim)" }}
               onClick={tutorial.start}
+            >
+              ?
+            </button>
+            <button
+              className="codex-trigger"
+              aria-label="Open manual"
+              onClick={() => setCodexOpen(true)}
             >
               ?
             </button>

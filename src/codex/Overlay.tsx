@@ -1,7 +1,23 @@
 import { useEffect, type ReactNode } from "react";
-import type { Arc } from "../engine/types.js";
+import type { Arc, InfrastructureFacility } from "../engine/types.js";
+import { DEFAULT_TRAIT_POOL } from "../engine/constants.js";
 import AttributeRef from "./AttributeRef.js";
 import RoleRef from "./RoleRef.js";
+import TraitRef from "./TraitRef.js";
+import FacilityRef from "./FacilityRef.js";
+import MechanicCheckRef from "./MechanicCheckRef.js";
+
+// Facilities are an engine-level fixed set, not arc data; list them in the same
+// order BaseScreen presents them.
+const FACILITY_ORDER: InfrastructureFacility[] = [
+  "Quarters",
+  "Recreation",
+  "Production",
+  "Training",
+  "Research",
+  "Medical",
+  "Storage",
+];
 
 export default function CodexOverlay({
   arc,
@@ -33,8 +49,11 @@ export default function CodexOverlay({
 
   if (!open) return null;
 
-  // Section list is data-driven so the next slice can add Traits / Facilities /
-  // MechanicChecks with a single entry here — keep this array authoritative.
+  // Resolved trait pool: engine defaults plus any arc-specific custom traits.
+  const traits = [...DEFAULT_TRAIT_POOL, ...arc.customTraits];
+
+  // Section list is data-driven so each new slice can add a section with a
+  // single entry here — keep this array authoritative.
   const sections: Array<{ label: string; render: () => ReactNode }> = [
     {
       label: "Attributes",
@@ -43,6 +62,26 @@ export default function CodexOverlay({
     {
       label: "Roles",
       render: () => arc.roles.map((r) => <RoleRef key={r.id} arc={arc} id={r.id} />),
+    },
+    {
+      label: "Traits",
+      render: () => traits.map((t) => <TraitRef key={t.id} trait={t} />),
+    },
+    {
+      label: "Facilities",
+      render: () => FACILITY_ORDER.map((f) => <FacilityRef key={f} facility={f} />),
+    },
+    {
+      label: "How challenges resolve",
+      render: () =>
+        arc.challenges.map((ch) => (
+          <div key={ch.id} className="codex-challenge-group">
+            <h3 className="codex-subheading">{ch.name}</h3>
+            {ch.mechanicChecks.map((mc) => (
+              <MechanicCheckRef key={mc.id} arc={arc} check={mc} />
+            ))}
+          </div>
+        )),
     },
   ];
 

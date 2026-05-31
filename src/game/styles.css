@@ -2338,6 +2338,17 @@ button.tutorial-pulse-btn {
   margin: 0 0 14px;
 }
 
+.codex-subheading {
+  font-family: var(--display);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 10px;
+}
+.codex-challenge-group { margin-bottom: 18px; }
+
 .codex-entry {
   margin-bottom: 22px;
   padding-bottom: 16px;

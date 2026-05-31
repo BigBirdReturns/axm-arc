@@ -18,8 +18,10 @@ import { SituationSidebar } from "./components/SituationSidebar.js";
 import { CycleTransition } from "./components/CycleTransition.js";
 import { TutorialGuide, useTutorial, deriveTutorialStep, tutorialPulseTab, tutorialPulseAdvance } from "./components/TutorialGuide.js";
 import { TitleScreen } from "./components/TitleScreen.js";
+import { CountUp } from "../liveness/index.js";
 import { CycleChecklist } from "./components/CycleChecklist.js";
 import { agentInitials } from "./lib/ui-helpers.js";
+import { CodexOverlay } from "../codex/index.js";
 
 declare const __BUILD_SHA__: string;
 const BUILD_SHA = typeof __BUILD_SHA__ === "string" ? __BUILD_SHA__ : "dev";
@@ -110,6 +112,7 @@ export function App(): JSX.Element {
   const [rewardDecisions, setRewardDecisions] = useState<RewardDecision[]>([]);
   const [advanceError, setAdvanceError] = useState<string | null>(null);
   const [cycleTransition, setCycleTransition] = useState<{ fromCycle: number; toCycle: number } | null>(null);
+  const [codexOpen, setCodexOpen] = useState(false);
 
   // Intent — player-authored pull-quote, persisted separately from game state
   const [intent, setIntent] = useState<string>(() => {
@@ -259,17 +262,17 @@ export function App(): JSX.Element {
     <div className="stat-strip">
       <div className="stat-cell">
         <div className="stat-lbl">{arc.tokenName}</div>
-        <div className="stat-val">{org.resources.tokens}</div>
+        <div className="stat-val"><CountUp value={org.resources.tokens} /></div>
         <div className="stat-sub">+{arc.tokensPerCycle} next cycle</div>
       </div>
       <div className="stat-cell">
         <div className="stat-lbl">{arc.currencyName}</div>
-        <div className="stat-val">{org.resources.currency.toLocaleString()}</div>
+        <div className="stat-val"><CountUp value={org.resources.currency} /></div>
         <div className="stat-sub">-{upkeep} upkeep</div>
       </div>
       <div className="stat-cell">
         <div className="stat-lbl">{arc.reputationName}</div>
-        <div className="stat-val">{org.reputation}</div>
+        <div className="stat-val"><CountUp value={org.reputation} /></div>
         <div className="stat-sub">{nextRepGate !== undefined ? `of ${nextRepGate} to next tier` : "top tier"}</div>
       </div>
       <div className="stat-cell">
@@ -361,6 +364,13 @@ export function App(): JSX.Element {
 
   return (
     <>
+      <CodexOverlay
+        arc={arc}
+        open={codexOpen}
+        onClose={() => setCodexOpen(false)}
+        onReplayTutorial={tutorial.start}
+      />
+
       {/* ── TUTORIAL GUIDE (nudge bar) ── */}
       {tutorialStep !== null && (
         <TutorialGuide
@@ -392,10 +402,9 @@ export function App(): JSX.Element {
           <div className="kicker">Situation Room · Cycle {String(org.cycle).padStart(2, "0")}</div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <button
-              className="icon"
-              title="Replay tutorial"
-              style={{ fontSize: 11, padding: "2px 7px", minHeight: 0, color: "var(--dim)" }}
-              onClick={tutorial.start}
+              className="codex-trigger"
+              aria-label="Open manual"
+              onClick={() => setCodexOpen(true)}
             >
               ?
             </button>

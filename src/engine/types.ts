@@ -1,5 +1,12 @@
 // ── Primitives ────────────────────────────────────────────────────────────────
 
+// Provenance label for an arc as loaded into this runtime. Trust is a property
+// of *how* an arc arrived (bundled with the build, imported via JSON, etc.),
+// not of the arc's content — so this never appears on ArcMeta. Library entries
+// carry it; UI surfaces it. "verified" and "quarantined" are placeholders for
+// future Genesis signing / admin actions and have no runtime behavior yet.
+export type TrustLabel = "bundled" | "imported-unsigned" | "verified" | "quarantined";
+
 export type Affliction = "Resentful" | "Fearful" | "Defiant" | "Reckless" | "Withdrawn";
 
 export type AfflictionState = { kind: "none" } | { kind: Affliction; sinceCycle: number };

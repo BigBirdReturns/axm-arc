@@ -1,20 +1,28 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { Arc } from "../../engine/types.js";
 import { loadSave } from "../lib/storage.js";
-import { CodexOverlay } from "../../codex/index.js";
+import { loadArcLibrary } from "../lib/arc-library.js";
+import { CodexOverlay, TrustLabel } from "../../codex/index.js";
 import { WhatsNew } from "../../release-notes/index.js";
+import { VARIANT, VARIANT_LABELS } from "../../variants/index.js";
 
 interface Props {
   arc: Arc;
   onContinue: () => void;
   onNewGame: () => void;
+  onOpenLibrary: () => void;
 }
 
-export function TitleScreen({ arc, onContinue, onNewGame }: Props): JSX.Element {
+export function TitleScreen({ arc, onContinue, onNewGame, onOpenLibrary }: Props): JSX.Element {
   const existing = loadSave(arc);
   const hasSave = existing !== null;
   const [manualOpen, setManualOpen] = useState(false);
   const [whatsNewOpen, setWhatsNewOpen] = useState(false);
+  const activeTrust = useMemo(() => {
+    const entries = loadArcLibrary();
+    return entries.find((e) => e.arc.meta.id === arc.meta.id)?.trust ?? "bundled";
+  }, [arc]);
+  const labels = VARIANT_LABELS[VARIANT];
 
   return (
     <div className="title-screen">
@@ -22,10 +30,27 @@ export function TitleScreen({ arc, onContinue, onNewGame }: Props): JSX.Element 
         <div className="title-imprint">AXM</div>
         <div className="title-rule" />
         <h1 className="title-name">{arc.meta.name}</h1>
-        <div className="title-meta">
-          {arc.meta.domain} · {arc.challenges.length} contracts · {Object.keys(arc.items).length > 0 ? `${arc.items.length} items` : ""}
+        <div className="title-meta" style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
+          <span>
+            {arc.meta.domain} · {arc.challenges.length} contracts · {Object.keys(arc.items).length > 0 ? `${arc.items.length} items` : ""}
+          </span>
+          <TrustLabel trust={activeTrust} />
         </div>
         <p className="title-abstract">{arc.meta.description}</p>
+
+        <div
+          className="title-kicker"
+          style={{
+            fontFamily: "var(--mono)",
+            fontSize: 11,
+            letterSpacing: "0.12em",
+            textTransform: "uppercase",
+            color: "var(--muted)",
+            marginTop: 16,
+          }}
+        >
+          {labels.kicker}
+        </div>
 
         <div className="title-actions">
           {hasSave && (
@@ -37,7 +62,13 @@ export function TitleScreen({ arc, onContinue, onNewGame }: Props): JSX.Element 
             className={hasSave ? "secondary" : "primary accent"}
             onClick={onNewGame}
           >
-            New Game
+            {labels.ctaPlay}
+          </button>
+          <button
+            className="secondary"
+            onClick={onOpenLibrary}
+          >
+            {labels.ctaLibrary}
           </button>
           <button
             className="secondary"

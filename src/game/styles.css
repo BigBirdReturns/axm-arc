@@ -2497,3 +2497,41 @@ button.tutorial-pulse-btn {
     box-shadow: none;
   }
 }
+
+/* ── Trust chip ─────────────────────────────────────────────────────────── */
+/* Provenance label for arcs in the library and codex header. State-driven
+   coloring via existing tokens — no new colors introduced. */
+.trust-chip {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 2px;
+  border: 1px solid var(--rule);
+  background: var(--paper-alt);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.trust-chip[data-trust="bundled"] {
+  background: var(--paper-alt);
+  color: var(--muted);
+  border-color: var(--rule);
+}
+.trust-chip[data-trust="imported-unsigned"] {
+  background: var(--paper-alt);
+  color: var(--accent-dp);
+  border-color: var(--accent);
+}
+.trust-chip[data-trust="verified"] {
+  background: var(--positive-lt);
+  color: var(--positive);
+  border-color: var(--positive);
+}
+.trust-chip[data-trust="quarantined"] {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent-dp);
+}

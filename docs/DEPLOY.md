@@ -37,6 +37,32 @@ release, move items out of `[Unreleased]` and add a matching `RELEASE_NOTES`
 entry so returning players see the changes (the overlay auto-opens when the
 build SHA changes).
 
+## Deploy variant flag
+
+axm-arc can be shipped under one of three positioning variants without forking
+code. The variant is a build-time flag that flips entry-point copy on the
+title screen (kicker line, primary CTA labels) — the engine, arc format, and
+all gameplay are identical. It's positioning, not capability.
+
+Valid values for `VITE_VARIANT` (or `VARIANT`):
+
+- `game-first` (default) — "Begin your tenure" / "New Game" / "Arc Library"
+- `enterprise-first` — "Model your organization" / "Load Model" / "Model Library"
+- `research-first` — "Run a scenario" / "Start Scenario" / "Scenario Library"
+
+Build a variant:
+
+```bash
+VITE_VARIANT=enterprise-first npm run build
+VITE_VARIANT=research-first   npm run build
+npm run build                              # → game-first
+```
+
+The variant is validated at Vite config load; an unknown value fails the
+build with a clear error. Underlying behavior is identical across variants —
+if a feature should differ between audiences, that belongs in arc data, not
+in the variant flag.
+
 ## Migration option: Actions-based Pages
 
 The current approach commits built assets back to `main` so it works with the

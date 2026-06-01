@@ -1,0 +1,64 @@
+# Build-on-merge deploy for AXM Arc.
+#
+# This workflow commits the built game assets (docs/game/**) back to `main` so
+# they match the current GitHub Pages configuration, which serves the site from
+# `main:/docs`. That keeps the published build in lock-step with merged source
+# and ends the stale-build problem with ZERO repo-settings changes required.
+#
+# A cleaner future option is GitHub's Actions-based Pages deploy
+# (actions/upload-pages-artifact + actions/deploy-pages), which removes the
+# commit-back step entirely. It requires switching the repo's Pages source to
+# "GitHub Actions" in settings, so it's left as a follow-up (see docs/DEPLOY.md).
+#
+# Loop guard: the bot's own rebuild commit only touches docs/game/**, and the
+# `paths-ignore` filter below excludes that path from triggering the workflow,
+# so the rebuild commit cannot retrigger a build. The `[skip ci]` tag is a
+# belt-and-braces second guard.
+
+name: deploy
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'docs/game/**'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Full history so the Vite build can stamp the short commit SHA.
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check (typecheck + tests)
+        run: npm run check
+
+      - name: Build
+        run: npm run build
+
+      - name: Commit rebuilt docs/game back to main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/game
+          if git diff --staged --quiet; then
+            echo "No changes to docs/game — nothing to commit."
+          else
+            git commit -m "chore(deploy): rebuild docs/game [skip ci]"
+            git push
+          fi

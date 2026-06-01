@@ -3,6 +3,12 @@
 **Source:** playtest feedback, cycle 8.
 **Status:** unaddressed. No commit, no PR.
 
+> **Thesis (see `ROADMAP.md`):** one engine, two audiences, no fork. The
+> engine is content-free, so polishing the loop *is* enterprise work — every
+> UX win accrues to whoever loads an arc. The hook is not a game-only concern;
+> a first-glimpse that lands is what makes any arc (guild or enterprise)
+> adopt-able. Don't re-derive a "game vs. platform" split — there isn't one.
+
 > "I think you just have to find a way to hook the players from the first
 > glimpse, make something more appealing, or some promising mechanics in
 > the demo/tutorial." — niece, after playing through cycle 8

@@ -22,6 +22,7 @@ import { CountUp } from "../liveness/index.js";
 import { CycleChecklist } from "./components/CycleChecklist.js";
 import { agentInitials } from "./lib/ui-helpers.js";
 import { CodexOverlay } from "../codex/index.js";
+import { WhatsNew, CURRENT_BUILD } from "../release-notes/index.js";
 
 declare const __BUILD_SHA__: string;
 const BUILD_SHA = typeof __BUILD_SHA__ === "string" ? __BUILD_SHA__ : "dev";
@@ -30,6 +31,7 @@ type Tab = "Roster" | "Assign" | "Drama" | "Base" | "Reports";
 
 const arc = FIRST_CHARTER;
 const INTENT_KEY = "axm-arc:intent:v1";
+const SEEN_BUILD_KEY = "axm-arc:seen-build:v1";
 
 function defaultFacilities(): Record<InfrastructureFacility, Facility> {
   const names: InfrastructureFacility[] = [
@@ -113,6 +115,7 @@ export function App(): JSX.Element {
   const [advanceError, setAdvanceError] = useState<string | null>(null);
   const [cycleTransition, setCycleTransition] = useState<{ fromCycle: number; toCycle: number } | null>(null);
   const [codexOpen, setCodexOpen] = useState(false);
+  const [whatsNewOpen, setWhatsNewOpen] = useState(false);
 
   // Intent — player-authored pull-quote, persisted separately from game state
   const [intent, setIntent] = useState<string>(() => {
@@ -128,6 +131,23 @@ export function App(): JSX.Element {
   useEffect(() => {
     try { localStorage.setItem(INTENT_KEY, intent); } catch { /* noop */ }
   }, [intent]);
+
+  // "What's new" auto-open: only nag returning players (those with a save) whose
+  // last-seen build differs from the current one. First-timers (no save yet) are
+  // never interrupted; their seen-build is stamped silently so the next genuine
+  // build change is what triggers the overlay. Runs once on mount.
+  useEffect(() => {
+    try {
+      const hasSave = loadSave(arc) !== null;
+      const seen = localStorage.getItem(SEEN_BUILD_KEY);
+      if (!hasSave) {
+        // Brand-new player: record the build without prompting.
+        localStorage.setItem(SEEN_BUILD_KEY, CURRENT_BUILD);
+        return;
+      }
+      if (seen !== CURRENT_BUILD) setWhatsNewOpen(true);
+    } catch { /* noop */ }
+  }, []);
 
   // ── Tutorial: step derived from game state ──────────────────────────────
   const tutorialStep = deriveTutorialStep(
@@ -369,6 +389,14 @@ export function App(): JSX.Element {
         open={codexOpen}
         onClose={() => setCodexOpen(false)}
         onReplayTutorial={tutorial.start}
+      />
+
+      <WhatsNew
+        open={whatsNewOpen}
+        onClose={() => {
+          setWhatsNewOpen(false);
+          try { localStorage.setItem(SEEN_BUILD_KEY, CURRENT_BUILD); } catch { /* noop */ }
+        }}
       />
 
       {/* ── TUTORIAL GUIDE (nudge bar) ── */}

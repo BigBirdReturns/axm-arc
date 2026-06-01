@@ -40,6 +40,19 @@ function clampMorale(v: number): number {
   return Math.max(0, Math.min(100, v));
 }
 
+function orderedAgentIds(org: Organization): string[] {
+  return Object.keys(org.agents).sort((a, b) => a.localeCompare(b));
+}
+
+function deterministicShuffle<T>(items: readonly T[], rng: Rng): T[] {
+  const shuffled = [...items];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = rng.int(0, i);
+    [shuffled[i], shuffled[j]] = [shuffled[j]!, shuffled[i]!];
+  }
+  return shuffled;
+}
+
 function updateAgent(org: Organization, agentId: string, patch: Partial<Agent>): Organization {
   const agent = org.agents[agentId];
   if (!agent) return org;
@@ -290,7 +303,7 @@ export function applyAfflictionBarks(
   // The caller is expected to pass org with up-to-date assignment context.
   // We iterate all agents to find Afflicted ones and compute barks.
 
-  const allAgentIds = Object.keys(org.agents);
+  const allAgentIds = orderedAgentIds(org);
 
   for (const agentId of allAgentIds) {
     const agent = org.agents[agentId];
@@ -341,7 +354,7 @@ export function applyAfflictionBarks(
       }
     } else if (affliction === "Fearful") {
       // Propagate anxiety: +1 to nearest neighbors (first 2 in nearby list, shuffled)
-      const shuffled = [...nearby].sort(() => rng.next() - 0.5);
+      const shuffled = deterministicShuffle(nearby, rng);
       const targets = shuffled.slice(0, Math.min(2, shuffled.length));
       for (const targetId of targets) {
         stressGains.set(targetId, (stressGains.get(targetId) ?? 0) + 1);

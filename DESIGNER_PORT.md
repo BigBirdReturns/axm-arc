@@ -4,6 +4,12 @@
 **Live prototype:** `bigbirdreturns.github.io/axm-arc/designer-prototype/`
 **Status:** plan only, no code yet.
 
+> **Thesis (see `ROADMAP.md`):** one engine, two audiences, no fork. The
+> engine is content-free, so polishing the loop *is* enterprise work — every
+> UX win accrues to whoever loads an arc. Authoring (this doc) is Thread 3: it
+> makes people *want* to build arcs, and the codex doubles as its QA surface.
+> Don't re-derive a "game vs. platform" split — there isn't one.
+
 ## What this is
 
 A new **authoring mode** for building a roster against an arc. Lives next to

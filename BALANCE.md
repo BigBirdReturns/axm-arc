@@ -6,6 +6,13 @@ codex's auto-derived backlinks (the same data the in-game manual now renders).
 check weights ripples through the deterministic resolver and every fixed-seed
 test — these are decisions for the owner, not a silent dispatch.
 
+> **Thesis (see `ROADMAP.md`):** one engine, two audiences, no fork. The
+> engine is content-free, so polishing the loop *is* enterprise work — every
+> UX win accrues to whoever loads an arc. This doc proves the codex's third
+> use (arc-author QA); that QA surface is dual-use too — it audits a guild arc
+> and an enterprise arc identically. Don't re-derive a "game vs. platform"
+> split — there isn't one.
+
 ## How this was found
 
 The codex (`src/codex/`) renders, for every attribute, *which roles weight it*

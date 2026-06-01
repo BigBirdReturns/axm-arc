@@ -1,11 +1,12 @@
 import { useEffect, type ReactNode } from "react";
-import type { Arc, InfrastructureFacility } from "../engine/types.js";
+import type { Arc, InfrastructureFacility, TrustLabel as TrustLabelValue } from "../engine/types.js";
 import { DEFAULT_TRAIT_POOL } from "../engine/constants.js";
 import AttributeRef from "./AttributeRef.js";
 import RoleRef from "./RoleRef.js";
 import TraitRef from "./TraitRef.js";
 import FacilityRef from "./FacilityRef.js";
 import MechanicCheckRef from "./MechanicCheckRef.js";
+import TrustLabel from "./TrustLabel.js";
 
 // Facilities are an engine-level fixed set, not arc data; list them in the same
 // order BaseScreen presents them.
@@ -25,12 +26,14 @@ export default function CodexOverlay({
   onClose,
   onReplayTutorial,
   onReplayTutorialLabel = "Replay tutorial",
+  trust,
 }: {
   arc: Arc;
   open: boolean;
   onClose: () => void;
   onReplayTutorial?: () => void;
   onReplayTutorialLabel?: string;
+  trust?: TrustLabelValue;
 }): JSX.Element | null {
   // Escape key + body scroll lock while open.
   useEffect(() => {
@@ -100,6 +103,21 @@ export default function CodexOverlay({
         <button className="codex-close" onClick={onClose} aria-label="Close manual">
           Close
         </button>
+        {trust && (
+          <div
+            className="codex-header"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              marginBottom: 12,
+              flexWrap: "wrap",
+            }}
+          >
+            <strong style={{ fontSize: 13 }}>{arc.meta.name}</strong>
+            <TrustLabel trust={trust} />
+          </div>
+        )}
         {sections.map((s) => (
           <section key={s.label} className="codex-section">
             <h2 className="codex-section-title">{s.label}</h2>

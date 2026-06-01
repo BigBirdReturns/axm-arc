@@ -4,7 +4,7 @@
 
 import { useState } from "react";
 import type { Arc } from "../../engine/types.js";
-import { CodexOverlay } from "../../codex/index.js";
+import { CodexOverlay, TrustLabel } from "../../codex/index.js";
 import {
   type ArcLibraryEntry,
   importArcFromJson,
@@ -83,9 +83,7 @@ export function LibraryScreen({ arc, onBack, onLoadArc }: Props): JSX.Element {
                   <div style={{ flex: 1 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                       <strong style={{ fontSize: 16 }}>{entry.arc.meta.name}</strong>
-                      <span className="trust-chip" data-trust={entry.trust}>
-                        {entry.trust}
-                      </span>
+                      <TrustLabel trust={entry.trust} />
                       {isActive && <span className="badge pass">Active</span>}
                     </div>
                     <div className="agent-meta" style={{ marginTop: 4 }}>

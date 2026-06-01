@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { Arc } from "../../engine/types.js";
 import { loadSave } from "../lib/storage.js";
-import { CodexOverlay } from "../../codex/index.js";
+import { loadArcLibrary } from "../lib/arc-library.js";
+import { CodexOverlay, TrustLabel } from "../../codex/index.js";
 import { WhatsNew } from "../../release-notes/index.js";
 
 interface Props {
@@ -16,6 +17,10 @@ export function TitleScreen({ arc, onContinue, onNewGame, onOpenLibrary }: Props
   const hasSave = existing !== null;
   const [manualOpen, setManualOpen] = useState(false);
   const [whatsNewOpen, setWhatsNewOpen] = useState(false);
+  const activeTrust = useMemo(() => {
+    const entries = loadArcLibrary();
+    return entries.find((e) => e.arc.meta.id === arc.meta.id)?.trust ?? "bundled";
+  }, [arc]);
 
   return (
     <div className="title-screen">
@@ -23,8 +28,11 @@ export function TitleScreen({ arc, onContinue, onNewGame, onOpenLibrary }: Props
         <div className="title-imprint">AXM</div>
         <div className="title-rule" />
         <h1 className="title-name">{arc.meta.name}</h1>
-        <div className="title-meta">
-          {arc.meta.domain} · {arc.challenges.length} contracts · {Object.keys(arc.items).length > 0 ? `${arc.items.length} items` : ""}
+        <div className="title-meta" style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
+          <span>
+            {arc.meta.domain} · {arc.challenges.length} contracts · {Object.keys(arc.items).length > 0 ? `${arc.items.length} items` : ""}
+          </span>
+          <TrustLabel trust={activeTrust} />
         </div>
         <p className="title-abstract">{arc.meta.description}</p>
 

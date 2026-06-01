@@ -11,10 +11,10 @@
 // "verified" — the loading system does. So TrustLabel lives on
 // ArcLibraryEntry, never on ArcMeta.
 
-import type { Arc } from "../../engine/types.js";
+import type { Arc, TrustLabel } from "../../engine/types.js";
 import { validateArc } from "../../engine/schema.js";
 
-export type TrustLabel = "bundled" | "imported-unsigned" | "verified" | "quarantined";
+export type { TrustLabel };
 
 export interface ArcLibraryEntry {
   arc: Arc;

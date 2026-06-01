@@ -211,6 +211,13 @@ export function App(): JSX.Element {
   const pulseTab = tutorialPulseTab(tutorialStep);
   const pulseAdvance = tutorialPulseAdvance(tutorialStep);
 
+  // Trust for the currently-active arc (sourced from the library entry, never
+  // from arc content). Re-derives when the arc swaps; bundled is the floor.
+  const activeTrust = useMemo(() => {
+    const entries = loadArcLibrary();
+    return entries.find((e) => e.arc.meta.id === arc.meta.id)?.trust ?? "bundled";
+  }, [arc]);
+
   const advanceBlockers = useMemo(() => getAdvanceBlockers({
     dramaQueueCount: org.dramaQueue.length,
     pendingRewardChoicesCount: pendingRewardChoices.length,
@@ -471,6 +478,7 @@ export function App(): JSX.Element {
         open={codexOpen}
         onClose={() => setCodexOpen(false)}
         onReplayTutorial={tutorial.start}
+        trust={activeTrust}
       />
 
       <WhatsNew

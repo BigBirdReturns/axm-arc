@@ -8,9 +8,10 @@ interface Props {
   arc: Arc;
   onContinue: () => void;
   onNewGame: () => void;
+  onOpenLibrary: () => void;
 }
 
-export function TitleScreen({ arc, onContinue, onNewGame }: Props): JSX.Element {
+export function TitleScreen({ arc, onContinue, onNewGame, onOpenLibrary }: Props): JSX.Element {
   const existing = loadSave(arc);
   const hasSave = existing !== null;
   const [manualOpen, setManualOpen] = useState(false);
@@ -38,6 +39,12 @@ export function TitleScreen({ arc, onContinue, onNewGame }: Props): JSX.Element 
             onClick={onNewGame}
           >
             New Game
+          </button>
+          <button
+            className="secondary"
+            onClick={onOpenLibrary}
+          >
+            Library
           </button>
           <button
             className="secondary"

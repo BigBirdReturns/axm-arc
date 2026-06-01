@@ -8,6 +8,12 @@ import {
   FIRST_CHARTER_STARTING_SKIRMISHERS,
 } from "../arcs/index.js";
 import { loadSave, saveSave, clearSave } from "./lib/storage.js";
+import {
+  ensureBundledArc,
+  loadActiveArcId,
+  loadArcLibrary,
+  saveActiveArcId,
+} from "./lib/arc-library.js";
 import { getAdvanceBlockers, isAdvanceBlocked } from "./lib/advance-blockers.js";
 import { RosterScreen } from "./components/RosterScreen.js";
 import { AssignScreen } from "./components/AssignScreen.js";
@@ -18,6 +24,7 @@ import { SituationSidebar } from "./components/SituationSidebar.js";
 import { CycleTransition } from "./components/CycleTransition.js";
 import { TutorialGuide, useTutorial, deriveTutorialStep, tutorialPulseTab, tutorialPulseAdvance } from "./components/TutorialGuide.js";
 import { TitleScreen } from "./components/TitleScreen.js";
+import { LibraryScreen } from "./components/LibraryScreen.js";
 import { CountUp } from "../liveness/index.js";
 import { CycleChecklist } from "./components/CycleChecklist.js";
 import { agentInitials } from "./lib/ui-helpers.js";
@@ -29,7 +36,21 @@ const BUILD_SHA = typeof __BUILD_SHA__ === "string" ? __BUILD_SHA__ : "dev";
 
 type Tab = "Roster" | "Assign" | "Drama" | "Base" | "Reports";
 
-const arc = FIRST_CHARTER;
+// Resolve the active arc: if the user has selected a different arc from the
+// library and that arc is present, use it; otherwise fall back to the bundled
+// default. Arc-agnostic — nothing here references first-charter beyond the
+// bundled-default constant.
+function resolveActiveArc(): typeof FIRST_CHARTER {
+  ensureBundledArc(FIRST_CHARTER);
+  const activeId = loadActiveArcId();
+  if (activeId && activeId !== FIRST_CHARTER.meta.id) {
+    const entries = loadArcLibrary();
+    const match = entries.find((e) => e.arc.meta.id === activeId);
+    if (match) return match.arc;
+  }
+  return FIRST_CHARTER;
+}
+
 const INTENT_KEY = "axm-arc:intent:v1";
 const SEEN_BUILD_KEY = "axm-arc:seen-build:v1";
 
@@ -44,7 +65,27 @@ function defaultFacilities(): Record<InfrastructureFacility, Facility> {
   return out as Record<InfrastructureFacility, Facility>;
 }
 
-function buildNewOrg(): Organization {
+// Build a generic empty org for any arc. Used when the active arc is something
+// other than the bundled default (we don't have a hand-tuned starting roster +
+// opening drama for arbitrary imported arcs). Arc-agnostic by construction.
+function buildGenericOrg(): Organization {
+  return {
+    id: "player-charter",
+    name: "Your Charter",
+    reputation: 0,
+    resources: { currency: 100, materials: 0, tokens: 2 },
+    infrastructure: defaultFacilities(),
+    agents: {},
+    relationships: [],
+    precedents: [],
+    dramaQueue: [],
+    cycle: 0,
+    distributionPolicy: "council",
+    rngSeed: Math.floor(Math.random() * 2 ** 31),
+  };
+}
+
+function buildNewOrgForBundled(): Organization {
   const agents: Record<string, Agent> = {};
   for (const a of FIRST_CHARTER_STARTING_ROSTER) agents[a.id] = a;
 
@@ -100,13 +141,23 @@ function buildNewOrg(): Organization {
   };
 }
 
+// Pick a new-org builder based on whether the active arc is the bundled one
+// (whose hand-tuned roster + opening drama lives in src/arcs/) or an imported
+// arc (which gets a generic empty start). The engine treats both identically.
+function buildNewOrg(activeArc: typeof FIRST_CHARTER): Organization {
+  return activeArc.meta.id === FIRST_CHARTER.meta.id
+    ? buildNewOrgForBundled()
+    : buildGenericOrg();
+}
+
 export function App(): JSX.Element {
-  const [mode, setMode] = useState<"title" | "play">("title");
+  const [mode, setMode] = useState<"title" | "play" | "library">("title");
   const tutorial = useTutorial();
   const [tab, setTab] = useState<Tab>("Roster");
+  const [arc, setArc] = useState<typeof FIRST_CHARTER>(() => resolveActiveArc());
   const [org, setOrg] = useState<Organization>(() => {
     const loaded = loadSave(arc);
-    return loaded ? loaded.org : buildNewOrg();
+    return loaded ? loaded.org : buildNewOrg(arc);
   });
   const [assignments, setAssignments] = useState<ChallengeAssignment[]>([]);
   const [lastReports, setLastReports] = useState<RunReport[]>([]);
@@ -200,7 +251,7 @@ export function App(): JSX.Element {
     if (!confirm("Reset the game? All progress will be lost.")) return;
     clearSave();
     try { localStorage.removeItem(INTENT_KEY); } catch { /* noop */ }
-    setOrg(buildNewOrg());
+    setOrg(buildNewOrg(arc));
     setLastReports([]);
     setPendingRewardChoices([]);
     setRewardDecisions([]);
@@ -369,7 +420,7 @@ export function App(): JSX.Element {
         }}
         onNewGame={() => {
           clearSave();
-          setOrg(buildNewOrg());
+          setOrg(buildNewOrg(arc));
           setLastReports([]);
           setPendingRewardChoices([]);
           setRewardDecisions([]);
@@ -377,6 +428,37 @@ export function App(): JSX.Element {
           setTab("Drama");
           tutorial.start();
           setMode("play");
+        }}
+        onOpenLibrary={() => setMode("library")}
+      />
+    );
+  }
+
+  if (mode === "library") {
+    return (
+      <LibraryScreen
+        arc={arc}
+        onBack={() => setMode("title")}
+        onLoadArc={(arcId) => {
+          // Loading a different arc means the existing save (keyed to a single
+          // global slot) is meaningless. Warn before clobbering progress, then
+          // wipe, swap arc, and rebuild org for the new arc.
+          const hasExistingSave = loadSave(arc) !== null;
+          if (hasExistingSave && arcId !== arc.meta.id) {
+            if (!confirm("Loading a different arc will clear your current save. Continue?")) return;
+          }
+          saveActiveArcId(arcId);
+          clearSave();
+          const entries = loadArcLibrary();
+          const next = entries.find((e) => e.arc.meta.id === arcId)?.arc ?? FIRST_CHARTER;
+          setArc(next);
+          setOrg(buildNewOrg(next));
+          setLastReports([]);
+          setPendingRewardChoices([]);
+          setRewardDecisions([]);
+          setAssignments([]);
+          setTab("Drama");
+          setMode("title");
         }}
       />
     );

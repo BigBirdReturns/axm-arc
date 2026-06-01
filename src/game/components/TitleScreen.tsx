@@ -4,6 +4,7 @@ import { loadSave } from "../lib/storage.js";
 import { loadArcLibrary } from "../lib/arc-library.js";
 import { CodexOverlay, TrustLabel } from "../../codex/index.js";
 import { WhatsNew } from "../../release-notes/index.js";
+import { VARIANT, VARIANT_LABELS } from "../../variants/index.js";
 
 interface Props {
   arc: Arc;
@@ -21,6 +22,7 @@ export function TitleScreen({ arc, onContinue, onNewGame, onOpenLibrary }: Props
     const entries = loadArcLibrary();
     return entries.find((e) => e.arc.meta.id === arc.meta.id)?.trust ?? "bundled";
   }, [arc]);
+  const labels = VARIANT_LABELS[VARIANT];
 
   return (
     <div className="title-screen">
@@ -36,6 +38,20 @@ export function TitleScreen({ arc, onContinue, onNewGame, onOpenLibrary }: Props
         </div>
         <p className="title-abstract">{arc.meta.description}</p>
 
+        <div
+          className="title-kicker"
+          style={{
+            fontFamily: "var(--mono)",
+            fontSize: 11,
+            letterSpacing: "0.12em",
+            textTransform: "uppercase",
+            color: "var(--muted)",
+            marginTop: 16,
+          }}
+        >
+          {labels.kicker}
+        </div>
+
         <div className="title-actions">
           {hasSave && (
             <button className="primary accent" onClick={onContinue}>
@@ -46,13 +62,13 @@ export function TitleScreen({ arc, onContinue, onNewGame, onOpenLibrary }: Props
             className={hasSave ? "secondary" : "primary accent"}
             onClick={onNewGame}
           >
-            New Game
+            {labels.ctaPlay}
           </button>
           <button
             className="secondary"
             onClick={onOpenLibrary}
           >
-            Library
+            {labels.ctaLibrary}
           </button>
           <button
             className="secondary"

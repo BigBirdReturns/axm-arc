@@ -46,14 +46,22 @@ The smallest layer that turns the polished engine into something a stranger
 can use. **This is the highest-leverage unstarted work** — it converts all of
 Thread 1 into a platform without new engine capability.
 
-- 🟡 **Arc import** — JSON → `validateArc()` → store → load. Storage layer
-  exists (PR #6); the import/validate/preview flow is shell-only. (HANDOFF #8)
-- 🔴 **Trust labels in the UI** — bundled / imported-unsigned / verified /
-  quarantined. Schema/taxonomy documented; no UI. Display + metadata only,
-  no runtime behavior change yet. (HANDOFF #9)
-- 🔴 **Deploy-variant flag** — build-time `game-first` / `enterprise-first` /
+- ✅ **Arc import** — JSON → `validateArc()` → store → load. `arc-library.ts`
+  is the versioned localStorage layer; LibraryScreen is the import/inspect/
+  load/remove surface. (HANDOFF #8)
+- ✅ **Trust labels in the UI** — bundled / imported-unsigned / verified /
+  quarantined. Type lives on `ArcLibraryEntry` (provenance, not content);
+  `<TrustLabel>` surfaces it in the library, codex header, and title screen.
+  Verified/quarantined are reserved placeholders for future signing/admin
+  work; no runtime behavior depends on trust yet. (HANDOFF #9)
+- ✅ **Deploy-variant flag** — build-time `game-first` / `enterprise-first` /
   `research-first` switches title/lobby entry points without a code fork.
-  (HANDOFF #10)
+  Validated at Vite config load; positioning only, not capability.
+  (HANDOFF #10, docs/DEPLOY.md)
+
+**Thread 2 is done.** Arc-as-artifact is live: arcs import from outside the
+bundle, provenance shows in the UI, and the same engine ships under different
+positioning without a fork.
 
 When Thread 2 is done, **arc distribution becomes possible without us building
 a marketplace** — we ship the runtime + format + import + trust; arcs are

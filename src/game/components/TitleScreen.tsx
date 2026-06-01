@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { Arc } from "../../engine/types.js";
 import { loadSave } from "../lib/storage.js";
 import { CodexOverlay } from "../../codex/index.js";
+import { WhatsNew } from "../../release-notes/index.js";
 
 interface Props {
   arc: Arc;
@@ -13,6 +14,7 @@ export function TitleScreen({ arc, onContinue, onNewGame }: Props): JSX.Element 
   const existing = loadSave(arc);
   const hasSave = existing !== null;
   const [manualOpen, setManualOpen] = useState(false);
+  const [whatsNewOpen, setWhatsNewOpen] = useState(false);
 
   return (
     <div className="title-screen">
@@ -82,6 +84,13 @@ export function TitleScreen({ arc, onContinue, onNewGame }: Props): JSX.Element 
           >
             Designer Prototype
           </a>
+          <button
+            type="button"
+            className="title-secondary-link"
+            onClick={() => setWhatsNewOpen(true)}
+          >
+            Release notes
+          </button>
         </div>
       </div>
       <CodexOverlay
@@ -89,6 +98,7 @@ export function TitleScreen({ arc, onContinue, onNewGame }: Props): JSX.Element 
         open={manualOpen}
         onClose={() => setManualOpen(false)}
       />
+      <WhatsNew open={whatsNewOpen} onClose={() => setWhatsNewOpen(false)} />
     </div>
   );
 }

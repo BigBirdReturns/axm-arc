@@ -2020,6 +2020,9 @@ button.tutorial-pulse-btn {
   width: 100%;
   text-align: center;
   margin-top: 10px;
+  display: flex;
+  justify-content: center;
+  gap: 16px;
 }
 .title-secondary-link {
   font-family: var(--mono);
@@ -2028,8 +2031,11 @@ button.tutorial-pulse-btn {
   text-transform: uppercase;
   color: var(--dim);
   text-decoration: none;
+  border: none;
   border-bottom: 1px dotted var(--rule);
-  padding-bottom: 1px;
+  padding: 0 0 1px;
+  background: none;
+  cursor: pointer;
 }
 .title-secondary-link:hover,
 .title-secondary-link:focus-visible {
@@ -2355,6 +2361,69 @@ button.tutorial-pulse-btn {
   border-bottom: 1px dashed var(--rule);
 }
 .codex-entry:last-child { border-bottom: none; }
+
+/* ── What's new overlay (reuses .codex-overlay shell) ── */
+.whatsnew-title { margin-bottom: 18px; }
+
+.whatsnew-entry {
+  margin-top: 22px;
+  padding-top: 16px;
+  border-top: 1px solid var(--rule);
+}
+.whatsnew-entry:first-of-type { border-top: none; padding-top: 0; margin-top: 0; }
+
+.whatsnew-entry-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.whatsnew-version {
+  font-family: var(--display);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0;
+}
+
+.whatsnew-date {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.whatsnew-summary {
+  font-family: var(--serif);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink);
+  margin: 6px 0 10px;
+}
+
+.whatsnew-group { margin-bottom: 10px; }
+
+.whatsnew-group-label {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 4px;
+}
+
+.whatsnew-list {
+  margin: 0;
+  padding-left: 18px;
+  font-family: var(--serif);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink);
+}
+.whatsnew-list li { margin-bottom: 4px; }
 
 .codex-entry-name {
   font-family: var(--display);

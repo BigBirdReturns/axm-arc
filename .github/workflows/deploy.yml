@@ -1,33 +1,37 @@
-# Build-on-merge deploy for AXM Arc.
+# Pages deploy for AXM Arc.
 #
-# This workflow commits the built game assets (docs/game/**) back to `main` so
-# they match the current GitHub Pages configuration, which serves the site from
-# `main:/docs`. That keeps the published build in lock-step with merged source
-# and ends the stale-build problem with ZERO repo-settings changes required.
+# Actions-based GitHub Pages deployment. The built game is published directly
+# to Pages as an artifact — it is NEVER committed to the repo. This makes the
+# whole class of "branch bundle vs. bot-rebuilt bundle" merge conflicts
+# impossible: docs/game/ does not exist in git history at all.
 #
-# A cleaner future option is GitHub's Actions-based Pages deploy
-# (actions/upload-pages-artifact + actions/deploy-pages), which removes the
-# commit-back step entirely. It requires switching the repo's Pages source to
-# "GitHub Actions" in settings, so it's left as a follow-up (see docs/DEPLOY.md).
+# REQUIRES (one-time, owner action): repository Settings -> Pages -> Build and
+# deployment -> Source = "GitHub Actions". Until that's set, this workflow runs
+# but Pages won't serve from it.
 #
-# Loop guard: the bot's own rebuild commit only touches docs/game/**, and the
-# `paths-ignore` filter below excludes that path from triggering the workflow,
-# so the rebuild commit cannot retrigger a build. The `[skip ci]` tag is a
-# belt-and-braces second guard.
+# The artifact is the whole docs/ tree: the hand-authored landing page
+# (docs/index.html), the designer prototype (docs/designer-prototype/), and the
+# freshly built game (docs/game/, produced by `npm run build` at deploy time).
 
 name: deploy
 
 on:
   push:
     branches: [main]
-    paths-ignore:
-      - 'docs/game/**'
+  workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+  pages: write
+  id-token: write
+
+# Never run two Pages deploys at once; let the latest win.
+concurrency:
+  group: pages
+  cancel-in-progress: true
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -51,14 +55,23 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Commit rebuilt docs/game back to main
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/game
-          if git diff --staged --quiet; then
-            echo "No changes to docs/game — nothing to commit."
-          else
-            git commit -m "chore(deploy): rebuild docs/game [skip ci]"
-            git push
-          fi
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          # Publish the whole docs tree: landing page + designer prototype +
+          # the just-built game/.
+          path: docs
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

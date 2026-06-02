@@ -26,6 +26,7 @@
   --serif: 'Lora', Georgia, serif;
   --mono: 'IBM Plex Mono', ui-monospace, monospace;
   --imprint: 'Playfair Display', Georgia, serif;
+  --gold: #9a7b2e;
 
   --gap-xs: 8px;
   --gap-s: 16px;
@@ -2534,4 +2535,188 @@ button.tutorial-pulse-btn {
   background: var(--accent);
   color: #fff;
   border-color: var(--accent-dp);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   CYCLE DIGEST — post-advance render, augments ReportsScreen.
+   Pure UI; engine state already applied. Token-driven, arc-agnostic.
+   ════════════════════════════════════════════════════════════════ */
+
+.digest {
+  padding: 16px 16px 8px;
+  border-bottom: 2px solid var(--ink);
+  margin-bottom: 20px;
+}
+
+.digest-masthead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 8px;
+  margin-bottom: 16px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.digest-masthead-title {
+  font-family: var(--imprint);
+  font-weight: 900;
+  font-size: 20px;
+  letter-spacing: 0.01em;
+  color: var(--ink);
+}
+.digest-masthead-meta {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  display: flex;
+  gap: 6px;
+}
+
+.digest-kicker {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 10px;
+}
+
+.digest-headline {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 38px;
+  line-height: 0.98;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+  color: var(--ink);
+  margin-bottom: 14px;
+}
+.digest-headline .accent { color: var(--accent); }
+
+.digest-deck {
+  font-family: var(--serif);
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--ink-2);
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: 12px;
+}
+
+.digest-applied {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-style: italic;
+  color: var(--dim);
+  letter-spacing: 0.06em;
+  margin-bottom: 18px;
+}
+
+.digest-section-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 4px;
+  margin: 14px 0 8px;
+}
+
+.digest-tally-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px dotted var(--rule);
+}
+.digest-tally-id { flex: 1; min-width: 0; }
+.digest-tally-name {
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--ink);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.digest-tally-role {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.digest-tally-chips { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+
+.digest-chip {
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border: 1px solid var(--rule);
+  color: var(--muted);
+  background: var(--paper-alt);
+  white-space: nowrap;
+}
+.digest-chip.accent { color: var(--accent); border-color: var(--accent); }
+.digest-chip.pass { color: var(--positive); border-color: var(--positive); }
+.digest-chip.fail { color: var(--accent); border-color: var(--accent); }
+.digest-chip.downed { color: #fff; background: var(--accent); border-color: var(--accent-dp); }
+.digest-chip.heroic { color: var(--paper); background: var(--gold); border-color: var(--gold); }
+.digest-chip.outcome-success { color: var(--positive); border-color: var(--positive); }
+.digest-chip.outcome-partial { color: var(--muted); border-color: var(--rule-dk); }
+.digest-chip.outcome-failure { color: var(--accent); border-color: var(--accent); }
+.digest-chip.applied { color: var(--positive); border-color: var(--positive); }
+.digest-chip.docket { color: var(--accent); border-color: var(--accent); background: var(--accent-lt); }
+
+.digest-audit { margin-bottom: 14px; }
+.digest-audit-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--ink);
+  margin-bottom: 6px;
+}
+.digest-audit-name {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+.digest-audit-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  gap: 8px;
+  align-items: center;
+  padding: 4px 0;
+  font-family: var(--mono);
+  font-size: 11px;
+  border-bottom: 1px dotted var(--rule);
+}
+.digest-audit-mech { color: var(--ink-2); letter-spacing: 0.02em; }
+.digest-audit-score { color: var(--muted); letter-spacing: 0.06em; }
+.digest-audit-carry { color: var(--dim); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; }
+
+.digest-drop-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 0;
+  border-bottom: 1px dotted var(--rule);
+}
+.digest-drop-name {
+  font-family: var(--serif);
+  font-size: 14px;
+  color: var(--ink);
 }

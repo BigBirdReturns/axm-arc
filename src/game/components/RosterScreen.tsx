@@ -7,6 +7,7 @@ import {
   hiddenAttrVisibleCount,
   nextRevealHint,
 } from "../lib/ui-helpers.js";
+import { ThresholdBar } from "./ThresholdBar.js";
 
 // ── Bark library ──────────────────────────────────────────────────────────────
 
@@ -117,14 +118,14 @@ function AgentRow({ agent, arc, onClick }: { agent: Agent; arc: Arc; onClick: ()
             <span>Morale</span>
             <span>{agent.morale}</span>
           </div>
-          <div className="bar morale"><div className="fill" style={{ width: `${agent.morale}%` }} /></div>
+          <ThresholdBar value={agent.morale} max={100} kind="morale" threshold={30} direction="below" />
         </div>
         <div className="bar-wrap">
           <div className="bar-label">
             <span>Stress</span>
             <span>{agent.stress}/10</span>
           </div>
-          <div className="bar stress"><div className="fill" style={{ width: `${agent.stress * 10}%` }} /></div>
+          <ThresholdBar value={agent.stress} max={10} kind="stress" threshold={7} direction="above" />
         </div>
       </div>
       {agent.afflictionState.kind !== "none" && (

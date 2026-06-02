@@ -243,6 +243,8 @@ export function CycleTransition({
         </div>
 
         <div className="press-band" />
+        {/* Accent ink-bar pass — lifted from digest-prototype `pressSweep`. */}
+        <div className="press-sweep" />
 
         <div className="passing-ticker">
           {tickerLines.slice(0, tickerVisible).map((line, i) => (

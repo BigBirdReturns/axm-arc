@@ -618,6 +618,36 @@ button.icon:hover { border-color: var(--ink); color: var(--ink); }
 .tabbar button.drama-active { color: var(--accent); }
 .tabbar button.drama-active .tab-count { color: var(--accent); }
 
+/* Mobile tab label + badge sit on one row beneath the count. */
+.tabbar button .tab-label-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ── Tab status badges (display only) ───────────────────────────
+   Small mono pills. Tone: blocking/new nag in accent, inbox is muted.
+   Token-driven; shared by mobile tabbar and desktop tabstrip. */
+.tab-badge {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1.5;
+  padding: 0 5px;
+}
+.tab-badge.blocking,
+.tab-badge.new {
+  background: var(--accent);
+  color: var(--paper);
+}
+.tab-badge.inbox {
+  background: var(--paper-alt);
+  color: var(--muted);
+  border: 1px solid var(--rule);
+}
+
 /* ── MODAL ───────────────────────────────────────────────────── */
 
 .modal-backdrop {
@@ -1020,13 +1050,7 @@ button.icon:hover { border-color: var(--ink); color: var(--ink); }
     border-bottom-color: var(--accent);
   }
   .desktop-tabstrip .tab-badge {
-    display: inline-block;
-    background: var(--accent);
-    color: #fff;
-    font-size: 9px;
-    padding: 0 5px;
     margin-left: 6px;
-    line-height: 1.5;
   }
 }
 

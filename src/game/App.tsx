@@ -15,6 +15,7 @@ import {
   saveActiveArcId,
 } from "./lib/arc-library.js";
 import { getAdvanceBlockers, isAdvanceBlocked } from "./lib/advance-blockers.js";
+import { triageDrama, type DramaTriage } from "./lib/drama-triage.js";
 import { RosterScreen } from "./components/RosterScreen.js";
 import { AssignScreen } from "./components/AssignScreen.js";
 import { DramaScreen } from "./components/DramaScreen.js";
@@ -35,6 +36,24 @@ declare const __BUILD_SHA__: string;
 const BUILD_SHA = typeof __BUILD_SHA__ === "string" ? __BUILD_SHA__ : "dev";
 
 type Tab = "Roster" | "Assign" | "Drama" | "Base" | "Reports";
+
+function countLabel(count: number, singular: string, plural = `${singular}s`): string {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
+function dramaBadgeLabel(triage: DramaTriage): string | null {
+  if (triage.blocking.length > 0) return countLabel(triage.blocking.length, "blocking", "blocking");
+  if (triage.inbox.length > 0) return countLabel(triage.inbox.length, "inbox", "inbox");
+  if (triage.ambient.length > 0) return countLabel(triage.ambient.length, "ambient", "ambient");
+  return null;
+}
+
+function reportsBadgeLabel(reportCount: number, pendingRewardCount: number, decidedRewardCount: number): string | null {
+  const unresolvedRewards = pendingRewardCount - decidedRewardCount;
+  if (unresolvedRewards > 0) return countLabel(unresolvedRewards, "docket", "docket");
+  if (reportCount > 0) return "NEW";
+  return null;
+}
 
 // Resolve the active arc: if the user has selected a different arc from the
 // library and that arc is present, use it; otherwise fall back to the bundled
@@ -218,6 +237,13 @@ export function App(): JSX.Element {
     return entries.find((e) => e.arc.meta.id === arc.meta.id)?.trust ?? "bundled";
   }, [arc]);
 
+  const dramaTriage = useMemo(() => triageDrama(org.dramaQueue), [org.dramaQueue]);
+  const dramaBadge = useMemo(() => dramaBadgeLabel(dramaTriage), [dramaTriage]);
+  const reportsBadge = useMemo(
+    () => reportsBadgeLabel(lastReports.length, pendingRewardChoices.length, rewardDecisions.length),
+    [lastReports.length, pendingRewardChoices.length, rewardDecisions.length],
+  );
+
   const advanceBlockers = useMemo(() => getAdvanceBlockers({
     dramaQueueCount: org.dramaQueue.length,
     pendingRewardChoicesCount: pendingRewardChoices.length,
@@ -282,6 +308,10 @@ export function App(): JSX.Element {
     Drama: org.dramaQueue.length,
     Base: Object.values(org.infrastructure).filter((f) => f.level > 0).length,
     Reports: lastReports.length > 0 ? lastReports.length : "—",
+  };
+  const tabBadges: Partial<Record<Tab, string>> = {
+    ...(dramaBadge ? { Drama: dramaBadge } : {}),
+    ...(reportsBadge ? { Reports: reportsBadge } : {}),
   };
 
   const upkeep = Object.values(org.agents).reduce((s, a) => s + a.upkeep, 0);
@@ -544,7 +574,7 @@ export function App(): JSX.Element {
             { lbl: arc.tokenName, val: org.resources.tokens, sub: `+${arc.tokensPerCycle} next` },
             { lbl: arc.currencyName, val: org.resources.currency.toLocaleString(), sub: `-${upkeep}` },
             { lbl: arc.reputationName, val: nextRepGate !== undefined ? `${org.reputation} / ${nextRepGate}` : `${org.reputation}`, sub: nextRepGate !== undefined ? "to next tier" : "top tier" },
-            { lbl: "Drama", val: org.dramaQueue.length, sub: "queued", accent: org.dramaQueue.length > 0 },
+            { lbl: "Drama", val: org.dramaQueue.length, sub: dramaBadge ?? "queued", accent: org.dramaQueue.length > 0 },
           ].map((s) => (
             <div key={s.lbl} className="stat-cell">
               <div className="stat-lbl">{s.lbl}</div>
@@ -625,8 +655,8 @@ export function App(): JSX.Element {
                 onClick={() => setTab(t)}
               >
                 {t}
-                {t === "Drama" && org.dramaQueue.length > 0 && (
-                  <span className="tab-badge">{org.dramaQueue.length}</span>
+                {tabBadges[t] && (
+                  <span className={`tab-badge${t === "Drama" ? " urgent" : ""}`}>{tabBadges[t]}</span>
                 )}
               </button>
             ))}
@@ -650,6 +680,7 @@ export function App(): JSX.Element {
           >
             <span className="tab-count">{tabCounts[t]}</span>
             {t}
+            {tabBadges[t] && <span className="tab-state-chip">{tabBadges[t]}</span>}
           </button>
         ))}
       </nav>

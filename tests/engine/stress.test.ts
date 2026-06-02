@@ -325,6 +325,29 @@ describe("applyAfflictionBarks", () => {
     expect(fromA1.length).toBeLessThanOrEqual(2);
   });
 
+  it("Fearful bark targets are stable across agent insertion order", () => {
+    const history = [{ challengeId: "c1", cycle: 1, outcome: "success" as const }];
+    const afflicted = makeTestAgent({
+      id: "a1",
+      affliction: { kind: "Fearful", sinceCycle: 1 },
+      assignmentHistory: history,
+    });
+    const teammates = ["a2", "a3", "a4", "a5", "a6"].map((id) =>
+      makeTestAgent({ id, assignmentHistory: history }),
+    );
+
+    const canonicalOrg = makeTestOrg([afflicted, ...teammates]);
+    const permutedOrg = makeTestOrg([...teammates].reverse().concat(afflicted));
+
+    const canonical = applyAfflictionBarks(canonicalOrg, new Rng(42), 1);
+    const permuted = applyAfflictionBarks(permutedOrg, new Rng(42), 1);
+
+    expect(canonical.barks).toEqual(permuted.barks);
+    expect([...canonical.stressGains.entries()].sort()).toEqual(
+      [...permuted.stressGains.entries()].sort(),
+    );
+  });
+
   it("unafflicted agents produce no barks", () => {
     const a = makeTestAgent({ id: "a1" }); // no affliction
     const b = makeTestAgent({ id: "a2" });

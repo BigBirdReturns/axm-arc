@@ -2535,3 +2535,24 @@ button.tutorial-pulse-btn {
   color: #fff;
   border-color: var(--accent-dp);
 }
+
+/* ── State chips — low-risk lane/status badging ─────────────────── */
+
+.tab-state-chip {
+  display: block;
+  margin-top: 2px;
+  font-family: var(--mono);
+  font-size: 8px;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+@media (min-width: 960px) {
+  .desktop-tabstrip .tab-badge.urgent {
+    background: var(--accent-dp);
+  }
+}

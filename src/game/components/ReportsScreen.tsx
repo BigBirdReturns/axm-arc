@@ -2,6 +2,7 @@ import type { Arc, Organization, RunReport } from "../../engine/types.js";
 import type { PendingRewardChoice, RewardDecision } from "../../engine/cycle.js";
 import { generateHeadline, agentRunLine } from "../lib/headline.js";
 import { agentInitials } from "../lib/ui-helpers.js";
+import CycleDigest from "./CycleDigest.js";
 
 interface Props {
   arc: Arc;
@@ -40,6 +41,9 @@ export function ReportsScreen({
 
   return (
     <div className="screen">
+      {/* Cycle digest — pure render of this cycle's reports, no engine changes. */}
+      <CycleDigest arc={arc} org={org} reports={reports} />
+
       {reports.length === 0 && pendingRewardChoices.length === 0 && (
         <div className="empty">No reports yet. Go to Assign, slot a roster on a contract, then hit Advance Cycle.</div>
       )}

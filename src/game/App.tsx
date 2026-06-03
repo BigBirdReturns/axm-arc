@@ -25,6 +25,7 @@ import { CycleTransition } from "./components/CycleTransition.js";
 import { TutorialGuide, useTutorial, deriveTutorialStep, tutorialPulseTab, tutorialPulseAdvance } from "./components/TutorialGuide.js";
 import { TitleScreen } from "./components/TitleScreen.js";
 import { LibraryScreen } from "./components/LibraryScreen.js";
+import { DesignerScreen } from "./components/DesignerScreen.js";
 import { CountUp } from "../liveness/index.js";
 import { CycleChecklist } from "./components/CycleChecklist.js";
 import { agentInitials } from "./lib/ui-helpers.js";
@@ -151,7 +152,7 @@ function buildNewOrg(activeArc: typeof FIRST_CHARTER): Organization {
 }
 
 export function App(): JSX.Element {
-  const [mode, setMode] = useState<"title" | "play" | "library">("title");
+  const [mode, setMode] = useState<"title" | "play" | "library" | "designer">("title");
   const tutorial = useTutorial();
   const [tab, setTab] = useState<Tab>("Roster");
   const [arc, setArc] = useState<typeof FIRST_CHARTER>(() => resolveActiveArc());
@@ -437,8 +438,13 @@ export function App(): JSX.Element {
           setMode("play");
         }}
         onOpenLibrary={() => setMode("library")}
+        onOpenDesigner={() => setMode("designer")}
       />
     );
+  }
+
+  if (mode === "designer") {
+    return <DesignerScreen arc={arc} onBack={() => setMode("title")} />;
   }
 
   if (mode === "library") {

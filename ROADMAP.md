@@ -34,6 +34,13 @@ run. Every win here is dual-use for free.
 - ✅ Economy correctness (gold, upkeep, farm guard, downed recovery)
 - ✅ **Codex/manual** — attributes, roles, traits, facilities, check math
 - ✅ **Liveness primitive #1** — count-up on resource bar
+- ✅ **Liveness primitives #2–5** (keyframes lifted from digest-prototype):
+  wordSet on digest masthead, digestIn on digest root, barPulse on
+  threshold crossings, pressSweep on cycle transition. `<AttendedStamp>`
+  available; drama-resolution wire-up future.
+- ✅ **Light/dark theme toggle** (lifted from designer-prototype) — token
+  map under `:root[data-theme="dark"]`, `☾`/`☀` toggle in the top bar,
+  persisted to `axm-arc:theme:v1`, first load honors `prefers-color-scheme`.
 - ✅ **Release notes + deploy pipeline** — ends stale-build drift
 - 🔜 Hook work (`HOOK.md`): 60-sec-to-first-win, more liveness primitives,
   per-arc skin layer

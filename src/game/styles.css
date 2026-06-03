@@ -22,6 +22,12 @@
   --positive: #3d5a3a;
   --positive-lt: #e3ead9;
 
+  /* Bar tokens — the top bar / mobile tabbar / tutorial nudge stay
+     white-on-ink in BOTH themes. Lifted from designer-prototype's
+     HANDOFF (§"Light / dark mode + theming"). */
+  --bar-bg: #0e0d0c;
+  --bar-fg: #f0ebe0;
+
   --display: 'Barlow Condensed', 'Arial Narrow', sans-serif;
   --serif: 'Lora', Georgia, serif;
   --mono: 'IBM Plex Mono', ui-monospace, monospace;
@@ -32,6 +38,39 @@
   --gap-s: 16px;
   --gap-m: 24px;
   --gap-l: 48px;
+
+  color-scheme: light;
+}
+
+/* ── DARK THEME ───────────────────────────────────────────────
+   Token overrides lifted from docs/designer-prototype/index.html.
+   The prototype's base palette differs slightly from the game's
+   brick-red house style, but its dark map is the verbatim source
+   per HANDOFF. Derived tokens (--accent-lt/-mid/-dp, --paper-dk,
+   --rule-dk, --ink-2, --positive-lt, --gold) get dark-friendly
+   counterparts here so nothing in the game falls back to a
+   light-only value. Bar tokens stay dark-on-light in both modes.
+   ─────────────────────────────────────────────────────────── */
+:root[data-theme="dark"] {
+  --paper: #17150f;
+  --paper-alt: #211d16;
+  --paper-dk: #2a2620;
+  --ink: #ece4d4;
+  --ink-2: #d4ccbb;
+  --muted: #a59c8b;
+  --dim: #6e675a;
+  --rule: #352f27;
+  --rule-dk: #4a4238;
+  --accent: #cd8358;
+  --accent-lt: #3a261a;
+  --accent-mid: rgba(205,131,88,0.25);
+  --accent-dp: #b0623a;
+  --positive: #74ad77;
+  --positive-lt: #233324;
+  --gold: #c9a14a;
+  --bar-bg: #100e0b;
+  --bar-fg: #ece4d4;
+  color-scheme: dark;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -570,7 +609,7 @@ button.icon:hover { border-color: var(--ink); color: var(--ink); }
 
 .tabbar {
   display: flex;
-  background: var(--ink);
+  background: var(--bar-bg);
   position: fixed;
   bottom: 0;
   left: 50%;
@@ -610,7 +649,7 @@ button.icon:hover { border-color: var(--ink); color: var(--ink); }
 }
 
 .tabbar button.active {
-  color: var(--paper);
+  color: var(--bar-fg);
   border-top-color: var(--accent);
 }
 .tabbar button.active .tab-count { color: var(--accent); }
@@ -1627,8 +1666,8 @@ button.icon:hover { border-color: var(--ink); color: var(--ink); }
   align-items: center;
   gap: 10px;
   padding: 10px 16px;
-  background: var(--ink);
-  color: var(--paper);
+  background: var(--bar-bg);
+  color: var(--bar-fg);
   font-family: var(--display);
   font-weight: 600;
   font-size: 14px;
@@ -1663,7 +1702,7 @@ button.icon:hover { border-color: var(--ink); color: var(--ink); }
   white-space: nowrap;
 }
 .tutorial-skip:hover {
-  color: var(--paper);
+  color: var(--bar-fg);
 }
 
 /* Pulsing tab button during tutorial */
@@ -2719,4 +2758,130 @@ button.tutorial-pulse-btn {
   font-family: var(--serif);
   font-size: 14px;
   color: var(--ink);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   LIVENESS PRIMITIVES — lifted from digest-prototype
+   Keyframes verbatim from docs/digest-prototype/situation-room.css.
+   Consumer classes copied alongside; wired into existing components.
+   All animations honor .reduce-motion and prefers-reduced-motion.
+   ════════════════════════════════════════════════════════════════ */
+
+@keyframes wordSet {
+  from { opacity: 0; transform: translateY(0.12em); filter: blur(2px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+@keyframes stampIn {
+  0% { opacity: 0; transform: translate(-50%,-50%) rotate(-9deg) scale(1.9); }
+  60% { opacity: 1; }
+  100% { opacity: 0.92; transform: translate(-50%,-50%) rotate(-9deg) scale(1); }
+}
+@keyframes pressSweep {
+  0% { transform: scaleX(0); }
+  60% { transform: scaleX(1); }
+  100% { transform: scaleX(1); opacity: 0; }
+}
+@keyframes barPulse {
+  0%,100% { box-shadow: inset 0 0 0 0 transparent; }
+  50% { box-shadow: inset 0 0 0 2px var(--accent-mid); }
+}
+@keyframes numFlash {
+  0% { color: var(--positive); }
+  100% { color: inherit; }
+}
+@keyframes tickIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes digestIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes readyPulse {
+  0%,100% { box-shadow: 0 1px 0 var(--accent-dp), 0 0 0 0 var(--accent-mid); }
+  50% { box-shadow: 0 1px 0 var(--accent-dp), 0 0 0 6px transparent; }
+}
+@keyframes hintPulse {
+  0%,100% { opacity: 0.4; }
+  50% { opacity: 0.9; }
+}
+
+/* digest root: gentle slide-fade on first mount */
+.digest {
+  animation: digestIn 0.4s ease;
+}
+
+/* per-word stagger on digest masthead title */
+.digest-masthead-typeset .w {
+  display: inline-block;
+  opacity: 0;
+  animation: wordSet 0.5s cubic-bezier(.2,.8,.2,1) forwards;
+}
+
+/* threshold-pulse ring on resource bars; applied transiently via React */
+.bar-track.pulse,
+.bar.pulse {
+  animation: barPulse 0.7s ease 2;
+}
+
+/* cycle-transition ink-bar sweep (beat 1 accent over the existing band) */
+.press-sweep {
+  position: absolute;
+  left: 0; right: 0;
+  height: 3px;
+  top: 50%;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  animation: pressSweep 1.3s ease forwards;
+  pointer-events: none;
+}
+
+/* ATTENDED rubber-stamp — consumer component lives at codex/AttendedStamp */
+.attended-stamp {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%) rotate(-9deg) scale(1.4);
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 46px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+  border: 4px solid var(--accent);
+  padding: 6px 22px;
+  opacity: 0;
+  pointer-events: none;
+  background: var(--accent-lt);
+}
+.attended-stamp.show {
+  animation: stampIn 0.5s cubic-bezier(.2,1.4,.3,1) forwards;
+}
+
+/* Reduced-motion guards: honor both the OS media query and the
+   in-app .reduce-motion class (PR #6 pattern, same as useCountUp). */
+@media (prefers-reduced-motion: reduce) {
+  .digest,
+  .digest-masthead-typeset .w,
+  .bar-track.pulse,
+  .bar.pulse,
+  .press-sweep,
+  .attended-stamp.show {
+    animation: none !important;
+  }
+  .digest-masthead-typeset .w { opacity: 1; }
+  .attended-stamp.show { opacity: 0.92; transform: translate(-50%, -50%) rotate(-9deg) scale(1); }
+}
+.reduce-motion .digest,
+.reduce-motion .digest-masthead-typeset .w,
+.reduce-motion .bar-track.pulse,
+.reduce-motion .bar.pulse,
+.reduce-motion .press-sweep,
+.reduce-motion .attended-stamp.show {
+  animation: none !important;
+}
+.reduce-motion .digest-masthead-typeset .w { opacity: 1; }
+.reduce-motion .attended-stamp.show {
+  opacity: 0.92;
+  transform: translate(-50%, -50%) rotate(-9deg) scale(1);
 }

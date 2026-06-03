@@ -81,7 +81,14 @@ export default function CycleDigest({ arc, org, reports }: Props): JSX.Element |
     <div className="digest">
       {/* ── 1. Masthead ── */}
       <div className="digest-masthead">
-        <div className="digest-masthead-title">{arc.meta.name}</div>
+        <div className="digest-masthead-title digest-masthead-typeset">
+          {arc.meta.name.split(/\s+/).map((word, i) => (
+            <span key={i} className="w" style={{ animationDelay: `${i * 0.08}s` }}>
+              {word}
+              {i < arc.meta.name.split(/\s+/).length - 1 ? " " : ""}
+            </span>
+          ))}
+        </div>
         <div className="digest-masthead-meta">
           <span>{editionStamp}</span>
           <span>·</span>

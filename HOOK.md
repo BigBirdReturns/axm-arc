@@ -71,6 +71,14 @@ asking the enterprise arc to.
   transition interstitials)
 - Score/stat counters that *count up* rather than snap
 
+✅ Keyframes lifted from `docs/digest-prototype/situation-room.css`:
+wordSet, stampIn, pressSweep, barPulse, numFlash, tickIn, digestIn,
+readyPulse, hintPulse. Wired: wordSet on the digest masthead, digestIn
+on the digest root, `.bar-track.pulse` / `.bar.pulse` on threshold
+crossings (stress ≥ 7, morale ≤ 30), `.press-sweep` on cycle-transition
+beat 1. `<AttendedStamp>` available at `src/codex/AttendedStamp.tsx`;
+drama-resolution wire-up is a future ticket.
+
 ### B. Onboarding-flow design (game-level)
 - "60 seconds to first win" — the player should feel an outcome inside
   the first minute, not after reading help

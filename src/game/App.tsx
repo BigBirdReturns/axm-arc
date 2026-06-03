@@ -28,6 +28,7 @@ import { LibraryScreen } from "./components/LibraryScreen.js";
 import { DesignerScreen } from "./components/DesignerScreen.js";
 import { CountUp } from "../liveness/index.js";
 import { CycleChecklist } from "./components/CycleChecklist.js";
+import { ThresholdBar } from "./components/ThresholdBar.js";
 import { agentInitials } from "./lib/ui-helpers.js";
 import { CodexOverlay } from "../codex/index.js";
 import { WhatsNew, CURRENT_BUILD } from "../release-notes/index.js";
@@ -54,6 +55,23 @@ function resolveActiveArc(): typeof FIRST_CHARTER {
 
 const INTENT_KEY = "axm-arc:intent:v1";
 const SEEN_BUILD_KEY = "axm-arc:seen-build:v1";
+const THEME_KEY = "axm-arc:theme:v1";
+
+type Theme = "light" | "dark";
+
+// Initial theme: localStorage wins; otherwise honor prefers-color-scheme.
+// Lifted from docs/designer-prototype/bench-app.jsx (the toggle pattern).
+function initialTheme(): Theme {
+  try {
+    const saved = localStorage.getItem(THEME_KEY);
+    if (saved === "light" || saved === "dark") return saved;
+  } catch { /* noop */ }
+  if (typeof window !== "undefined" && window.matchMedia
+      && window.matchMedia("(prefers-color-scheme: dark)").matches) {
+    return "dark";
+  }
+  return "light";
+}
 
 function defaultFacilities(): Record<InfrastructureFacility, Facility> {
   const names: InfrastructureFacility[] = [
@@ -175,6 +193,13 @@ export function App(): JSX.Element {
   });
   const [editingIntent, setEditingIntent] = useState(false);
   const [intentDraft, setIntentDraft] = useState("");
+
+  // Light/dark theme — harvested from designer-prototype.
+  const [theme, setTheme] = useState<Theme>(() => initialTheme());
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    try { localStorage.setItem(THEME_KEY, theme); } catch { /* noop */ }
+  }, [theme]);
 
   useEffect(() => {
     saveSave(org, arc);
@@ -527,6 +552,14 @@ export function App(): JSX.Element {
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <button
               className="codex-trigger"
+              aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+              title={theme === "dark" ? "Light mode" : "Dark mode"}
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            >
+              {theme === "dark" ? "☀" : "☾"}
+            </button>
+            <button
+              className="codex-trigger"
               aria-label="Open manual"
               onClick={() => setCodexOpen(true)}
             >
@@ -611,10 +644,10 @@ export function App(): JSX.Element {
                 </div>
                 <div className="row" style={{ marginTop: 4, gap: 8 }}>
                   <div className="bar-wrap">
-                    <div className="bar morale"><div className="fill" style={{ width: `${a.morale}%` }} /></div>
+                    <ThresholdBar value={a.morale} max={100} kind="morale" threshold={30} direction="below" />
                   </div>
                   <div className="bar-wrap">
-                    <div className="bar stress"><div className="fill" style={{ width: `${a.stress * 10}%` }} /></div>
+                    <ThresholdBar value={a.stress} max={10} kind="stress" threshold={7} direction="above" />
                   </div>
                 </div>
               </div>

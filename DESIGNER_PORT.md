@@ -86,6 +86,12 @@ the prototype's HANDOFF.md calls out (`--bar-bg`/`--bar-fg`) into
 `designer.css` so the top bar stays valid in dark mode without a separate
 override.
 
+**Update (prototype-harvest branch):** `--bar-bg` / `--bar-fg` are now
+already in `src/game/styles.css` alongside the `:root[data-theme="dark"]`
+override map (Step 4 prep — harvested ahead of the designer screen itself).
+The designer port can rely on those tokens existing in the global stylesheet
+when it lands; `designer.css` only needs to reference them.
+
 ### State
 
 ```

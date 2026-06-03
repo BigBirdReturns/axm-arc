@@ -1,0 +1,209 @@
+/* ════════════════════════════════════════════════════════════════
+   DESIGNER SCREEN — Step 1 static scaffold.
+   ALL selectors scoped under .designer-screen so the prototype's generic
+   class names (.rail, .d-panel, etc.) never leak into the game's screens.
+   Token-driven; inherits the global data-theme. Layout + breakpoints
+   reimplemented from docs/designer-prototype/{designer,workshop}.css.
+   ════════════════════════════════════════════════════════════════ */
+
+.designer-screen {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--paper);
+  color: var(--ink-2, var(--ink));
+  font-family: var(--serif);
+}
+
+/* ── Top bar ─────────────────────────────────────────────────── */
+.designer-screen .d-topbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 16px;
+  background: var(--bar-bg);
+  color: var(--bar-fg);
+  border-bottom: 2px solid var(--ink);
+  flex-wrap: wrap;
+}
+.designer-screen .d-back {
+  font-family: var(--mono);
+  font-size: 12px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: var(--bar-fg);
+  padding: 5px 12px;
+  cursor: pointer;
+  border-radius: 2px;
+}
+.designer-screen .d-back:hover { border-color: var(--bar-fg); }
+.designer-screen .d-title { display: flex; flex-direction: column; line-height: 1.1; }
+.designer-screen .d-title-kicker {
+  font-family: var(--mono); font-size: 9px; letter-spacing: 0.16em;
+  text-transform: uppercase; opacity: 0.6;
+}
+.designer-screen .d-title-arc {
+  font-family: var(--display); font-size: 20px; font-weight: 800;
+  text-transform: uppercase; letter-spacing: -0.01em;
+}
+.designer-screen .d-section-nav {
+  display: flex; gap: 4px; margin-left: auto; overflow-x: auto;
+}
+.designer-screen .d-section-nav button {
+  font-family: var(--display); font-size: 13px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.02em;
+  background: transparent; border: 0; color: rgba(240, 235, 224, 0.5);
+  padding: 6px 10px; cursor: pointer; white-space: nowrap;
+}
+.designer-screen .d-section-nav button.on { color: var(--bar-fg); border-bottom: 2px solid var(--accent); }
+.designer-screen .d-section-nav button:disabled { cursor: default; }
+
+/* ── Body grid: 3-col ≥1100, 2-col 760–1100, 1-col ≤760 ──────── */
+.designer-screen .d-body {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr) 300px;
+  gap: 1px;
+  background: var(--rule);
+  min-height: 0;
+}
+.designer-screen .rail,
+.designer-screen .d-editor,
+.designer-screen .d-record {
+  background: var(--paper);
+  min-width: 0; /* gotcha: without this the rail blows out page width */
+  overflow-y: auto;
+}
+
+/* ── Left rail ───────────────────────────────────────────────── */
+.designer-screen .rail { display: flex; flex-direction: column; }
+.designer-screen .rail-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 14px; border-bottom: 1px solid var(--rule);
+}
+.designer-screen .rail-title {
+  font-family: var(--display); font-size: 16px; font-weight: 800;
+  text-transform: uppercase;
+}
+.designer-screen .rail-add {
+  font-family: var(--mono); font-size: 11px; padding: 4px 10px;
+  background: var(--accent); color: var(--paper); border: 0; cursor: pointer;
+  border-radius: 2px;
+}
+.designer-screen .rail-add:disabled { opacity: 0.4; cursor: default; }
+.designer-screen .rail-list { display: flex; flex-direction: column; min-width: 0; }
+.designer-screen .rail-card {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; border-bottom: 1px solid var(--rule);
+  cursor: pointer; min-width: 0;
+}
+.designer-screen .rail-card.on { background: var(--accent-lt, var(--paper-alt)); border-left: 3px solid var(--accent); }
+.designer-screen .rail-mono {
+  font-family: var(--mono); font-size: 13px; font-weight: 600;
+  width: 34px; height: 34px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--dim); color: var(--ink);
+}
+.designer-screen .rail-info { display: flex; flex-direction: column; min-width: 0; }
+.designer-screen .rail-name {
+  font-family: var(--display); font-weight: 700; font-size: 15px; color: var(--ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.designer-screen .rail-sub { font-family: var(--mono); font-size: 10px; color: var(--muted); }
+.designer-screen .rail-foot {
+  margin-top: auto; display: flex; justify-content: space-between;
+  padding: 10px 14px; border-top: 1px solid var(--rule); font-family: var(--mono); font-size: 11px;
+}
+
+/* ── Center editor ───────────────────────────────────────────── */
+.designer-screen .d-editor { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.designer-screen .d-panel {
+  border: 1px solid var(--rule); background: var(--paper-alt);
+  padding: 14px 16px;
+}
+.designer-screen .d-panel-muted { opacity: 0.7; }
+.designer-screen .d-section-label {
+  font-family: var(--display); font-size: 14px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.02em; color: var(--ink);
+  margin-bottom: 10px;
+}
+.designer-screen .d-chip-count { font-family: var(--mono); font-size: 10px; color: var(--muted); font-weight: 400; }
+
+.designer-screen .d-identity { display: flex; gap: 14px; align-items: center; }
+.designer-screen .d-portrait {
+  width: 56px; height: 56px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px dashed var(--dim); font-family: var(--display); font-weight: 800;
+  font-size: 22px; color: var(--ink);
+}
+.designer-screen .d-id-fields { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.designer-screen .d-name-input {
+  font-family: var(--display); font-size: 20px; font-weight: 700;
+  background: transparent; border: 0; border-bottom: 1px solid var(--rule);
+  color: var(--ink); padding: 2px 0;
+}
+.designer-screen .d-derived { display: flex; gap: 14px; flex-wrap: wrap; }
+.designer-screen .d-stat { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.designer-screen .d-stat b { color: var(--ink); }
+
+.designer-screen .d-field { margin-bottom: 12px; }
+.designer-screen .d-field:last-child { margin-bottom: 0; }
+.designer-screen .d-field-label {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--muted); margin-bottom: 6px;
+}
+.designer-screen .d-seg { display: flex; gap: 4px; flex-wrap: wrap; }
+.designer-screen .d-seg button {
+  font-family: var(--display); font-size: 13px; font-weight: 600;
+  background: var(--paper); border: 1px solid var(--rule); color: var(--ink-2, var(--ink));
+  padding: 6px 10px; cursor: pointer; display: flex; flex-direction: column; line-height: 1.2;
+}
+.designer-screen .d-seg button.on { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.designer-screen .d-seg button:disabled { cursor: default; }
+.designer-screen .d-seg-meta { font-family: var(--mono); font-size: 9px; opacity: 0.7; }
+
+.designer-screen .d-attr-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.designer-screen .d-attr-name { font-family: var(--display); font-size: 14px; font-weight: 600; width: 90px; flex-shrink: 0; color: var(--ink); }
+.designer-screen .d-track { flex: 1; height: 8px; background: var(--paper-dk, var(--rule)); position: relative; min-width: 0; }
+.designer-screen .d-fill { height: 100%; background: var(--accent); }
+.designer-screen .d-attr-val { font-family: var(--mono); font-size: 12px; width: 34px; text-align: right; color: var(--ink); }
+
+.designer-screen .d-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.designer-screen .d-chip {
+  font-family: var(--mono); font-size: 11px; padding: 4px 9px;
+  border: 1px solid var(--rule); background: var(--paper); color: var(--muted);
+}
+
+/* ── Right engine record ─────────────────────────────────────── */
+.designer-screen .d-record { display: flex; flex-direction: column; background: var(--paper-alt); }
+.designer-screen .d-record-head {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--muted);
+  padding: 12px 14px; border-bottom: 1px solid var(--rule);
+}
+.designer-screen .d-record-json {
+  flex: 1; margin: 0; padding: 14px; font-family: var(--mono);
+  font-size: 11.5px; line-height: 1.6; color: var(--ink-2, var(--ink));
+  white-space: pre-wrap; word-break: break-word; overflow-y: auto;
+}
+.designer-screen .d-record-note { padding: 10px 14px; border-top: 1px solid var(--rule); font-family: var(--mono); font-size: 10px; }
+
+.designer-screen .d-muted { color: var(--muted); }
+
+/* ── Responsive: media queries AFTER base rules (no added specificity) ── */
+@media (max-width: 1100px) {
+  .designer-screen .d-body { grid-template-columns: 240px minmax(0, 1fr); }
+  .designer-screen .d-record { grid-column: 1 / -1; max-height: 320px; }
+}
+@media (max-width: 760px) {
+  .designer-screen .d-body { grid-template-columns: 1fr; }
+  .designer-screen .rail { min-width: 0; }
+  .designer-screen .rail-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 1px;
+    min-width: 0;
+  }
+  .designer-screen .d-section-nav { width: 100%; margin-left: 0; }
+  .designer-screen .d-record { max-height: 260px; }
+}

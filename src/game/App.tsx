@@ -15,6 +15,8 @@ import {
   saveActiveArcId,
 } from "./lib/arc-library.js";
 import { getAdvanceBlockers, isAdvanceBlocked } from "./lib/advance-blockers.js";
+import { triageDrama } from "../engine/drama-triage.js";
+import { dramaTabBadge, reportsTabBadge } from "./lib/tab-badges.js";
 import { RosterScreen } from "./components/RosterScreen.js";
 import { AssignScreen } from "./components/AssignScreen.js";
 import { DramaScreen } from "./components/DramaScreen.js";
@@ -308,6 +310,20 @@ export function App(): JSX.Element {
     Drama: org.dramaQueue.length,
     Base: Object.values(org.infrastructure).filter((f) => f.level > 0).length,
     Reports: lastReports.length > 0 ? lastReports.length : "—",
+  };
+
+  // ── Tab status badges (display only — consumes the engine triageDrama
+  //    selector; does NOT affect advance-gating). Ambient never badges. ──
+  const dramaTriage = useMemo(() => triageDrama(org.dramaQueue), [org.dramaQueue]);
+  const dramaBadge = useMemo(() => dramaTabBadge(dramaTriage), [dramaTriage]);
+  const reportsBadge = useMemo(() => reportsTabBadge({
+    reportCount: lastReports.length,
+    pendingRewardChoices: pendingRewardChoices.length,
+    resolvedRewardDecisions: rewardDecisions.length,
+  }), [lastReports.length, pendingRewardChoices.length, rewardDecisions.length]);
+  const tabBadges: Partial<Record<Tab, { label: string; tone: string } | null>> = {
+    Drama: dramaBadge,
+    Reports: reportsBadge,
   };
 
   const upkeep = Object.values(org.agents).reduce((s, a) => s + a.upkeep, 0);
@@ -664,8 +680,8 @@ export function App(): JSX.Element {
                 onClick={() => setTab(t)}
               >
                 {t}
-                {t === "Drama" && org.dramaQueue.length > 0 && (
-                  <span className="tab-badge">{org.dramaQueue.length}</span>
+                {tabBadges[t] && (
+                  <span className={`tab-badge ${tabBadges[t]!.tone}`}>{tabBadges[t]!.label}</span>
                 )}
               </button>
             ))}
@@ -688,7 +704,12 @@ export function App(): JSX.Element {
             onClick={() => setTab(t)}
           >
             <span className="tab-count">{tabCounts[t]}</span>
-            {t}
+            <span className="tab-label-row">
+              {t}
+              {tabBadges[t] && (
+                <span className={`tab-badge ${tabBadges[t]!.tone}`}>{tabBadges[t]!.label}</span>
+              )}
+            </span>
           </button>
         ))}
       </nav>

@@ -114,6 +114,27 @@
   margin-top: auto; display: flex; justify-content: space-between;
   padding: 10px 14px; border-top: 1px solid var(--rule); font-family: var(--mono); font-size: 11px;
 }
+.designer-screen .rail-actions { margin-left: auto; display: flex; gap: 4px; flex-shrink: 0; }
+.designer-screen .rail-mini {
+  font-family: var(--mono); font-size: 13px; line-height: 1;
+  width: 22px; height: 22px;
+  background: transparent; border: 1px solid var(--rule); color: var(--muted);
+  cursor: pointer; padding: 0;
+}
+.designer-screen .rail-mini:hover { color: var(--accent); border-color: var(--accent); }
+.designer-screen .rail-empty {
+  padding: 16px 14px; font-family: var(--serif); font-size: 13px;
+  line-height: 1.5; border-bottom: 1px solid var(--rule);
+}
+.designer-screen .d-textbutton {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em;
+  text-transform: uppercase; background: transparent; border: 0;
+  color: var(--muted); cursor: pointer; padding: 0;
+}
+.designer-screen .d-textbutton:hover { color: var(--accent); }
+.designer-screen .d-chip-on {
+  background: var(--ink); color: var(--paper); border-color: var(--ink);
+}
 
 /* ── Center editor ───────────────────────────────────────────── */
 .designer-screen .d-editor { padding: 16px; display: flex; flex-direction: column; gap: 12px; }

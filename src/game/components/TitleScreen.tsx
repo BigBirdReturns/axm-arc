@@ -11,9 +11,10 @@ interface Props {
   onContinue: () => void;
   onNewGame: () => void;
   onOpenLibrary: () => void;
+  onOpenDesigner: () => void;
 }
 
-export function TitleScreen({ arc, onContinue, onNewGame, onOpenLibrary }: Props): JSX.Element {
+export function TitleScreen({ arc, onContinue, onNewGame, onOpenLibrary, onOpenDesigner }: Props): JSX.Element {
   const existing = loadSave(arc);
   const hasSave = existing !== null;
   const [manualOpen, setManualOpen] = useState(false);
@@ -69,6 +70,12 @@ export function TitleScreen({ arc, onContinue, onNewGame, onOpenLibrary }: Props
             onClick={onOpenLibrary}
           >
             {labels.ctaLibrary}
+          </button>
+          <button
+            className="secondary"
+            onClick={onOpenDesigner}
+          >
+            Designer
           </button>
           <button
             className="secondary"

@@ -247,7 +247,9 @@ export function resolveChallenge(opts: ResolveChallengeOpts): RunReport {
 
       if (check.scope === "per_agent" || check.scope === "role_specific") {
         if (check.scope === "role_specific") {
-          const roleReqs = challenge.rosterRequirements.roleRequirements.map((r) => r.roleId);
+          const roleReqs = check.roleIds && check.roleIds.length > 0
+            ? check.roleIds
+            : challenge.rosterRequirements.roleRequirements.map((r) => r.roleId);
           if (!roleReqs.includes(agent.role ?? "")) {
             // agent not in scope — record as neutral pass
             mechanicResults.push({ mechanicId: check.id, score: threshold, threshold, passed: true });

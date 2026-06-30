@@ -70,10 +70,10 @@ export function projectMechanics(opts: {
             : `Keep average ${primaryAttributeName(check, arc)} above ${check.difficultyThreshold}; extra low-score agents can drag this check down.`,
       });
     } else if (check.scope === "role_specific") {
-      const roleReqs = challenge.rosterRequirements.roleRequirements;
-      const roleAgents = assignedAgents.filter((a) =>
-        roleReqs.some((r) => r.roleId === a.role),
-      );
+      const roleIds = check.roleIds && check.roleIds.length > 0
+        ? check.roleIds
+        : challenge.rosterRequirements.roleRequirements.map((r) => r.roleId);
+      const roleAgents = assignedAgents.filter((a) => roleIds.includes(a.role ?? ""));
       const target = roleAgents[0] ?? assignedAgents[0];
       if (!target) continue;
       const score = estimateScore(target, check, assignedAgents, org, arc);

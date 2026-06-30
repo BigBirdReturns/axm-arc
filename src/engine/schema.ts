@@ -18,6 +18,7 @@ const MechanicCheckSchema = z.object({
   attributeWeights: z.array(AttributeWeightSchema).min(1),
   difficultyThreshold: z.number().int(),
   scope: z.enum(["per_agent", "team_aggregate", "role_specific"]),
+  roleIds: z.array(z.string()).optional(),
   failureConsequence: FailureConsequenceSchema,
 });
 

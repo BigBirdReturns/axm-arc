@@ -217,6 +217,9 @@ export interface MechanicCheck {
   attributeWeights: AttributeWeight[];
   difficultyThreshold: number;
   scope: "per_agent" | "team_aggregate" | "role_specific";
+  /** Optional explicit role scope for role_specific checks. When omitted, legacy arcs
+   *  fall back to the challenge-level required roles. */
+  roleIds?: string[];
   failureConsequence: FailureConsequence;
 }
 

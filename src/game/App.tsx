@@ -6,6 +6,8 @@ import {
   FIRST_CHARTER_STARTING_ROSTER,
   FIRST_CHARTER_STARTING_RELATIONSHIPS,
   FIRST_CHARTER_STARTING_SKIRMISHERS,
+  KARAZHAN,
+  KARAZHAN_STARTING_ROSTER,
 } from "../arcs/index.js";
 import { loadSave, saveSave, clearSave } from "./lib/storage.js";
 import {
@@ -46,6 +48,7 @@ type Tab = "Roster" | "Assign" | "Drama" | "Base" | "Reports";
 // bundled-default constant.
 function resolveActiveArc(): typeof FIRST_CHARTER {
   ensureBundledArc(FIRST_CHARTER);
+  ensureBundledArc(KARAZHAN);
   const activeId = loadActiveArcId();
   if (activeId && activeId !== FIRST_CHARTER.meta.id) {
     const entries = loadArcLibrary();
@@ -162,13 +165,34 @@ function buildNewOrgForBundled(): Organization {
   };
 }
 
-// Pick a new-org builder based on whether the active arc is the bundled one
-// (whose hand-tuned roster + opening drama lives in src/arcs/) or an imported
-// arc (which gets a generic empty start). The engine treats both identically.
+// Karazhan starts with a full ten-raider roster (all five roles covered) and
+// no scripted opening drama — the tower is the drama.
+function buildNewOrgForKarazhan(): Organization {
+  const agents: Record<string, Agent> = {};
+  for (const a of KARAZHAN_STARTING_ROSTER) agents[a.id] = a;
+  return {
+    id: "player-raid",
+    name: "The Violet Eye Expedition",
+    reputation: 0,
+    resources: { currency: 150, materials: 0, tokens: 2 },
+    infrastructure: defaultFacilities(),
+    agents,
+    relationships: [],
+    precedents: [],
+    dramaQueue: [],
+    cycle: 0,
+    distributionPolicy: "council",
+    rngSeed: Math.floor(Math.random() * 2 ** 31),
+  };
+}
+
+// Pick a new-org builder based on which bundled arc is active (each bundled
+// arc ships a hand-tuned start). Imported arcs get a generic empty start.
+// The engine treats all of them identically.
 function buildNewOrg(activeArc: typeof FIRST_CHARTER): Organization {
-  return activeArc.meta.id === FIRST_CHARTER.meta.id
-    ? buildNewOrgForBundled()
-    : buildGenericOrg();
+  if (activeArc.meta.id === FIRST_CHARTER.meta.id) return buildNewOrgForBundled();
+  if (activeArc.meta.id === KARAZHAN.meta.id) return buildNewOrgForKarazhan();
+  return buildGenericOrg();
 }
 
 export function App(): JSX.Element {

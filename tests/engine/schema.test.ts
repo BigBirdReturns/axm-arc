@@ -266,3 +266,67 @@ describe("validateArc", () => {
     expect(() => validateArc(make(-0.1))).toThrow();
   });
 });
+
+describe("thresholdMode validation", () => {
+  function arcWithCheck(check: Record<string, unknown>): unknown {
+    return minimalArc({
+      challenges: [
+        {
+          id: "ch1",
+          name: "Challenge 1",
+          description: "A challenge.",
+          rosterRequirements: { minAgents: 1, maxAgents: 5, roleRequirements: [] },
+          accessRequirements: { orgMilestones: [], agentAttunements: [], attunementThreshold: null },
+          difficultyRating: 50,
+          mechanicChecks: [
+            {
+              id: "mc1",
+              name: "Check 1",
+              description: "A check.",
+              attributeWeights: [{ attributeId: "power", weight: 1.0 }],
+              difficultyThreshold: 15,
+              failureConsequence: { type: "stress", severity: 0.5 },
+              ...check,
+            },
+          ],
+          completionCriteria: { type: "all_mechanics_passed", parameters: {} },
+          timePressure: null,
+          outcomes: {
+            success: { rewardTable: [], narrative: "Win." },
+            partial: { rewardTable: [], narrative: "Partial." },
+            failure: { rewardTable: [], narrative: "Fail." },
+          },
+        },
+      ],
+    });
+  }
+
+  it("accepts thresholdMode on a team_aggregate check", () => {
+    expect(() =>
+      validateArc(arcWithCheck({ scope: "team_aggregate", thresholdMode: "perAssignedAgent" })),
+    ).not.toThrow();
+    expect(() =>
+      validateArc(arcWithCheck({ scope: "team_aggregate", thresholdMode: "fixed" })),
+    ).not.toThrow();
+  });
+
+  it("accepts checks that omit thresholdMode entirely", () => {
+    expect(() => validateArc(arcWithCheck({ scope: "per_agent" }))).not.toThrow();
+    expect(() => validateArc(arcWithCheck({ scope: "team_aggregate" }))).not.toThrow();
+  });
+
+  it("rejects thresholdMode on non-team_aggregate checks", () => {
+    expect(() =>
+      validateArc(arcWithCheck({ scope: "per_agent", thresholdMode: "perAssignedAgent" })),
+    ).toThrow(/thresholdMode only applies to team_aggregate/);
+    expect(() =>
+      validateArc(arcWithCheck({ scope: "role_specific", thresholdMode: "fixed" })),
+    ).toThrow(/thresholdMode only applies to team_aggregate/);
+  });
+
+  it("rejects unknown thresholdMode values", () => {
+    expect(() =>
+      validateArc(arcWithCheck({ scope: "team_aggregate", thresholdMode: "scaled" })),
+    ).toThrow(/Invalid arc/);
+  });
+});

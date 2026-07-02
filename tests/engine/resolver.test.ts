@@ -276,3 +276,63 @@ describe("rollLoot drop rates", () => {
     expect(a.lootDrops).toEqual(b.lootDrops);
   });
 });
+
+describe("thresholdMode", () => {
+  function challengeWith(checks: typeof CHALLENGE.mechanicChecks) {
+    return { ...CHALLENGE, mechanicChecks: checks };
+  }
+
+  function resolveWith(checks: typeof CHALLENGE.mechanicChecks, agents: Agent[]) {
+    return resolveChallenge({
+      challenge: challengeWith(checks),
+      assignedAgents: agents,
+      org: makeOrg(agents),
+      arc: MINI_ARC,
+      rng: new Rng(999),
+      cycle: 1,
+    });
+  }
+
+  const TEAM_CHECK = CHALLENGE.mechanicChecks.find((c) => c.scope === "team_aggregate")!;
+  const PER_AGENT_CHECK = CHALLENGE.mechanicChecks.find((c) => c.scope === "per_agent")!;
+
+  it("team_aggregate defaults to a fixed absolute threshold (no party-size scaling)", () => {
+    const agents = [makeAgent(1), makeAgent(2), makeAgent(3)];
+    const report = resolveWith([TEAM_CHECK], agents);
+    const result = report.assignedAgents[0]!.mechanicResults.find((mr) => mr.mechanicId === TEAM_CHECK.id)!;
+    expect(result.threshold).toBe(TEAM_CHECK.difficultyThreshold);
+  });
+
+  it("perAssignedAgent multiplies the team threshold by party size", () => {
+    const scaled = { ...TEAM_CHECK, thresholdMode: "perAssignedAgent" as const };
+    const trio = [makeAgent(1), makeAgent(2), makeAgent(3)];
+    const trioResult = resolveWith([scaled], trio)
+      .assignedAgents[0]!.mechanicResults.find((mr) => mr.mechanicId === scaled.id)!;
+    expect(trioResult.threshold).toBe(scaled.difficultyThreshold * 3);
+
+    const solo = [makeAgent(1)];
+    const soloResult = resolveWith([scaled], solo)
+      .assignedAgents[0]!.mechanicResults.find((mr) => mr.mechanicId === scaled.id)!;
+    expect(soloResult.threshold).toBe(scaled.difficultyThreshold);
+  });
+
+  it("explicit fixed mode behaves identically to the default", () => {
+    const agents = [makeAgent(1), makeAgent(2), makeAgent(3)];
+    const explicit = { ...TEAM_CHECK, thresholdMode: "fixed" as const };
+    const withExplicit = resolveWith([explicit], agents);
+    const withDefault = resolveWith([TEAM_CHECK], agents);
+    expect(withExplicit).toEqual(withDefault);
+  });
+
+  it("non-team scopes ignore thresholdMode even if a hand-built challenge sets it", () => {
+    // validateArc rejects this combination; the resolver guard is defense in depth
+    // for challenges constructed outside the schema (tests, tooling).
+    const agents = [makeAgent(1), makeAgent(2), makeAgent(3)];
+    const bogus = { ...PER_AGENT_CHECK, thresholdMode: "perAssignedAgent" as const };
+    const report = resolveWith([bogus], agents);
+    for (const ar of report.assignedAgents) {
+      const result = ar.mechanicResults.find((mr) => mr.mechanicId === bogus.id)!;
+      expect(result.threshold).toBe(PER_AGENT_CHECK.difficultyThreshold);
+    }
+  });
+});

@@ -210,12 +210,19 @@ export interface FailureConsequence {
   severity: number;
 }
 
+/** Controls how a team_aggregate check's threshold scales with party size.
+ *  "fixed"           — threshold is an absolute total (default; more people always helps).
+ *  "perAssignedAgent" — threshold multiplies by party size; every agent must pull their weight. */
+export type ThresholdMode = "fixed" | "perAssignedAgent";
+
 export interface MechanicCheck {
   id: string;
   name: string;
   description: string;
   attributeWeights: AttributeWeight[];
   difficultyThreshold: number;
+  /** Only meaningful for team_aggregate. Defaults to "fixed" when omitted. */
+  thresholdMode?: ThresholdMode;
   scope: "per_agent" | "team_aggregate" | "role_specific";
   /** Optional explicit role scope for role_specific checks. When omitted, legacy arcs
    *  fall back to the challenge-level required roles. */

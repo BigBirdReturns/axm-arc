@@ -77,6 +77,14 @@ export function ensureBundledArc(arc: Arc): ArcLibraryEntry[] {
   return entries;
 }
 
+// validateArc throws "Invalid arc:\n[path] msg\n[path] msg" — split into
+// renderable per-path lines.
+function schemaErrorLines(e: unknown): string[] {
+  const msg = (e as Error).message;
+  const lines = msg.split("\n").slice(1).filter((s) => s.length > 0);
+  return lines.length > 0 ? lines : [msg];
+}
+
 // Validate a JSON string and (on success) add it to the library as an
 // imported, unsigned arc. Never throws — validation errors come back as
 // strings so callers can render them cleanly.
@@ -93,10 +101,7 @@ export function importArcFromJson(
   try {
     arc = validateArc(parsed);
   } catch (e) {
-    const msg = (e as Error).message;
-    // validateArc throws "Invalid arc:\n[path] msg\n[path] msg" — split it.
-    const lines = msg.split("\n").slice(1).filter((s) => s.length > 0);
-    return { ok: false, errors: lines.length > 0 ? lines : [msg] };
+    return { ok: false, errors: schemaErrorLines(e) };
   }
   const entries = loadArcLibrary();
   // Replace any existing imported entry with the same id (re-import updates).
@@ -113,6 +118,43 @@ export function importArcFromJson(
   filtered.push(entry);
   saveArcLibrary(filtered);
   return { ok: true, entry };
+}
+
+export interface ArcExportPayload {
+  filename: string;
+  json: string;
+}
+
+/** Deterministic export filename: `<arc-id>.arc.json`. Arc ids are already
+ * slug-shaped per the schema, but slugify defensively so the name is always
+ * filesystem-safe. */
+export function exportFilename(arcId: string): string {
+  const slug = arcId.toLowerCase().replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "");
+  return `${slug.length > 0 ? slug : "arc"}.arc.json`;
+}
+
+// Serialize an arc for export. Runs the same validateArc() every importer
+// (this library and world's cartridge bay) runs, so a file this produces is
+// accepted downstream by construction; an arc that fails comes back as
+// errors and nothing is produced. The payload is the raw Arc object only —
+// trust/importedAt/source are loader-side provenance, not arc content, and
+// exporting them would let a file claim its own trust level.
+export function exportArcToJson(
+  arc: Arc,
+): { ok: true; payload: ArcExportPayload } | { ok: false; errors: string[] } {
+  let validated: Arc;
+  try {
+    validated = validateArc(arc);
+  } catch (e) {
+    return { ok: false, errors: schemaErrorLines(e) };
+  }
+  return {
+    ok: true,
+    payload: {
+      filename: exportFilename(validated.meta.id),
+      json: JSON.stringify(validated, null, 2),
+    },
+  };
 }
 
 // Only removes imported entries. Bundled entries are permanent (the user

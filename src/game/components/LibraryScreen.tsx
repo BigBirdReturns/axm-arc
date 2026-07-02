@@ -7,6 +7,7 @@ import type { Arc } from "../../engine/types.js";
 import { CodexOverlay, TrustLabel } from "../../codex/index.js";
 import {
   type ArcLibraryEntry,
+  exportArcToJson,
   importArcFromJson,
   loadArcLibrary,
   removeArc,
@@ -23,6 +24,8 @@ export function LibraryScreen({ arc, onBack, onLoadArc }: Props): JSX.Element {
   const [jsonDraft, setJsonDraft] = useState("");
   const [importErrors, setImportErrors] = useState<string[]>([]);
   const [importMsg, setImportMsg] = useState<string | null>(null);
+  const [exportErrors, setExportErrors] = useState<{ arcName: string; errors: string[] } | null>(null);
+  const [exportMsg, setExportMsg] = useState<string | null>(null);
   const [inspectEntry, setInspectEntry] = useState<ArcLibraryEntry | null>(null);
 
   const refresh = () => setEntries(loadArcLibrary());
@@ -47,6 +50,29 @@ export function LibraryScreen({ arc, onBack, onLoadArc }: Props): JSX.Element {
     setImportMsg(`Imported "${result.entry.arc.meta.name}" v${result.entry.arc.meta.version}.`);
     setJsonDraft("");
     refresh();
+  };
+
+  // Download the exact library arc as a world-loadable cartridge file. The
+  // validate/serialize half lives in arc-library.ts (exportArcToJson); this
+  // handler only owns the browser download side-effect.
+  const handleExport = (entry: ArcLibraryEntry) => {
+    setExportErrors(null);
+    setExportMsg(null);
+    const result = exportArcToJson(entry.arc);
+    if (!result.ok) {
+      setExportErrors({ arcName: entry.arc.meta.name, errors: result.errors });
+      return;
+    }
+    const blob = new Blob([result.payload.json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = result.payload.filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+    setExportMsg(`Exported "${entry.arc.meta.name}" as ${result.payload.filename}.`);
   };
 
   const handleRemove = (entry: ArcLibraryEntry) => {
@@ -94,6 +120,13 @@ export function LibraryScreen({ arc, onBack, onLoadArc }: Props): JSX.Element {
                     <button className="secondary" onClick={() => setInspectEntry(entry)}>
                       Inspect
                     </button>
+                    <button
+                      className="secondary"
+                      data-testid={`export-arc-${entry.arc.meta.id}`}
+                      onClick={() => handleExport(entry)}
+                    >
+                      Export
+                    </button>
                     <button className="primary" onClick={() => handleLoad(entry)}>
                       {isActive ? "Resume" : "Load"}
                     </button>
@@ -108,6 +141,25 @@ export function LibraryScreen({ arc, onBack, onLoadArc }: Props): JSX.Element {
             );
           })}
         </div>
+
+        {exportErrors && (
+          <div className="warning" data-testid="export-errors" style={{ marginTop: 12, whiteSpace: "pre-wrap" }}>
+            <strong>Export blocked — &ldquo;{exportErrors.arcName}&rdquo; failed validation:</strong>
+            <ul style={{ marginTop: 4, paddingLeft: 20 }}>
+              {exportErrors.errors.map((err, i) => (
+                <li key={i} style={{ fontFamily: "var(--mono)", fontSize: 12 }}>
+                  {err}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {exportMsg && (
+          <div data-testid="export-success" style={{ marginTop: 12, color: "var(--positive)", fontWeight: 600 }}>
+            {exportMsg}
+          </div>
+        )}
 
         <div style={{ marginTop: 32 }}>
           <h2 className="codex-section-title">Import arc</h2>

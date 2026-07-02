@@ -1,4 +1,4 @@
-import type { Organization, Arc } from "./types.js";
+import type { Organization, Arc, Challenge } from "./types.js";
 import type { RunReport } from "./types.js";
 
 // ── CycleEvent (minimal union used in this file) ──────────────────────────────
@@ -85,8 +85,11 @@ function hasPriorSuccess(org: Organization, challengeId: string, currentCycle: n
   return false;
 }
 
-export function accrueChallengeRewards(org: Organization, report: RunReport, arc: Arc): AccruedRewards {
-  const challenge = arc.challenges.find((c) => c.id === report.challengeId);
+// challengeOverride: the challenge the resolver actually ran (e.g. after
+// applyDifficultyMode), so scaled outcomes pay what was resolved. Omitted,
+// the base challenge is looked up by id as before.
+export function accrueChallengeRewards(org: Organization, report: RunReport, arc: Arc, challengeOverride?: Challenge): AccruedRewards {
+  const challenge = challengeOverride ?? arc.challenges.find((c) => c.id === report.challengeId);
   if (!challenge) return { org, currencyGranted: 0, reputationGranted: 0 };
 
   const outcome = challenge.outcomes[report.outcome];

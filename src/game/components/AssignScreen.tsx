@@ -10,6 +10,7 @@ import {
   projectMechanics,
   type MechanicProjection,
 } from "../../engine/projections.js";
+import { challengeAccess, unlockedProgressionTierIds } from "../../engine/access.js";
 import { agentInitials } from "../lib/ui-helpers.js";
 
 interface Props {
@@ -19,28 +20,21 @@ interface Props {
   setAssignments: (a: ChallengeAssignment[]) => void;
 }
 
+// Tier unlock and challenge gates both come from the engine's canonical
+// derivation (access.ts) — this screen previously carried its own inline
+// tier logic, which is exactly the kind of duplicate that drifts. Access is
+// checked in feasibility mode (no party yet): a challenge shows once any
+// legal party could exist, and runCycle re-checks the actual party.
 function unlockedChallenges(arc: Arc, org: Organization): Challenge[] {
-  const cleared = new Set<string>();
-  for (const a of Object.values(org.agents)) {
-    for (const r of a.assignmentHistory) {
-      if (r.outcome === "success") cleared.add(`${r.challengeId}-cleared`);
-    }
-  }
-  const unlockedTiers = new Set<string>();
-  for (const pt of arc.progressionTiers) {
-    const milestonesMet = pt.unlockConditions.orgMilestones.every((m) =>
-      cleared.has(m),
-    );
-    const repMet =
-      (pt.unlockConditions.reputationMinimum ?? 0) <= org.reputation;
-    if (milestonesMet && repMet) unlockedTiers.add(pt.id);
-  }
+  const unlockedTiers = unlockedProgressionTierIds(org, arc);
   const challengeIds = new Set<string>();
   for (const pt of arc.progressionTiers) {
     if (unlockedTiers.has(pt.id))
       for (const c of pt.challenges) challengeIds.add(c);
   }
-  return arc.challenges.filter((c) => challengeIds.has(c.id));
+  return arc.challenges.filter(
+    (c) => challengeIds.has(c.id) && challengeAccess(c, org, arc).accessible,
+  );
 }
 
 interface RosterPlan {

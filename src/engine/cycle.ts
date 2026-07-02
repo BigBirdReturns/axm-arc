@@ -19,6 +19,8 @@ import { applyRewardDecision, evaluateLootEligibility } from "./rewards.js";
 import { tickInfrastructure } from "./infrastructure.js";
 import { refreshOpenPool } from "./recruitment.js";
 import { regenerateTokens, spendTokens, accrueChallengeRewards, chargeUpkeep } from "./economy.js";
+import { challengeAccess, stampNewAttunements } from "./access.js";
+import { applyDifficultyMode } from "./difficulty.js";
 import { serializeGame } from "./save.js";
 import { Rng, hashSeed } from "./prng.js";
 import {
@@ -32,6 +34,9 @@ export interface ChallengeAssignment {
   challengeId: string;
   agentIds: string[];
   tokensSpent: number;
+  /** Resolve against arc.difficultyModes entry with this id (see
+   * applyDifficultyMode). Omitted = base difficulty. */
+  difficultyModeId?: string;
 }
 
 export interface RewardDecision {
@@ -135,6 +140,37 @@ export function runCycle(opts: {
       continue;
     }
 
+    // Gate enforcement: a locked challenge never resolves and never spends
+    // tokens. Judged against the declared party (access.ts).
+    const access = challengeAccess(challenge, org, arc, assignment.agentIds);
+    if (!access.accessible) {
+      const reasons: string[] = [];
+      if (access.missingMilestones.length > 0) {
+        reasons.push(`missing milestones: ${access.missingMilestones.join(", ")}`);
+      }
+      if (access.attunement !== null && !access.attunement.satisfied) {
+        reasons.push(
+          `attuned agents ${access.attunement.attunedAgentIds.length}/${access.attunement.requiredCount} (chains: ${access.attunement.requiredChains.join(", ")})`,
+        );
+      }
+      warnings.push(`Challenge ${assignment.challengeId} is locked — ${reasons.join("; ")}`);
+      continue;
+    }
+
+    // Difficulty mode: resolve against the transformed challenge. Its id is
+    // preserved, so history and milestones stay keyed to the base challenge.
+    let effectiveChallenge = challenge;
+    if (assignment.difficultyModeId !== undefined) {
+      const mode = arc.difficultyModes.find((m) => m.id === assignment.difficultyModeId);
+      if (!mode) {
+        warnings.push(
+          `Difficulty mode not found: ${assignment.difficultyModeId} (challenge ${assignment.challengeId})`,
+        );
+        continue;
+      }
+      effectiveChallenge = applyDifficultyMode(challenge, mode);
+    }
+
     // Spend tokens
     if (assignment.tokensSpent > 0) {
       try {
@@ -155,7 +191,7 @@ export function runCycle(opts: {
     }
 
     const report = resolveChallenge({
-      challenge,
+      challenge: effectiveChallenge,
       assignedAgents: agentList,
       org,
       arc,
@@ -178,7 +214,7 @@ export function runCycle(opts: {
       let patch: Partial<Agent> = { assignmentHistory: newHistory };
 
       if (ar.wasDowned) {
-        const downedUntil = cycle + (challenge.outcomes[report.outcome].agentDowntimeCycles ?? 1);
+        const downedUntil = cycle + (effectiveChallenge.outcomes[report.outcome].agentDowntimeCycles ?? 1);
         patch = { ...patch, downedUntilCycle: downedUntil };
         events.push({ type: "downed", agentId: ar.agentId, data: { until: downedUntil } });
       }
@@ -188,7 +224,7 @@ export function runCycle(opts: {
 
     // Accrue currency + reputation from the outcome. First clear pays full;
     // re-clears pay a reduced share (see accrueChallengeRewards).
-    const accrued = accrueChallengeRewards(org, report, arc);
+    const accrued = accrueChallengeRewards(org, report, arc, effectiveChallenge);
     org = accrued.org;
     report.rewardsGranted = { currency: accrued.currencyGranted, reputation: accrued.reputationGranted };
 
@@ -492,6 +528,15 @@ export function runCycle(opts: {
         revealedTraits: newRevealedTraits,
       });
     }
+  }
+
+  // ── STEP 10b: Attunement stamping ─────────────────────────────────────────
+  // Chains completed by this cycle's final state stamp onto agents now, so
+  // attunement is monotonic from here on (see access.ts).
+  const stamped = stampNewAttunements(org, arc);
+  org = stamped.org;
+  for (const grant of stamped.newlyAttuned) {
+    events.push({ type: "attuned", agentId: grant.agentId, data: { chainId: grant.chainId } });
   }
 
   // ── Increment cycle ───────────────────────────────────────────────────────

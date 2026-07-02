@@ -56,6 +56,21 @@ function distributeStats(
   return result;
 }
 
+// Base efficiency per §1.2.5. Shared by generateAgent and the designer editor
+// (Editor tier/trait patches must reconcile through the exact same formula —
+// no duplicated math). Deliberately takes only arc/tier/traitIds: the stat
+// distribution itself has never fed this formula (statSum/statAvg were dead
+// code here previously), so this stays behavior-identical to the original
+// inline computation.
+export function computeBaseEfficiency(arc: Arc, tier: ArcTier, traitIds: string[]): number {
+  const attrIds = arc.attributes.map((a) => a.id);
+  const tierMidpoint = (tier.statBudgetMin + tier.statBudgetMax) / 2;
+  const tierMidpointAttrAvg = attrIds.length > 0 ? tierMidpoint / attrIds.length : tierMidpoint;
+  let baseEfficiency = 20 - tierMidpointAttrAvg * 0.6;
+  if (traitIds.includes("industrious")) baseEfficiency *= 1.3;
+  return baseEfficiency;
+}
+
 export function generateAgent(opts: GenerateAgentOpts): Agent {
   const { rng, tier, arc, cycle, preferredRoleId } = opts;
 
@@ -91,14 +106,7 @@ export function generateAgent(opts: GenerateAgentOpts): Agent {
     leadership: rng.int(1, 20),
   };
 
-  // Base efficiency per §1.2.5
-  const statSum = attrIds.reduce((s, id) => s + (attributes[id] ?? 0), 0);
-  const statAvg = attrIds.length > 0 ? statSum / attrIds.length : 0;
-  const tierMidpoint = (tier.statBudgetMin + tier.statBudgetMax) / 2;
-  const tierMidpointAttrAvg = attrIds.length > 0 ? tierMidpoint / attrIds.length : tierMidpoint;
-  let baseEfficiency = 20 - tierMidpointAttrAvg * 0.6;
-  const hasIndustrious = traitIds.includes("industrious");
-  if (hasIndustrious) baseEfficiency *= 1.3;
+  const baseEfficiency = computeBaseEfficiency(arc, tier, traitIds);
 
   // Name
   const namePool = arc.namePool.firstNames.length > 0 ? arc.namePool : DEFAULT_NAME_POOL;

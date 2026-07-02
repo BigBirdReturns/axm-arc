@@ -186,13 +186,46 @@
 .designer-screen .d-attr-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
 .designer-screen .d-attr-name { font-family: var(--display); font-size: 14px; font-weight: 600; width: 90px; flex-shrink: 0; color: var(--ink); }
 .designer-screen .d-track { flex: 1; height: 8px; background: var(--paper-dk, var(--rule)); position: relative; min-width: 0; }
-.designer-screen .d-fill { height: 100%; background: var(--accent); }
-.designer-screen .d-attr-val { font-family: var(--mono); font-size: 12px; width: 34px; text-align: right; color: var(--ink); }
+.designer-screen .d-fill { position: absolute; inset: 0 auto 0 0; height: 100%; background: var(--accent); }
+.designer-screen .d-bonus { position: absolute; top: 0; bottom: 0; background: var(--positive); opacity: 0.55; }
+.designer-screen .d-attr-input {
+  width: 46px; text-align: right; font-family: var(--mono); font-size: 12px;
+  color: var(--ink); background: var(--paper); border: 1px solid var(--rule);
+  border-radius: 2px; padding: 2px 4px;
+}
+.designer-screen .d-attr-input:focus { outline: none; border-color: var(--accent); }
+.designer-screen .d-plus { color: var(--positive); font-size: 11px; margin-left: 4px; }
+
+.designer-screen .d-budget {
+  font-family: var(--mono); font-size: 11px; color: var(--muted);
+  margin-top: 10px; display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+}
+.designer-screen .d-budget.over { color: var(--accent); }
+.designer-screen .d-budget b { color: var(--ink); }
+
+/* ── Hidden attrs (sealed) ───────────────────────────────────── */
+.designer-screen .d-hidden-note {
+  font-family: var(--serif); font-style: italic; font-size: 12px;
+  color: var(--dim); margin-bottom: 12px; line-height: 1.5;
+}
+.designer-screen .d-hidden-row { display: flex; align-items: center; gap: 12px; margin-bottom: 9px; }
+.designer-screen .d-hidden-name {
+  width: 92px; flex-shrink: 0; font-family: var(--display); font-size: 14px;
+  color: var(--ink); text-transform: capitalize;
+}
+.designer-screen .d-hidden-row input[type="range"] { flex: 1; accent-color: var(--accent); }
+.designer-screen .d-hidden-val { width: 28px; text-align: right; font-family: var(--mono); font-size: 12px; color: var(--ink); }
 
 .designer-screen .d-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .designer-screen .d-chip {
   font-family: var(--mono); font-size: 11px; padding: 4px 9px;
   border: 1px solid var(--rule); background: var(--paper); color: var(--muted);
+  cursor: pointer;
+}
+.designer-screen .d-chip:hover:not(:disabled) { border-color: var(--accent); color: var(--ink); }
+.designer-screen .d-trait-desc {
+  font-family: var(--serif); font-size: 12.5px; color: var(--muted);
+  margin-top: 10px; line-height: 1.5; min-height: 36px;
 }
 
 /* ── Right engine record ─────────────────────────────────────── */

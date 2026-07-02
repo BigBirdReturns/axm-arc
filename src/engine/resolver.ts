@@ -21,6 +21,12 @@ export interface ResolveChallengeOpts {
   cycle: number;
 }
 
+function effectiveThreshold(check: MechanicCheck, partySize: number): number {
+  return check.scope === "team_aggregate" && check.thresholdMode === "perAssignedAgent"
+    ? check.difficultyThreshold * Math.max(1, partySize)
+    : check.difficultyThreshold;
+}
+
 function getPrimaryAttrId(check: MechanicCheck): string {
   let best = check.attributeWeights[0]!;
   for (const aw of check.attributeWeights) {
@@ -242,7 +248,7 @@ export function resolveChallenge(opts: ResolveChallengeOpts): RunReport {
 
     for (const check of challenge.mechanicChecks) {
       let score: number;
-      let threshold = check.difficultyThreshold;
+      let threshold = effectiveThreshold(check, assignedAgents.length);
       let passed = false;
 
       if (check.scope === "per_agent" || check.scope === "role_specific") {
@@ -272,7 +278,7 @@ export function resolveChallenge(opts: ResolveChallengeOpts): RunReport {
         // Macro variance prevents large teams from flatlining via law of large numbers
         const macroVariance = rng.uniform(-3, 3) * (assignedAgents.length / 2);
         score = teamScore + macroVariance;
-        threshold = check.difficultyThreshold * assignedAgents.length;
+        threshold = effectiveThreshold(check, assignedAgents.length);
         passed = score >= threshold;
       }
 

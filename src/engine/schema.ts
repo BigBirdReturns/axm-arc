@@ -17,6 +17,7 @@ const MechanicCheckSchema = z.object({
   description: z.string(),
   attributeWeights: z.array(AttributeWeightSchema).min(1),
   difficultyThreshold: z.number().int(),
+  thresholdMode: z.enum(["fixed", "perAssignedAgent"]).optional(),
   scope: z.enum(["per_agent", "team_aggregate", "role_specific"]),
   roleIds: z.array(z.string()).optional(),
   failureConsequence: FailureConsequenceSchema,
@@ -85,6 +86,12 @@ const ChallengeSchema = z.object({
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
             message: `Mechanic check "${check.id}" attribute weights must sum to 1.0 (got ${total.toFixed(3)})`,
+          });
+        }
+        if (check.thresholdMode !== undefined && check.scope !== "team_aggregate") {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `Mechanic check "${check.id}" sets thresholdMode but has scope "${check.scope}" — thresholdMode only applies to team_aggregate checks`,
           });
         }
       }

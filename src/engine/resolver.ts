@@ -19,6 +19,10 @@ export interface ResolveChallengeOpts {
   arc: Arc;
   rng: Rng;
   cycle: number;
+  /** Tokens the assignment committed toward the authored resource-spend lever.
+   *  Defaults to 0. Honored only when the party clears the same count+role gates
+   *  the shell used to offer the option; a no-op otherwise (see steadinessFor). */
+  tokensSpent?: number;
 }
 
 function effectiveThreshold(check: MechanicCheck, partySize: number): number {
@@ -71,6 +75,38 @@ function getVolatilitySwing(volatility: number, rng: Rng): number {
   return 0;
 }
 
+/** True when the assigned party clears the contract's hard gates — count within
+ *  [minAgents, maxAgents] and every required role covered. Resource-spend is a
+ *  strict no-op unless this holds, so a below-gate party resolves identically
+ *  with or without spend (gate independence). Mirrors readiness.evaluateParty's
+ *  countOk/rolesOk on the world side. */
+function partyClearsGates(challenge: Challenge, assignedAgents: Agent[]): boolean {
+  const rr = challenge.rosterRequirements;
+  if (assignedAgents.length < rr.minAgents || assignedAgents.length > rr.maxAgents) return false;
+  for (const req of rr.roleRequirements) {
+    const have = assignedAgents.filter((a) => a.role === req.roleId).length;
+    if (have < req.count) return false;
+  }
+  return true;
+}
+
+/** The steadiness factor k ∈ [minSteadiness, 1] applied to a check's SYMMETRIC
+ *  mean-zero variance. k = 1 (no effect) when: no lever is authored for the
+ *  check, the party fails the gates, or no tokens were spent. Because it only
+ *  ever scales mean-zero terms, k leaves the expected score unchanged and can
+ *  only narrow the spread — never lift the mean past entitlement. */
+function steadinessFor(
+  check: MechanicCheck,
+  challenge: Challenge,
+  gatesOk: boolean,
+  tokensSpent: number,
+): number {
+  const lever = check.resourceSpend ?? challenge.resourceSpend;
+  if (!lever || !gatesOk || tokensSpent <= 0) return 1;
+  const honored = Math.min(tokensSpent, lever.maxTokens);
+  return Math.max(lever.minSteadiness, 1 - lever.steadinessPerToken * honored);
+}
+
 function getAllTraits(agent: Agent, arc: Arc) {
   return agent.traits.map((tid) => {
     const t = arc.customTraits.find((c) => c.id === tid) ?? DEFAULT_TRAIT_POOL.find((d) => d.id === tid);
@@ -117,6 +153,7 @@ function scoreAgent(
   org: Organization,
   arc: Arc,
   rng: Rng,
+  steadiness = 1,
 ): number {
   const rawScore = check.attributeWeights.reduce((s, aw) => {
     return s + (agent.attributes[aw.attributeId] ?? 0) * aw.weight;
@@ -127,7 +164,11 @@ function scoreAgent(
   const relMod = getRelMod(agent, others, org);
   const moraleMod = (agent.morale - 50) / 10;
   const afflictionMod = getAfflictionMod(agent);
-  const variance = rng.uniform(-4, 4);
+  // Symmetric, mean-zero luck-of-the-roll. The resource-spend lever scales this
+  // (and macroVariance) by `steadiness` — never the deterministic terms and
+  // never volatilitySwing — so the mean is invariant and only the spread moves.
+  // The rng draw is unchanged, so steadiness === 1 is byte-identical to before.
+  const variance = rng.uniform(-4, 4) * steadiness;
 
   // Reckless forces max volatility
   const effectiveVolatility =
@@ -236,6 +277,11 @@ function stressForDifficulty(difficultyRating: number): number {
 export function resolveChallenge(opts: ResolveChallengeOpts): RunReport {
   const { challenge, assignedAgents, org, arc, cycle } = opts;
 
+  // Resource-spend: honored only for a party that clears the hard gates (count +
+  // roles). Computed once; per-check steadiness is derived from it below.
+  const tokensSpent = opts.tokensSpent ?? 0;
+  const gatesOk = partyClearsGates(challenge, assignedAgents);
+
   // Deterministic per-challenge seed
   const seed = hashSeed(org.rngSeed, cycle, challenge.id);
   const rng = new Rng(seed);
@@ -250,6 +296,9 @@ export function resolveChallenge(opts: ResolveChallengeOpts): RunReport {
       let score: number;
       let threshold = effectiveThreshold(check, assignedAgents.length);
       let passed = false;
+      // Steadiness for this check: 1 (no effect) unless a lever is authored, the
+      // gates hold, and tokens were spent. Scales only the symmetric variance.
+      const steadiness = steadinessFor(check, challenge, gatesOk, tokensSpent);
 
       if (check.scope === "per_agent" || check.scope === "role_specific") {
         if (check.scope === "role_specific") {
@@ -262,7 +311,7 @@ export function resolveChallenge(opts: ResolveChallengeOpts): RunReport {
             continue;
           }
         }
-        score = scoreAgent(agent, check, others, org, arc, rng);
+        score = scoreAgent(agent, check, others, org, arc, rng, steadiness);
         passed = score >= threshold;
       } else {
         // team_aggregate — compute on first agent, share result
@@ -273,10 +322,11 @@ export function resolveChallenge(opts: ResolveChallengeOpts): RunReport {
         }
         // Sum all agents' individual scores
         const teamScore = assignedAgents.reduce((s, a) => {
-          return s + scoreAgent(a, check, assignedAgents.filter((o) => o.id !== a.id), org, arc, rng);
+          return s + scoreAgent(a, check, assignedAgents.filter((o) => o.id !== a.id), org, arc, rng, steadiness);
         }, 0);
-        // Macro variance prevents large teams from flatlining via law of large numbers
-        const macroVariance = rng.uniform(-3, 3) * (assignedAgents.length / 2);
+        // Macro variance prevents large teams from flatlining via law of large
+        // numbers. Symmetric and mean-zero, so the lever scales it too.
+        const macroVariance = rng.uniform(-3, 3) * (assignedAgents.length / 2) * steadiness;
         score = teamScore + macroVariance;
         threshold = effectiveThreshold(check, assignedAgents.length);
         passed = score >= threshold;

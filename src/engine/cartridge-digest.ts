@@ -7,6 +7,12 @@
 // over is exactly `canonicalizeArc(arc)` — so introducing the digest now keeps
 // that adoption additive rather than a rewrite.
 //
+// The digest identifies *authored law*. Custody metadata — signatures, trust
+// labels, prior digests, load-time provenance — rides in the envelope and must
+// never change a cartridge's content identity. So a fixed set of reserved
+// top-level keys is stripped before hashing (see RESERVED_ENVELOPE_KEYS): the
+// digest is safe even if a caller passes an envelope-shaped or imported object.
+//
 // Pure and dependency-free: canonical JSON (object keys sorted recursively,
 // array order preserved) hashed with a self-contained SHA-256. It takes no new
 // dependency and does not rely on an ambient Web Crypto global, so it computes
@@ -15,12 +21,47 @@
 
 import type { Arc } from "./types";
 
-/** Deterministic canonical JSON for an arc: object keys sorted recursively,
- *  array order preserved, `undefined` members dropped (as `JSON` does). Two arcs
- *  that differ only in key insertion order canonicalize identically; reordering
- *  an authored array (a real content change) does not. */
+/** Envelope / custody / provenance keys that may ride alongside an arc at the
+ *  top level — in a cartridge envelope, an imported object, or a signed record —
+ *  but are NOT authored law. They are stripped from the root before hashing so
+ *  custody metadata can never perturb content identity:
+ *
+ *    the digest identifies authored law;
+ *    the envelope carries custody metadata;
+ *    custody metadata must not change authored identity.
+ *
+ *  Stripping is TOP-LEVEL ONLY. Authored content nested anywhere below the root
+ *  (including freeform maps like a challenge's completionCriteria.parameters)
+ *  keeps every key it declares, so tamper sensitivity on authored law is fully
+ *  preserved even if an author legitimately uses one of these names deep inside. */
+const RESERVED_ENVELOPE_KEYS: ReadonlySet<string> = new Set([
+  "digest",
+  "cartridgeDigest",
+  "signature",
+  "signatures",
+  "trust",
+  "trustLabel",
+  "provenance",
+  "importedAt",
+  "source",
+  "sourcePath",
+  "verifiedAt",
+  "verification",
+  "publisher",
+  "publisherKey",
+  "genesis",
+  "attestation",
+  "attestations",
+]);
+
+/** Deterministic canonical JSON for an arc: reserved top-level envelope/custody
+ *  keys removed, then object keys sorted recursively, array order preserved,
+ *  `undefined` members dropped (as `JSON` does). Two arcs that differ only in
+ *  key insertion order — or in top-level custody metadata — canonicalize
+ *  identically; reordering an authored array, or changing any authored byte,
+ *  does not. */
 export function canonicalizeArc(arc: Arc): string {
-  return canonicalize(arc);
+  return canonicalize(stripReservedTopLevel(arc));
 }
 
 /** The content-identity anchor for a cartridge: `cart1_<sha256 hex>` over the
@@ -36,6 +77,24 @@ export function cartridgeDigest(arc: Arc): string {
  *  standard NIST test vectors (asserted in the test suite). */
 export function sha256Hex(input: string): string {
   return bytesToHex(sha256(utf8Bytes(input)));
+}
+
+// ── reserved-key strip ──────────────────────────────────────────────────────
+
+/** Remove reserved envelope/custody keys from the ROOT object only. Non-object
+ *  inputs pass through unchanged; nested objects/arrays are left untouched (they
+ *  are canonicalized recursively, but not stripped). */
+function stripReservedTopLevel(value: unknown): unknown {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    return value;
+  }
+  const obj = value as Record<string, unknown>;
+  const out: Record<string, unknown> = {};
+  for (const key of Object.keys(obj)) {
+    if (RESERVED_ENVELOPE_KEYS.has(key)) continue;
+    out[key] = obj[key];
+  }
+  return out;
 }
 
 // ── canonical JSON ───────────────────────────────────────────────────────────

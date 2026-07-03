@@ -1,12 +1,14 @@
 // Property tests for the canonical cartridge digest — Stage 1 of the Genesis
 // conformance ladder (docs/AXM_FAMILY.md). The digest is a deterministic
 // content-identity anchor over an arc's authored bytes: it detects tampering,
-// it does not prove authorship. These tests pin two things:
+// it does not prove authorship. These tests pin three things:
 //
 //   (1) the SHA-256 primitive is correct — asserted against the standard NIST
 //       known-answer vectors, so a future refactor can't silently break it;
 //   (2) canonicalization has the right invariances — key order and object
-//       identity do not change the digest, but any authored byte does.
+//       identity do not change the digest, but any authored byte does;
+//   (3) reserved envelope/custody keys are excluded — signatures, prior digests,
+//       trust labels, and provenance cannot change authored identity.
 //
 // This is the payload a Genesis signature (Stage 2) will sign over, so its
 // stability is a platform guarantee, not a convenience.
@@ -72,5 +74,56 @@ describe("cartridgeDigest — content-identity anchor over a real arc", () => {
     const forward = { challenges: [{ id: "a" }, { id: "b" }] } as unknown as Arc;
     const reversed = { challenges: [{ id: "b" }, { id: "a" }] } as unknown as Arc;
     expect(cartridgeDigest(forward)).not.toBe(cartridgeDigest(reversed));
+  });
+});
+
+describe("cartridgeDigest — reserved envelope/custody keys are excluded", () => {
+  // The digest identifies authored law. Signatures, prior digests, trust labels,
+  // and load-time provenance ride in the envelope and must not change identity.
+  const RESERVED: ReadonlyArray<readonly [string, unknown]> = [
+    ["digest", "cart1_x"],
+    ["cartridgeDigest", "cart1_x"],
+    ["signature", "sig"],
+    ["signatures", ["sig"]],
+    ["trust", "verified"],
+    ["trustLabel", "verified"],
+    ["provenance", { a: 1 }],
+    ["importedAt", "2026-07-03"],
+    ["source", "https://example.test/mini.json"],
+    ["sourcePath", "/p"],
+    ["verifiedAt", "2026-07-03"],
+    ["verification", { ok: true }],
+    ["publisher", { id: "p" }],
+    ["publisherKey", "k"],
+    ["genesis", { v: 1 }],
+    ["attestation", { t: 1 }],
+    ["attestations", [{ t: 1 }]],
+  ];
+
+  it("ignores each reserved key added at the top level", () => {
+    const base = cartridgeDigest(MINI_ARC);
+    for (const [key, val] of RESERVED) {
+      const withKey = { ...MINI_ARC, [key]: val } as unknown as Arc;
+      expect(cartridgeDigest(withKey)).toBe(base);
+    }
+  });
+
+  it("ignores an envelope carrying all reserved keys at once", () => {
+    const base = cartridgeDigest(MINI_ARC);
+    const envelope = { ...MINI_ARC, ...Object.fromEntries(RESERVED) } as unknown as Arc;
+    expect(cartridgeDigest(envelope)).toBe(base);
+  });
+
+  it("still changes the digest when authored law changes (guard is not over-broad)", () => {
+    const tampered = { ...MINI_ARC, meta: { ...MINI_ARC.meta, name: MINI_ARC.meta.name + "!" } };
+    expect(cartridgeDigest(tampered)).not.toBe(cartridgeDigest(MINI_ARC));
+  });
+
+  it("strips reserved keys only at the top level (nested authored data is preserved)", () => {
+    // `source` here is nested authored content, not a top-level envelope key, so
+    // it is part of identity — changing it must change the digest.
+    const a = { x: { source: "one" } } as unknown as Arc;
+    const b = { x: { source: "two" } } as unknown as Arc;
+    expect(cartridgeDigest(a)).not.toBe(cartridgeDigest(b));
   });
 });

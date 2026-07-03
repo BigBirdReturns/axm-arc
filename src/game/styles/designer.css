@@ -46,6 +46,23 @@
   font-family: var(--display); font-size: 20px; font-weight: 800;
   text-transform: uppercase; letter-spacing: -0.01em;
 }
+/* ── KARAZHAN CARTRIDGE ACCENT (scoped) ──────────────────────────
+   Applied only when the active arc is Karazhan (the container carries
+   data-arc="karazhan"). Violet-night accent on the header rule + arc
+   title; the role/attribute vocabulary itself is still arc-data driven.
+   No default-arc styling is affected. */
+.designer-screen[data-arc="karazhan"] .d-topbar {
+  border-bottom-color: #574a7a; /* violet night */
+  box-shadow: inset 0 -3px 0 0 #574a7a;
+}
+.designer-screen[data-arc="karazhan"] .d-title-arc {
+  color: #a99cd0; /* violet night, lightened for the dark topbar */
+}
+.designer-screen[data-arc="karazhan"] .d-title-kicker {
+  color: #a99cd0;
+  opacity: 0.85;
+}
+
 .designer-screen .d-section-nav {
   display: flex; gap: 4px; margin-left: auto; overflow-x: auto;
 }

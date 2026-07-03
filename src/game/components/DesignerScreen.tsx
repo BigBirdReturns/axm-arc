@@ -20,6 +20,7 @@ import {
   type RosterDraft,
   type DesignerSection,
 } from "../lib/designer-storage.js";
+import { isKarazhan } from "../karazhan-theme.js";
 
 interface Props {
   arc: Arc;
@@ -186,7 +187,11 @@ export function DesignerScreen({ arc, onBack }: Props): JSX.Element {
     hoverTrait ?? (selected ? traitPool.find((t) => selected.traits.includes(t.id)) : undefined);
 
   return (
-    <div className="designer-screen" data-designer-step="3">
+    <div
+      className="designer-screen"
+      data-designer-step="3"
+      data-arc={isKarazhan(arc.meta.id) ? "karazhan" : undefined}
+    >
       <header className="d-topbar">
         <button className="d-back" onClick={onBack} aria-label="Back to title">
           ‹ Back

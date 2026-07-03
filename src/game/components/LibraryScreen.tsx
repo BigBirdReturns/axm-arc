@@ -12,6 +12,7 @@ import {
   loadArcLibrary,
   removeArc,
 } from "../lib/arc-library.js";
+import { KarazhanEmblem, isKarazhan } from "../karazhan-theme.js";
 
 interface Props {
   arc: Arc; // currently-active arc (for "this is loaded" badge)
@@ -103,11 +104,22 @@ export function LibraryScreen({ arc, onBack, onLoadArc }: Props): JSX.Element {
         <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 24 }}>
           {entries.map((entry) => {
             const isActive = entry.arc.meta.id === arc.meta.id;
+            const karazhan = isKarazhan(entry.arc.meta.id);
             return (
-              <div key={`${entry.arc.meta.id}:${entry.source}`} className="card" style={{ padding: 12 }}>
+              <div
+                key={`${entry.arc.meta.id}:${entry.source}`}
+                className="card"
+                data-arc={karazhan ? "karazhan" : undefined}
+                style={{ padding: 12 }}
+              >
                 <div className="row between" style={{ alignItems: "flex-start" }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                      {karazhan && (
+                        <span className="karazhan-emblem" aria-hidden="true">
+                          <KarazhanEmblem size={20} />
+                        </span>
+                      )}
                       <strong style={{ fontSize: 16 }}>{entry.arc.meta.name}</strong>
                       <TrustLabel trust={entry.trust} />
                       {isActive && <span className="badge pass">Active</span>}

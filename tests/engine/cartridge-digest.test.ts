@@ -14,7 +14,7 @@
 // stability is a platform guarantee, not a convenience.
 
 import { describe, it, expect } from "vitest";
-import { sha256Hex, canonicalizeArc, cartridgeDigest } from "../../src/engine/cartridge-digest";
+import { sha256Hex, canonicalizeArc, cartridgeDigest, RESERVED_ENVELOPE_KEYS } from "../../src/engine/cartridge-digest";
 import { MINI_ARC } from "../fixtures/mini-arc";
 import type { Arc } from "../../src/engine/types";
 
@@ -125,5 +125,10 @@ describe("cartridgeDigest — reserved envelope/custody keys are excluded", () =
     const a = { x: { source: "one" } } as unknown as Arc;
     const b = { x: { source: "two" } } as unknown as Arc;
     expect(cartridgeDigest(a)).not.toBe(cartridgeDigest(b));
+  });
+
+  it("the test's reserved list matches the module's exported single source", () => {
+    // Guards against the enumerated list here drifting from the module's set.
+    expect(new Set(RESERVED.map(([k]) => k))).toEqual(RESERVED_ENVELOPE_KEYS);
   });
 });

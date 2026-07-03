@@ -33,8 +33,11 @@ import type { Arc } from "./types";
  *  Stripping is TOP-LEVEL ONLY. Authored content nested anywhere below the root
  *  (including freeform maps like a challenge's completionCriteria.parameters)
  *  keeps every key it declares, so tamper sensitivity on authored law is fully
- *  preserved even if an author legitimately uses one of these names deep inside. */
-const RESERVED_ENVELOPE_KEYS: ReadonlySet<string> = new Set([
+ *  preserved even if an author legitimately uses one of these names deep inside.
+ *
+ *  Exported as the single source of truth: downstream conformance guards import
+ *  this set rather than re-declaring one that could silently diverge. */
+export const RESERVED_ENVELOPE_KEYS: ReadonlySet<string> = new Set([
   "digest",
   "cartridgeDigest",
   "signature",

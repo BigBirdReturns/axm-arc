@@ -72,6 +72,18 @@ describe("gate honesty", () => {
   });
 });
 
+describe("tuning makes previously-unreachable content reachable", () => {
+  // Pre-tuning the Blackened Urn was elite-tier and never eligible for the
+  // veteran roster, so Nightbane could never be summoned (Finding 1). After
+  // the retier, a reasonable seed range must actually reach it — proving the
+  // fix end to end through the real engine, not just in the report prose.
+  it("at least one run acquires the urn and opens the Nightbane gate", { timeout: LONG }, () => {
+    const runs = Array.from({ length: 12 }, (_, i) => simulateKarazhanRun({ seed: i + 1, maxCycles: 40 }));
+    expect(runs.some((r) => r.urnCycle !== null && r.nightbaneAccessCycle !== null)).toBe(true);
+    expect(runs.some((r) => (r.attempts["nightbane"]?.success ?? 0) > 0)).toBe(true);
+  });
+});
+
 describe("campaign shape", () => {
   it("wing 1 is beatable by the starting roster inside the early game", { timeout: LONG }, () => {
     const run = simulateKarazhanRun({ seed: 1, maxCycles: 25 });

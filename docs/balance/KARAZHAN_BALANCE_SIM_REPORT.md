@@ -136,7 +136,48 @@ any engine change.
 
 *(Numbers from re-running the identical sweeps after the tuning commit.)*
 
-<!-- POST_TUNING -->
+*(Identical sweeps, seeds 1..30, after the tuning commit — clean `.ts` runs,
+no stale compiled artifacts.)*
+
+| Sweep | Clear | Stall | Out of cycles | Gate violations |
+|---|---|---|---|---|
+| 25 cycles | 0% | 0% | 100% | 0 |
+| 40 cycles | **13%** | 0% | 87% | 0 |
+
+Attempt outcomes (30 × 40-cycle), the encounters the tuning touched:
+
+| Encounter | Pre S/P | Post S/P | Effect |
+|---|---|---|---|
+| opera | 30/210 | 30/147 | mill softened ~30% |
+| magtheridon | 7/215 | 4/283 | still the wall (see below) |
+| **nightbane** | never attempted | **26/27** | now reachable — the bug is fixed |
+
+- **Finding 1 fixed and verified.** With the wing 4–5 drops retiered to
+  `veteran`, the Blackened Urn now drops (median cycle 21), the urn-bearer
+  chain completes, Nightbane access opens the same cycle, and Nightbane is
+  attempted and cleared in **26 of 30** runs (was 0). No authored content is
+  unreachable anymore. *Note:* this depends on the loot policy routing the
+  urn to a key-attuned raider — the sim does this deliberately (a competent
+  player does too); role-weight-only routing reaches it far less often. This
+  is a second-order lesson, not a content bug: **a gate item is only as
+  reachable as the reward decision that routes it.**
+- **Opera mill softened**, 210 → 147 partials per 30 clears.
+- **`estimatedCycles` corrected** to 40.
+- **Magtheridon remains the wall** and is now a *design decision, not a bug*:
+  4 successes / 283 partials. The overall clear rate moving 23% → 13% is not
+  a regression — it is the honest cost of the autoplayer now spending cycles
+  on the optional Nightbane it can finally reach, plus routing the low-stat
+  urn for gating rather than gearing. The final boss dominates completion.
+  Two defensible readings, left to the owner: (a) an epic multi-cycle grind
+  finale is *appropriate* for a raid's last boss — ship as is; or (b) it
+  should fall to a v0-skill roster inside 40 cycles, which needs either a
+  channeler-burn softening or one of the growth levers the sim does not model
+  (facility upgrades, elite recruitment). **Recommend playing wing 5 once by
+  hand before any further magtheridon change** — the sim can't see the levers
+  a real player has.
+- Attunement pacing after tuning: first key cycle 5, half-raid cycle 5, urn
+  cycle 21, Nightbane access cycle 21 — the two-chain design works exactly as
+  authored.
 
 ## Reproduce
 

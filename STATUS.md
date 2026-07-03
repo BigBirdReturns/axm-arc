@@ -1,68 +1,139 @@
-# STATUS — axm-arc, 2026-06-02
+# STATUS — axm-arc, 2026-07-03
 
 **The "where exactly are we right now + what's next" artifact.** Re-readable
 in any new session or by any agent picking up cold. Updated as state changes.
 
-> Read alongside: `ROADMAP.md` (strategic frame), `HOOK.md` / `BALANCE.md` /
-> `SCALE.md` / `DESIGNER_PORT.md` (design docs), `docs/DEPLOY.md` (pipeline).
+> Read alongside: `ROADMAP.md` (strategic frame), `RECONCILIATION.md` (the
+> hub⇄world contract), `HOOK.md` / `BALANCE.md` / `SCALE.md` (design docs),
+> `docs/DEPLOY.md` (pipeline), axm-world `docs/POSITIONING.md` (platform
+> pitch).
 
-## A. What is live on `main`
+---
 
-**Engine.** 11-step deterministic cycle, content-free, **193 tests**,
-Mulberry32 PRNG with `hashSeed` substreams, Zod arc schema. Determinism bug
-fixed: the Fearful-bark RNG-in-sort-comparator replaced with Fisher-Yates +
-a golden insertion-order invariance test (SCALE law 3 enforced).
+## ⬛ CHECKPOINT — the cartridge-platform milestone (2026-07-03)
 
-**Game loop (all five tabs).** Roster · Assign · Drama · Base · Reports.
-House Style visual identity. Cycle transition interstitial, intent recap,
-readiness checklist, "so what" report summaries. Assign decision support
-(recommended roster, projection legibility, base upgrade recommendations).
-Economy correct (gold from challenges, upkeep charged, farm guard, downed
-recovery, real reputation gate).
+This section is the trust boundary. Everything in §1–§2 is merged, tested,
+and was verified live in a real browser. Everything in §3 is explicitly NOT
+proven yet — do not describe it as done, and do not "continue" work that
+touches §5 without reading §5.
 
-**Codex / Manual.** In-game `?`/Manual overlay: every attribute, role, trait,
-facility + "How challenges resolve." Arc-driven, zero hardcoded strings.
-Doubles as arc-author QA (it's how the Wits role-orphan surfaced).
+### 1. What exists now
 
-**Arc-as-artifact (Thread 2, done).** Import arbitrary JSON arcs →
-`validateArc()` → store → load. Trust labels (bundled / imported-unsigned /
-verified / quarantined) surfaced in library, codex header, title screen.
-Build-time deploy variant (`game-first` / `enterprise-first` /
-`research-first`).
+**The end-to-end cartridge loop:**
 
-**Polish.** Count-up on resource bar. Liveness keyframes lifted from the
-digest prototype: `wordSet` on digest masthead, `digestIn` on digest root,
-`barPulse` on stress/morale threshold crossings, `pressSweep` in cycle
-transition. `<AttendedStamp>` available, drama-resolution wire-up future.
-**Light/dark toggle** (☾/☀, persisted, prefers-color-scheme). Cycle digest
-header on Reports. **Tab status badges** (Drama: blocking/inbox; Reports:
-NEW/docket; ambient never nags).
+```
+author/select in hub (axm-arc)
+  → export raw validated Arc JSON        (PR #29, exportArcToJson)
+  → import in world (axm-world)          (world PR #17, cartridge bay)
+  → validate + trust-label               (same vendored validateArc both sides)
+  → boot                                 (bootstrapOrg → compile, arc-agnostic)
+  → play through the same deterministic engine
+```
 
-**Char creator (Thread 3, steps 1+2 done).** **Designer** mode reachable
-from title. Add/duplicate/delete/select wired through real
-`engine/character` with deterministic substream per add. localStorage draft
-(`axm-arc:roster-draft:v1`) parallel to org save. Live engine-record JSON.
-Editor fields display selected agent (read-only — step 3 makes them
-writable).
+**The gating layer, live** (PR #30): `engine/access.ts` (one canonical
+derivation for milestone gates, attunement chains, progression tiers),
+`engine/difficulty.ts` (modes as a pure challenge transform), `runCycle`
+enforcement (locked challenges never resolve, never spend tokens),
+attunement stamping (monotonic, onto the pre-existing `agent.attunements`).
 
-**Ops.** Actions-based Pages deploy (no more stale builds, no more
-`docs/game` merge conflicts). In-game "What's new" release notes overlay.
-`CHANGELOG.md` discipline.
+**Two bundled proof cartridges** (PR #31):
+- **The First Charter** — compact starter: 4 attributes, 3 roles, 3 tiers,
+  6 challenges, 2 progression tiers, 1 attunement chain.
+- **Karazhan** — raid-grammar stress cartridge: 5 attributes, 5 roles
+  (tank/healer/melee/ranged/support), 5 rank tiers, 14 encounters across 5
+  wings, 2 attunement chains (play-earned Master's Key; item-borne
+  Blackened Urn), heroic difficulty mode, 10-raider deterministic roster.
 
-## B. Where we stopped — the exact frontier
+**World at rule parity** (world PR #18): re-pinned to `axm-arc@35a4e2b`;
+board status delegates to engine `challengeAccess`; locked cards render
+milestone AND attunement reasons; difficulty-mode picker renders only where
+authored; `engine:check` drift guard green.
 
-- **Thread 1 (loop feel):** mostly shipped. Open: 60-sec-to-first-win,
-  digest ticket 3 (inline blocking docket + narrow advance-gating), Sprint-2
-  leftovers (Auto-Resolve Policy #5, full Drama Decision Feedback w/
-  provenance #7), engine debt (explicit `resolveEvent` on `RunReport`).
-- **Thread 2 (platform):** done.
-- **Thread 3 (authoring):** designer steps 1-2 done. **Stopped before
-  step 3** (writable editor fields).
-- **SCALE Tier 0:** only law 3 (determinism) enforced. **0.4 silent-save-
-  loss** is a present-day correctness bug, scale-independent — cheapest
-  next substrate win. **0.2 relationship sparse+indexed** is the big
-  decision (depends on cohorts/squads call). **0.5 bounded histories**,
-  **0.6 imported-arc budgets**, **0.7 cohorts/squads** all 🔜.
+### 2. What is proven (tests + live browser runs, with screenshots)
+
+- Hub export → world import **round-trip**: `karazhan.arc.json` exported via
+  the real download event, byte-validated, imported through world's shipped
+  file input, booted, played. Also proven with a hand-authored Operations
+  Lab reskin (world commit `d50bc8c`).
+- Export of an **invalid** arc is blocked with per-path errors and fires no
+  download (verified live with a corrupted library entry).
+- **Curator gate**: locked until ≥50% of the party holds the Master's Key —
+  behavioral tests (3 attuned raiders insufficient, 5 sufficient) + live
+  screenshot showing `requires opera-cleared` and
+  `attunement: The Master's Key (50% of party)` on the locked card.
+- **Nightbane gate**: locked after prince-cleared until a key-attuned agent
+  holds the urn — behavioral tests both sides; locked card + label verified
+  live.
+- **Heroic exposure**: picker present on Karazhan, absent on First Charter
+  (live both ways); the transform itself is unit-tested and the runCycle
+  plumbing test shows the mode-only mechanic actually runs.
+- **No reskin**: a guard test asserts disjoint role vocabulary, distinct
+  economies, wider progression between the two bundled arcs.
+- **First Charter regression**: still plays end to end live (opening
+  decision → run The Cellar → report). Its authored Veteran-of-the-Charter
+  chain now really gates The Mine Collapse in BOTH hub and world — that was
+  previously silent drift, now killed.
+- Suites: axm-arc **284/284**, axm-world **350/350**; typecheck + build
+  green in both; world `engine:check` green at the pin.
+
+### 3. What is NOT proven — do not claim these
+
+- **Karazhan campaign balance.** Nothing past wing 1 has been played. Wing
+  3–5 reachability, economy pacing over ~25 cycles, and soft-lock risk are
+  unmeasured. (A simulation harness is the queued fix — Tier A.)
+- **The Nightbane/urn path in live UI.** Proven by state-injected tests and
+  locked-card rendering; no one has actually farmed the urn and summoned
+  him through the UI.
+- **Heroic resolution across a campaign.** Picker + transform + one-run
+  plumbing proven; no multi-encounter heroic playthrough.
+- **IP-safe naming.** "Karazhan", the boss names, and "Violet Eye" are
+  Warcraft IP. Fine as a private proof cartridge; **must be renamed/reskinned
+  before anything public or commercial.** Open owner decision.
+- **Theme-sheet visuals.** Encounter ids match the Karazhan theme asset
+  sheet's working ids, but the violet-night palette, per-boss motifs, and
+  tower emblem are NOT rendered — Karazhan currently plays in the default
+  skin.
+
+### 4. The demo script (the one that is safe to run for anyone)
+
+1. Open the hub → **Arc Library**: two bundled cartridges, trust chips.
+2. Karazhan → **Export** → `karazhan.arc.json` downloads (validated first).
+3. Open world's boot screen → **Open cartridge…** → select the file.
+4. Entry appears with an **imported · unsigned** trust chip.
+5. **Boot.** Board renders the wings: Attumen available; Curator and
+   Nightbane locked, each card stating exactly why.
+6. Select Attumen → **Standard / Heroic** picker → run the contract.
+7. Contrast: boot The First Charter (different grammar, no mode picker), or
+   import the Operations Lab file (different vocabulary entirely).
+
+The sentence the demo earns: **"Different cartridge. Same verified runtime.
+Playable immediately."**
+
+### 5. What must NOT be touched casually
+
+- **The shared surface** (`src/engine`, `src/arcs`, `tests/engine`,
+  `tests/fixtures`): changes land in axm-arc FIRST, world re-vendors via
+  `npm run engine:sync`. Editing vendored copies in world is drift by
+  definition; its CI fails on it. (`RECONCILIATION.md`.)
+- **The arc schema.** It is now the platform ABI — three cartridges and two
+  apps depend on it. Additive changes only; anything else is a versioned,
+  deliberate event.
+- **The milestone normalization contract** (`-cleared` / bare-id, in
+  `engine/access.ts`): guard tests in both repos pin it. Board status and
+  runCycle enforcement must keep deriving from the same function.
+- **`exportArcToJson`'s raw-object rule**: never export `trust` /
+  `importedAt` / `source`. A file must not be able to claim its own trust
+  level.
+- **`validateArc` as the single gate** on every import AND export path.
+- **Bundled arc ids** (`first-charter`, `karazhan`): saves, cartridge-bay
+  keys, and testids derive from them.
+- **Karazhan roster seeds** (`hashSeed("karazhan", "starting-roster", i)`)
+  and the 424242-style fixture seeds: changing them silently changes every
+  new game / golden test.
+- **Attunement monotonicity**: stamped chains are never revoked; saves now
+  depend on that semantic.
+
+---
 
 ## C. The feedback ledger — what drove what
 
@@ -86,127 +157,78 @@ reported, decisions surfaced." Partial: tab badges ✅, digest header ✅,
 **Owner gut-check ("what about an 80-person raid on mobile?"):** →
 `SCALE.md`, the substrate audit. Determinism fix ✅; the rest 🔜.
 
+**Owner (Operations Lab screenshot):** "a cartridge is not a skin, a
+cartridge is a playable grammar" → drove the export button, the gating
+layer, Karazhan, and world parity — the whole checkpoint above ✅.
+
 ## D. Lessons learned (keep these — process-level)
 
-1. **Prototypes are CSS/keyframe source, not fridge art.** We re-derived
-   craft by hand for two rounds before lifting it directly. Structure /
+1. **Prototypes are CSS/keyframe source, not fridge art.** Structure /
    data / fake-engine = discard; visual craft = lift verbatim.
-2. **Deploy cadence was the bug.** Niece played a 3-day-old build because
-   `docs/game/` was committed manually. Actions-Pages fixed it
-   structurally so it can't recur.
+2. **Deploy cadence was the bug.** Actions-Pages fixed it structurally.
 3. **One engine, two audiences, no fork.** Every UX win is dual-use.
    This is the governing law.
-4. **Codex PRs are cheap option-generation.** Harvest the signal (tab
-   badging came from #19), close the rest.
-5. **Determinism is a present-tense promise, not a scale concern.** The
-   comparator bug was broken *today*, invisible until cross-browser.
+4. **Codex PRs are cheap option-generation.** Harvest the signal, close
+   the rest.
+5. **Determinism is a present-tense promise, not a scale concern.**
    Laws need *enforcing tests* or they erode.
 6. **Substrate decisions rank by reversibility, not severity.** Things
    that get expensive after saves/arcs harden are the ones to decide now.
+7. **Dead schema is drift waiting to happen.** Attunements/tiers/modes
+   were authorable-but-ignored for weeks, and three half-implementations
+   of gating grew in the vacuum. If the schema can say it, the engine
+   must do it — or the schema shouldn't say it yet.
+8. **Checkpoint before continuing.** A merged milestone gets smeared by
+   the next "continue" unless its boundary (proven vs unproven) is
+   written down. That is what the checkpoint section above is for.
 
 ## E. The queue — ranked by leverage
 
-### Tier A — finish what's in flight
-1. **Designer Step 3** — writable editor fields (name, tier, role,
-   attribute ±, trait toggles). Turns the workbench into a creator.
-   *Dispatch-ready spec in §G below.*
-2. **Close stale branches** (Codex #19 duplicate; `claude/admiring-
-   lovelace-BEWjR`). 30 seconds.
+### Tier A — protect the milestone
+1. **Karazhan balance simulation harness.** Auto-play N cycles with the
+   recommender; measure wing-clear rates, cycle-of-death, urn drop
+   timing. Converts "second game exists" into "second game is
+   finishable." No UI work.
+2. **Karazhan theme pack rendering** (world). Wire the `--kz-*` palette
+   tokens, per-encounter motif icons (keyed by challenge id, per the
+   asset sheet), and the tower emblem. Pure presentation; makes the
+   two-cartridge screenshot undeniable.
+3. **IP rename decision** (owner). Private proof vs public demo naming.
 
-### Tier B — design bets you parked (need owner gut, not just code)
-3. **Digest ticket 3** — inline blocking docket + narrow advance-gating
-   from `dramaQueue.length` to `triageDrama(queue).blocking.length`.
-   The "decisions come to you, with context, no trap" loop change.
-   Wait until you've *used* the tab badges and have a feel for the lane
-   model.
-4. **Wits decision** (`BALANCE.md`) — 4th role / re-home a role /
-   declare specialist stat / defer to Karazhan. Cheap once decided.
+### Tier B — parked design bets (need owner gut, not just code)
+4. **Gameplay-screen layout redesign** — the "same disease" list (heavy
+   left rail, cramped board, floating tutorial copy, bolted-on right
+   rail). Spec: `docs/design/GAMEPLAY_SCREEN_REDESIGN_SPEC.md` (world).
+5. **Digest ticket 3** — inline blocking docket + narrow advance-gating.
+6. **Wits decision** (`BALANCE.md`) — now informed by Karazhan's 5-role
+   grammar.
 
 ### Tier C — substrate correctness
-5. **SCALE 0.4 silent-save-loss** — present-day correctness bug,
-   scale-independent, no design decision needed. Cheapest substrate win.
-6. **SCALE 0.2 relationship sparse+indexed** — the big one. Needs the
-   cohorts/squads (0.7) call first.
+7. **SCALE 0.4 silent-save-loss** — present-day correctness bug,
+   cheapest substrate win.
+8. **SCALE 0.2 relationship sparse+indexed** — needs the cohorts/squads
+   (0.7) call first.
 
-### Tier D — hook (player pull)
-7. **60-sec-to-first-win pass.** Wire `<AttendedStamp>` into drama
-   resolution. Light up unused keyframes (`numFlash`, `hintPulse`,
-   `tickIn`, `readyPulse`).
+### Tier D — smaller parity gaps
+9. **Hub heroic picker** — engine + world expose difficulty modes; the
+   hub's own AssignScreen doesn't yet.
+10. **60-sec-to-first-win pass** — `<AttendedStamp>`, unused keyframes.
 
 ## F. Branch hygiene
 
-- `main` is `76e859c`. PR #20-23 all merged. 193 tests green.
-- Stale branches to close/delete:
-  - `codex/audit-substrate-for-scaling-assumptions` (Codex PR #19 — a
-    re-derivation of substrate work already merged; would regress the
-    deploy fix if merged)
-  - `claude/admiring-lovelace-BEWjR` (old Sprint-2 work, superseded)
+- axm-arc `main` = `35a4e2b` (PRs #29, #30, #31 merged). 284/284 tests.
+- axm-world `main` = `b2ea1d9` (PRs #16, #17, #18 merged). 350/350 tests,
+  `engine:check` green at the `35a4e2b` pin.
+- Working branches (`claude/reconciliation-strategy-garwpq` in both repos,
+  `claude/karazhan-enablement-garwpq` in axm-arc) are fully merged; safe to
+  delete.
 
-## G. Designer Step 3 — dispatch-ready spec
+## G. Status snapshot
 
-**Goal:** make the Designer editor fields writable. Identity (name), tier
-segment, role segment, attribute ±/drag with budget validation, trait
-chip toggle. Equipment stays read-only (its own later ticket).
-
-**Branch:** `claude/designer-step3` off main.
-
-**Hard rules:**
-- All mutations route through `setDraft`. The localStorage layer already
-  persists on every change via the existing `useEffect`.
-- Real engine types only. Don't shape-shift `Agent`.
-- Arc-agnostic — labels from `arc.attributes`, `arc.roles`, `arc.tiers`.
-- Token-driven CSS; everything stays scoped under `.designer-screen`.
-- Deterministic. No RNG inside React state updates.
-
-**What writes what:**
-- **Name** — controlled `<input>`. Patches `agent.name`. Empty allowed
-  but a placeholder shows in the rail.
-- **Tier** — segment buttons enable. On click: patch `agent.tier` and
-  `agent.upkeep` (look up `tier.upkeepCost`); recompute `baseEfficiency`
-  via the existing `engine/character` helper if exposed, otherwise leave
-  baseEfficiency as-is and document.
-- **Role** — segment buttons enable. On click: patch `agent.role`
-  (`null` for Flex). No regeneration; role is selection, not derivation.
-- **Attributes** — each row gets `-` / `+` buttons (or +/-1 stepper).
-  Clamp to [1, 20]. Show running budget (sum of attributes) vs tier's
-  `statBudgetMin/Max`. **Over-budget shows an accent warning** but does
-  NOT block the edit — authoring tool, not validator. Future hardening
-  can refuse export when over budget.
-- **Traits** — chip toggle. Click a chip to add/remove from
-  `agent.traits`. Show selected vs available distinction (use the
-  `.d-chip-on` modifier that already exists).
-
-**State helper:** add a `patchAgent(id, partial)` helper inside
-`DesignerScreen.tsx` that maps over `draft.agents` and applies a
-shallow merge. Used by all the writers above.
-
-**Determinism:** none of these mutations consume RNG. Adding/regenerating
-agents uses the existing `generateForDraft` substream. If tier changes
-should regenerate stats deterministically, that's a step 3.5 question —
-default for step 3 is *don't* regenerate on tier change; let the user
-re-roll explicitly via a (future) "reroll stats" button.
-
-**Plan:**
-1. Branch off main.
-2. Add `patchAgent` helper.
-3. Wire the five field types per spec.
-4. CSS additions: stepper buttons, over-budget indicator. Keep all
-   under `.designer-screen`.
-5. `npm run check` — 193 tests must still pass; consider adding a tiny
-   `tests/game/designer-storage.test.ts` round-trip (save → load →
-   equality) if cheap.
-6. `npm run build`. Push to `claude/designer-step3`. Don't PR.
-
-**Done when:** you can add an agent, rename them, click through tier
-and role options, see attribute sums update against tier budget, toggle
-traits on/off, and have all of it persist across reload.
-
-**Sized:** ~150 lines of new TSX + ~30 lines of CSS. Sonnet-sized.
-
-## H. Status snapshot
-
-- Build: green. Tests: 193/193. Deploy: Actions-based Pages, live at
-  `bigbirdreturns.github.io/axm-arc/`.
-- Threads: 1 mostly done, 2 done, 3 33% (steps 1-2 of 8).
-- Substrate (SCALE): 1 of 9 laws enforced in code.
-- Niece feedback: 3 of 4 resolved; "hook" partial.
+- Build: green both repos. Deploy: Actions-based Pages —
+  `bigbirdreturns.github.io/axm-arc/game/` and
+  `bigbirdreturns.github.io/axm-world/game/`.
+- Threads: loop-feel mostly done · platform **done through the cartridge
+  loop checkpoint** · authoring steps 1–3 done (equipment editing still
+  open) · Karazhan content **shipped, balance unproven**.
+- Substrate (SCALE): determinism enforced; 0.4 is the next cheapest win.

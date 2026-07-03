@@ -215,6 +215,25 @@ export interface FailureConsequence {
  *  "perAssignedAgent" — threshold multiplies by party size; every agent must pull their weight. */
 export type ThresholdMode = "fixed" | "perAssignedAgent";
 
+/** An authored, per-contract resource-spend lever. When present, the encounter
+ *  may spend the arc's token to steady an ALREADY-PLAUSIBLE attempt — its only
+ *  effect is a bounded, mean-preserving narrowing of the roll's symmetric
+ *  (mean-zero) variance. It never changes the expected score, a threshold, a
+ *  gate, or an outcome, and it never touches the asymmetric character-owned
+ *  volatility swing. Absent = the contract authors no spend lever, and no spend
+ *  option renders. See axm-world docs/design/RESOURCE_SPEND_ENGINE_PROPOSAL.md. */
+export interface ResourceSpendLever {
+  /** Max tokens honored toward steadiness. Spend beyond this is clamped — it is
+   *  never "more power for more tokens" past the cap. */
+  maxTokens: number;
+  /** Fraction of the symmetric variance band removed per honored token, 0..1. */
+  steadinessPerToken: number;
+  /** Floor on the steadiness factor k, in (0,1]. The band never narrows below
+   *  this, so a marginal party always keeps a real chance of failure — spend can
+   *  never buy a guaranteed pass. */
+  minSteadiness: number;
+}
+
 export interface MechanicCheck {
   id: string;
   name: string;
@@ -228,6 +247,9 @@ export interface MechanicCheck {
    *  fall back to the challenge-level required roles. */
   roleIds?: string[];
   failureConsequence: FailureConsequence;
+  /** Optional per-check spend lever, overriding the challenge-level one for this
+   *  check. Omitted = inherit the challenge's lever (or none). */
+  resourceSpend?: ResourceSpendLever;
 }
 
 export interface RosterRequirements {
@@ -291,6 +313,9 @@ export interface Challenge {
     partial: Outcome;
     failure: Outcome;
   };
+  /** Optional encounter-level spend lever. Applies to every check that does not
+   *  author its own `resourceSpend`. Omitted = the contract offers no spend. */
+  resourceSpend?: ResourceSpendLever;
 }
 
 // ── Run Report ────────────────────────────────────────────────────────────────

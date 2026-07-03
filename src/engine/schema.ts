@@ -11,6 +11,12 @@ const FailureConsequenceSchema = z.object({
   severity: z.number().min(0).max(1),
 });
 
+const ResourceSpendLeverSchema = z.object({
+  maxTokens: z.number().int().min(1),
+  steadinessPerToken: z.number().min(0).max(1),
+  minSteadiness: z.number().gt(0).max(1),
+});
+
 const MechanicCheckSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -21,6 +27,7 @@ const MechanicCheckSchema = z.object({
   scope: z.enum(["per_agent", "team_aggregate", "role_specific"]),
   roleIds: z.array(z.string()).optional(),
   failureConsequence: FailureConsequenceSchema,
+  resourceSpend: ResourceSpendLeverSchema.optional(),
 });
 
 const RosterRequirementsSchema = z.object({
@@ -112,6 +119,7 @@ const ChallengeSchema = z.object({
     partial: OutcomeSchema,
     failure: OutcomeSchema,
   }),
+  resourceSpend: ResourceSpendLeverSchema.optional(),
 });
 
 const ArcAttributeSchema = z.object({

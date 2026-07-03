@@ -197,6 +197,9 @@ export function runCycle(opts: {
       arc,
       rng: step1Rng.fork(),
       cycle,
+      // Already debited above by spendTokens; this only informs the roll of what
+      // was spent. A no-op unless the challenge authors a resource-spend lever.
+      tokensSpent: assignment.tokensSpent,
     });
     reports.push(report);
     assignmentsByChallenge.set(assignment.challengeId, assignment.agentIds);

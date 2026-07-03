@@ -249,6 +249,18 @@ html, body, #root {
 .card.danger { border-left: 3px solid var(--accent); }
 .card.good { border-left: 3px solid var(--positive); }
 
+/* ── KARAZHAN CARTRIDGE (scoped) ─────────────────────────────────
+   Violet-night accent + cursed-tower emblem. Gated on the library
+   card carrying data-arc="karazhan" (set only when the entry's arc
+   id === "karazhan"), so no other arc's card is touched. */
+.card[data-arc="karazhan"] {
+  border-left: 3px solid #574a7a; /* violet night */
+}
+.karazhan-emblem {
+  display: inline-flex;
+  color: #574a7a; /* violet night — tints the currentColor tower body */
+}
+
 /* ── ROWS / LAYOUT ───────────────────────────────────────────── */
 
 .row { display: flex; align-items: center; gap: 10px; }

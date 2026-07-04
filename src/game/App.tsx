@@ -36,11 +36,23 @@ import { ThresholdBar } from "./components/ThresholdBar.js";
 import { agentInitials } from "./lib/ui-helpers.js";
 import { CodexOverlay } from "../codex/index.js";
 import { WhatsNew, CURRENT_BUILD } from "../release-notes/index.js";
+import { t, useLocale, type MessageId } from "../i18n/index.js";
+import { LocaleSwitcher } from "../i18n/LocaleSwitcher.js";
 
 declare const __BUILD_SHA__: string;
 const BUILD_SHA = typeof __BUILD_SHA__ === "string" ? __BUILD_SHA__ : "dev";
 
 type Tab = "Roster" | "Assign" | "Drama" | "Base" | "Reports";
+
+// Chrome-only: maps the internal Tab id to its localized nav label. The Tab ids
+// themselves stay in English as engine-facing state keys.
+const TAB_LABEL_ID: Record<Tab, MessageId> = {
+  Roster: "nav.roster",
+  Assign: "nav.assign",
+  Drama: "nav.drama",
+  Base: "nav.base",
+  Reports: "nav.reports",
+};
 
 // Resolve the active arc: if the user has selected a different arc from the
 // library and that arc is present, use it; otherwise fall back to the bundled
@@ -197,6 +209,8 @@ function buildNewOrg(activeArc: typeof FIRST_CHARTER): Organization {
 
 export function App(): JSX.Element {
   const [mode, setMode] = useState<"title" | "play" | "library" | "designer">("title");
+  // Subscribe to the module-level locale so every t() call below re-renders on switch.
+  useLocale();
   const tutorial = useTutorial();
   const [tab, setTab] = useState<Tab>("Roster");
   const [arc, setArc] = useState<typeof FIRST_CHARTER>(() => resolveActiveArc());
@@ -363,7 +377,7 @@ export function App(): JSX.Element {
   const intentBlock = (
     <div className="intent-block">
       <div className="intent-label">
-        <span>Intent · This Cycle</span>
+        <span>{t("intent.label")}</span>
         <button
           onClick={() => {
             if (editingIntent) {
@@ -375,7 +389,7 @@ export function App(): JSX.Element {
             }
           }}
         >
-          {editingIntent ? "Save" : "Edit"}
+          {editingIntent ? t("common.save") : t("common.edit")}
         </button>
       </div>
       {editingIntent ? (
@@ -395,7 +409,7 @@ export function App(): JSX.Element {
         />
       ) : (
         <div className="intent-text">
-          {intent || <span style={{ color: "var(--dim)", fontWeight: 400, fontSize: 14 }}>No intent set. Tap Edit to add one.</span>}
+          {intent || <span style={{ color: "var(--dim)", fontWeight: 400, fontSize: 14 }}>{t("intent.empty")}</span>}
         </div>
       )}
     </div>
@@ -420,9 +434,9 @@ export function App(): JSX.Element {
         <div className="stat-sub">{nextRepGate !== undefined ? `of ${nextRepGate} to next tier` : "top tier"}</div>
       </div>
       <div className="stat-cell">
-        <div className="stat-lbl">Drama</div>
+        <div className="stat-lbl">{t("stats.drama")}</div>
         <div className={`stat-val${org.dramaQueue.length > 0 ? " accent" : ""}`}>{org.dramaQueue.length}</div>
-        <div className="stat-sub">queued</div>
+        <div className="stat-sub">{t("stats.queued")}</div>
       </div>
     </div>
   );
@@ -443,7 +457,7 @@ export function App(): JSX.Element {
         disabled={!canAdvanceCycle}
         onClick={advanceCycle}
       >
-        {blocked ? "Advance blocked" : "Advance Cycle →"}
+        {blocked ? t("advance.blocked") : t("advance.cycle")}
       </button>
     </div>
   );
@@ -588,19 +602,20 @@ export function App(): JSX.Element {
       {/* ── HEADER ── */}
       <header className="app-header">
         <div className="top-row">
-          <div className="kicker">Situation Room · Cycle {String(org.cycle).padStart(2, "0")}</div>
+          <div className="kicker">{t("header.situationRoom", { cycle: String(org.cycle).padStart(2, "0") })}</div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <LocaleSwitcher />
             <button
               className="codex-trigger"
-              aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-              title={theme === "dark" ? "Light mode" : "Dark mode"}
+              aria-label={theme === "dark" ? t("header.switchToLight") : t("header.switchToDark")}
+              title={theme === "dark" ? t("header.lightMode") : t("header.darkMode")}
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
             >
               {theme === "dark" ? "☀" : "☾"}
             </button>
             <button
               className="codex-trigger"
-              aria-label="Open manual"
+              aria-label={t("header.openManual")}
               onClick={() => setCodexOpen(true)}
             >
               ?
@@ -633,14 +648,14 @@ export function App(): JSX.Element {
           ))}
         </div>
         <div className="desktop-actions" style={{ display: "none" }}>
-          <button className="secondary" onClick={() => saveSave(org, arc)}>Save</button>
+          <button className="secondary" onClick={() => saveSave(org, arc)}>{t("common.save")}</button>
           <button
             className={`primary${!blocked ? " accent" : ""}`}
             disabled={!canAdvanceCycle}
             onClick={advanceCycle}
             style={{ width: "auto" }}
           >
-            {blocked ? "Blocked" : "Advance Cycle →"}
+            {blocked ? t("advance.blockedShort") : t("advance.cycle")}
           </button>
         </div>
       </header>
@@ -666,9 +681,9 @@ export function App(): JSX.Element {
         <div className="situation-roster">
           <div className="row between" style={{ marginBottom: 8 }}>
             <span style={{ fontFamily: "var(--mono)", fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--muted)" }}>
-              Roster · {String(agentCount).padStart(2, "0")}
+              {t("header.rosterCount", { count: String(agentCount).padStart(2, "0") })}
             </span>
-            <button className="icon" onClick={resetGame} style={{ fontSize: 9, padding: "3px 6px", minHeight: 0 }}>Reset</button>
+            <button className="icon" onClick={resetGame} style={{ fontSize: 9, padding: "3px 6px", minHeight: 0 }}>{t("common.reset")}</button>
           </div>
           {agentList.map((a) => {
             const role = arc.roles.find((r) => r.id === a.role);
@@ -697,15 +712,15 @@ export function App(): JSX.Element {
 
         <div className="situation-main">
           <nav className="desktop-tabstrip">
-            {(["Assign", "Drama", "Base", "Reports"] as Tab[]).map((t) => (
+            {(["Assign", "Drama", "Base", "Reports"] as Tab[]).map((tabId) => (
               <button
-                key={t}
-                className={`${tab === t ? "active" : ""}${pulseTab === t ? " tutorial-pulse" : ""}`}
-                onClick={() => setTab(t)}
+                key={tabId}
+                className={`${tab === tabId ? "active" : ""}${pulseTab === tabId ? " tutorial-pulse" : ""}`}
+                onClick={() => setTab(tabId)}
               >
-                {t}
-                {tabBadges[t] && (
-                  <span className={`tab-badge ${tabBadges[t]!.tone}`}>{tabBadges[t]!.label}</span>
+                {t(TAB_LABEL_ID[tabId])}
+                {tabBadges[tabId] && (
+                  <span className={`tab-badge ${tabBadges[tabId]!.tone}`}>{tabBadges[tabId]!.label}</span>
                 )}
               </button>
             ))}
@@ -721,17 +736,17 @@ export function App(): JSX.Element {
 
       {/* ── MOBILE: tab bar ── */}
       <nav className="tabbar">
-        {(["Roster", "Assign", "Drama", "Base", "Reports"] as Tab[]).map((t) => (
+        {(["Roster", "Assign", "Drama", "Base", "Reports"] as Tab[]).map((tabId) => (
           <button
-            key={t}
-            className={`${tab === t ? "active" : ""}${t === "Drama" && org.dramaQueue.length > 0 ? " drama-active" : ""}${pulseTab === t ? " tutorial-pulse" : ""}`}
-            onClick={() => setTab(t)}
+            key={tabId}
+            className={`${tab === tabId ? "active" : ""}${tabId === "Drama" && org.dramaQueue.length > 0 ? " drama-active" : ""}${pulseTab === tabId ? " tutorial-pulse" : ""}`}
+            onClick={() => setTab(tabId)}
           >
-            <span className="tab-count">{tabCounts[t]}</span>
+            <span className="tab-count">{tabCounts[tabId]}</span>
             <span className="tab-label-row">
-              {t}
-              {tabBadges[t] && (
-                <span className={`tab-badge ${tabBadges[t]!.tone}`}>{tabBadges[t]!.label}</span>
+              {t(TAB_LABEL_ID[tabId])}
+              {tabBadges[tabId] && (
+                <span className={`tab-badge ${tabBadges[tabId]!.tone}`}>{tabBadges[tabId]!.label}</span>
               )}
             </span>
           </button>

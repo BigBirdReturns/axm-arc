@@ -5,6 +5,7 @@ import { loadArcLibrary } from "../lib/arc-library.js";
 import { CodexOverlay, TrustLabel } from "../../codex/index.js";
 import { WhatsNew } from "../../release-notes/index.js";
 import { VARIANT, VARIANT_LABELS } from "../../variants/index.js";
+import { t, useLocale } from "../../i18n/index.js";
 
 interface Props {
   arc: Arc;
@@ -15,6 +16,7 @@ interface Props {
 }
 
 export function TitleScreen({ arc, onContinue, onNewGame, onOpenLibrary, onOpenDesigner }: Props): JSX.Element {
+  useLocale(); // re-render this screen's chrome on locale switch
   const existing = loadSave(arc);
   const hasSave = existing !== null;
   const [manualOpen, setManualOpen] = useState(false);
@@ -56,7 +58,7 @@ export function TitleScreen({ arc, onContinue, onNewGame, onOpenLibrary, onOpenD
         <div className="title-actions">
           {hasSave && (
             <button className="primary accent" onClick={onContinue}>
-              Continue · Cycle {String(existing.org.cycle).padStart(2, "0")}
+              {t("title.continue", { cycle: String(existing.org.cycle).padStart(2, "0") })}
             </button>
           )}
           <button
@@ -75,21 +77,21 @@ export function TitleScreen({ arc, onContinue, onNewGame, onOpenLibrary, onOpenD
             className="secondary"
             onClick={onOpenDesigner}
           >
-            Designer
+            {t("common.designer")}
           </button>
           <button
             className="secondary"
             onClick={() => setManualOpen(true)}
           >
-            Manual
+            {t("common.manual")}
           </button>
         </div>
 
         {hasSave && (
           <div className="title-save-info">
-            <span>{Object.keys(existing.org.agents).length} agents</span>
+            <span>{t("title.agentsCount", { count: Object.keys(existing.org.agents).length })}</span>
             <span className="sep">·</span>
-            <span>Reputation {existing.org.reputation}</span>
+            <span>{t("title.reputation", { value: existing.org.reputation })}</span>
             <span className="sep">·</span>
             <span>{existing.org.resources.currency} {arc.currencyName.toLowerCase()}</span>
           </div>
@@ -97,21 +99,21 @@ export function TitleScreen({ arc, onContinue, onNewGame, onOpenLibrary, onOpenD
 
         <div className="title-guarantees">
           <div className="title-guarantee">
-            <span className="g-label">Deterministic</span>
-            <span className="g-body">Same seed, same run</span>
+            <span className="g-label">{t("title.guaranteeDeterministicLabel")}</span>
+            <span className="g-body">{t("title.guaranteeDeterministicBody")}</span>
           </div>
           <div className="title-guarantee">
-            <span className="g-label">Offline</span>
-            <span className="g-body">No API, no cloud</span>
+            <span className="g-label">{t("title.guaranteeOfflineLabel")}</span>
+            <span className="g-body">{t("title.guaranteeOfflineBody")}</span>
           </div>
           <div className="title-guarantee">
-            <span className="g-label">Portable</span>
-            <span className="g-body">JSON arc format</span>
+            <span className="g-label">{t("title.guaranteePortableLabel")}</span>
+            <span className="g-body">{t("title.guaranteePortableBody")}</span>
           </div>
         </div>
 
         <div className="title-colophon">
-          AXM Arc · v{arc.meta.version} · Engine {arc.meta.engineVersion}
+          {t("title.colophon", { version: arc.meta.version, engine: arc.meta.engineVersion })}
         </div>
         <div className="title-secondary-links">
           <a
@@ -120,14 +122,14 @@ export function TitleScreen({ arc, onContinue, onNewGame, onOpenLibrary, onOpenD
             rel="noopener noreferrer"
             className="title-secondary-link"
           >
-            Designer Prototype
+            {t("title.designerPrototype")}
           </a>
           <button
             type="button"
             className="title-secondary-link"
             onClick={() => setWhatsNewOpen(true)}
           >
-            Release notes
+            {t("title.releaseNotes")}
           </button>
         </div>
       </div>

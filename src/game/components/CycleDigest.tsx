@@ -10,9 +10,10 @@ interface Props {
   reports: RunReport[];
 }
 
-// Deterministic agent iteration order — identical to src/engine/stress.ts:43.
+// Deterministic agent iteration order — identical to src/engine/stress.ts
+// (codepoint comparison, not locale-sensitive collation).
 function orderedAgentIds(org: Organization): string[] {
-  return Object.keys(org.agents).sort((a, b) => a.localeCompare(b));
+  return Object.keys(org.agents).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
 }
 
 export default function CycleDigest({ arc, org, reports }: Props): JSX.Element | null {

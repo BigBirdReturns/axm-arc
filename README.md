@@ -188,3 +188,15 @@ axm-arc is the simulation member of the [AXM](https://github.com/BigBirdReturns)
 ## License
 
 MIT
+
+## Localization
+
+All player-facing chrome renders from the typed catalog in `src/i18n/`
+(en / zh-Hant), ported from axm-world's reference implementation. The rule:
+**chrome is the app's to translate; arc data flows verbatim** — challenge
+names, drama text, resource vocabulary, and variant labels are never
+catalogued, so an imported arc's own vocabulary always wins. Engine-emitted
+strings are data too; the deterministic engine must stay locale-independent
+(codepoint ordering, no `localeCompare`). Guard test:
+`tests/i18n/locale.test.ts`. Family doctrine:
+[axm-genesis `docs/LOCALIZATION.md`](https://github.com/BigBirdReturns/axm-genesis/blob/main/docs/LOCALIZATION.md).

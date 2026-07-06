@@ -14,9 +14,10 @@ interface Props {
   onNewGame: () => void;
   onOpenLibrary: () => void;
   onOpenDesigner: () => void;
+  onOpenWorkshop: () => void;
 }
 
-export function TitleScreen({ arc, onContinue, onNewGame, onOpenLibrary, onOpenDesigner }: Props): JSX.Element {
+export function TitleScreen({ arc, onContinue, onNewGame, onOpenLibrary, onOpenDesigner, onOpenWorkshop }: Props): JSX.Element {
   useLocale(); // re-render this screen's chrome on locale switch
   const existing = loadSave(arc);
   const hasSave = existing !== null;
@@ -85,6 +86,12 @@ export function TitleScreen({ arc, onContinue, onNewGame, onOpenLibrary, onOpenD
             onClick={onOpenDesigner}
           >
             {t("common.designer")}
+          </button>
+          <button
+            className="secondary"
+            onClick={onOpenWorkshop}
+          >
+            {t("title.workshop")}
           </button>
           <button
             className="secondary"

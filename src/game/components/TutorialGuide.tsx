@@ -1,38 +1,22 @@
 import { useEffect, useState } from "react";
+import { t, type MessageId } from "../../i18n/index.js";
 
 type Tab = "Roster" | "Assign" | "Drama" | "Base" | "Reports";
 
 const TUTORIAL_KEY = "axm-arc:tutorial:v1";
 
 interface Step {
-  message: string;
+  messageId: MessageId;
   tab: Tab;
   pulseTab?: Tab;
   pulseAdvance?: boolean;
 }
 
 const STEPS: Step[] = [
-  {
-    message: "A rivalry is already brewing. Resolve the drama card below.",
-    tab: "Drama",
-  },
-  {
-    message:
-      "Good. Now go to Assign — use the recommended roster and read why each check passes or fails.",
-    tab: "Assign",
-    pulseTab: "Assign",
-  },
-  {
-    message:
-      "Agents slotted. If the readout says Good or Risky, hit Advance Cycle. If it says Not ready, build Training or adjust the roster.",
-    tab: "Assign",
-    pulseAdvance: true,
-  },
-  {
-    message:
-      "Your first Field Report. The loop is contract → report → loot/base upgrade → harder contract.",
-    tab: "Reports",
-  },
+  { messageId: "tutorial.step0", tab: "Drama" },
+  { messageId: "tutorial.step1", tab: "Assign", pulseTab: "Assign" },
+  { messageId: "tutorial.step2", tab: "Assign", pulseAdvance: true },
+  { messageId: "tutorial.step3", tab: "Reports" },
 ];
 
 export function deriveTutorialStep(
@@ -122,9 +106,9 @@ export function TutorialGuide({
       <div className="tutorial-step">
         {step + 1}/{STEPS.length}
       </div>
-      <span className="tutorial-msg">{s.message}</span>
+      <span className="tutorial-msg">{t(s.messageId)}</span>
       <button className="tutorial-skip" onClick={onDismiss}>
-        skip
+        {t("tutorial.skip")}
       </button>
     </div>
   );

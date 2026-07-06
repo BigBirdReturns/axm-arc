@@ -1,3 +1,5 @@
+import { t } from "../../i18n/index.js";
+
 export type BlockerCode = "drama_unresolved" | "rewards_pending";
 
 export interface AdvanceBlocker {
@@ -15,7 +17,7 @@ export function getAdvanceBlockers(opts: {
   if (opts.dramaQueueCount > 0) {
     blockers.push({
       code: "drama_unresolved",
-      message: `Resolve ${opts.dramaQueueCount} drama card${opts.dramaQueueCount === 1 ? "" : "s"} before advancing.`,
+      message: t("blockers.dramaCards", { count: opts.dramaQueueCount }),
     });
   }
 
@@ -23,7 +25,7 @@ export function getAdvanceBlockers(opts: {
     const remaining = opts.pendingRewardChoicesCount - opts.rewardDecisionsCount;
     blockers.push({
       code: "rewards_pending",
-      message: `Resolve ${remaining} pending reward decision${remaining === 1 ? "" : "s"} in Reports.`,
+      message: t("blockers.rewardDecisions", { count: remaining }),
     });
   }
 

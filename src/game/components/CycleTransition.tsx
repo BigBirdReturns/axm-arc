@@ -2,6 +2,8 @@ import { useEffect, useState, useMemo } from "react";
 import type { RunReport, Arc, Organization, Agent } from "../../engine/types.js";
 import { generateHeadline, type Headline } from "../lib/headline.js";
 import { evaluateIntent, type IntentOutcome } from "../lib/intent-eval.js";
+import { t } from "../../i18n/index.js";
+import { headlineDisplay, vocabLabel } from "../../i18n/display.js";
 
 type Beat = "passing" | "headline" | "done";
 
@@ -22,16 +24,13 @@ function buildTickerLines(
     if (lines.length >= 6) break;
     const challenge = arc.challenges.find((c) => c.id === r.challengeId);
     const name = challenge?.name.toUpperCase() ?? r.challengeId.toUpperCase();
-    const outcomeLabel =
+    const text =
       r.outcome === "success"
-        ? "CLEARED"
+        ? t("transition.tickerCleared", { name })
         : r.outcome === "partial"
-          ? "PARTIAL"
-          : "FAILED";
-    lines.push({
-      text: `${name} — ${outcomeLabel}`,
-      accent: r.outcome === "success",
-    });
+          ? t("transition.tickerPartial", { name })
+          : t("transition.tickerFailed", { name });
+    lines.push({ text, accent: r.outcome === "success" });
   }
 
   // 2. High-stress agents
@@ -41,7 +40,7 @@ function buildTickerLines(
       if (ar.stressGained >= 2) {
         const agent = org.agents[ar.agentId];
         const name = agent?.name?.split(" ")[0]?.toUpperCase() ?? ar.agentId.toUpperCase();
-        lines.push({ text: `${name} — STRESS +${ar.stressGained}` });
+        lines.push({ text: t("transition.tickerStress", { name, n: ar.stressGained }) });
       }
     }
   }
@@ -51,9 +50,9 @@ function buildTickerLines(
     if (lines.length >= 6) break;
     const firstName = agent.name.split(" ")[0]?.toUpperCase() ?? agent.name.toUpperCase();
     if (agent.morale < 40) {
-      lines.push({ text: `${firstName} — MORALE ↓` });
+      lines.push({ text: t("transition.tickerMoraleDown", { name: firstName }) });
     } else if (agent.morale > 80) {
-      lines.push({ text: `${firstName} — MORALE ↑`, accent: true });
+      lines.push({ text: t("transition.tickerMoraleUp", { name: firstName }), accent: true });
     }
   }
 
@@ -65,7 +64,7 @@ function buildTickerLines(
       const a2 = org.agents[rel.agentIds[1]];
       const n1 = a1?.name?.split(" ")[0]?.toUpperCase() ?? rel.agentIds[0].toUpperCase();
       const n2 = a2?.name?.split(" ")[0]?.toUpperCase() ?? rel.agentIds[1].toUpperCase();
-      lines.push({ text: `${n1} → ${rel.state.toUpperCase()} W/ ${n2}` });
+      lines.push({ text: t("transition.tickerRel", { a: n1, b: n2, state: vocabLabel(rel.state) }) });
     }
   }
 
@@ -76,12 +75,12 @@ function pickKicker(headline: Headline, reports: RunReport[]): string {
   const allSuccess = reports.every((r) => r.outcome === "success");
   const anyFailure = reports.some((r) => r.outcome === "failure");
 
-  if (allSuccess) return "CLEAN SWEEP";
-  if (anyFailure && headline.collapseAgent) return "PERSONNEL CRISIS";
-  if (anyFailure) return "RAID REPORT";
-  if (headline.resolveAgent) return "STANDOUT PERFORMANCE";
-  if (headline.clutchAgent) return "CLOSE CALL";
-  return "RAID REPORT";
+  if (allSuccess) return t("transition.kickerCleanSweep");
+  if (anyFailure && headline.collapseAgent) return t("transition.kickerPersonnelCrisis");
+  if (anyFailure) return t("transition.kickerRaidReport");
+  if (headline.resolveAgent) return t("transition.kickerStandout");
+  if (headline.clutchAgent) return t("transition.kickerCloseCall");
+  return t("transition.kickerRaidReport");
 }
 
 function buildDeck(headline: Headline, reports: RunReport[], arc: Arc): string {
@@ -90,46 +89,48 @@ function buildDeck(headline: Headline, reports: RunReport[], arc: Arc): string {
   );
   const challengeName = challenge?.name ?? headline.challenge;
 
+  // String-matching below stays on the RAW English headline values (see the
+  // catalog's boundary note); only the returned display copy is localized.
   // Wipe
   if (headline.primary.includes("WIPED") && !headline.qualifier) {
-    return `The roster took heavy losses against ${challengeName}.`;
+    return t("transition.deckHeavyLosses", { challenge: challengeName });
   }
   // Near wipe
   if (headline.primary.includes("WIPED") && headline.qualifier === "NEARLY") {
     if (headline.clutchAgent) {
-      return `${headline.clutchAgent.split(" ")[0]} barely held the line.`;
+      return t("transition.deckBarelyHeld", { name: headline.clutchAgent.split(" ")[0]! });
     }
-    return "The margin was razor-thin.";
+    return t("transition.deckRazorThin");
   }
   // Clean
   if (headline.primary === "CLEAN.") {
-    return "No issues. The group executed perfectly.";
+    return t("transition.deckPerfect");
   }
   // Carried
   if (headline.resolveAgent) {
-    return `${headline.resolveAgent.split(" ")[0]} stepped up when it mattered.`;
+    return t("transition.deckSteppedUp", { name: headline.resolveAgent.split(" ")[0]! });
   }
   // Barely cleared
   if (headline.primary.includes("BARELY")) {
-    return "The margin was razor-thin.";
+    return t("transition.deckRazorThin");
   }
   // Partial
   if (headline.primary.includes("PARTIAL")) {
-    return "The group managed a partial clear under pressure.";
+    return t("transition.deckPartialPressure");
   }
   // Fell apart
   if (headline.primary.includes("FELL APART")) {
     if (headline.collapseAgent) {
-      return `${headline.collapseAgent.split(" ")[0]} couldn't hold it together.`;
+      return t("transition.deckCouldntHold", { name: headline.collapseAgent.split(" ")[0]! });
     }
-    return "The group managed a partial clear under pressure.";
+    return t("transition.deckPartialPressure");
   }
   // Failed
   if (headline.primary === "FAILED.") {
-    return `The roster took heavy losses against ${challengeName}.`;
+    return t("transition.deckHeavyLosses", { challenge: challengeName });
   }
   // Default
-  return "Another cycle in the books.";
+  return t("transition.deckAnotherCycle");
 }
 
 interface CycleTransitionProps {
@@ -188,7 +189,7 @@ export function CycleTransition({
   }, [primaryReport, arc, agentMap]);
 
   const kicker = useMemo(
-    () => (headline ? pickKicker(headline, reports) : "CYCLE UPDATE"),
+    () => (headline ? pickKicker(headline, reports) : t("transition.kickerCycleUpdate")),
     [headline, reports],
   );
 
@@ -231,7 +232,7 @@ export function CycleTransition({
   if (beat === "passing") {
     return (
       <div className="beat-overlay">
-        <div className="passing-stamp">PROCESSING</div>
+        <div className="passing-stamp">{t("transition.processing")}</div>
 
         <div className="passing-cycle">
           <span className="cycle-old" key={`old-${fromCycle}`}>
@@ -267,7 +268,7 @@ export function CycleTransition({
       <div className="headline-masthead">The Daily Charter</div>
       <div className="headline-rule" />
       <div className="headline-meta">
-        <span>CYCLE {String(toCycle).padStart(2, "0")} · ARC 01</span>
+        <span>{t("transition.cycleArc", { cycle: String(toCycle).padStart(2, "0") })}</span>
         <span>{arc.meta.name.toUpperCase()}</span>
       </div>
 
@@ -276,10 +277,10 @@ export function CycleTransition({
       {headline && (
         <div className="headline-headline">
           {headline.challenge}{" "}
-          {headline.qualifier && (
-            <span className="hl-qualifier">{headline.qualifier} </span>
+          {headlineDisplay(headline).qualifier && (
+            <span className="hl-qualifier">{headlineDisplay(headline).qualifier} </span>
           )}
-          {headline.primary}
+          {headlineDisplay(headline).primary}
         </div>
       )}
 
@@ -287,16 +288,16 @@ export function CycleTransition({
 
       {intentResult && (
         <div className="intent-recap">
-          <div className="intent-recap-label">INTENT</div>
+          <div className="intent-recap-label">{t("transition.intent")}</div>
           <div className="intent-recap-overall" style={{ color: intentColor(intentResult.overall) }}>
-            {intentResult.overall === "achieved" ? "ACHIEVED" : intentResult.overall === "missed" ? "MISSED" : "PARTIAL"}
+            {intentResult.overall === "achieved" ? t("transition.achieved") : intentResult.overall === "missed" ? t("transition.missed") : t("transition.partial")}
           </div>
           <div className="intent-recap-matches">
             {intentResult.matches.map((m) => (
               <div key={m.challenge} className="intent-recap-row">
                 <span className="intent-recap-challenge">{m.challenge}</span>
                 <span style={{ color: intentColor(m.outcome) }}>
-                  {m.outcome === "achieved" ? "Achieved" : m.outcome === "missed" ? "Missed" : "Partial"}
+                  {m.outcome === "achieved" ? t("transition.achievedRow") : m.outcome === "missed" ? t("transition.missedRow") : t("transition.partialRow")}
                 </span>
               </div>
             ))}
@@ -304,7 +305,7 @@ export function CycleTransition({
         </div>
       )}
 
-      <div className="headline-tap">TAP TO CONTINUE</div>
+      <div className="headline-tap">{t("transition.tapContinue")}</div>
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import type { Arc } from "../engine/types.js";
+import { t } from "../i18n/index.js";
 
 export default function AttributeRef({ arc, id }: { arc: Arc; id: string }): JSX.Element | null {
   const attr = arc.attributes.find((a) => a.id === id);
@@ -36,7 +37,7 @@ export default function AttributeRef({ arc, id }: { arc: Arc; id: string }): JSX
 
       {rolesUsing.length > 0 && (
         <div className="codex-meta-row">
-          <strong>Used in roles:</strong>
+          <strong>{t("codexRef.usedInRoles")}</strong>
           <ul>
             {rolesUsing.map(({ role, weight }) => (
               <li key={role.id}>
@@ -48,16 +49,16 @@ export default function AttributeRef({ arc, id }: { arc: Arc; id: string }): JSX
       )}
 
       <div className="codex-meta-row">
-        <strong>Checked in:</strong>
+        <strong>{t("codexRef.checkedIn")}</strong>
         {grouped.size === 0 ? (
-          <div>Not directly checked in any challenge.</div>
+          <div>{t("codexRef.notChecked")}</div>
         ) : (
           <ul>
             {Array.from(grouped.entries()).map(([challengeName, checks]) => (
               <li key={challengeName}>
                 {checks.map((c, i) => (
                   <div key={`${challengeName}-${c.checkName}-${i}`}>
-                    {challengeName} — {c.checkName} (weight {c.weight})
+                    {t("codexRef.checkWeight", { challenge: challengeName, check: c.checkName, weight: c.weight })}
                   </div>
                 ))}
               </li>

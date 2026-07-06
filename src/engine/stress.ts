@@ -41,7 +41,10 @@ function clampMorale(v: number): number {
 }
 
 function orderedAgentIds(org: Organization): string[] {
-  return Object.keys(org.agents).sort((a, b) => a.localeCompare(b));
+  // Codepoint comparison, NOT localeCompare: collation must not vary with the
+  // host's locale or the same seed could produce different runs on different
+  // machines (family law — see axm-genesis: "bytewise, not locale order").
+  return Object.keys(org.agents).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
 }
 
 function deterministicShuffle<T>(items: readonly T[], rng: Rng): T[] {

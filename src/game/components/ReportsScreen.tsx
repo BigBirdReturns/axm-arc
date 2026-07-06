@@ -3,6 +3,8 @@ import type { PendingRewardChoice, RewardDecision } from "../../engine/cycle.js"
 import { generateHeadline, agentRunLine } from "../lib/headline.js";
 import { agentInitials } from "../lib/ui-helpers.js";
 import CycleDigest from "./CycleDigest.js";
+import { t } from "../../i18n/index.js";
+import { headlineDisplay } from "../../i18n/display.js";
 
 interface Props {
   arc: Arc;
@@ -45,13 +47,13 @@ export function ReportsScreen({
       <CycleDigest arc={arc} org={org} reports={reports} />
 
       {reports.length === 0 && pendingRewardChoices.length === 0 && (
-        <div className="empty">No reports yet. Go to Assign, slot a roster on a contract, then hit Advance Cycle.</div>
+        <div className="empty">{t("reports.empty")}</div>
       )}
 
       {/* ── Pending reward decisions ── */}
       {pendingRewardChoices.length > 0 && (
         <>
-          <div className="audit-section">Drops · {pendingRewardChoices.length} pending</div>
+          <div className="audit-section">{t("reports.dropsPending", { n: pendingRewardChoices.length })}</div>
           {pendingRewardChoices.map((p, i) => {
             const item = arc.items.find((it) => it.id === p.itemId);
             const decided = decisionFor(p);
@@ -72,12 +74,12 @@ export function ReportsScreen({
                     )}
                   </div>
                   {decided
-                    ? <span className="badge pass">Awarded</span>
-                    : <span className="badge pending">Decision Pending</span>
+                    ? <span className="badge pass">{t("reports.awarded")}</span>
+                    : <span className="badge pending">{t("reports.decisionPending")}</span>
                   }
                 </div>
                 <div className="agent-meta" style={{ marginTop: 6 }}>
-                  From: {p.sourceChallenge} · Cycle {p.cycle}
+                  {t("reports.from", { source: p.sourceChallenge, cycle: p.cycle })}
                 </div>
                 <div style={{ marginTop: 10 }}>
                   {p.eligibleAgentIds.map((aid) => {
@@ -101,10 +103,10 @@ export function ReportsScreen({
                           <div>
                             <div className="agent-name" style={{ fontSize: 13 }}>{a?.name ?? aid}</div>
                             <div className="agent-meta">
-                              {roleName ?? "Flex"} · M{a?.morale ?? 0} S{a?.stress ?? 0}
+                              {roleName ?? t("common.flex")} · M{a?.morale ?? 0} S{a?.stress ?? 0}
                             </div>
                           </div>
-                          {chosen && <span className="badge pass">Awarded</span>}
+                          {chosen && <span className="badge pass">{t("reports.awarded")}</span>}
                         </div>
                         {bonusLines.length > 0 && (
                           <div className="loot-stats">
@@ -153,54 +155,54 @@ export function ReportsScreen({
 
             {/* ── Kicker ── */}
             <div className="report-meta">
-              Field Report / No. {String(org.cycle).padStart(2, "0")} · {arc.meta.domain} · Tier I
+              {t("reports.fieldReportNo", { n: String(org.cycle).padStart(2, "0"), domain: arc.meta.domain })}
             </div>
 
-            {/* ── Display headline ── */}
+            {/* ── Display headline (raw stays EN internally; mapped for display) ── */}
             <div className="report-headline">
               {headline.challenge}{" "}
-              {headline.qualifier && (
-                <span className="accent">{headline.qualifier} </span>
+              {headlineDisplay(headline).qualifier && (
+                <span className="accent">{headlineDisplay(headline).qualifier} </span>
               )}
-              {headline.primary}
+              {headlineDisplay(headline).primary}
             </div>
 
             {/* ── Sub-kicker ── */}
             <div className="agent-meta" style={{ marginBottom: 14 }}>
-              Cycle {r.cycle} · Composition: {r.assignedAgents.length} agents · 1 lockout spent · {r.outcome.toUpperCase()}
+              {t("reports.cycleComposition", { cycle: r.cycle, agents: r.assignedAgents.length, outcome: outcomeWord(r.outcome) })}
             </div>
 
             {/* ── Abstract ── */}
             <div className="abstract">
-              <span className="abstract-label">Abstract</span>
+              <span className="abstract-label">{t("reports.abstract")}</span>
               <p>{buildAbstract(r, headline, agentMap, challenge.mechanicChecks.length)}</p>
             </div>
 
             {/* ── Stat strip ── */}
             <div className="stat-strip" style={{ margin: "14px 0" }}>
               <div className="stat-cell">
-                <div className="stat-lbl">Outcome</div>
+                <div className="stat-lbl">{t("reports.outcome")}</div>
                 <div className={`stat-val${r.outcome === "failure" ? " accent" : r.outcome === "partial" ? " accent" : ""}`} style={r.outcome === "success" ? { color: "var(--positive)" } : {}}>
-                  {r.outcome.toUpperCase()}
+                  {outcomeWord(r.outcome)}
                 </div>
               </div>
               <div className="stat-cell">
-                <div className="stat-lbl">Checks</div>
+                <div className="stat-lbl">{t("reports.checks")}</div>
                 <div className="stat-val">{passedCount}/{totalChecks}</div>
-                <div className="stat-sub">{totalChecks - passedCount > 0 ? `${totalChecks - passedCount} failed` : "all passed"}</div>
+                <div className="stat-sub">{totalChecks - passedCount > 0 ? t("reports.failedN", { n: totalChecks - passedCount }) : t("reports.allPassed")}</div>
               </div>
               <div className="stat-cell">
-                <div className="stat-lbl">Stress Δ</div>
+                <div className="stat-lbl">{t("reports.stressDelta")}</div>
                 <div className={`stat-val${totalStress > 0 ? " accent" : ""}`}>
                   {totalStress > 0 ? `+${totalStress}` : "0"}
                 </div>
-                <div className="stat-sub">across roster</div>
+                <div className="stat-sub">{t("reports.acrossRoster")}</div>
               </div>
               <div className="stat-cell">
-                <div className="stat-lbl">Loot</div>
+                <div className="stat-lbl">{t("reports.loot")}</div>
                 <div className="stat-val">{r.lootDrops.length}</div>
                 <div className="stat-sub">
-                  {r.lootDrops.length > 0 ? `${pendingRewardChoices.length} pending` : "no drops"}
+                  {r.lootDrops.length > 0 ? t("reports.pendingN", { n: pendingRewardChoices.length }) : t("reports.noDrops")}
                 </div>
               </div>
               <div className="stat-cell">
@@ -209,7 +211,7 @@ export function ReportsScreen({
                   {(r.rewardsGranted?.currency ?? 0) > 0 ? `+${r.rewardsGranted!.currency}` : "0"}
                 </div>
                 <div className="stat-sub">
-                  {(r.rewardsGranted?.reputation ?? 0) > 0 ? `+${r.rewardsGranted!.reputation} rep` : "no rep"}
+                  {(r.rewardsGranted?.reputation ?? 0) > 0 ? t("reports.repPlus", { n: r.rewardsGranted!.reputation }) : t("reports.noRep")}
                 </div>
               </div>
             </div>
@@ -217,26 +219,19 @@ export function ReportsScreen({
             {/* ── Resolve callout (distinct event, not buried in narrative) ── */}
             {heroicAgent && headline.resolveAgent && (
               <div className="callout resolve" style={{ marginBottom: 14 }}>
-                <p>
-                  <span className="highlight">{headline.resolveAgent.split(" ")[0]}</span> hit their stress ceiling and rolled{" "}
-                  <span className="highlight">Resolve</span>. +3 to every check for two cycles.{" "}
-                  The team felt it.
-                </p>
+                <p>{t("reports.resolveCallout", { name: headline.resolveAgent.split(" ")[0]! })}</p>
               </div>
             )}
 
             {/* ── Clutch callout ── */}
             {clutchAgent && !heroicAgent && r.outcome !== "failure" && (
               <div className="callout" style={{ marginBottom: 14 }}>
-                <p>
-                  <span className="highlight">{clutchAgent.split(" ")[0]}</span> pulled the party through.
-                  The margin was not comfortable.
-                </p>
+                <p>{t("reports.clutchCallout", { name: clutchAgent.split(" ")[0]! })}</p>
               </div>
             )}
 
             {/* ── The Audit ── */}
-            <div className="audit-section">The Audit · {totalChecks} Checks</div>
+            <div className="audit-section">{t("reports.audit", { n: totalChecks })}</div>
             {challenge.mechanicChecks.map((mech) => {
               // Find the representative result for this mechanic
               // For team_aggregate, use first agent's result (it's shared)
@@ -252,21 +247,21 @@ export function ReportsScreen({
                 ? agentMap.get(repResult.agentId)
                 : null;
               const roleName = agentForMech
-                ? arc.roles.find((ro) => ro.id === agentForMech.role)?.name ?? "Flex"
-                : "Team aggregate";
+                ? arc.roles.find((ro) => ro.id === agentForMech.role)?.name ?? t("common.flex")
+                : t("reports.teamAggregate");
 
               return (
                 <div key={mech.id} className="mechanic-row">
                   <div className="row between">
                     <span className="mechanic-name">{mech.name}</span>
                     <span className={`badge ${repResult.passed ? "pass" : "fail"}`}>
-                      {repResult.passed ? "PASS" : "FAIL"} · {margin >= 0 ? "+" : ""}{Math.round(margin)}
+                      {repResult.passed ? t("common.pass") : t("common.fail")} · {margin >= 0 ? "+" : ""}{Math.round(margin)}
                     </span>
                   </div>
                   <div className="mechanic-detail">
                     {agentForMech ? agentForMech.name : roleName}
                     {agentForMech && r.assignedAgents.find((ar) => ar.agentId === agentForMech.id)?.isHeroic && (
-                      <span className="badge pass" style={{ marginLeft: 6, fontSize: 8, padding: "1px 5px" }}>HEROIC</span>
+                      <span className="badge pass" style={{ marginLeft: 6, fontSize: 8, padding: "1px 5px" }}>{t("reports.heroic")}</span>
                     )}
                     {agentForMech && (() => {
                       const ar = r.assignedAgents.find(a => a.agentId === agentForMech.id);
@@ -275,18 +270,18 @@ export function ReportsScreen({
                       return (
                         <>
                           {ar.stressGained > 0 && (
-                            <span className="tag-label delta-stress">{` +${ar.stressGained} STRESS`}</span>
+                            <span className="tag-label delta-stress">{t("reports.stressChip", { n: ar.stressGained })}</span>
                           )}
                           {ar.wasDowned && (
-                            <span className="tag-label delta-downed">DOWNED</span>
+                            <span className="tag-label delta-downed">{t("reports.downedChip")}</span>
                           )}
                           {allPassed && !ar.wasDowned && (
-                            <span className="tag-label delta-clean">CLEAN</span>
+                            <span className="tag-label delta-clean">{t("reports.cleanChip")}</span>
                           )}
                         </>
                       );
                     })()}
-                    {agentForMech ? ` · ${roleName}` : ""} · {Math.round(repResult.score)} vs threshold {repResult.threshold}
+                    {agentForMech ? ` · ${roleName}` : ""}{t("reports.vsThreshold", { score: Math.round(repResult.score), threshold: repResult.threshold })}
                   </div>
                   <div className={`bar mechanic${!repResult.passed ? " fail" : ""}`}>
                     <div className="fill" style={{ width: `${pct}%` }} />
@@ -304,7 +299,7 @@ export function ReportsScreen({
             {/* ── Loot drops ── */}
             {r.lootDrops.length > 0 && (
               <>
-                <div className="audit-section" style={{ marginTop: 20 }}>Drops · {r.lootDrops.length}</div>
+                <div className="audit-section" style={{ marginTop: 20 }}>{t("reports.dropsN", { n: r.lootDrops.length })}</div>
                 {r.lootDrops.map((l) => {
                   const item = arc.items.find((it) => it.id === l.itemId);
                   const statLine = item
@@ -325,11 +320,11 @@ export function ReportsScreen({
                           )}
                         </div>
                         <span className={`badge ${decision ? "pass" : "pending"}`}>
-                          {decision ? "AWARDED" : "DECISION PENDING"}
+                          {decision ? t("reports.awarded").toUpperCase() : t("reports.decisionPending").toUpperCase()}
                         </span>
                       </div>
                       <div className="agent-meta" style={{ marginTop: 6 }}>
-                        Eligible: {l.eligibleAgents.map((id) => agentMap.get(id)?.name ?? id).join(" · ")}
+                        {t("reports.eligible", { names: l.eligibleAgents.map((id) => agentMap.get(id)?.name ?? id).join(" · ") })}
                       </div>
                       {item?.flavorText && (
                         <div style={{ fontFamily: "var(--serif)", fontSize: 13, color: "var(--dim)", marginTop: 6, fontStyle: "italic" }}>
@@ -348,6 +343,12 @@ export function ReportsScreen({
   );
 }
 
+function outcomeWord(outcome: RunReport["outcome"]): string {
+  if (outcome === "success") return t("reports.outcomeSuccessWord");
+  if (outcome === "partial") return t("reports.outcomePartialWord");
+  return t("reports.outcomeFailureWord");
+}
+
 function buildSummary(
   report: RunReport,
   challenge: import("../../engine/types.js").Challenge,
@@ -362,49 +363,50 @@ function buildSummary(
     return agent && agent.stress >= 7;
   });
 
-  // 1. Outcome statement
+  // 1. Outcome statement (challenge.name is arc data — verbatim)
   const outcomeLabel =
-    report.outcome === "success" ? "Clean" :
-    report.outcome === "partial" ? "Partial" :
-    "Wipe";
+    report.outcome === "success" ? t("reports.outcomeClean") :
+    report.outcome === "partial" ? t("reports.outcomePartial") :
+    t("reports.outcomeWipe");
   const outcome = `${challenge.name}: ${outcomeLabel}.`;
 
   // 2. Key delta
   let delta: string;
   if (report.outcome === "success" && passedCount === totalChecks) {
     if (report.lootDrops.length > 0) {
-      delta = `Full clear — all ${totalChecks} checks passed. ${report.lootDrops.length} loot drop${report.lootDrops.length > 1 ? "s" : ""}.`;
+      delta = t("reports.sumFullClearLoot", { checks: totalChecks, drops: report.lootDrops.length });
     } else {
-      delta = `Full clear — all ${totalChecks} checks passed.${totalStress > 0 ? ` Total stress accrued: +${totalStress}.` : " Zero stress."}`;
+      delta = t("reports.sumFullClear", { checks: totalChecks }) +
+        (totalStress > 0 ? t("reports.sumStressAccrued", { n: totalStress }) : t("reports.sumZeroStress"));
     }
   } else if (report.outcome === "partial") {
     const failedCount = totalChecks - passedCount;
-    const stressPart = totalStress > 0 ? ` +${totalStress} stress across roster.` : "";
-    delta = `${passedCount} of ${totalChecks} checks passed; ${failedCount} failed.${stressPart}`;
+    const stressPart = totalStress > 0 ? t("reports.sumStressAcross", { n: totalStress }) : "";
+    delta = t("reports.sumPartial", { passed: passedCount, total: totalChecks, failed: failedCount }) + stressPart;
   } else {
-    const stressPart = totalStress > 0 ? ` +${totalStress} stress distributed.` : "";
+    const stressPart = totalStress > 0 ? t("reports.sumStressDistributed", { n: totalStress }) : "";
     const downPart = downedAgents.length > 0
-      ? ` ${downedAgents.map((a) => agentMap.get(a.agentId)?.name?.split(" ")[0] ?? a.agentId).join(", ")} downed.`
+      ? t("reports.sumDowned", { names: downedAgents.map((a) => agentMap.get(a.agentId)?.name?.split(" ")[0] ?? a.agentId).join(", ") })
       : "";
-    delta = `${passedCount} of ${totalChecks} checks met.${stressPart}${downPart}`;
+    delta = t("reports.sumChecksMet", { passed: passedCount, total: totalChecks }) + stressPart + downPart;
   }
 
   // 3. Action cue
   let action: string;
   if (report.outcome === "success" && report.lootDrops.length > 0) {
-    action = "Award the drop below.";
+    action = t("reports.sumAwardDrop");
   } else if (report.outcome === "success") {
     action = highStressAgents.length > 0
-      ? `Consider resting ${highStressAgents.map((a) => agentMap.get(a.agentId)?.name?.split(" ")[0] ?? a.agentId).join(", ")} before next deployment.`
-      : "Team is ready to advance.";
+      ? t("reports.sumConsiderResting", { names: highStressAgents.map((a) => agentMap.get(a.agentId)?.name?.split(" ")[0] ?? a.agentId).join(", ") })
+      : t("reports.sumTeamReady");
   } else if (report.outcome === "partial") {
     action = highStressAgents.length > 0
-      ? `Consider resting high-stress agents before retry.`
-      : `Re-evaluate roster composition before retry.`;
+      ? t("reports.sumRestHighStress")
+      : t("reports.sumReevaluate");
   } else {
     action = downedAgents.length > 0
-      ? `Downed agents are unavailable next cycle. Re-evaluate roster for retry.`
-      : `Re-evaluate roster for retry.`;
+      ? t("reports.sumDownedUnavailable")
+      : t("reports.sumReevaluateRetry");
   }
 
   return `${outcome} ${delta} ${action}`;
@@ -421,28 +423,26 @@ function buildAbstract(
   const totalStress = report.assignedAgents.reduce((s, a) => s + a.stressGained, 0);
 
   const parts: string[] = [];
-  parts.push("The contract was completed.");
-
-  if (report.outcome === "failure") {
-    parts[0] = "The contract failed.";
-  } else if (report.outcome === "partial") {
-    parts[0] = "The contract was completed.";
-  }
+  parts.push(report.outcome === "failure" ? t("reports.absFailed") : t("reports.absCompleted"));
 
   if (failedCount > 0) {
-    parts.push(`${failedCount === 1 ? "One" : `${failedCount} of ${totalChecks}`} mechanic ${failedCount === 1 ? "check" : "checks"} failed${headline.clutchAgent ? `; one was carried by ${headline.clutchAgent.split(" ")[0]}'s clutch resolve` : ""}.`);
+    parts.push(t("reports.absChecksFailedLine", {
+      failed: failedCount,
+      total: totalChecks,
+      name: headline.clutchAgent ? headline.clutchAgent.split(" ")[0]! : "",
+    }));
   } else {
-    parts.push("All checks passed.");
+    parts.push(t("reports.absAllPassed"));
   }
 
   if (headline.collapseAgent) {
-    parts.push(`The cost is in ${headline.collapseAgent.split(" ")[0]}.`);
+    parts.push(t("reports.absCostIn", { name: headline.collapseAgent.split(" ")[0]! }));
   } else if (totalStress > 6) {
-    parts.push("The stress toll was significant.");
+    parts.push(t("reports.absStressToll"));
   } else if (totalStress === 0 && report.outcome === "success") {
-    parts.push("The team came home clean.");
+    parts.push(t("reports.absCameHomeClean"));
   } else {
-    parts.push("The team came home.");
+    parts.push(t("reports.absCameHome"));
   }
 
   return parts.join(" ");

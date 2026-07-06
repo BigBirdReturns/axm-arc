@@ -13,6 +13,7 @@ import {
   removeArc,
 } from "../lib/arc-library.js";
 import { KarazhanEmblem, isKarazhan } from "../karazhan-theme.js";
+import { t, useLocale } from "../../i18n/index.js";
 
 interface Props {
   arc: Arc; // currently-active arc (for "this is loaded" badge)
@@ -21,6 +22,7 @@ interface Props {
 }
 
 export function LibraryScreen({ arc, onBack, onLoadArc }: Props): JSX.Element {
+  useLocale(); // this screen renders outside App's play shell — subscribe directly
   const [entries, setEntries] = useState<ArcLibraryEntry[]>(() => loadArcLibrary());
   const [jsonDraft, setJsonDraft] = useState("");
   const [importErrors, setImportErrors] = useState<string[]>([]);
@@ -48,7 +50,7 @@ export function LibraryScreen({ arc, onBack, onLoadArc }: Props): JSX.Element {
       setImportErrors(result.errors);
       return;
     }
-    setImportMsg(`Imported "${result.entry.arc.meta.name}" v${result.entry.arc.meta.version}.`);
+    setImportMsg(t("library.imported", { name: result.entry.arc.meta.name, version: result.entry.arc.meta.version }));
     setJsonDraft("");
     refresh();
   };
@@ -73,12 +75,12 @@ export function LibraryScreen({ arc, onBack, onLoadArc }: Props): JSX.Element {
     anchor.click();
     anchor.remove();
     URL.revokeObjectURL(url);
-    setExportMsg(`Exported "${entry.arc.meta.name}" as ${result.payload.filename}.`);
+    setExportMsg(t("library.exported", { name: entry.arc.meta.name, file: result.payload.filename }));
   };
 
   const handleRemove = (entry: ArcLibraryEntry) => {
     if (entry.source !== "imported") return;
-    if (!confirm(`Remove "${entry.arc.meta.name}" from the library? Bundled arcs cannot be removed; only imported ones.`)) return;
+    if (!confirm(t("confirm.removeArc", { name: entry.arc.meta.name }))) return;
     removeArc(entry.arc.meta.id);
     refresh();
   };
@@ -96,9 +98,9 @@ export function LibraryScreen({ arc, onBack, onLoadArc }: Props): JSX.Element {
       <div className="title-content" style={{ maxWidth: 800 }}>
         <div className="title-imprint">AXM</div>
         <div className="title-rule" />
-        <h1 className="title-name">Library</h1>
+        <h1 className="title-name">{t("library.heading")}</h1>
         <div className="title-meta">
-          {entries.length} arc{entries.length === 1 ? "" : "s"} available
+          {t("library.arcsAvailable", { n: entries.length })}
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 24 }}>
@@ -122,7 +124,7 @@ export function LibraryScreen({ arc, onBack, onLoadArc }: Props): JSX.Element {
                       )}
                       <strong style={{ fontSize: 16 }}>{entry.arc.meta.name}</strong>
                       <TrustLabel trust={entry.trust} />
-                      {isActive && <span className="badge pass">Active</span>}
+                      {isActive && <span className="badge pass">{t("library.active")}</span>}
                     </div>
                     <div className="agent-meta" style={{ marginTop: 4 }}>
                       v{entry.arc.meta.version} · {entry.arc.meta.domain} · {entry.arc.meta.author} · {entry.source}
@@ -130,21 +132,21 @@ export function LibraryScreen({ arc, onBack, onLoadArc }: Props): JSX.Element {
                   </div>
                   <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
                     <button className="secondary" onClick={() => setInspectEntry(entry)}>
-                      Inspect
+                      {t("library.inspect")}
                     </button>
                     <button
                       className="secondary"
                       data-testid={`export-arc-${entry.arc.meta.id}`}
                       onClick={() => handleExport(entry)}
                     >
-                      Export
+                      {t("library.export")}
                     </button>
                     <button className="primary" onClick={() => handleLoad(entry)}>
-                      {isActive ? "Resume" : "Load"}
+                      {isActive ? t("library.resume") : t("library.load")}
                     </button>
                     {entry.source === "imported" && (
-                      <button className="icon" onClick={() => handleRemove(entry)} aria-label="Remove arc">
-                        Remove
+                      <button className="icon" onClick={() => handleRemove(entry)} aria-label={t("library.removeAria")}>
+                        {t("common.remove")}
                       </button>
                     )}
                   </div>
@@ -156,7 +158,7 @@ export function LibraryScreen({ arc, onBack, onLoadArc }: Props): JSX.Element {
 
         {exportErrors && (
           <div className="warning" data-testid="export-errors" style={{ marginTop: 12, whiteSpace: "pre-wrap" }}>
-            <strong>Export blocked — &ldquo;{exportErrors.arcName}&rdquo; failed validation:</strong>
+            <strong>{t("library.exportBlocked", { name: exportErrors.arcName })}</strong>
             <ul style={{ marginTop: 4, paddingLeft: 20 }}>
               {exportErrors.errors.map((err, i) => (
                 <li key={i} style={{ fontFamily: "var(--mono)", fontSize: 12 }}>
@@ -174,10 +176,9 @@ export function LibraryScreen({ arc, onBack, onLoadArc }: Props): JSX.Element {
         )}
 
         <div style={{ marginTop: 32 }}>
-          <h2 className="codex-section-title">Import arc</h2>
+          <h2 className="codex-section-title">{t("library.importArc")}</h2>
           <p style={{ color: "var(--muted)", fontSize: 13, marginTop: 4 }}>
-            Paste arc JSON below, or upload a file. Import runs schema validation;
-            invalid arcs are rejected with a line-by-line explanation.
+            {t("library.importHelp")}
           </p>
 
           <input
@@ -204,13 +205,13 @@ export function LibraryScreen({ arc, onBack, onLoadArc }: Props): JSX.Element {
               onClick={handleValidate}
               disabled={jsonDraft.trim().length === 0}
             >
-              Validate & Save
+              {t("library.validateSave")}
             </button>
           </div>
 
           {importErrors.length > 0 && (
             <div className="warning" style={{ marginTop: 12, whiteSpace: "pre-wrap" }}>
-              <strong>Validation failed:</strong>
+              <strong>{t("library.validationFailed")}</strong>
               <ul style={{ marginTop: 4, paddingLeft: 20 }}>
                 {importErrors.map((err, i) => (
                   <li key={i} style={{ fontFamily: "var(--mono)", fontSize: 12 }}>
@@ -230,7 +231,7 @@ export function LibraryScreen({ arc, onBack, onLoadArc }: Props): JSX.Element {
 
         <div className="title-actions" style={{ marginTop: 32 }}>
           <button className="secondary" onClick={onBack}>
-            Back
+            {t("common.back")}
           </button>
         </div>
       </div>

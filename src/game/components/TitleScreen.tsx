@@ -6,6 +6,7 @@ import { CodexOverlay, TrustLabel } from "../../codex/index.js";
 import { WhatsNew } from "../../release-notes/index.js";
 import { VARIANT, VARIANT_LABELS } from "../../variants/index.js";
 import { t, useLocale } from "../../i18n/index.js";
+import { LocaleSwitcher } from "../../i18n/LocaleSwitcher.js";
 
 interface Props {
   arc: Arc;
@@ -29,13 +30,19 @@ export function TitleScreen({ arc, onContinue, onNewGame, onOpenLibrary, onOpenD
 
   return (
     <div className="title-screen">
+      {/* Locale switch must be reachable before entering play — the header
+          switcher only exists inside the play shell. Pinned to the corner so
+          the tall centered column can't push it off-viewport. */}
+      <div style={{ position: "fixed", top: 12, right: 12, zIndex: 10 }}>
+        <LocaleSwitcher />
+      </div>
       <div className="title-content">
         <div className="title-imprint">AXM</div>
         <div className="title-rule" />
         <h1 className="title-name">{arc.meta.name}</h1>
         <div className="title-meta" style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
           <span>
-            {arc.meta.domain} · {arc.challenges.length} contracts · {Object.keys(arc.items).length > 0 ? `${arc.items.length} items` : ""}
+            {arc.meta.domain} · {t("title.contractsItems", { contracts: arc.challenges.length, items: Object.keys(arc.items).length > 0 ? arc.items.length : 0 })}
           </span>
           <TrustLabel trust={activeTrust} />
         </div>

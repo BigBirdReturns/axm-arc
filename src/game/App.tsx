@@ -209,8 +209,9 @@ function buildNewOrg(activeArc: typeof FIRST_CHARTER): Organization {
 
 export function App(): JSX.Element {
   const [mode, setMode] = useState<"title" | "play" | "library" | "designer">("title");
-  // Subscribe to the module-level locale so every t() call below re-renders on switch.
-  useLocale();
+  // Subscribe to the module-level locale so every t() call below re-renders on
+  // switch; `locale` is also a dependency of the memos that bake t() output.
+  const [locale] = useLocale();
   const tutorial = useTutorial();
   const [tab, setTab] = useState<Tab>("Roster");
   const [arc, setArc] = useState<typeof FIRST_CHARTER>(() => resolveActiveArc());
@@ -288,7 +289,7 @@ export function App(): JSX.Element {
     dramaQueueCount: org.dramaQueue.length,
     pendingRewardChoicesCount: pendingRewardChoices.length,
     rewardDecisionsCount: rewardDecisions.length,
-  }), [org.dramaQueue.length, pendingRewardChoices.length, rewardDecisions.length]);
+  }), [org.dramaQueue.length, pendingRewardChoices.length, rewardDecisions.length, locale]);
 
   const blocked = isAdvanceBlocked(advanceBlockers);
   const cycleContext = useMemo(() => {
@@ -296,13 +297,13 @@ export function App(): JSX.Element {
     const unresolvedRewards = pendingRewardChoices.length - rewardDecisions.length;
     const totalDeployed = assignments.reduce((s, a) => s + a.agentIds.length, 0);
     if (dramaCount > 0)
-      return { text: `${dramaCount} decision${dramaCount !== 1 ? "s" : ""} pending`, color: "var(--accent)" };
+      return { text: t("ctx.decisionsPending", { count: dramaCount }), color: "var(--accent)" };
     if (unresolvedRewards > 0)
-      return { text: `${unresolvedRewards} reward${unresolvedRewards !== 1 ? "s" : ""} to assign`, color: "var(--accent)" };
+      return { text: t("ctx.rewardsToAssign", { count: unresolvedRewards }), color: "var(--accent)" };
     if (assignments.length > 0)
-      return { text: `${assignments.length} contract${assignments.length !== 1 ? "s" : ""} queued · ${totalDeployed} deployed`, color: "var(--muted)" };
-    return { text: "Ready to advance", color: "var(--positive)" };
-  }, [org.dramaQueue.length, pendingRewardChoices.length, rewardDecisions.length, assignments]);
+      return { text: t("ctx.contractsQueued", { count: assignments.length, deployed: totalDeployed }), color: "var(--muted)" };
+    return { text: t("ctx.readyToAdvance"), color: "var(--positive)" };
+  }, [org.dramaQueue.length, pendingRewardChoices.length, rewardDecisions.length, assignments, locale]);
 
   const hasAdvancePayload = assignments.length > 0 || lastReports.length > 0;
   const canAdvanceCycle = hasAdvancePayload && !blocked;
@@ -321,7 +322,7 @@ export function App(): JSX.Element {
   };
 
   const resetGame = () => {
-    if (!confirm("Reset the game? All progress will be lost.")) return;
+    if (!confirm(t("confirm.reset"))) return;
     clearSave();
     try { localStorage.removeItem(INTENT_KEY); } catch { /* noop */ }
     setOrg(buildNewOrg(arc));
@@ -358,7 +359,7 @@ export function App(): JSX.Element {
     reportCount: lastReports.length,
     pendingRewardChoices: pendingRewardChoices.length,
     resolvedRewardDecisions: rewardDecisions.length,
-  }), [lastReports.length, pendingRewardChoices.length, rewardDecisions.length]);
+  }), [lastReports.length, pendingRewardChoices.length, rewardDecisions.length, locale]);
   const tabBadges: Partial<Record<Tab, { label: string; tone: string } | null>> = {
     Drama: dramaBadge,
     Reports: reportsBadge,
@@ -397,7 +398,7 @@ export function App(): JSX.Element {
           autoFocus
           rows={2}
           value={intentDraft}
-          placeholder="e.g. Run Attumen on farm. Push Moroes for first clear."
+          placeholder={t("intent.placeholder")}
           onChange={(e) => setIntentDraft(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
@@ -421,17 +422,17 @@ export function App(): JSX.Element {
       <div className="stat-cell">
         <div className="stat-lbl">{arc.tokenName}</div>
         <div className="stat-val"><CountUp value={org.resources.tokens} /></div>
-        <div className="stat-sub">+{arc.tokensPerCycle} next cycle</div>
+        <div className="stat-sub">{t("stats.nextCycle", { n: arc.tokensPerCycle })}</div>
       </div>
       <div className="stat-cell">
         <div className="stat-lbl">{arc.currencyName}</div>
         <div className="stat-val"><CountUp value={org.resources.currency} /></div>
-        <div className="stat-sub">-{upkeep} upkeep</div>
+        <div className="stat-sub">{t("stats.upkeepSub", { n: upkeep })}</div>
       </div>
       <div className="stat-cell">
         <div className="stat-lbl">{arc.reputationName}</div>
         <div className="stat-val"><CountUp value={org.reputation} /></div>
-        <div className="stat-sub">{nextRepGate !== undefined ? `of ${nextRepGate} to next tier` : "top tier"}</div>
+        <div className="stat-sub">{nextRepGate !== undefined ? t("stats.ofToNextTier", { n: nextRepGate }) : t("header.statTopTier")}</div>
       </div>
       <div className="stat-cell">
         <div className="stat-lbl">{t("stats.drama")}</div>
@@ -537,7 +538,7 @@ export function App(): JSX.Element {
           // wipe, swap arc, and rebuild org for the new arc.
           const hasExistingSave = loadSave(arc) !== null;
           if (hasExistingSave && arcId !== arc.meta.id) {
-            if (!confirm("Loading a different arc will clear your current save. Continue?")) return;
+            if (!confirm(t("confirm.loadArc"))) return;
           }
           saveActiveArcId(arcId);
           clearSave();
@@ -629,16 +630,16 @@ export function App(): JSX.Element {
         </div>
         <h1>{arc.meta.name}</h1>
         <div className="subtitle">
-          {arc.meta.domain} · Tier I · {cleared.size} of {arc.challenges.length} cleared · build {BUILD_SHA}
+          {t("header.subtitle", { domain: arc.meta.domain, cleared: cleared.size, total: arc.challenges.length, build: BUILD_SHA })}
         </div>
 
         {/* Desktop inline stat strip */}
         <div className="desktop-header-stats" style={{ display: "none" }}>
           {[
-            { lbl: arc.tokenName, val: org.resources.tokens, sub: `+${arc.tokensPerCycle} next` },
-            { lbl: arc.currencyName, val: org.resources.currency.toLocaleString(), sub: `-${upkeep}` },
-            { lbl: arc.reputationName, val: nextRepGate !== undefined ? `${org.reputation} / ${nextRepGate}` : `${org.reputation}`, sub: nextRepGate !== undefined ? "to next tier" : "top tier" },
-            { lbl: "Drama", val: org.dramaQueue.length, sub: "queued", accent: org.dramaQueue.length > 0 },
+            { lbl: arc.tokenName, val: org.resources.tokens, sub: t("header.statNext", { n: arc.tokensPerCycle }) },
+            { lbl: arc.currencyName, val: org.resources.currency.toLocaleString(), sub: t("header.statUpkeep", { n: upkeep }) },
+            { lbl: arc.reputationName, val: nextRepGate !== undefined ? `${org.reputation} / ${nextRepGate}` : `${org.reputation}`, sub: nextRepGate !== undefined ? t("header.statToNextTier") : t("header.statTopTier") },
+            { lbl: t("stats.drama"), val: org.dramaQueue.length, sub: t("stats.queued"), accent: org.dramaQueue.length > 0 },
           ].map((s) => (
             <div key={s.lbl} className="stat-cell">
               <div className="stat-lbl">{s.lbl}</div>

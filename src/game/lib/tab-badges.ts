@@ -1,4 +1,5 @@
 import type { TriagedDrama } from "../../engine/drama-triage.js";
+import { t } from "../../i18n/index.js";
 
 /** Highest-priority badge for the Drama tab. Blocking nags (accent); inbox
  *  informs (muted); ambient NEVER badges — it's summarized by design, not a
@@ -20,6 +21,6 @@ export function reportsTabBadge(opts: {
 }): { label: string; tone: "blocking" | "new" } | null {
   const unresolved = opts.pendingRewardChoices - opts.resolvedRewardDecisions;
   if (unresolved > 0) return { label: String(unresolved), tone: "blocking" };
-  if (opts.reportCount > 0) return { label: "NEW", tone: "new" };
+  if (opts.reportCount > 0) return { label: t("badge.new"), tone: "new" };
   return null;
 }

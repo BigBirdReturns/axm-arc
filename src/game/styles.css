@@ -3,7 +3,7 @@
    Cream paper, brick-red accent, Barlow Condensed / Lora / Plex Mono.
    ════════════════════════════════════════════════════════════════ */
 
-@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Lora:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&family=Playfair+Display:ital,wght@0,900;1,900&display=swap');
+/* Fonts are self-hosted — see public/fonts.css (loaded from index.html). */
 
 :root {
   --paper: #f0ebe0;
@@ -2372,6 +2372,27 @@ button.tutorial-pulse-btn {
   display: flex;
   justify-content: flex-end;
 }
+
+/* Native <dialog> carrying the old backdrop classes: the element itself paints
+   the backdrop (fixed inset 0 + rgba background above), so the UA top-layer
+   defaults and ::backdrop must get out of the way. */
+dialog.modal-backdrop,
+dialog.codex-overlay-backdrop {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  outline: none;
+  width: auto;
+  height: auto;
+  max-width: none;
+  max-height: none;
+  color: inherit;
+}
+dialog.modal-backdrop:not([open]),
+dialog.codex-overlay-backdrop:not([open]) { display: none; }
+dialog.modal-backdrop::backdrop,
+dialog.codex-overlay-backdrop::backdrop { background: transparent; }
+
 
 .codex-overlay {
   width: 480px;

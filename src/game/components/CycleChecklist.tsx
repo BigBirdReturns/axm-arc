@@ -1,3 +1,5 @@
+import { t } from "../../i18n/index.js";
+
 export function CycleChecklist({ dramaCount, rewardsResolved, rewardsTotal, assignmentCount }: {
   dramaCount: number;
   rewardsResolved: number;
@@ -10,9 +12,9 @@ export function CycleChecklist({ dramaCount, rewardsResolved, rewardsTotal, assi
 
   return (
     <div className="cycle-checklist">
-      <CheckItem ok={dramaOk} label={dramaOk ? "Drama resolved" : `${dramaCount} drama unresolved`} />
-      <CheckItem ok={rewardsOk} label={rewardsOk ? "Rewards resolved" : `${rewardsTotal - rewardsResolved} reward${rewardsTotal - rewardsResolved === 1 ? "" : "s"} pending`} />
-      <CheckItem ok={assignOk} label={assignOk ? `${assignmentCount} contract${assignmentCount === 1 ? "" : "s"} queued` : "No contracts assigned"} />
+      <CheckItem ok={dramaOk} label={dramaOk ? t("checklist.dramaResolved") : t("checklist.dramaUnresolved", { n: dramaCount })} />
+      <CheckItem ok={rewardsOk} label={rewardsOk ? t("checklist.rewardsResolved") : t("checklist.rewardsPending", { n: rewardsTotal - rewardsResolved })} />
+      <CheckItem ok={assignOk} label={assignOk ? t("checklist.contractsQueued", { n: assignmentCount }) : t("checklist.noContracts")} />
     </div>
   );
 }

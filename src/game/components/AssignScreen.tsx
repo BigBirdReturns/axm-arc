@@ -12,6 +12,8 @@ import {
 } from "../../engine/projections.js";
 import { challengeAccess, unlockedProgressionTierIds } from "../../engine/access.js";
 import { agentInitials } from "../lib/ui-helpers.js";
+import { t } from "../../i18n/index.js";
+import { useModalDialog } from "../../lib/use-modal-dialog.js";
 
 interface Props {
   arc: Arc;
@@ -148,32 +150,32 @@ function summarizePlan(plan: RosterPlan | null): {
 } {
   if (!plan) {
     return {
-      badge: "No legal team",
+      badge: t("assign.noLegalTeam"),
       className: "fail",
-      text: "You do not currently have enough available agents for this contract's role and roster requirements.",
+      text: t("assign.noLegalTeamText"),
     };
   }
   if (plan.failCount > 0) {
     const worst = [...plan.projections].sort((a, b) => a.margin - b.margin)[0];
     return {
-      badge: "Not ready",
+      badge: t("assign.notReady"),
       className: "fail",
       text: worst
-        ? `Best roster still misses ${worst.mechanicName} by ${Math.abs(worst.margin)}. Build Training, gear ${worst.primaryAttributeName}, or recruit before forcing it.`
-        : "Best roster still fails at least one check.",
+        ? t("assign.notReadyText", { mechanic: worst.mechanicName, margin: Math.abs(worst.margin), attr: worst.primaryAttributeName })
+        : t("assign.notReadyFallback"),
     };
   }
   if (plan.tightCount > 0) {
     return {
-      badge: "Risky clear",
+      badge: t("assign.riskyClear"),
       className: "pending",
-      text: `${plan.tightCount} check${plan.tightCount === 1 ? "" : "s"} are close. You can run it, but stress/morale swings may matter after the report.`,
+      text: t("assign.riskyClearText", { n: plan.tightCount }),
     };
   }
   return {
-    badge: "Good plan",
+    badge: t("assign.goodPlan"),
     className: "pass",
-    text: "Current roster clears every projected check comfortably. This is the safe pick.",
+    text: t("assign.goodPlanText"),
   };
 }
 
@@ -215,15 +217,13 @@ export function AssignScreen({
   return (
     <div className="screen">
       <h2>
-        Contracts{" "}
-        <span className="count">Tier I · {challenges.length} available</span>
+        {t("assign.contracts")}{" "}
+        <span className="count">{t("assign.tierAvailable", { count: challenges.length })}</span>
       </h2>
 
       {assignments.length === 0 && (
         <div className="guidance-callout">
-          <strong>Core loop:</strong> pick a contract, read the projected
-          checks, slot the recommended roster, then use gold on Base upgrades
-          when the readout says you are not ready.
+          {t("assign.guidance")}
         </div>
       )}
 
@@ -282,8 +282,8 @@ export function AssignScreen({
                       color: isFirstClear ? "var(--accent-lt)" : "var(--muted)",
                     }}
                   >
-                    Contract {String(i + 1).padStart(2, "0")} ·{" "}
-                    {isFirstClear ? "First Clear Push" : "Farm"}
+                    {t("assign.contractNo", { n: String(i + 1).padStart(2, "0") })}
+                    {isFirstClear ? t("assign.firstClearPush") : t("assign.farm")}
                   </span>
                   <span
                     className="badge"
@@ -297,7 +297,7 @@ export function AssignScreen({
                         : {}
                     }
                   >
-                    Diff {c?.difficultyRating ?? "?"}
+                    {t("assign.diff", { n: c?.difficultyRating ?? "?" })}
                   </span>
                 </div>
                 <div
@@ -322,8 +322,7 @@ export function AssignScreen({
                       : "var(--dim)",
                   }}
                 >
-                  {a.agentIds.length} / {c?.rosterRequirements.maxAgents ?? "?"}{" "}
-                  assigned · {a.tokensSpent} lockout
+                  {t("assign.assignedLockout", { have: a.agentIds.length, max: c?.rosterRequirements.maxAgents ?? "?", tokens: a.tokensSpent })}
                 </div>
               </div>
 
@@ -372,7 +371,7 @@ export function AssignScreen({
                       <span style={{ color: "var(--accent)" }}>
                         {isExpanded ? "▾" : "▸"}
                       </span>
-                      <span>{projections.length} checks</span>
+                      <span>{t("assign.checksCount", { n: projections.length })}</span>
                       {!isExpanded && (
                         <>
                           {passCount > 0 && (
@@ -380,7 +379,7 @@ export function AssignScreen({
                               className="badge pass"
                               style={{ fontSize: 8, padding: "1px 5px" }}
                             >
-                              {passCount} pass
+                              {t("assign.passN", { n: passCount })}
                             </span>
                           )}
                           {tightCount > 0 && (
@@ -388,7 +387,7 @@ export function AssignScreen({
                               className="badge pending"
                               style={{ fontSize: 8, padding: "1px 5px" }}
                             >
-                              {tightCount} tight
+                              {t("assign.tightN", { n: tightCount })}
                             </span>
                           )}
                           {failCount > 0 && (
@@ -396,7 +395,7 @@ export function AssignScreen({
                               className="badge fail"
                               style={{ fontSize: 8, padding: "1px 5px" }}
                             >
-                              {failCount} fail
+                              {t("assign.failN", { n: failCount })}
                             </span>
                           )}
                         </>
@@ -405,7 +404,7 @@ export function AssignScreen({
                     {isExpanded && (
                       <>
                         <div className="audit-section">
-                          Projected Mechanics · {projections.length} checks
+                          {t("assign.projectedMechanics", { n: projections.length })}
                         </div>
                         {projections.map((p) => (
                           <ProjectionRow key={p.mechanicId} p={p} />
@@ -422,16 +421,16 @@ export function AssignScreen({
                     setAssignments(assignments.filter((_, j) => j !== i))
                   }
                 >
-                  Remove
+                  {t("common.remove")}
                 </button>
               </div>
             </div>
           );
         })}
 
-      <h3 style={{ marginTop: 16 }}>Available</h3>
+      <h3 style={{ marginTop: 16 }}>{t("assign.available")}</h3>
       {challenges.length === 0 && (
-        <div className="empty">Nothing unlocked yet.</div>
+        <div className="empty">{t("assign.nothingUnlocked")}</div>
       )}
       {challenges.map((c) => {
         const alreadyQueued = assignments.some((a) => a.challengeId === c.id);
@@ -449,7 +448,7 @@ export function AssignScreen({
                 {c.name}
               </span>
               <span className="badge">
-                {isCleared ? `Cleared` : `Diff ${c.difficultyRating}`}
+                {isCleared ? t("assign.cleared") : t("assign.diff", { n: c.difficultyRating })}
               </span>
             </div>
             <div
@@ -463,8 +462,7 @@ export function AssignScreen({
               {c.description}
             </div>
             <div className="agent-meta" style={{ marginTop: 6 }}>
-              {c.rosterRequirements.minAgents}-{c.rosterRequirements.maxAgents}{" "}
-              agents
+              {t("assign.agentsRange", { min: c.rosterRequirements.minAgents, max: c.rosterRequirements.maxAgents })}
               {c.rosterRequirements.roleRequirements.length > 0 && " · "}
               {c.rosterRequirements.roleRequirements
                 .map((r) => {
@@ -472,8 +470,8 @@ export function AssignScreen({
                   return `${r.count}× ${role?.name ?? r.roleId}`;
                 })
                 .join(", ")}
-              {alreadyQueued && " · Queued"}
-              {isCleared && !alreadyQueued && " · 0 lockout (farm)"}
+              {alreadyQueued && t("assign.queued")}
+              {isCleared && !alreadyQueued && t("assign.farmLockout")}
             </div>
             <div className="contract-readiness">
               <span className={`badge ${planSummary.className}`}>
@@ -482,7 +480,7 @@ export function AssignScreen({
               <span>{planSummary.text}</span>
             </div>
             <div className="agent-meta" style={{ marginTop: 4 }}>
-              Recommended: {namesForPlan(bestPlan, availableAgents)}
+              {t("assign.recommended", { names: namesForPlan(bestPlan, availableAgents) })}
             </div>
           </div>
         );
@@ -521,11 +519,11 @@ function ProjectionRow({ p }: { p: MechanicProjection }): JSX.Element {
         <span
           className={`badge ${p.assessment === "fail" ? "fail" : p.assessment === "tight" ? "pending" : "pass"}`}
         >
-          {p.assessment.toUpperCase()}
+          {p.assessment === "fail" ? t("assign.assessFail") : p.assessment === "tight" ? t("assign.assessTight") : t("assign.assessComfortable")}
         </span>
       </div>
       <div className="mechanic-detail">
-        Reads {p.attributeSummary} · {p.agentName ?? "Team"} ·{" "}
+        {t("assign.reads", { summary: p.attributeSummary })} · {p.agentName ?? t("assign.team")} ·{" "}
         {p.projectedScore} / {p.threshold}
       </div>
       <div className="mechanic-explainer">
@@ -563,6 +561,7 @@ function RosterPicker({
   onCancel: () => void;
   onSubmit: (agentIds: string[], tokens: number) => void;
 }): JSX.Element {
+  const dialogRef = useModalDialog(onCancel);
   const available: Agent[] = Object.values(org.agents).filter(
     (a) => a.downedUntilCycle === null,
   );
@@ -622,30 +621,30 @@ function RosterPicker({
   });
 
   return (
-    <div className="modal-backdrop" onClick={onCancel}>
+    <dialog ref={dialogRef} className="modal-backdrop" onClick={onCancel}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="row between">
           <h3>{challenge.name}</h3>
           <button className="icon" onClick={onCancel}>
-            Cancel
+            {t("common.cancel")}
           </button>
         </div>
         <div className="row between" style={{ marginBottom: 12 }}>
           <div className="agent-meta">
-            Pick {min}-{max} agents · {selected.size} selected
+            {t("assign.pickRange", { min, max, selected: selected.size })}
           </div>
           <button
             className="icon"
             onClick={autoFill}
             disabled={available.length < min}
           >
-            Auto-fill
+            {t("assign.autofill")}
           </button>
         </div>
         <div className="recommendation-card">
           <div className="row between">
             <span className="audit-section" style={{ margin: 0 }}>
-              Recommended roster
+              {t("assign.recommendedRoster")}
             </span>
             <span className={`badge ${bestSummary.className}`}>
               {bestSummary.badge}
@@ -661,19 +660,19 @@ function RosterPicker({
             disabled={!bestPlan}
             onClick={() => setSelected(new Set(bestPlan?.agentIds ?? []))}
           >
-            Use recommended roster
+            {t("assign.useRecommended")}
           </button>
         </div>
         {projections.length > 0 && (
           <div className="projection-preview">
-            <div className="audit-section">Live Readout · before you slot</div>
+            <div className="audit-section">{t("assign.liveReadout")}</div>
             {projections.map((p) => (
               <ProjectionRow key={p.mechanicId} p={p} />
             ))}
           </div>
         )}
         {available.map((a) => {
-          const role = arc.roles.find((r) => r.id === a.role)?.name ?? "Flex";
+          const role = arc.roles.find((r) => r.id === a.role)?.name ?? t("common.flex");
           const tierName =
             arc.tiers.find((t) => t.id === a.tier)?.name ?? a.tier;
           const stressClass =
@@ -705,7 +704,7 @@ function RosterPicker({
                       className="badge fail"
                       style={{ marginLeft: 6, fontSize: 8, padding: "1px 5px" }}
                     >
-                      STRESS
+                      {t("assign.stressBadge")}
                     </span>
                   )}
                 </div>
@@ -713,16 +712,16 @@ function RosterPicker({
             </label>
           );
         })}
-        {!reqsMet && <div className="warning">Role requirements not met.</div>}
+        {!reqsMet && <div className="warning">{t("assign.roleReqNotMet")}</div>}
         <button
           className="primary accent"
           disabled={selected.size < min || selected.size > max || !reqsMet}
           onClick={() => onSubmit(Array.from(selected), 1)}
           style={{ marginTop: 8 }}
         >
-          Slot Roster ({selected.size} agents, 1 lockout)
+          {t("assign.slotRoster", { n: selected.size })}
         </button>
       </div>
-    </div>
+    </dialog>
   );
 }

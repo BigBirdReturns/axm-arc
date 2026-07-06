@@ -1,0 +1,694 @@
+{
+  "meta": {
+    "id": "deepway-rescue",
+    "name": "Deepway Rescue Guild",
+    "description": "An underground trade road collapsed in the province's old salt galleries, trapping surveyors, caravans, and whole expeditions in the dark below. You command a rescue guild that answers the postings gallery by gallery, digging deeper toward the Hollow where the worst of it happened. Every gallery you clear and every lantern line you hold becomes guild doctrine for the deeper rescues still ahead.",
+    "author": "axm-arc team",
+    "version": "1.0.0",
+    "engineVersion": "1.0.0",
+    "domain": "rescue-delving",
+    "estimatedCycles": 22
+  },
+  "attributes": [
+    { "id": "vigor", "name": "Vigor", "description": "Endurance and labor — the strength to shore rubble, carry the injured, and keep digging past the point of exhaustion." },
+    { "id": "pathsense", "name": "Pathsense", "description": "Navigation and awareness — the sense that finds the safe line through a collapsed gallery before it becomes a second collapse." },
+    { "id": "wardcraft", "name": "Wardcraft", "description": "Protection and hazard-craft — the discipline that keeps a ceiling standing, a gas pocket contained, or a lantern line lit." },
+    { "id": "steadiness", "name": "Steadiness", "description": "Calm and leadership — the composure that keeps a rescue party moving in the dark instead of panicking in it." }
+  ],
+  "roles": [
+    { "id": "delver", "name": "Delver", "attributeWeights": { "vigor": 0.6, "wardcraft": 0.2, "pathsense": 0.1, "steadiness": 0.1 } },
+    { "id": "pathfinder", "name": "Pathfinder", "attributeWeights": { "pathsense": 0.6, "vigor": 0.2, "steadiness": 0.1, "wardcraft": 0.1 } },
+    { "id": "lampwright", "name": "Lampwright", "attributeWeights": { "wardcraft": 0.6, "steadiness": 0.2, "pathsense": 0.1, "vigor": 0.1 } },
+    { "id": "quartermaster", "name": "Quartermaster", "attributeWeights": { "steadiness": 0.45, "wardcraft": 0.45, "pathsense": 0.1 } }
+  ],
+  "tiers": [
+    { "id": "greenhand", "name": "Greenhand", "statBudgetMin": 20, "statBudgetMax": 32, "upkeepCost": 1, "baseEfficiencyModifier": 1.5 },
+    { "id": "journeyman", "name": "Journeyman", "statBudgetMin": 32, "statBudgetMax": 48, "upkeepCost": 3, "baseEfficiencyModifier": 1.0 },
+    { "id": "masterdelver", "name": "Masterdelver", "statBudgetMin": 48, "statBudgetMax": 60, "upkeepCost": 6, "baseEfficiencyModifier": 0.5 }
+  ],
+  "currencyName": "Marks",
+  "materialName": "Salvaged Kit",
+  "tokenName": "Expedition Slots",
+  "reputationName": "Guild Standing",
+  "tokensPerCycle": 2,
+  "maxTokens": 4,
+  "infrastructureTokenBonus": 0.25,
+  "namePool": {
+    "firstNames": [
+      "Brannix", "Coraline", "Dashiel", "Elowen", "Fenwick",
+      "Gideon", "Halric", "Isolde", "Jareth", "Kestrel",
+      "Lior", "Maren", "Nimue", "Oswin", "Petra"
+    ],
+    "lastNames": [
+      "Deepdelve", "Lanternhold", "Shoreline", "Rockfast", "Galewarden",
+      "Tunnelbright", "Stonewake", "Underhearth", "Cavewright", "Drifthollow"
+    ]
+  },
+  "customTraits": [],
+  "progressionTiers": [
+    {
+      "id": "chapter-1",
+      "name": "Chapter I: The Upper Galleries",
+      "flavorText": "The shallow galleries nearest the collapse, where the panicked and the merely unlucky are still findable if the guild moves fast. Three easy postings to get the guild's rescue lines moving.",
+      "unlockConditions": { "orgMilestones": [], "reputationMinimum": null },
+      "challenges": ["lost-surveyor", "trapped-caravan", "flooded-gallery"],
+      "requiredChallenges": ["lost-surveyor", "trapped-caravan", "flooded-gallery"],
+      "optionalChallenges": []
+    },
+    {
+      "id": "chapter-2",
+      "name": "Chapter II: The Mid-Deeps",
+      "flavorText": "Past the upper galleries, the collapse gets worse: an unstable stairwell, a foul-air pocket, a runaway apprentice who triggered a second cave-in. The guild earns every rescue.",
+      "unlockConditions": { "orgMilestones": ["flooded-gallery-cleared"], "reputationMinimum": 5 },
+      "challenges": ["collapsed-stair", "gas-pocket", "breakaway-apprentice"],
+      "requiredChallenges": ["collapsed-stair", "gas-pocket", "breakaway-apprentice"],
+      "optionalChallenges": []
+    },
+    {
+      "id": "chapter-3",
+      "name": "Chapter III: The Hollow",
+      "flavorText": "One deep chamber stands between the guild and the worst of the collapse. Chart it, and the Hollow — where a whole expedition has been trapped since the first cave-in — is the only rescue left to run.",
+      "unlockConditions": { "orgMilestones": ["breakaway-apprentice-cleared"], "reputationMinimum": 15 },
+      "challenges": ["the-deep-beacon", "hollow-crown"],
+      "requiredChallenges": ["the-deep-beacon", "hollow-crown"],
+      "optionalChallenges": []
+    }
+  ],
+  "attunementChains": [
+    {
+      "id": "the-deep-beacon-charts",
+      "name": "The Deep Beacon Charts",
+      "steps": [
+        { "type": "challenge_clear", "target": "collapsed-stair" },
+        { "type": "challenge_clear", "target": "breakaway-apprentice" },
+        { "type": "challenge_clear", "target": "the-deep-beacon" }
+      ],
+      "grantsAccessTo": ["hollow-crown"]
+    }
+  ],
+  "challenges": [
+    {
+      "id": "lost-surveyor",
+      "name": "The Lost Surveyor",
+      "description": "A survey clerk got separated from his crew in the dark near the collapse and has been wandering blind ever since, more disoriented than hurt. Find him quietly before he wanders into a weak ceiling.",
+      "rosterRequirements": { "minAgents": 2, "maxAgents": 4, "roleRequirements": [] },
+      "accessRequirements": { "orgMilestones": [], "agentAttunements": [], "attunementThreshold": null },
+      "difficultyRating": 12,
+      "mechanicChecks": [
+        {
+          "id": "ls-airflow",
+          "name": "Read the Airflow",
+          "description": "Trace the draft through the upper galleries to the pocket of stale air where a lost man would still be breathing.",
+          "attributeWeights": [{ "attributeId": "pathsense", "weight": 0.7 }, { "attributeId": "vigor", "weight": 0.3 }],
+          "difficultyThreshold": 6,
+          "thresholdMode": "fixed",
+          "scope": "team_aggregate",
+          "failureConsequence": { "type": "stress", "severity": 0.1 }
+        },
+        {
+          "id": "ls-lantern",
+          "name": "Hold the Lantern Line",
+          "description": "Every rescuer keeps their lantern in sight of the next so no one else gets separated while searching.",
+          "attributeWeights": [{ "attributeId": "pathsense", "weight": 0.6 }, { "attributeId": "steadiness", "weight": 0.4 }],
+          "difficultyThreshold": 5,
+          "scope": "per_agent",
+          "failureConsequence": { "type": "agent_damage", "severity": 0.2 }
+        }
+      ],
+      "completionCriteria": { "type": "all_mechanics_passed", "parameters": {} },
+      "timePressure": null,
+      "outcomes": {
+        "success": {
+          "rewardTable": [{ "itemId": "surveyors-true-compass", "dropRate": 1.0 }],
+          "narrative": "The surveyor is found still gripping his instrument case, shaken but whole. The upper galleries have their first rescue on the books.",
+          "reputationGain": 1,
+          "currencyReward": 30,
+          "milestoneFlag": "lost-surveyor-cleared"
+        },
+        "partial": {
+          "rewardTable": [],
+          "narrative": "The surveyor is found, but a support timber gives way on the way out. He's safe; the gallery behind him isn't anymore.",
+          "agentDowntimeCycles": 1
+        },
+        "failure": {
+          "rewardTable": [],
+          "narrative": "The search runs longer than the lanterns hold out. The guild falls back to resupply and try again.",
+          "stressPenalty": 2,
+          "tokenRefund": 0.5
+        }
+      }
+    },
+    {
+      "id": "trapped-caravan",
+      "name": "The Trapped Caravan",
+      "description": "A trade caravan is boxed in behind a rockfall, its draft animals panicking in the confined dark. A Pathfinder can scout a bypass route before the animals bring the rest of the gallery down.",
+      "rosterRequirements": { "minAgents": 3, "maxAgents": 5, "roleRequirements": [{ "roleId": "pathfinder", "count": 1 }] },
+      "accessRequirements": { "orgMilestones": ["lost-surveyor-cleared"], "agentAttunements": [], "attunementThreshold": null },
+      "difficultyRating": 18,
+      "mechanicChecks": [
+        {
+          "id": "tc-airflow",
+          "name": "Read the Airflow",
+          "description": "The Pathfinder charts a bypass route around the rockfall before the panicking animals kick loose more debris.",
+          "attributeWeights": [{ "attributeId": "pathsense", "weight": 0.8 }, { "attributeId": "vigor", "weight": 0.2 }],
+          "difficultyThreshold": 9,
+          "scope": "role_specific",
+          "roleIds": ["pathfinder"],
+          "failureConsequence": { "type": "agent_damage", "severity": 0.4 }
+        },
+        {
+          "id": "tc-litter",
+          "name": "Carry the Litter",
+          "description": "The rest of the party hauls cargo and calms the animals so the caravan can be walked out along the new route.",
+          "attributeWeights": [{ "attributeId": "vigor", "weight": 0.6 }, { "attributeId": "pathsense", "weight": 0.4 }],
+          "difficultyThreshold": 6,
+          "thresholdMode": "perAssignedAgent",
+          "scope": "team_aggregate",
+          "failureConsequence": { "type": "team_damage", "severity": 0.3 }
+        }
+      ],
+      "completionCriteria": { "type": "all_mechanics_passed", "parameters": {} },
+      "timePressure": null,
+      "outcomes": {
+        "success": {
+          "rewardTable": [{ "itemId": "caravan-masters-whistle", "dropRate": 1.0 }],
+          "narrative": "The caravan walks out along the bypass route, animals and all. The caravan master hands over his whistle before he's even done shaking.",
+          "reputationGain": 2,
+          "currencyReward": 50,
+          "milestoneFlag": "trapped-caravan-cleared"
+        },
+        "partial": {
+          "rewardTable": [],
+          "narrative": "The caravan gets out, but half the cargo is lost to the rockfall in the process. The traders are alive, which is what matters.",
+          "agentDowntimeCycles": 1
+        },
+        "failure": {
+          "rewardTable": [],
+          "narrative": "The bypass route collapses before the caravan can use it. The guild pulls back to find another way in.",
+          "stressPenalty": 3,
+          "tokenRefund": 0.5
+        }
+      }
+    },
+    {
+      "id": "flooded-gallery",
+      "name": "The Flooded Gallery",
+      "description": "Groundwater has found the collapse and is rising through a gallery packed with injured survivors. Get them up and dry before the water finishes what the cave-in started.",
+      "rosterRequirements": { "minAgents": 3, "maxAgents": 5, "roleRequirements": [{ "roleId": "quartermaster", "count": 1 }] },
+      "accessRequirements": { "orgMilestones": ["trapped-caravan-cleared"], "agentAttunements": [], "attunementThreshold": null },
+      "difficultyRating": 24,
+      "mechanicChecks": [
+        {
+          "id": "fg-lantern",
+          "name": "Hold the Lantern Line",
+          "description": "The Quartermaster keeps the injured and waterlogged upright and moving through the whole evacuation.",
+          "attributeWeights": [{ "attributeId": "wardcraft", "weight": 0.7 }, { "attributeId": "steadiness", "weight": 0.3 }],
+          "difficultyThreshold": 11,
+          "scope": "role_specific",
+          "roleIds": ["quartermaster"],
+          "failureConsequence": { "type": "stress", "severity": 0.4 }
+        },
+        {
+          "id": "fg-litter",
+          "name": "Carry the Litter",
+          "description": "The party hauls survivors above the waterline without losing anyone to the current.",
+          "attributeWeights": [{ "attributeId": "vigor", "weight": 0.5 }, { "attributeId": "wardcraft", "weight": 0.5 }],
+          "difficultyThreshold": 6,
+          "thresholdMode": "perAssignedAgent",
+          "scope": "team_aggregate",
+          "failureConsequence": { "type": "team_damage", "severity": 0.3 }
+        },
+        {
+          "id": "fg-airflow",
+          "name": "Read the Airflow",
+          "description": "Every rescuer checks the rising water for the sinkholes the flood likes to hide.",
+          "attributeWeights": [{ "attributeId": "pathsense", "weight": 0.5 }, { "attributeId": "steadiness", "weight": 0.5 }],
+          "difficultyThreshold": 6,
+          "scope": "per_agent",
+          "failureConsequence": { "type": "agent_damage", "severity": 0.2 }
+        }
+      ],
+      "completionCriteria": { "type": "all_mechanics_passed", "parameters": {} },
+      "timePressure": null,
+      "outcomes": {
+        "success": {
+          "rewardTable": [{ "itemId": "flood-marked-lantern", "dropRate": 1.0 }],
+          "narrative": "The gallery empties above the waterline with everyone accounted for. The survivors leave a flood-marked lantern behind as thanks.",
+          "reputationGain": 3,
+          "currencyReward": 70,
+          "milestoneFlag": "flooded-gallery-cleared"
+        },
+        "partial": {
+          "rewardTable": [],
+          "narrative": "Everyone gets out, but the last stretch of the gallery floods behind them for good. The survivors are dry regardless.",
+          "reputationGain": 1,
+          "agentDowntimeCycles": 1
+        },
+        "failure": {
+          "rewardTable": [],
+          "narrative": "The water rises faster than the evacuation. The guild falls back to wait it out and try again.",
+          "stressPenalty": 4,
+          "tokenRefund": 0.25
+        }
+      }
+    },
+    {
+      "id": "collapsed-stair",
+      "name": "The Collapsed Stair",
+      "description": "The main descent stairwell gave way in the original collapse, and what's left is a shifting rubble slope with no safe footing. This is the Mid-Deeps' front door.",
+      "rosterRequirements": { "minAgents": 4, "maxAgents": 6, "roleRequirements": [{ "roleId": "delver", "count": 1 }, { "roleId": "pathfinder", "count": 1 }] },
+      "accessRequirements": { "orgMilestones": ["flooded-gallery-cleared"], "agentAttunements": [], "attunementThreshold": null },
+      "difficultyRating": 35,
+      "mechanicChecks": [
+        {
+          "id": "cs-ceiling",
+          "name": "Shore the Ceiling",
+          "description": "The party shores the rubble slope's ceiling as they descend so the whole stairwell doesn't come down again.",
+          "attributeWeights": [{ "attributeId": "vigor", "weight": 0.6 }, { "attributeId": "pathsense", "weight": 0.4 }],
+          "difficultyThreshold": 7,
+          "thresholdMode": "perAssignedAgent",
+          "scope": "team_aggregate",
+          "failureConsequence": { "type": "team_damage", "severity": 0.4 }
+        },
+        {
+          "id": "cs-descent",
+          "name": "Marshal the Descent",
+          "description": "The Delver sets the pace and handholds down the shifting slope so the party doesn't bunch up on unstable rubble.",
+          "attributeWeights": [{ "attributeId": "vigor", "weight": 0.7 }, { "attributeId": "wardcraft", "weight": 0.3 }],
+          "difficultyThreshold": 13,
+          "scope": "role_specific",
+          "roleIds": ["delver"],
+          "failureConsequence": { "type": "agent_damage", "severity": 0.5 }
+        },
+        {
+          "id": "cs-chart",
+          "name": "Chart the Safe Line",
+          "description": "The Pathfinder reads the rubble for the one line of footing that won't give way underfoot.",
+          "attributeWeights": [{ "attributeId": "pathsense", "weight": 0.8 }, { "attributeId": "vigor", "weight": 0.2 }],
+          "difficultyThreshold": 13,
+          "scope": "role_specific",
+          "roleIds": ["pathfinder"],
+          "failureConsequence": { "type": "team_damage", "severity": 0.3 }
+        }
+      ],
+      "completionCriteria": { "type": "all_mechanics_passed", "parameters": {} },
+      "timePressure": null,
+      "outcomes": {
+        "success": {
+          "rewardTable": [{ "itemId": "stairwrights-harness", "dropRate": 1.0 }],
+          "narrative": "The rubble slope holds long enough for the whole party to descend. The Mid-Deeps are open, and the collapsed stair has a safe line at last.",
+          "reputationGain": 4,
+          "currencyReward": 100,
+          "milestoneFlag": "collapsed-stair-cleared"
+        },
+        "partial": {
+          "rewardTable": [],
+          "narrative": "The party makes it down, but the safe line collapses behind them. Whoever comes next will have to chart their own.",
+          "reputationGain": 2,
+          "agentDowntimeCycles": 2
+        },
+        "failure": {
+          "rewardTable": [],
+          "narrative": "The rubble shifts before the line is charted. The party climbs back out to try again from the top.",
+          "stressPenalty": 4,
+          "tokenRefund": 0.25
+        }
+      }
+    },
+    {
+      "id": "gas-pocket",
+      "name": "The Gas Pocket",
+      "description": "A pocket of foul damp has settled into a narrow ledge passage in the Mid-Deeps, thick enough to drop a rescuer before they know it's there. Clear it before the whole passage floods with it.",
+      "rosterRequirements": { "minAgents": 4, "maxAgents": 6, "roleRequirements": [{ "roleId": "lampwright", "count": 1 }] },
+      "accessRequirements": { "orgMilestones": ["collapsed-stair-cleared"], "agentAttunements": [], "attunementThreshold": null },
+      "difficultyRating": 42,
+      "mechanicChecks": [
+        {
+          "id": "gp-lantern",
+          "name": "Hold the Lantern Line",
+          "description": "The Lampwright wards the ledge passage's air, drawing the damp off before it can pool around the party.",
+          "attributeWeights": [{ "attributeId": "wardcraft", "weight": 0.8 }, { "attributeId": "steadiness", "weight": 0.2 }],
+          "difficultyThreshold": 15,
+          "scope": "role_specific",
+          "roleIds": ["lampwright"],
+          "failureConsequence": { "type": "agent_damage", "severity": 0.5 }
+        },
+        {
+          "id": "gp-litter",
+          "name": "Carry the Litter",
+          "description": "The party moves along the ledge together, roped and slow, with no room to fall back if the damp catches up.",
+          "attributeWeights": [{ "attributeId": "pathsense", "weight": 0.5 }, { "attributeId": "wardcraft", "weight": 0.5 }],
+          "difficultyThreshold": 7,
+          "thresholdMode": "perAssignedAgent",
+          "scope": "team_aggregate",
+          "failureConsequence": { "type": "team_damage", "severity": 0.4 }
+        }
+      ],
+      "completionCriteria": { "type": "all_mechanics_passed", "parameters": {} },
+      "timePressure": { "rounds": 8, "aggregateThreshold": 70, "attributeId": "pathsense" },
+      "outcomes": {
+        "success": {
+          "rewardTable": [{ "itemId": "damp-readers-lamp", "dropRate": 1.0 }],
+          "narrative": "The damp clears before it can pool. For the first time in the descent, the party moves through the Mid-Deeps without holding their breath.",
+          "reputationGain": 4,
+          "currencyReward": 110,
+          "milestoneFlag": "gas-pocket-cleared"
+        },
+        "partial": {
+          "rewardTable": [],
+          "narrative": "The damp is warded off, but not before a lungful catches someone at the back of the line. Everyone's still breathing.",
+          "reputationGain": 2,
+          "agentDowntimeCycles": 2
+        },
+        "failure": {
+          "rewardTable": [],
+          "narrative": "The ledge passage costs too much time. The damp pools faster than it can be warded, and the party pulls back.",
+          "stressPenalty": 4,
+          "tokenRefund": 0.25
+        }
+      }
+    },
+    {
+      "id": "breakaway-apprentice",
+      "name": "The Breakaway Apprentice",
+      "description": "A guild apprentice bolted alone into a side tunnel against orders and brought a second cave-in down behind her. Now it's a rescue inside a rescue, in a tunnel nobody chose to be trapped in.",
+      "rosterRequirements": { "minAgents": 5, "maxAgents": 6, "roleRequirements": [{ "roleId": "delver", "count": 1 }, { "roleId": "lampwright", "count": 1 }, { "roleId": "quartermaster", "count": 1 }] },
+      "accessRequirements": { "orgMilestones": ["gas-pocket-cleared"], "agentAttunements": [], "attunementThreshold": null },
+      "difficultyRating": 50,
+      "mechanicChecks": [
+        {
+          "id": "ba-ceiling",
+          "name": "Shore the Ceiling",
+          "description": "The party shores the side tunnel's ceiling against defenders that know exactly how unstable it already is.",
+          "attributeWeights": [{ "attributeId": "vigor", "weight": 0.6 }, { "attributeId": "pathsense", "weight": 0.4 }],
+          "difficultyThreshold": 8,
+          "thresholdMode": "perAssignedAgent",
+          "scope": "team_aggregate",
+          "failureConsequence": { "type": "agent_damage", "severity": 0.5 }
+        },
+        {
+          "id": "ba-descent",
+          "name": "Marshal the Descent",
+          "description": "The Delver keeps the party together as the side tunnel narrows to a single crawl space.",
+          "attributeWeights": [{ "attributeId": "vigor", "weight": 0.7 }, { "attributeId": "wardcraft", "weight": 0.3 }],
+          "difficultyThreshold": 16,
+          "scope": "role_specific",
+          "roleIds": ["delver"],
+          "failureConsequence": { "type": "cascade", "severity": 0.6 }
+        },
+        {
+          "id": "ba-wardbreak",
+          "name": "Break the Damp-Ward",
+          "description": "The Lampwright clears a second gas pocket the cave-in stirred loose before it reaches the apprentice.",
+          "attributeWeights": [{ "attributeId": "wardcraft", "weight": 0.8 }, { "attributeId": "steadiness", "weight": 0.2 }],
+          "difficultyThreshold": 16,
+          "scope": "role_specific",
+          "roleIds": ["lampwright"],
+          "failureConsequence": { "type": "agent_damage", "severity": 0.5 }
+        },
+        {
+          "id": "ba-lantern",
+          "name": "Hold the Lantern Line",
+          "description": "The Quartermaster keeps the party steady through a rescue with no clean ground to fall back to.",
+          "attributeWeights": [{ "attributeId": "steadiness", "weight": 0.5 }, { "attributeId": "wardcraft", "weight": 0.5 }],
+          "difficultyThreshold": 15,
+          "scope": "role_specific",
+          "roleIds": ["quartermaster"],
+          "failureConsequence": { "type": "stress", "severity": 0.5 }
+        }
+      ],
+      "completionCriteria": { "type": "all_mechanics_passed", "parameters": {} },
+      "timePressure": null,
+      "outcomes": {
+        "success": {
+          "rewardTable": [{ "itemId": "apprentices-recovered-tally", "dropRate": 1.0 }],
+          "narrative": "The apprentice comes out of the crawl space shaken but unhurt, tally board still clutched to her chest. The side tunnel gets sealed behind her for good.",
+          "reputationGain": 5,
+          "currencyReward": 140,
+          "milestoneFlag": "breakaway-apprentice-cleared"
+        },
+        "partial": {
+          "rewardTable": [],
+          "narrative": "The apprentice is found, but the crawl space collapses fully on the way out, taking most of the recovered gear with it.",
+          "reputationGain": 2,
+          "agentDowntimeCycles": 2
+        },
+        "failure": {
+          "rewardTable": [],
+          "narrative": "The second gas pocket catches the party before the ward clears. The rescue falls back to try the crawl space again.",
+          "stressPenalty": 5,
+          "tokenRefund": 0.25
+        }
+      }
+    },
+    {
+      "id": "the-deep-beacon",
+      "name": "The Deep Beacon",
+      "description": "A beacon chamber deep in the collapse holds the only charts of what's left of the road below, and its guard-lines have had weeks to destabilize. Every rescue into the Hollow goes through here first.",
+      "rosterRequirements": { "minAgents": 5, "maxAgents": 6, "roleRequirements": [{ "roleId": "delver", "count": 1 }, { "roleId": "pathfinder", "count": 1 }, { "roleId": "lampwright", "count": 1 }] },
+      "accessRequirements": { "orgMilestones": ["breakaway-apprentice-cleared"], "agentAttunements": [], "attunementThreshold": null },
+      "difficultyRating": 65,
+      "mechanicChecks": [
+        {
+          "id": "db-ceiling",
+          "name": "Shore the Ceiling",
+          "description": "The party shores the beacon chamber's ceiling against a collapse that has done nothing but worsen for weeks.",
+          "attributeWeights": [{ "attributeId": "vigor", "weight": 0.6 }, { "attributeId": "pathsense", "weight": 0.4 }],
+          "difficultyThreshold": 8,
+          "thresholdMode": "perAssignedAgent",
+          "scope": "team_aggregate",
+          "failureConsequence": { "type": "team_damage", "severity": 0.5 }
+        },
+        {
+          "id": "db-descent",
+          "name": "Marshal the Descent",
+          "description": "The Delver keeps the party's shape as the chamber narrows to a single unstable approach.",
+          "attributeWeights": [{ "attributeId": "vigor", "weight": 0.8 }, { "attributeId": "wardcraft", "weight": 0.2 }],
+          "difficultyThreshold": 17,
+          "scope": "role_specific",
+          "roleIds": ["delver"],
+          "failureConsequence": { "type": "cascade", "severity": 0.6 }
+        },
+        {
+          "id": "db-chart",
+          "name": "Chart the Safe Line",
+          "description": "The Pathfinder scales the loose scree to reach the beacon's chart-vault before the chamber closes further.",
+          "attributeWeights": [{ "attributeId": "pathsense", "weight": 0.8 }, { "attributeId": "vigor", "weight": 0.2 }],
+          "difficultyThreshold": 17,
+          "scope": "role_specific",
+          "roleIds": ["pathfinder"],
+          "failureConsequence": { "type": "agent_damage", "severity": 0.6 }
+        },
+        {
+          "id": "db-airflow",
+          "name": "Read the Airflow",
+          "description": "Every rescuer endures the chamber's shifting bad air as it closes in around the approach.",
+          "attributeWeights": [{ "attributeId": "wardcraft", "weight": 0.7 }, { "attributeId": "steadiness", "weight": 0.3 }],
+          "difficultyThreshold": 12,
+          "scope": "per_agent",
+          "failureConsequence": { "type": "stress", "severity": 0.5 }
+        }
+      ],
+      "completionCriteria": { "type": "all_mechanics_passed", "parameters": {} },
+      "timePressure": { "rounds": 10, "aggregateThreshold": 90, "attributeId": "vigor" },
+      "outcomes": {
+        "success": {
+          "rewardTable": [{ "itemId": "beacon-charters-rule", "dropRate": 1.0 }],
+          "narrative": "The beacon chamber's chart-vault comes down, and with it the last thing standing between the guild and the Hollow. The trapped expedition's location is finally known.",
+          "reputationGain": 7,
+          "currencyReward": 200,
+          "milestoneFlag": "the-deep-beacon-cleared"
+        },
+        "partial": {
+          "rewardTable": [],
+          "narrative": "The chamber is cleared, but half the charts are lost to a last shift of rubble. The Hollow's location is known regardless.",
+          "reputationGain": 3,
+          "agentDowntimeCycles": 3
+        },
+        "failure": {
+          "rewardTable": [],
+          "narrative": "The bad air closes the approach before the vault is reached. The party pulls back from the deep beacon to try again.",
+          "stressPenalty": 6,
+          "tokenRefund": 0.25
+        }
+      }
+    },
+    {
+      "id": "hollow-crown",
+      "name": "The Hollow Crown",
+      "description": "The Hollow, and the whole expedition trapped there since the first cave-in. They have nowhere left to retreat to, and neither does the rescue party — this is where the collapse is answered, one way or the other.",
+      "rosterRequirements": { "minAgents": 3, "maxAgents": 5, "roleRequirements": [{ "roleId": "lampwright", "count": 1 }, { "roleId": "quartermaster", "count": 1 }] },
+      "accessRequirements": { "orgMilestones": ["the-deep-beacon-cleared"], "agentAttunements": ["the-deep-beacon-charts"], "attunementThreshold": 0.5 },
+      "difficultyRating": 78,
+      "mechanicChecks": [
+        {
+          "id": "hc-ceiling",
+          "name": "Shore the Ceiling",
+          "description": "The last ceiling in the Hollow, and it has been told to hold nothing back.",
+          "attributeWeights": [{ "attributeId": "vigor", "weight": 0.5 }, { "attributeId": "steadiness", "weight": 0.5 }],
+          "difficultyThreshold": 9,
+          "thresholdMode": "perAssignedAgent",
+          "scope": "team_aggregate",
+          "failureConsequence": { "type": "team_damage", "severity": 0.6 }
+        },
+        {
+          "id": "hc-wardbreak",
+          "name": "Break the Damp-Ward",
+          "description": "The Lampwright carries the rescue through the Hollow's final chamber against air that has had weeks to turn foul.",
+          "attributeWeights": [{ "attributeId": "wardcraft", "weight": 0.7 }, { "attributeId": "steadiness", "weight": 0.3 }],
+          "difficultyThreshold": 19,
+          "scope": "role_specific",
+          "roleIds": ["lampwright"],
+          "failureConsequence": { "type": "cascade", "severity": 0.7 }
+        },
+        {
+          "id": "hc-lantern",
+          "name": "Hold the Lantern Line",
+          "description": "The Quartermaster keeps the trapped expedition and the rescue party both standing through a dig with no reinforcements coming and no ground to give.",
+          "attributeWeights": [{ "attributeId": "steadiness", "weight": 0.6 }, { "attributeId": "wardcraft", "weight": 0.4 }],
+          "difficultyThreshold": 18,
+          "scope": "role_specific",
+          "roleIds": ["quartermaster"],
+          "failureConsequence": { "type": "agent_damage", "severity": 0.6 }
+        },
+        {
+          "id": "hc-airflow",
+          "name": "Read the Airflow",
+          "description": "Every rescuer reads the Hollow's last chamber for the final tricks the collapse has left before the last push.",
+          "attributeWeights": [{ "attributeId": "steadiness", "weight": 0.5 }, { "attributeId": "wardcraft", "weight": 0.5 }],
+          "difficultyThreshold": 12,
+          "scope": "per_agent",
+          "failureConsequence": { "type": "stress", "severity": 0.5 }
+        }
+      ],
+      "completionCriteria": { "type": "all_mechanics_passed", "parameters": {} },
+      "timePressure": { "rounds": 12, "aggregateThreshold": 110, "attributeId": "steadiness" },
+      "outcomes": {
+        "success": {
+          "rewardTable": [{ "itemId": "deepway-crown-of-salvage", "dropRate": 1.0 }, { "itemId": "beacon-charters-rule", "dropRate": 0.5 }],
+          "narrative": "The trapped expedition comes up whole, and with it the last of the collapse. The road is not open again, but the Hollow is a rescue no longer — it is a rescue finished, gallery by gallery.",
+          "reputationGain": 10,
+          "currencyReward": 300,
+          "milestoneFlag": "hollow-crown-cleared"
+        },
+        "partial": {
+          "rewardTable": [{ "itemId": "deepway-crown-of-salvage", "dropRate": 0.5 }],
+          "narrative": "The expedition comes up, but not everyone the guild hoped for. The Hollow is cleared; some of it will stay a grief instead of a rescue.",
+          "reputationGain": 4,
+          "agentDowntimeCycles": 3
+        },
+        "failure": {
+          "rewardTable": [],
+          "narrative": "The Hollow's last chamber holds. The rescue party withdraws from the deep collapse, the dig not yet finished.",
+          "stressPenalty": 7,
+          "tokenRefund": 0.25
+        }
+      }
+    }
+  ],
+  "difficultyModes": [],
+  "items": [
+    {
+      "id": "surveyors-true-compass",
+      "name": "Surveyor's True Compass",
+      "slot": "trinket",
+      "statBonuses": { "pathsense": 1 },
+      "tierRequirement": "greenhand",
+      "flavorText": "Its needle never wavered even lost in the dark; the guild kept it pointed the right way ever since."
+    },
+    {
+      "id": "caravan-masters-whistle",
+      "name": "Caravan Master's Whistle",
+      "slot": "tool",
+      "statBonuses": { "vigor": 2 },
+      "tierRequirement": "greenhand",
+      "flavorText": "Loud enough to calm a panicking pack animal in a collapsed gallery, if you've got the wind for it."
+    },
+    {
+      "id": "flood-marked-lantern",
+      "name": "Flood-Marked Lantern",
+      "slot": "trinket",
+      "statBonuses": { "wardcraft": 1, "steadiness": 1 },
+      "tierRequirement": "greenhand",
+      "flavorText": "The waterline is still etched into its glass, a season below where the gallery used to be dry."
+    },
+    {
+      "id": "stairwrights-harness",
+      "name": "Stairwright's Harness",
+      "slot": "chest",
+      "statBonuses": { "wardcraft": 3 },
+      "tierRequirement": "journeyman",
+      "flavorText": "Rigged for a descent that was never supposed to have a safe line, and got one anyway."
+    },
+    {
+      "id": "damp-readers-lamp",
+      "name": "Damp-Reader's Lamp",
+      "slot": "trinket",
+      "statBonuses": { "pathsense": 2, "wardcraft": 1 },
+      "tierRequirement": "journeyman",
+      "flavorText": "Its flame changes color before the foul air does, if anyone left remembers how to read the shift."
+    },
+    {
+      "id": "apprentices-recovered-tally",
+      "name": "Apprentice's Recovered Tally",
+      "slot": "trinket",
+      "statBonuses": { "steadiness": 2, "vigor": 1 },
+      "tierRequirement": "journeyman",
+      "flavorText": "The board a runaway apprentice refused to let go of, even trapped alone in the dark."
+    },
+    {
+      "id": "beacon-charters-rule",
+      "name": "Beacon-Charter's Rule",
+      "slot": "trinket",
+      "statBonuses": { "steadiness": 3, "vigor": 1 },
+      "tierRequirement": "masterdelver",
+      "flavorText": "Surveyed over so many times charting the deep beacon that its measurements are worn smooth."
+    },
+    {
+      "id": "deepway-crown-of-salvage",
+      "name": "Deepway Crown of Salvage",
+      "slot": "trinket",
+      "statBonuses": { "steadiness": 2, "wardcraft": 2, "vigor": 1, "pathsense": 1 },
+      "tierRequirement": "masterdelver",
+      "flavorText": "Plain scrap, dented twice, and the only crown the Hollow's trapped expedition ever wanted back."
+    }
+  ],
+  "narrativeEvents": [
+    {
+      "trigger": { "type": "first_clear", "target": "lost-surveyor" },
+      "title": "The Guild Answers",
+      "text": "The lost surveyor is found and carried out before the dark can claim another. For the first time since the collapse, a rescue guild is working the galleries in earnest.",
+      "rewards": [],
+      "agentUnlock": null
+    },
+    {
+      "trigger": { "type": "tier_complete", "target": "chapter-1" },
+      "title": "The Upper Galleries Secured",
+      "text": "The surveyor is found, the caravan is freed, and the flooded gallery is drained. The guild has proven it can hold a rescue, not just start one.",
+      "rewards": [],
+      "agentUnlock": null
+    },
+    {
+      "trigger": { "type": "tier_complete", "target": "chapter-2" },
+      "title": "The Mid-Deeps Cleared",
+      "text": "Stairwell, gas pocket, and breakaway apprentice — all brought up safely. Only the Hollow remains, and the worst of the collapse is down there.",
+      "rewards": [],
+      "agentUnlock": null
+    },
+    {
+      "trigger": { "type": "first_clear", "target": "the-deep-beacon" },
+      "title": "The Deep Beacon Lit",
+      "text": "The deep beacon chamber is cleared and its charts recovered. For the first time, the guild has a true map of the Hollow ahead.",
+      "rewards": [],
+      "agentUnlock": null
+    },
+    {
+      "trigger": { "type": "arc_complete", "target": "deepway-rescue" },
+      "title": "The Hollow Crown",
+      "text": "The trapped expedition comes up whole. The collapsed road is a rescue no longer — it is a rescue finished, gallery by gallery, by the guild that never stopped digging.",
+      "rewards": [],
+      "agentUnlock": null
+    }
+  ],
+  "scaling": { "type": "fixed", "scalingRules": {} }
+}

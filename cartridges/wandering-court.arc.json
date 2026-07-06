@@ -1,0 +1,693 @@
+{
+  "meta": {
+    "id": "wandering-court",
+    "name": "The Wandering Court",
+    "description": "A royal court in exile travels the realm; you are its Seneschal, summoning champions and settling its intrigues chapter by chapter.",
+    "author": "axm-arc team",
+    "version": "1.0.0",
+    "engineVersion": "1.0.0",
+    "domain": "court-saga",
+    "estimatedCycles": 22
+  },
+  "attributes": [
+    { "id": "force", "name": "Force", "description": "Battle power — the strength that wins a bout, breaks a line, or ends an argument the hard way." },
+    { "id": "artifice", "name": "Artifice", "description": "Craft and subtlety — the cunning that binds a pact, reads a poisoned dish, or turns a rival's own trick against them." },
+    { "id": "grace", "name": "Grace", "description": "Poise and speed — the composure that holds a crowd's eye and the quickness that gets there first." },
+    { "id": "resolve", "name": "Resolve", "description": "Will and spirit — the steadiness that keeps a retinue together when the court itself has none to spare." }
+  ],
+  "roles": [
+    { "id": "champion", "name": "Champion", "attributeWeights": { "force": 0.6, "grace": 0.2, "resolve": 0.1, "artifice": 0.1 } },
+    { "id": "arcanist", "name": "Arcanist", "attributeWeights": { "artifice": 0.6, "resolve": 0.2, "grace": 0.1, "force": 0.1 } },
+    { "id": "herald", "name": "Herald", "attributeWeights": { "grace": 0.6, "force": 0.2, "artifice": 0.1, "resolve": 0.1 } },
+    { "id": "confessor", "name": "Confessor", "attributeWeights": { "resolve": 0.45, "grace": 0.45, "force": 0.1 } }
+  ],
+  "tiers": [
+    { "id": "attendant", "name": "Attendant", "statBudgetMin": 20, "statBudgetMax": 32, "upkeepCost": 1, "baseEfficiencyModifier": 1.5 },
+    { "id": "favored", "name": "Favored", "statBudgetMin": 32, "statBudgetMax": 48, "upkeepCost": 3, "baseEfficiencyModifier": 1.0 },
+    { "id": "exalted", "name": "Exalted", "statBudgetMin": 48, "statBudgetMax": 60, "upkeepCost": 6, "baseEfficiencyModifier": 0.5 }
+  ],
+  "currencyName": "Gleam",
+  "materialName": "Relic Dust",
+  "tokenName": "Summons",
+  "reputationName": "Court Favor",
+  "tokensPerCycle": 2,
+  "maxTokens": 4,
+  "infrastructureTokenBonus": 0.25,
+  "namePool": {
+    "firstNames": [
+      "Corvain", "Isolde", "Thessaly", "Perren", "Marisol",
+      "Guillory", "Sabelline", "Toran", "Wrenna", "Delacote",
+      "Amaranth", "Fenwick", "Solvei", "Percheval", "Ondrine"
+    ],
+    "lastNames": [
+      "Duskcourt", "Farrowlight", "Veilspire", "Ashenreign", "Brackenhall",
+      "Silverwane", "Thornecrest", "Larkspire", "Moonreach", "Graywarden"
+    ]
+  },
+  "customTraits": [],
+  "progressionTiers": [
+    {
+      "id": "chapter-1",
+      "name": "Interlude I — The Road",
+      "flavorText": "The exiled court's first season is spent just surviving the road: a bandit toll, a village's old grievance, a river that wants a pact before it grants passage.",
+      "unlockConditions": { "orgMilestones": [], "reputationMinimum": null },
+      "challenges": ["bandit-toll", "village-grievance", "river-crossing-pact"],
+      "requiredChallenges": ["bandit-toll", "village-grievance", "river-crossing-pact"],
+      "optionalChallenges": []
+    },
+    {
+      "id": "chapter-2",
+      "name": "Interlude II — The Rival Court",
+      "flavorText": "A rival court takes notice of the wanderers and starts testing them properly: a masked envoy, a tourney of claims, a banquet with poison under the courses.",
+      "unlockConditions": { "orgMilestones": ["river-crossing-pact-cleared"], "reputationMinimum": 5 },
+      "challenges": ["masked-envoy", "tourney-of-claims", "poisoned-banquet"],
+      "requiredChallenges": ["masked-envoy", "tourney-of-claims", "poisoned-banquet"],
+      "optionalChallenges": []
+    },
+    {
+      "id": "chapter-3",
+      "name": "Finale — The Eclipsed Throne",
+      "flavorText": "The rival court's own seat stands between the Seneschal and the end of the exile: a silent procession first, and then the eclipsed throne itself.",
+      "unlockConditions": { "orgMilestones": ["poisoned-banquet-cleared"], "reputationMinimum": 15 },
+      "challenges": ["the-silent-procession", "eclipsed-throne"],
+      "requiredChallenges": ["the-silent-procession", "eclipsed-throne"],
+      "optionalChallenges": []
+    }
+  ],
+  "attunementChains": [
+    {
+      "id": "seals-of-the-season",
+      "name": "Seals of the Season",
+      "steps": [
+        { "type": "challenge_clear", "target": "masked-envoy" },
+        { "type": "challenge_clear", "target": "poisoned-banquet" },
+        { "type": "challenge_clear", "target": "the-silent-procession" }
+      ],
+      "grantsAccessTo": ["eclipsed-throne"]
+    }
+  ],
+  "challenges": [
+    {
+      "id": "bandit-toll",
+      "name": "The Bandit Toll",
+      "description": "On the road into exile, a bandit crew has set up a toll no royal seal can excuse. The court can spare little blood and less coin, and the bandits know it.",
+      "rosterRequirements": { "minAgents": 2, "maxAgents": 4, "roleRequirements": [] },
+      "accessRequirements": { "orgMilestones": [], "agentAttunements": [], "attunementThreshold": null },
+      "difficultyRating": 12,
+      "mechanicChecks": [
+        {
+          "id": "bandit-toll-line",
+          "name": "Hold the Line of Honor",
+          "description": "The retinue holds formation so the bandits can't pick off the baggage train.",
+          "attributeWeights": [{ "attributeId": "force", "weight": 0.7 }, { "attributeId": "grace", "weight": 0.3 }],
+          "difficultyThreshold": 6,
+          "scope": "team_aggregate",
+          "failureConsequence": { "type": "stress", "severity": 0.1 }
+        },
+        {
+          "id": "bandit-toll-read",
+          "name": "Read the Room",
+          "description": "Every retainer sizes up the toll captain's mood before anyone speaks first.",
+          "attributeWeights": [{ "attributeId": "resolve", "weight": 0.6 }, { "attributeId": "grace", "weight": 0.4 }],
+          "difficultyThreshold": 5,
+          "scope": "per_agent",
+          "failureConsequence": { "type": "agent_damage", "severity": 0.2 }
+        }
+      ],
+      "completionCriteria": { "type": "all_mechanics_passed", "parameters": {} },
+      "timePressure": null,
+      "outcomes": {
+        "success": {
+          "rewardTable": [{ "itemId": "toll-keepers-coin", "dropRate": 1.0 }],
+          "narrative": "The bandit captain takes one look at the retinue's line and decides the toll isn't worth collecting today. The road south lies open.",
+          "reputationGain": 1,
+          "currencyReward": 30,
+          "milestoneFlag": "bandit-toll-cleared"
+        },
+        "partial": {
+          "rewardTable": [],
+          "narrative": "The toll is broken, but the captain slips off to warn the next crew down the road. The court moves on regardless.",
+          "agentDowntimeCycles": 1
+        },
+        "failure": {
+          "rewardTable": [],
+          "narrative": "The bandits hold the toll longer than expected. The court falls back to regroup a mile short of the crossing.",
+          "stressPenalty": 2,
+          "tokenRefund": 0.5
+        }
+      }
+    },
+    {
+      "id": "village-grievance",
+      "name": "The Village Grievance",
+      "description": "A village along the road has an old grievance against the last court that passed through, and won't let this one pass until it's heard and settled.",
+      "rosterRequirements": { "minAgents": 3, "maxAgents": 5, "roleRequirements": [{ "roleId": "herald", "count": 1 }] },
+      "accessRequirements": { "orgMilestones": ["bandit-toll-cleared"], "agentAttunements": [], "attunementThreshold": null },
+      "difficultyRating": 18,
+      "mechanicChecks": [
+        {
+          "id": "village-hearing",
+          "name": "Steady the Standard",
+          "description": "The Herald keeps the court's banner steady through an airing of decades-old grievances.",
+          "attributeWeights": [{ "attributeId": "grace", "weight": 0.8 }, { "attributeId": "resolve", "weight": 0.2 }],
+          "difficultyThreshold": 9,
+          "scope": "role_specific",
+          "roleIds": ["herald"],
+          "failureConsequence": { "type": "agent_damage", "severity": 0.4 }
+        },
+        {
+          "id": "village-redress",
+          "name": "Settle the Ledger",
+          "description": "The retinue works through the village's account of wrongs without reopening old wounds.",
+          "attributeWeights": [{ "attributeId": "resolve", "weight": 0.6 }, { "attributeId": "artifice", "weight": 0.4 }],
+          "difficultyThreshold": 6,
+          "thresholdMode": "perAssignedAgent",
+          "scope": "team_aggregate",
+          "failureConsequence": { "type": "team_damage", "severity": 0.3 }
+        }
+      ],
+      "completionCriteria": { "type": "all_mechanics_passed", "parameters": {} },
+      "timePressure": null,
+      "outcomes": {
+        "success": {
+          "rewardTable": [{ "itemId": "grievance-ribbon", "dropRate": 1.0 }],
+          "narrative": "The grievance is heard, answered, and finally laid to rest. The village ties its ribbon to the court's banner as the retinue moves on.",
+          "reputationGain": 2,
+          "currencyReward": 50,
+          "milestoneFlag": "village-grievance-cleared"
+        },
+        "partial": {
+          "rewardTable": [],
+          "narrative": "The grievance is settled, but not to everyone's satisfaction. The village lets the court pass anyway.",
+          "agentDowntimeCycles": 1
+        },
+        "failure": {
+          "rewardTable": [],
+          "narrative": "The hearing collapses into old arguments no one present can settle. The village turns the court away for the season.",
+          "stressPenalty": 3,
+          "tokenRefund": 0.5
+        }
+      }
+    },
+    {
+      "id": "river-crossing-pact",
+      "name": "The River-Crossing Pact",
+      "description": "The river ahead won't be forded on nerve alone — it wants a pact, properly bound, before it grants safe passage to a court it doesn't recognize.",
+      "rosterRequirements": { "minAgents": 3, "maxAgents": 5, "roleRequirements": [{ "roleId": "arcanist", "count": 1 }] },
+      "accessRequirements": { "orgMilestones": ["village-grievance-cleared"], "agentAttunements": [], "attunementThreshold": null },
+      "difficultyRating": 24,
+      "mechanicChecks": [
+        {
+          "id": "river-pact-craft",
+          "name": "Bind the Pact",
+          "description": "The Arcanist inscribes the crossing-pact so the river's spirits honor the court's passage.",
+          "attributeWeights": [{ "attributeId": "artifice", "weight": 0.7 }, { "attributeId": "resolve", "weight": 0.3 }],
+          "difficultyThreshold": 11,
+          "scope": "role_specific",
+          "roleIds": ["arcanist"],
+          "failureConsequence": { "type": "stress", "severity": 0.4 }
+        },
+        {
+          "id": "river-pact-hold",
+          "name": "Hold the Line of Honor",
+          "description": "The retinue holds the crossing formation while the pact takes hold beneath them.",
+          "attributeWeights": [{ "attributeId": "force", "weight": 0.5 }, { "attributeId": "grace", "weight": 0.5 }],
+          "difficultyThreshold": 6,
+          "thresholdMode": "perAssignedAgent",
+          "scope": "team_aggregate",
+          "failureConsequence": { "type": "team_damage", "severity": 0.3 }
+        },
+        {
+          "id": "river-pact-scout",
+          "name": "Read the Room",
+          "description": "Every retainer watches the riverbank for spirits that never agreed to any pact.",
+          "attributeWeights": [{ "attributeId": "grace", "weight": 0.5 }, { "attributeId": "resolve", "weight": 0.5 }],
+          "difficultyThreshold": 6,
+          "scope": "per_agent",
+          "failureConsequence": { "type": "agent_damage", "severity": 0.2 }
+        }
+      ],
+      "completionCriteria": { "type": "all_mechanics_passed", "parameters": {} },
+      "timePressure": null,
+      "outcomes": {
+        "success": {
+          "rewardTable": [{ "itemId": "pact-sealed-oar", "dropRate": 1.0 }],
+          "narrative": "The pact holds and the crossing is granted. The river will remember this court, for once, kindly.",
+          "reputationGain": 3,
+          "currencyReward": 70,
+          "milestoneFlag": "river-crossing-pact-cleared"
+        },
+        "partial": {
+          "rewardTable": [],
+          "narrative": "The pact binds just long enough. Half the baggage train gets wet, but the court crosses.",
+          "reputationGain": 1,
+          "agentDowntimeCycles": 1
+        },
+        "failure": {
+          "rewardTable": [],
+          "narrative": "The pact fails to take, and the river refuses passage outright. The court camps another cold night on the near bank.",
+          "stressPenalty": 4,
+          "tokenRefund": 0.25
+        }
+      }
+    },
+    {
+      "id": "masked-envoy",
+      "name": "The Masked Envoy",
+      "description": "The rival court sends a masked envoy to test the wanderers with claims no one can verify and tricks no one can call out — not without proof, and not without a mask to unmask first.",
+      "rosterRequirements": { "minAgents": 4, "maxAgents": 6, "roleRequirements": [{ "roleId": "champion", "count": 1 }, { "roleId": "herald", "count": 1 }] },
+      "accessRequirements": { "orgMilestones": ["river-crossing-pact-cleared"], "agentAttunements": [], "attunementThreshold": null },
+      "difficultyRating": 35,
+      "mechanicChecks": [
+        {
+          "id": "envoy-mask",
+          "name": "Unmask the Envoy",
+          "description": "The Champion corners the rival court's masked envoy before the tricks land.",
+          "attributeWeights": [{ "attributeId": "force", "weight": 0.6 }, { "attributeId": "grace", "weight": 0.4 }],
+          "difficultyThreshold": 7,
+          "thresholdMode": "perAssignedAgent",
+          "scope": "team_aggregate",
+          "failureConsequence": { "type": "team_damage", "severity": 0.4 }
+        },
+        {
+          "id": "envoy-command",
+          "name": "Steady the Standard",
+          "description": "The Herald holds the court's composure so the envoy can't read a bluff in it.",
+          "attributeWeights": [{ "attributeId": "resolve", "weight": 0.7 }, { "attributeId": "grace", "weight": 0.3 }],
+          "difficultyThreshold": 13,
+          "scope": "role_specific",
+          "roleIds": ["herald"],
+          "failureConsequence": { "type": "agent_damage", "severity": 0.5 }
+        },
+        {
+          "id": "envoy-claims",
+          "name": "Cut the False Claims",
+          "description": "The Champion's retinue seals off every exit the envoy's masked allies might use to slip false claims past the court.",
+          "attributeWeights": [{ "attributeId": "grace", "weight": 0.8 }, { "attributeId": "force", "weight": 0.2 }],
+          "difficultyThreshold": 13,
+          "scope": "role_specific",
+          "roleIds": ["champion"],
+          "failureConsequence": { "type": "team_damage", "severity": 0.3 }
+        }
+      ],
+      "completionCriteria": { "type": "all_mechanics_passed", "parameters": {} },
+      "timePressure": null,
+      "outcomes": {
+        "success": {
+          "rewardTable": [{ "itemId": "envoys-cracked-mask", "dropRate": 1.0 }],
+          "narrative": "The mask comes off in front of both retinues, and the envoy's claims come apart with it. The rival court will test more carefully next time.",
+          "reputationGain": 4,
+          "currencyReward": 100,
+          "milestoneFlag": "masked-envoy-cleared"
+        },
+        "partial": {
+          "rewardTable": [],
+          "narrative": "The mask cracks but the envoy is gone before it falls all the way off. The claims are discredited regardless.",
+          "reputationGain": 2,
+          "agentDowntimeCycles": 2
+        },
+        "failure": {
+          "rewardTable": [],
+          "narrative": "The envoy's claims stick, unanswered. The rival court takes it as a concession.",
+          "stressPenalty": 4,
+          "tokenRefund": 0.25
+        }
+      }
+    },
+    {
+      "id": "tourney-of-claims",
+      "name": "The Tourney of Claims",
+      "description": "The rival court settles disputed precedence the old way: a tourney, fought in front of both retinues, with the loser's claims forfeit for a generation.",
+      "rosterRequirements": { "minAgents": 4, "maxAgents": 6, "roleRequirements": [{ "roleId": "champion", "count": 1 }] },
+      "accessRequirements": { "orgMilestones": ["masked-envoy-cleared"], "agentAttunements": [], "attunementThreshold": null },
+      "difficultyRating": 42,
+      "mechanicChecks": [
+        {
+          "id": "tourney-bout",
+          "name": "Win the Tourney Bout",
+          "description": "The Champion fights the rival court's claimant in the tourney lists, in full view of both courts.",
+          "attributeWeights": [{ "attributeId": "force", "weight": 0.8 }, { "attributeId": "resolve", "weight": 0.2 }],
+          "difficultyThreshold": 15,
+          "scope": "role_specific",
+          "roleIds": ["champion"],
+          "failureConsequence": { "type": "agent_damage", "severity": 0.5 }
+        },
+        {
+          "id": "tourney-hold",
+          "name": "Hold the Line of Honor",
+          "description": "The retinue holds its ground in the tourney stands, roped off from the rival court's partisans.",
+          "attributeWeights": [{ "attributeId": "grace", "weight": 0.5 }, { "attributeId": "force", "weight": 0.5 }],
+          "difficultyThreshold": 7,
+          "thresholdMode": "perAssignedAgent",
+          "scope": "team_aggregate",
+          "failureConsequence": { "type": "team_damage", "severity": 0.4 }
+        }
+      ],
+      "completionCriteria": { "type": "all_mechanics_passed", "parameters": {} },
+      "timePressure": { "rounds": 8, "aggregateThreshold": 70, "attributeId": "grace" },
+      "outcomes": {
+        "success": {
+          "rewardTable": [{ "itemId": "tourney-champions-favor", "dropRate": 1.0 }],
+          "narrative": "The Champion takes the bout clean, and the rival claimant's precedence goes with it. The tourney stands go quiet, then loud.",
+          "reputationGain": 4,
+          "currencyReward": 110,
+          "milestoneFlag": "tourney-of-claims-cleared"
+        },
+        "partial": {
+          "rewardTable": [],
+          "narrative": "The bout is won on a technicality neither court fully agrees on. The claim is forfeit anyway.",
+          "reputationGain": 2,
+          "agentDowntimeCycles": 2
+        },
+        "failure": {
+          "rewardTable": [],
+          "narrative": "The bout goes to the rival claimant. The wandering court's precedence takes a public hit.",
+          "stressPenalty": 4,
+          "tokenRefund": 0.25
+        }
+      }
+    },
+    {
+      "id": "poisoned-banquet",
+      "name": "The Poisoned Banquet",
+      "description": "The rival court hosts a banquet meant to humiliate the wanderers quietly — and, if the Seneschal isn't careful, permanently. Someone has to taste every course before anyone else does.",
+      "rosterRequirements": { "minAgents": 5, "maxAgents": 6, "roleRequirements": [{ "roleId": "champion", "count": 1 }, { "roleId": "arcanist", "count": 1 }, { "roleId": "confessor", "count": 1 }] },
+      "accessRequirements": { "orgMilestones": ["tourney-of-claims-cleared"], "agentAttunements": [], "attunementThreshold": null },
+      "difficultyRating": 50,
+      "mechanicChecks": [
+        {
+          "id": "banquet-gate",
+          "name": "Hold the Line of Honor",
+          "description": "The Champion's retinue holds the banquet hall's doors against the rival court's armed footmen.",
+          "attributeWeights": [{ "attributeId": "force", "weight": 0.6 }, { "attributeId": "grace", "weight": 0.4 }],
+          "difficultyThreshold": 8,
+          "thresholdMode": "perAssignedAgent",
+          "scope": "team_aggregate",
+          "failureConsequence": { "type": "agent_damage", "severity": 0.5 }
+        },
+        {
+          "id": "banquet-command",
+          "name": "Steady the Standard",
+          "description": "The Champion keeps the retinue together through a banquet staged to humiliate the court course by course.",
+          "attributeWeights": [{ "attributeId": "resolve", "weight": 0.7 }, { "attributeId": "force", "weight": 0.3 }],
+          "difficultyThreshold": 16,
+          "scope": "role_specific",
+          "roleIds": ["champion"],
+          "failureConsequence": { "type": "cascade", "severity": 0.6 }
+        },
+        {
+          "id": "banquet-poison",
+          "name": "Detect the Poison",
+          "description": "The Arcanist reads the banquet's dishes for the rival court's favored toxins before anyone lifts a cup.",
+          "attributeWeights": [{ "attributeId": "artifice", "weight": 0.8 }, { "attributeId": "resolve", "weight": 0.2 }],
+          "difficultyThreshold": 16,
+          "scope": "role_specific",
+          "roleIds": ["arcanist"],
+          "failureConsequence": { "type": "agent_damage", "severity": 0.5 }
+        },
+        {
+          "id": "banquet-triage",
+          "name": "Steady the Sick",
+          "description": "The Confessor tends whoever drinks before the poison is caught.",
+          "attributeWeights": [{ "attributeId": "resolve", "weight": 0.5 }, { "attributeId": "grace", "weight": 0.5 }],
+          "difficultyThreshold": 15,
+          "scope": "role_specific",
+          "roleIds": ["confessor"],
+          "failureConsequence": { "type": "stress", "severity": 0.5 }
+        }
+      ],
+      "completionCriteria": { "type": "all_mechanics_passed", "parameters": {} },
+      "timePressure": null,
+      "outcomes": {
+        "success": {
+          "rewardTable": [{ "itemId": "banquet-antidote-phial", "dropRate": 1.0 }],
+          "narrative": "Every dish is caught before it's swallowed, and the humiliation the rival court planned lands on no one. The banquet ends in the wanderers' favor.",
+          "reputationGain": 5,
+          "currencyReward": 140,
+          "milestoneFlag": "poisoned-banquet-cleared"
+        },
+        "partial": {
+          "rewardTable": [],
+          "narrative": "The poison is caught, but not before someone feels its edge. The banquet ends without a scandal, at a cost.",
+          "reputationGain": 2,
+          "agentDowntimeCycles": 2
+        },
+        "failure": {
+          "rewardTable": [],
+          "narrative": "The banquet's tricks land as planned. The wandering court leaves the hall humiliated in front of the realm.",
+          "stressPenalty": 5,
+          "tokenRefund": 0.25
+        }
+      }
+    },
+    {
+      "id": "the-silent-procession",
+      "name": "The Silent Procession",
+      "description": "The rival court's household guard seals the ceremonial procession route in a ritual hush that hasn't been broken in a generation. Every step through it is watched, and no one is supposed to speak.",
+      "rosterRequirements": { "minAgents": 5, "maxAgents": 6, "roleRequirements": [{ "roleId": "champion", "count": 1 }, { "roleId": "herald", "count": 1 }, { "roleId": "arcanist", "count": 1 }] },
+      "accessRequirements": { "orgMilestones": ["poisoned-banquet-cleared"], "agentAttunements": [], "attunementThreshold": null },
+      "difficultyRating": 65,
+      "mechanicChecks": [
+        {
+          "id": "procession-gate",
+          "name": "Hold the Line of Honor",
+          "description": "The retinue forces passage through the procession route the rival court has sealed with its own household guard.",
+          "attributeWeights": [{ "attributeId": "force", "weight": 0.6 }, { "attributeId": "grace", "weight": 0.4 }],
+          "difficultyThreshold": 8,
+          "thresholdMode": "perAssignedAgent",
+          "scope": "team_aggregate",
+          "failureConsequence": { "type": "team_damage", "severity": 0.5 }
+        },
+        {
+          "id": "procession-command",
+          "name": "Steady the Standard",
+          "description": "The Champion keeps the procession's shape as the crowd presses in from both sides.",
+          "attributeWeights": [{ "attributeId": "resolve", "weight": 0.8 }, { "attributeId": "force", "weight": 0.2 }],
+          "difficultyThreshold": 17,
+          "scope": "role_specific",
+          "roleIds": ["champion"],
+          "failureConsequence": { "type": "cascade", "severity": 0.6 }
+        },
+        {
+          "id": "procession-veil",
+          "name": "Read the Veil-Signs",
+          "description": "The Herald traces the veiled signals the rival court is passing through the silent crowd, with the Arcanist's craft behind the reading.",
+          "attributeWeights": [{ "attributeId": "grace", "weight": 0.8 }, { "attributeId": "artifice", "weight": 0.2 }],
+          "difficultyThreshold": 17,
+          "scope": "role_specific",
+          "roleIds": ["herald"],
+          "failureConsequence": { "type": "agent_damage", "severity": 0.6 }
+        },
+        {
+          "id": "procession-nerve",
+          "name": "Read the Room",
+          "description": "Every retainer keeps a still face while the procession's ritual silence turns openly hostile.",
+          "attributeWeights": [{ "attributeId": "resolve", "weight": 0.7 }, { "attributeId": "grace", "weight": 0.3 }],
+          "difficultyThreshold": 12,
+          "scope": "per_agent",
+          "failureConsequence": { "type": "stress", "severity": 0.5 }
+        }
+      ],
+      "completionCriteria": { "type": "all_mechanics_passed", "parameters": {} },
+      "timePressure": { "rounds": 10, "aggregateThreshold": 90, "attributeId": "force" },
+      "outcomes": {
+        "success": {
+          "rewardTable": [{ "itemId": "procession-standard-veil", "dropRate": 1.0 }],
+          "narrative": "The silence breaks for the first time in a generation, and the procession's veiled signals are read in full. The rival court's seat has no ceremony left to hide behind.",
+          "reputationGain": 7,
+          "currencyReward": 200,
+          "milestoneFlag": "the-silent-procession-cleared"
+        },
+        "partial": {
+          "rewardTable": [],
+          "narrative": "The procession is forced open, but the household guard's captain slips out with word of it. The route is passable regardless.",
+          "reputationGain": 3,
+          "agentDowntimeCycles": 3
+        },
+        "failure": {
+          "rewardTable": [],
+          "narrative": "The ritual hush holds. The retinue is turned back from the procession route, the silence unbroken.",
+          "stressPenalty": 6,
+          "tokenRefund": 0.25
+        }
+      }
+    },
+    {
+      "id": "eclipsed-throne",
+      "name": "The Eclipsed Throne",
+      "description": "The rival court's own seat, and the throne it eclipses every other claim in the realm from. It has nowhere left to retreat to, and neither does the wandering court — this is where the exile is decided, one way or the other.",
+      "rosterRequirements": { "minAgents": 3, "maxAgents": 5, "roleRequirements": [{ "roleId": "champion", "count": 1 }, { "roleId": "confessor", "count": 1 }] },
+      "accessRequirements": { "orgMilestones": ["the-silent-procession-cleared"], "agentAttunements": ["seals-of-the-season"], "attunementThreshold": 0.5 },
+      "difficultyRating": 78,
+      "mechanicChecks": [
+        {
+          "id": "throne-gate",
+          "name": "Hold the Line of Honor",
+          "description": "The last hall in the rival court's seat, and its household guard has been told to give no ground.",
+          "attributeWeights": [{ "attributeId": "force", "weight": 0.5 }, { "attributeId": "resolve", "weight": 0.5 }],
+          "difficultyThreshold": 9,
+          "thresholdMode": "perAssignedAgent",
+          "scope": "team_aggregate",
+          "failureConsequence": { "type": "team_damage", "severity": 0.6 }
+        },
+        {
+          "id": "throne-command",
+          "name": "Steady the Standard",
+          "description": "The Champion carries the retinue through the throne hall against the rival court's own champions.",
+          "attributeWeights": [{ "attributeId": "resolve", "weight": 0.7 }, { "attributeId": "force", "weight": 0.3 }],
+          "difficultyThreshold": 19,
+          "scope": "role_specific",
+          "roleIds": ["champion"],
+          "failureConsequence": { "type": "cascade", "severity": 0.7 }
+        },
+        {
+          "id": "throne-triage",
+          "name": "Steady the Sick",
+          "description": "The Confessor keeps the retinue standing through a fight with no ground to give and no aid coming.",
+          "attributeWeights": [{ "attributeId": "resolve", "weight": 0.6 }, { "attributeId": "grace", "weight": 0.4 }],
+          "difficultyThreshold": 18,
+          "scope": "role_specific",
+          "roleIds": ["confessor"],
+          "failureConsequence": { "type": "agent_damage", "severity": 0.6 }
+        },
+        {
+          "id": "throne-room",
+          "name": "Read the Room",
+          "description": "Every retainer reads the eclipsed throne hall for the rival court's last tricks before the final push.",
+          "attributeWeights": [{ "attributeId": "resolve", "weight": 0.5 }, { "attributeId": "grace", "weight": 0.5 }],
+          "difficultyThreshold": 12,
+          "scope": "per_agent",
+          "failureConsequence": { "type": "stress", "severity": 0.5 }
+        }
+      ],
+      "completionCriteria": { "type": "all_mechanics_passed", "parameters": {} },
+      "timePressure": { "rounds": 12, "aggregateThreshold": 110, "attributeId": "resolve" },
+      "outcomes": {
+        "success": {
+          "rewardTable": [{ "itemId": "eclipsed-crown", "dropRate": 1.0 }, { "itemId": "procession-standard-veil", "dropRate": 0.5 }],
+          "narrative": "The eclipsed throne falls, and with it the exile. The wandering court is wandering no longer — it made sure of that, chapter by chapter.",
+          "reputationGain": 10,
+          "currencyReward": 300,
+          "milestoneFlag": "eclipsed-throne-cleared"
+        },
+        "partial": {
+          "rewardTable": [{ "itemId": "eclipsed-crown", "dropRate": 0.5 }],
+          "narrative": "The throne hall falls, but the rival court's claimant is gone by the time the retinue reaches it. The seat is the wanderers'; the claimant is someone else's problem now.",
+          "reputationGain": 4,
+          "agentDowntimeCycles": 3
+        },
+        "failure": {
+          "rewardTable": [],
+          "narrative": "The household guard holds the throne hall. The retinue withdraws from the seat, the exile not yet ended.",
+          "stressPenalty": 7,
+          "tokenRefund": 0.25
+        }
+      }
+    }
+  ],
+  "difficultyModes": [],
+  "items": [
+    {
+      "id": "toll-keepers-coin",
+      "name": "Toll-Keeper's Coin",
+      "slot": "trinket",
+      "statBonuses": { "grace": 1 },
+      "tierRequirement": "attendant",
+      "flavorText": "A coin cut from a bandit toll that no longer applies to this court."
+    },
+    {
+      "id": "grievance-ribbon",
+      "name": "Grievance Ribbon",
+      "slot": "trinket",
+      "statBonuses": { "grace": 1, "resolve": 1 },
+      "tierRequirement": "attendant",
+      "flavorText": "Faded ribbon a village elder pinned to the court's banner rather than let the grievance go unmarked."
+    },
+    {
+      "id": "pact-sealed-oar",
+      "name": "Pact-Sealed Oar",
+      "slot": "weapon",
+      "statBonuses": { "artifice": 2 },
+      "tierRequirement": "attendant",
+      "flavorText": "Carved by the Arcanist's own hand, still humming faintly with the river's bargain."
+    },
+    {
+      "id": "envoys-cracked-mask",
+      "name": "Envoy's Cracked Mask",
+      "slot": "trinket",
+      "statBonuses": { "grace": 2, "resolve": 1 },
+      "tierRequirement": "favored",
+      "flavorText": "Its enamel is fractured down the left eye, right where the Champion's gauntlet caught it."
+    },
+    {
+      "id": "tourney-champions-favor",
+      "name": "Tourney Champion's Favor",
+      "slot": "trinket",
+      "statBonuses": { "force": 2, "grace": 1 },
+      "tierRequirement": "favored",
+      "flavorText": "A rival court's favor, won honestly in front of both courts and worn ever since."
+    },
+    {
+      "id": "banquet-antidote-phial",
+      "name": "Banquet Antidote Phial",
+      "slot": "trinket",
+      "statBonuses": { "artifice": 1, "resolve": 1 },
+      "tierRequirement": "favored",
+      "flavorText": "Half-empty; the Confessor insists on keeping it that way."
+    },
+    {
+      "id": "procession-standard-veil",
+      "name": "Procession Standard-Veil",
+      "slot": "trinket",
+      "statBonuses": { "grace": 2, "resolve": 1 },
+      "tierRequirement": "exalted",
+      "flavorText": "A veil torn from the rival court's own standard during the silent procession's one loud moment."
+    },
+    {
+      "id": "eclipsed-crown",
+      "name": "Eclipsed Crown",
+      "slot": "trinket",
+      "statBonuses": { "resolve": 2, "force": 2, "artifice": 1, "grace": 1 },
+      "tierRequirement": "exalted",
+      "flavorText": "Plain silver eclipsed by no gem — the only crown the wandering court ever needed back."
+    }
+  ],
+  "narrativeEvents": [
+    {
+      "trigger": { "type": "first_clear", "target": "bandit-toll" },
+      "title": "The First Season on the Road",
+      "text": "The toll falls without a single royal seal spent. The wandering court's first season away from its throne begins in earnest, off the map and out of anyone's ledger.",
+      "rewards": [],
+      "agentUnlock": null
+    },
+    {
+      "trigger": { "type": "tier_complete", "target": "chapter-1" },
+      "title": "The Road Season Ends",
+      "text": "The road's bandits, grievances, and river spirits are all settled. The court has proven it can survive its own exile before it ever tries to reclaim anything.",
+      "rewards": [],
+      "agentUnlock": null
+    },
+    {
+      "trigger": { "type": "tier_complete", "target": "chapter-2" },
+      "title": "The Rival Season Turns",
+      "text": "Envoy, tourney, and banquet — the rival court's every gambit spent and answered. Word of the wandering court's Seneschal starts to travel ahead of the retinue itself.",
+      "rewards": [],
+      "agentUnlock": null
+    },
+    {
+      "trigger": { "type": "first_clear", "target": "the-silent-procession" },
+      "title": "The Silence Breaks",
+      "text": "The procession's hush cracks for the first time in a generation. The rival court's seat has no ceremony left to hide behind.",
+      "rewards": [],
+      "agentUnlock": null
+    },
+    {
+      "trigger": { "type": "arc_complete", "target": "wandering-court" },
+      "title": "The Court Comes Home",
+      "text": "The eclipsed throne falls, and the wandering court is wandering no longer. Every champion summoned, every chapter written on the road, ends here — in a season that finally holds.",
+      "rewards": [],
+      "agentUnlock": null
+    }
+  ],
+  "scaling": { "type": "fixed", "scalingRules": {} }
+}

@@ -1,6 +1,8 @@
 import type { Arc, Organization, RunReport, AgentRunResult } from "../../engine/types.js";
 import { generateHeadline } from "../lib/headline.js";
 import { agentInitials } from "../lib/ui-helpers.js";
+import { t } from "../../i18n/index.js";
+import { headlineDisplay } from "../../i18n/display.js";
 
 interface Props {
   arc: Arc;
@@ -20,7 +22,7 @@ export default function CycleDigest({ arc, org, reports }: Props): JSX.Element |
 
   // ── 1. Masthead derivations ───────────────────────────────────────────────
   const cycleNo = reports.reduce((m, r) => Math.max(m, r.cycle), 0);
-  const editionStamp = `No. ${String(cycleNo).padStart(2, "0")}`;
+  const editionStamp = t("digest.editionNo", { n: String(cycleNo).padStart(2, "0") });
 
   // ── 2. Headline + deck ────────────────────────────────────────────────────
   // generateHeadline operates on a single RunReport. The cycle digest sits
@@ -39,11 +41,11 @@ export default function CycleDigest({ arc, org, reports }: Props): JSX.Element |
   const dropCount = reports.reduce((s, r) => s + r.lootDrops.length, 0);
 
   const tallyParts: string[] = [];
-  tallyParts.push(`${successCount} cleared`);
-  if (partialCount > 0) tallyParts.push(`${partialCount} partial`);
-  if (failureCount > 0) tallyParts.push(`${failureCount} failed`);
-  if (dramaCount > 0) tallyParts.push(`${dramaCount} afflictions`);
-  if (dropCount > 0) tallyParts.push(`${dropCount} drops`);
+  tallyParts.push(t("digest.tallyCleared", { n: successCount }));
+  if (partialCount > 0) tallyParts.push(t("digest.tallyPartial", { n: partialCount }));
+  if (failureCount > 0) tallyParts.push(t("digest.tallyFailed", { n: failureCount }));
+  if (dramaCount > 0) tallyParts.push(t("digest.tallyAfflictions", { n: dramaCount }));
+  if (dropCount > 0) tallyParts.push(t("digest.tallyDrops", { n: dropCount }));
   const deck = tallyParts.join(" · ") + ".";
 
   // ── 4. Per-agent tally — agents who actually deployed ────────────────────
@@ -67,8 +69,8 @@ export default function CycleDigest({ arc, org, reports }: Props): JSX.Element |
       const wasDowned = slices.some((x) => x.wasDowned);
       const isHeroic = slices.some((x) => x.isHeroic);
       const roleName = agent?.role
-        ? arc.roles.find((ro) => ro.id === agent.role)?.name ?? "Flex"
-        : "Flex";
+        ? arc.roles.find((ro) => ro.id === agent.role)?.name ?? t("common.flex")
+        : t("common.flex");
       return { id, agent, roleName, stressGained, perf, wasDowned, isHeroic };
     });
 
@@ -92,30 +94,30 @@ export default function CycleDigest({ arc, org, reports }: Props): JSX.Element |
         <div className="digest-masthead-meta">
           <span>{editionStamp}</span>
           <span>·</span>
-          <span>Cycle {cycleNo}</span>
+          <span>{t("digest.cycle", { n: cycleNo })}</span>
           <span>·</span>
           <span>{arc.meta.domain}</span>
         </div>
       </div>
 
       {/* ── 2. Headline + deck ── */}
-      <div className="digest-kicker">Field Digest</div>
+      <div className="digest-kicker">{t("digest.fieldDigest")}</div>
       <div className="digest-headline">
         {headline.challenge}{" "}
-        {headline.qualifier && <span className="accent">{headline.qualifier} </span>}
-        {headline.primary}
+        {headlineDisplay(headline).qualifier && <span className="accent">{headlineDisplay(headline).qualifier} </span>}
+        {headlineDisplay(headline).primary}
       </div>
       <div className="digest-deck">{deck}</div>
 
       {/* ── 3. Applied affordance ── */}
       <div className="digest-applied">
-        All outcomes applied — nothing to collect. The report below is the record.
+        {t("digest.applied")}
       </div>
 
       {/* ── 4. Per-agent tally ── */}
       {tallyRows.length > 0 && (
         <div className="digest-tally">
-          <div className="digest-section-label">Cycle Tally</div>
+          <div className="digest-section-label">{t("digest.cycleTally")}</div>
           {tallyRows.map((row) => (
             <div key={row.id} className="digest-tally-row">
               <div className={`portrait small${row.wasDowned ? " accent" : ""}`}>
@@ -127,11 +129,11 @@ export default function CycleDigest({ arc, org, reports }: Props): JSX.Element |
               </div>
               <div className="digest-tally-chips">
                 <span className={`digest-chip${row.stressGained > 0 ? " accent" : ""}`}>
-                  {row.stressGained > 0 ? `+${row.stressGained}` : `${row.stressGained}`} STRESS
+                  {t("digest.stressChip", { delta: row.stressGained > 0 ? `+${row.stressGained}` : `${row.stressGained}` })}
                 </span>
-                <span className="digest-chip">PERF {Math.round(row.perf)}</span>
-                {row.wasDowned && <span className="digest-chip downed">DOWNED</span>}
-                {row.isHeroic && <span className="digest-chip heroic">HEROIC</span>}
+                <span className="digest-chip">{t("digest.perf", { n: Math.round(row.perf) })}</span>
+                {row.wasDowned && <span className="digest-chip downed">{t("digest.downed")}</span>}
+                {row.isHeroic && <span className="digest-chip heroic">{t("digest.heroic")}</span>}
               </div>
             </div>
           ))}
@@ -139,7 +141,7 @@ export default function CycleDigest({ arc, org, reports }: Props): JSX.Element |
       )}
 
       {/* ── 5. Contract audits, one block per report (given order) ── */}
-      <div className="digest-section-label">Contract Audits</div>
+      <div className="digest-section-label">{t("digest.contractAudits")}</div>
       {reports.map((r, i) => {
         const challenge = arc.challenges.find((c) => c.id === r.challengeId);
         const contractName = challenge?.name ?? r.challengeId;
@@ -152,7 +154,7 @@ export default function CycleDigest({ arc, org, reports }: Props): JSX.Element |
           <div key={i} className="digest-audit">
             <div className="digest-audit-head">
               <span className="digest-audit-name">{contractName}</span>
-              <span className={`digest-chip outcome-${r.outcome}`}>{r.outcome.toUpperCase()}</span>
+              <span className={`digest-chip outcome-${r.outcome}`}>{r.outcome === "success" ? t("reports.outcomeSuccessWord") : r.outcome === "partial" ? t("reports.outcomePartialWord") : t("reports.outcomeFailureWord")}</span>
             </div>
 
             {mechanicIds.map((mid) => {
@@ -192,9 +194,9 @@ export default function CycleDigest({ arc, org, reports }: Props): JSX.Element |
                     {Math.round(aggregate)} / {threshold}
                   </span>
                   <span className={`digest-chip ${passed ? "pass" : "fail"}`}>
-                    {passed ? "PASS" : "FAIL"}
+                    {passed ? t("common.pass") : t("common.fail")}
                   </span>
-                  <span className="digest-audit-carry">carry · {carryName}</span>
+                  <span className="digest-audit-carry">{t("digest.carry", { name: carryName })}</span>
                 </div>
               );
             })}
@@ -205,7 +207,7 @@ export default function CycleDigest({ arc, org, reports }: Props): JSX.Element |
       {/* ── 6. Drops ── */}
       {drops.length > 0 && (
         <div className="digest-drops">
-          <div className="digest-section-label">Drops</div>
+          <div className="digest-section-label">{t("digest.drops")}</div>
           {drops.map(({ drop, challengeId }, idx) => {
             const item = arc.items.find((it) => it.id === drop.itemId);
             const name = item?.name ?? drop.itemId;
@@ -214,7 +216,7 @@ export default function CycleDigest({ arc, org, reports }: Props): JSX.Element |
               <div key={`${challengeId}-${drop.itemId}-${idx}`} className="digest-drop-row">
                 <span className="digest-drop-name">{name}</span>
                 <span className={`digest-chip ${isDocket ? "docket" : "applied"}`}>
-                  {isDocket ? "DOCKET" : "APPLIED"}
+                  {isDocket ? t("digest.docket") : t("digest.appliedChip")}
                 </span>
               </div>
             );

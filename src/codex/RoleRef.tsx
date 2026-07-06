@@ -1,4 +1,5 @@
 import type { Arc } from "../engine/types.js";
+import { t } from "../i18n/index.js";
 
 export default function RoleRef({ arc, id }: { arc: Arc; id: string }): JSX.Element | null {
   const role = arc.roles.find((r) => r.id === id);
@@ -18,11 +19,11 @@ export default function RoleRef({ arc, id }: { arc: Arc; id: string }): JSX.Elem
       <div className="codex-entry-name">{role.name}</div>
       {lead && (
         <div className="codex-meta-row">
-          <strong>Lead attribute:</strong> {attrName(lead[0])}
+          <strong>{t("codexRef.leadAttribute")}</strong> {attrName(lead[0])}
         </div>
       )}
       <div className="codex-meta-row">
-        <strong>Weight breakdown:</strong>
+        <strong>{t("codexRef.weightBreakdown")}</strong>
         <ul>
           {sorted.map(([attrId, weight]) => (
             <li key={attrId}>

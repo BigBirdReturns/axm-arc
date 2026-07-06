@@ -1,5 +1,6 @@
 import type { Agent, Arc } from "../../engine/types.js";
 import { HIDDEN_ATTR_REVEAL_THRESHOLDS, TRAIT_REVEAL_THRESHOLDS } from "../../engine/constants.js";
+import { t } from "../../i18n/index.js";
 
 export function formatMorale(n: number): string {
   if (n >= 80) return "Inspired";
@@ -39,13 +40,13 @@ export function hiddenAttrVisibleCount(agent: Agent): number {
 
 export function nextRevealHint(agent: Agent): string {
   const assignments = agent.assignmentHistory.length;
-  for (const t of TRAIT_REVEAL_THRESHOLDS) {
-    if (assignments < t) return `Trait reveal in ${t - assignments} assignments`;
+  for (const threshold of TRAIT_REVEAL_THRESHOLDS) {
+    if (assignments < threshold) return t("hints.traitReveal", { n: threshold - assignments });
   }
-  for (const t of HIDDEN_ATTR_REVEAL_THRESHOLDS) {
-    if (assignments < t) return `Hidden attribute reveal in ${t - assignments} assignments`;
+  for (const threshold of HIDDEN_ATTR_REVEAL_THRESHOLDS) {
+    if (assignments < threshold) return t("hints.hiddenReveal", { n: threshold - assignments });
   }
-  return "All info revealed";
+  return t("hints.allRevealed");
 }
 
 export function tierBadgeColor(tierId: string): string {

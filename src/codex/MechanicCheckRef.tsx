@@ -1,10 +1,11 @@
 import type { Arc, MechanicCheck } from "../engine/types.js";
+import { t, type MessageId } from "../i18n/index.js";
+import { MESSAGES } from "../i18n/messages.js";
 
-const SCOPE_TEXT: Record<MechanicCheck["scope"], string> = {
-  per_agent: "Each assigned agent is checked individually.",
-  team_aggregate: "The whole team's combined score is checked.",
-  role_specific: "Only agents in the required role are checked.",
-};
+function scopeText(scope: MechanicCheck["scope"]): string {
+  const id = `scope.${scope}` as MessageId;
+  return MESSAGES.en[id] !== undefined ? t(id) : scope;
+}
 
 export default function MechanicCheckRef({
   arc,
@@ -28,9 +29,9 @@ export default function MechanicCheckRef({
       <div className="codex-entry-desc">{check.description}</div>
 
       <div className="codex-meta-row">
-        <strong>Attributes that matter:</strong>
+        <strong>{t("codexRef.attrsThatMatter")}</strong>
         {weights.length === 0 ? (
-          <div>No attributes weighted for this check.</div>
+          <div>{t("codexRef.noAttrsWeighted")}</div>
         ) : (
           <ul>
             {weights.map((w) => (
@@ -43,12 +44,12 @@ export default function MechanicCheckRef({
       </div>
 
       <div className="codex-meta-row">
-        <strong>How it's scored:</strong>
-        <div>{SCOPE_TEXT[check.scope] ?? check.scope}</div>
+        <strong>{t("codexRef.howScored")}</strong>
+        <div>{scopeText(check.scope)}</div>
       </div>
 
       <div className="codex-meta-row">
-        <strong>Target:</strong> {check.difficultyThreshold}
+        <strong>{t("codexRef.target")}</strong> {check.difficultyThreshold}
       </div>
     </div>
   );

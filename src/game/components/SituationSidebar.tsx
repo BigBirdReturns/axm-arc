@@ -1,6 +1,8 @@
 import { predictImminentEvents } from "../../engine/projections.js";
 import type { Arc, Organization, RunReport } from "../../engine/types.js";
 import { generateHeadline } from "../lib/headline.js";
+import { t } from "../../i18n/index.js";
+import { triggerTypeLabel } from "../../i18n/display.js";
 
 interface Props {
   intent?: string;
@@ -24,7 +26,7 @@ export function SituationSidebar({ arc, org, lastReports, intent = "" }: Props):
       {/* ── Intent pull-quote ── */}
       {intent && (
         <div className="sidebar-section">
-          <div className="sidebar-label">Intent · This Cycle</div>
+          <div className="sidebar-label">{t("intent.label")}</div>
           <div style={{
             borderLeft: "2px solid var(--ink)",
             paddingLeft: 12,
@@ -42,16 +44,16 @@ export function SituationSidebar({ arc, org, lastReports, intent = "" }: Props):
       {/* ── Drama blocking alerts ── */}
       {org.dramaQueue.length > 0 && (
         <div className="sidebar-section">
-          <div className="sidebar-label">Drama · {String(org.dramaQueue.length).padStart(2, "0")} Queued</div>
-          <div className="sidebar-alert">Blocking</div>
+          <div className="sidebar-label">{t("sidebar.dramaQueued", { n: String(org.dramaQueue.length).padStart(2, "0") })}</div>
+          <div className="sidebar-alert">{t("sidebar.blocking")}</div>
           {org.dramaQueue.slice(0, 3).map((card) => (
             <div key={card.id} className="sidebar-card danger">
-              <div className="sidebar-card-type">{card.triggerType.replace(/_/g, " ")}</div>
+              <div className="sidebar-card-type">{triggerTypeLabel(card.triggerType)}</div>
               <div className="sidebar-card-headline">
                 {card.narrativeText.split(".")[0]}.
               </div>
               <div className="sidebar-card-meta">
-                {card.options.length} option{card.options.length > 1 ? "s" : ""} · tap to resolve
+                {t("sidebar.optionsTap", { n: card.options.length })}
               </div>
             </div>
           ))}
@@ -61,7 +63,7 @@ export function SituationSidebar({ arc, org, lastReports, intent = "" }: Props):
       {/* ── Severity-framed alerts ── */}
       {alerts.length > 0 && (
         <div className="sidebar-section">
-          <div className="sidebar-label">Stress · Threshold</div>
+          <div className="sidebar-label">{t("sidebar.stressThreshold")}</div>
           {alerts.map((alert, i) => (
             <div key={i} className="sidebar-card" style={{
               borderLeft: `3px solid ${alert.severity === "critical" ? "var(--accent)" : "var(--rule-dk)"}`,
@@ -87,15 +89,14 @@ export function SituationSidebar({ arc, org, lastReports, intent = "" }: Props):
       {/* ── Last report ── */}
       {lastReport && challenge && headline && (
         <div className="sidebar-section">
-          <div className="sidebar-label">Last Report · Cycle {String(lastReport.cycle).padStart(2, "0")}</div>
+          <div className="sidebar-label">{t("sidebar.lastReport", { n: String(lastReport.cycle).padStart(2, "0") })}</div>
           <div className="sidebar-card">
             <div className="sidebar-card-headline">
-              {challenge.name}, {lastReport.outcome === "success" ? "Clean." : lastReport.outcome === "partial" ? "Partial." : "Wipe."}{" "}
+              {challenge.name}, {lastReport.outcome === "success" ? `${t("reports.outcomeClean")}.` : lastReport.outcome === "partial" ? `${t("reports.outcomePartial")}.` : `${t("reports.outcomeWipe")}.`}{" "}
             </div>
             <div className="sidebar-card-body">
-              {lastReport.assignedAgents[0]?.mechanicResults.filter((m) => m.passed).length ?? 0} of{" "}
-              {challenge.mechanicChecks.length} checks passed.
-              {lastReport.lootDrops.length > 0 && ` ${lastReport.lootDrops.length} drop${lastReport.lootDrops.length > 1 ? "s" : ""}.`}
+              {t("sidebar.checksPassed", { passed: lastReport.assignedAgents[0]?.mechanicResults.filter((m) => m.passed).length ?? 0, total: challenge.mechanicChecks.length })}
+              {lastReport.lootDrops.length > 0 && t("sidebar.dropsSuffix", { n: lastReport.lootDrops.length })}
             </div>
           </div>
         </div>
@@ -104,7 +105,8 @@ export function SituationSidebar({ arc, org, lastReports, intent = "" }: Props):
       {/* ── Imminent events ── */}
       {imminent.length > 0 && (
         <div className="sidebar-section">
-          <div className="sidebar-label">Imminent</div>
+          {/* Imminent items themselves are engine-emitted strings — verbatim. */}
+          <div className="sidebar-label">{t("sidebar.imminent")}</div>
           <ul className="sidebar-list">
             {imminent.map((e, i) => (
               <li key={i}>{e}</li>
@@ -135,23 +137,23 @@ function buildAlerts(org: Organization, arc: Arc): Alert[] {
     // Stress threshold alerts — this is the "VEX IS AT 7. ONE BAD CYCLE." pattern
     if (agent.stress >= 9 && agent.afflictionState.kind === "none") {
       alerts.push({
-        headline: `${firstName.toUpperCase()} IS AT ${agent.stress}. ONE BAD CYCLE.`,
-        sub: `3 options · tap to resolve`,
+        headline: t("sidebar.alertOneBadCycle", { name: firstName.toUpperCase(), n: agent.stress }),
+        sub: t("sidebar.subOptionsTap", { n: 3 }),
         severity: "critical",
       });
     } else if (agent.stress >= 7 && agent.afflictionState.kind === "none") {
       alerts.push({
-        headline: `${firstName.toUpperCase()} IS AT ${agent.stress}. WATCH THIS.`,
-        sub: `Send to Recreation or reduce assignments`,
+        headline: t("sidebar.alertWatchThis", { name: firstName.toUpperCase(), n: agent.stress }),
+        sub: t("sidebar.subRecreation"),
         severity: "warning",
       });
     }
 
-    // Active affliction alerts
+    // Active affliction alerts (affliction kind is an engine value — verbatim)
     if (agent.afflictionState.kind !== "none") {
       alerts.push({
-        headline: `${firstName.toUpperCase()} IS ${agent.afflictionState.kind.toUpperCase()}.`,
-        sub: `Rest or mentor to clear`,
+        headline: t("sidebar.alertIsAfflicted", { name: firstName.toUpperCase(), kind: agent.afflictionState.kind.toUpperCase() }),
+        sub: t("sidebar.subRest"),
         severity: "critical",
       });
     }
@@ -164,8 +166,8 @@ function buildAlerts(org: Organization, arc: Arc): Alert[] {
     const bases = new Set(recent.map((p) => p.decisionBasis));
     if (bases.size > 1) {
       alerts.push({
-        headline: "THREE AMBITIOUS AGENTS NOTICED.",
-        sub: `2 options · tap to resolve`,
+        headline: t("sidebar.alertThreeAmbitious"),
+        sub: t("sidebar.subOptionsTap", { n: 2 }),
         severity: "warning",
       });
     }
@@ -175,8 +177,8 @@ function buildAlerts(org: Organization, arc: Arc): Alert[] {
   const hostileCount = org.relationships.filter((r) => r.state === "Hostile").length;
   if (hostileCount > 0) {
     alerts.push({
-      headline: `${hostileCount} HOSTILE PAIR${hostileCount > 1 ? "S" : ""} IN ROTATION.`,
-      sub: `+1 stress per shared challenge`,
+      headline: t("sidebar.alertHostilePairs", { n: hostileCount }),
+      sub: t("sidebar.subStressPer"),
       severity: "warning",
     });
   }

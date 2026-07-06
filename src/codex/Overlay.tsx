@@ -7,6 +7,7 @@ import TraitRef from "./TraitRef.js";
 import FacilityRef from "./FacilityRef.js";
 import MechanicCheckRef from "./MechanicCheckRef.js";
 import TrustLabel from "./TrustLabel.js";
+import { t, useLocale } from "../i18n/index.js";
 
 // Facilities are an engine-level fixed set, not arc data; list them in the same
 // order BaseScreen presents them.
@@ -25,7 +26,7 @@ export default function CodexOverlay({
   open,
   onClose,
   onReplayTutorial,
-  onReplayTutorialLabel = "Replay tutorial",
+  onReplayTutorialLabel,
   trust,
 }: {
   arc: Arc;
@@ -35,6 +36,7 @@ export default function CodexOverlay({
   onReplayTutorialLabel?: string;
   trust?: TrustLabelValue;
 }): JSX.Element | null {
+  useLocale(); // overlay renders above screens that may not re-render it — subscribe directly
   // Escape key + body scroll lock while open.
   useEffect(() => {
     if (!open) return;
@@ -59,23 +61,23 @@ export default function CodexOverlay({
   // single entry here — keep this array authoritative.
   const sections: Array<{ label: string; render: () => ReactNode }> = [
     {
-      label: "Attributes",
+      label: t("codex.attributes"),
       render: () => arc.attributes.map((a) => <AttributeRef key={a.id} arc={arc} id={a.id} />),
     },
     {
-      label: "Roles",
+      label: t("codex.roles"),
       render: () => arc.roles.map((r) => <RoleRef key={r.id} arc={arc} id={r.id} />),
     },
     {
-      label: "Traits",
-      render: () => traits.map((t) => <TraitRef key={t.id} trait={t} />),
+      label: t("codex.traits"),
+      render: () => traits.map((trait) => <TraitRef key={trait.id} trait={trait} />),
     },
     {
-      label: "Facilities",
+      label: t("codex.facilities"),
       render: () => FACILITY_ORDER.map((f) => <FacilityRef key={f} facility={f} />),
     },
     {
-      label: "How challenges resolve",
+      label: t("codex.howChallenges"),
       render: () =>
         arc.challenges.map((ch) => (
           <div key={ch.id} className="codex-challenge-group">
@@ -97,11 +99,11 @@ export default function CodexOverlay({
       <aside
         className="codex-overlay"
         role="dialog"
-        aria-label="Manual"
+        aria-label={t("codex.manualAria")}
         onClick={(e) => e.stopPropagation()}
       >
-        <button className="codex-close" onClick={onClose} aria-label="Close manual">
-          Close
+        <button className="codex-close" onClick={onClose} aria-label={t("codex.closeManualAria")}>
+          {t("common.close")}
         </button>
         {trust && (
           <div
@@ -134,7 +136,7 @@ export default function CodexOverlay({
                 onClose();
               }}
             >
-              {onReplayTutorialLabel}
+              {onReplayTutorialLabel ?? t("codex.replayTutorial")}
             </button>
           </div>
         )}

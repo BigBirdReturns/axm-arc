@@ -54,6 +54,36 @@ describe("formatMessage", () => {
   });
 });
 
+describe("full-app chrome spot checks", () => {
+  it("screen chrome resolves in both locales", () => {
+    expect(formatMessage("en", "roster.personnel")).toBe("Personnel");
+    expect(formatMessage("zh-Hant", "roster.personnel")).toBe("人員");
+    expect(formatMessage("en", "assign.goodPlan")).toBe("Good plan");
+    expect(formatMessage("zh-Hant", "assign.goodPlan")).toBe("計畫良好");
+    expect(formatMessage("en", "fac.Training.name")).toBe("Training");
+    expect(formatMessage("zh-Hant", "fac.Training.name")).toBe("訓練");
+    expect(formatMessage("en", "tutorial.skip")).toBe("skip");
+    expect(formatMessage("zh-Hant", "tutorial.skip")).toBe("略過");
+  });
+
+  it("templated chrome interpolates in both locales", () => {
+    expect(formatMessage("en", "checklist.dramaUnresolved", { n: 2 })).toBe("2 drama unresolved");
+    expect(formatMessage("zh-Hant", "checklist.dramaUnresolved", { n: 2 })).toBe("2 項劇情未處理");
+    expect(formatMessage("en", "blockers.dramaCards", { count: 1 })).toBe("Resolve 1 drama card before advancing.");
+    expect(formatMessage("zh-Hant", "blockers.dramaCards", { count: 3 })).toBe("推進前請先處理 3 張劇情卡。");
+    expect(formatMessage("en", "drama.decisions", { count: 2 })).toBe("TWO DECISIONS");
+    expect(formatMessage("zh-Hant", "drama.decisions", { count: 2 })).toBe("兩項決策");
+    expect(formatMessage("en", "reports.absChecksFailedLine", { failed: 1, total: 4, name: "" })).toBe("One mechanic check failed.");
+    expect(formatMessage("zh-Hant", "reports.absChecksFailedLine", { failed: 2, total: 4, name: "Vex" })).toBe("4 項機制檢定中有 2 項未過；其中一項靠 Vex 的關鍵堅毅撐了下來。");
+  });
+
+  it("headline display values resolve in both locales", () => {
+    expect(formatMessage("en", "headline.clean")).toBe("CLEAN.");
+    expect(formatMessage("zh-Hant", "headline.clean")).toBe("無傷通關。");
+    expect(formatMessage("zh-Hant", "headline.carried", { name: "VEX" })).toBe("VEX 一肩扛起。");
+  });
+});
+
 describe("catalog coverage guard", () => {
   it("every en message id is present in zh-Hant, or explicitly documented as EN_ONLY", () => {
     const enIds = Object.keys(MESSAGES.en) as MessageId[];

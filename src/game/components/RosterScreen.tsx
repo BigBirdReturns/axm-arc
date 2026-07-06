@@ -9,6 +9,7 @@ import {
 } from "../lib/ui-helpers.js";
 import { ThresholdBar } from "./ThresholdBar.js";
 import { t, type MessageId } from "../../i18n/index.js";
+import { useModalDialog } from "../../lib/use-modal-dialog.js";
 
 // ── Bark library ──────────────────────────────────────────────────────────────
 // App-authored flavor lines (chrome, not arc data) — catalogued as bark.* ids.
@@ -123,6 +124,7 @@ function AgentRow({ agent, arc, onClick }: { agent: Agent; arc: Arc; onClick: ()
 }
 
 function AgentDetail({ agent, arc, onClose }: { agent: Agent; arc: Arc; onClose: () => void }): JSX.Element {
+  const dialogRef = useModalDialog(onClose);
   const attrs = visibleAttrs(agent, arc);
   const hiddenShown = hiddenAttrVisibleCount(agent);
   const hidden: Array<[string, number]> = [
@@ -133,7 +135,7 @@ function AgentDetail({ agent, arc, onClose }: { agent: Agent; arc: Arc; onClose:
   ];
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <dialog ref={dialogRef} className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="row between">
           <h3>{agent.name}</h3>
@@ -181,6 +183,6 @@ function AgentDetail({ agent, arc, onClose }: { agent: Agent; arc: Arc; onClose:
           {t("roster.footer", { tier: agent.tier, upkeep: agent.upkeep, eff: agent.baseEfficiency.toFixed(1) })}
         </div>
       </div>
-    </div>
+    </dialog>
   );
 }

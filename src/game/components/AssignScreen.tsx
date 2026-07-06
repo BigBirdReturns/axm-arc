@@ -13,6 +13,7 @@ import {
 import { challengeAccess, unlockedProgressionTierIds } from "../../engine/access.js";
 import { agentInitials } from "../lib/ui-helpers.js";
 import { t } from "../../i18n/index.js";
+import { useModalDialog } from "../../lib/use-modal-dialog.js";
 
 interface Props {
   arc: Arc;
@@ -560,6 +561,7 @@ function RosterPicker({
   onCancel: () => void;
   onSubmit: (agentIds: string[], tokens: number) => void;
 }): JSX.Element {
+  const dialogRef = useModalDialog(onCancel);
   const available: Agent[] = Object.values(org.agents).filter(
     (a) => a.downedUntilCycle === null,
   );
@@ -619,7 +621,7 @@ function RosterPicker({
   });
 
   return (
-    <div className="modal-backdrop" onClick={onCancel}>
+    <dialog ref={dialogRef} className="modal-backdrop" onClick={onCancel}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="row between">
           <h3>{challenge.name}</h3>
@@ -720,6 +722,6 @@ function RosterPicker({
           {t("assign.slotRoster", { n: selected.size })}
         </button>
       </div>
-    </div>
+    </dialog>
   );
 }

@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { RELEASE_NOTES, type ReleaseNote } from "./notes.js";
 import { t, useLocale } from "../i18n/index.js";
+import { useModalDialog } from "../lib/use-modal-dialog.js";
 
 // i18n boundary: overlay CHROME (title, section labels, Close) is catalogued;
 // the note entries themselves (summary/added/changed/fixed items) are versioned
@@ -53,33 +54,29 @@ export default function WhatsNew({
   onClose: () => void;
 }): JSX.Element | null {
   useLocale(); // overlay may render outside a locale-subscribed parent
-  // Escape key + body scroll lock while open (mirrors CodexOverlay).
+  // Body scroll lock while open (Escape comes from <dialog> cancel; mirrors CodexOverlay).
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
-      window.removeEventListener("keydown", onKey);
       document.body.style.overflow = prevOverflow;
     };
-  }, [open, onClose]);
+  }, [open]);
+
+  const dialogRef = useModalDialog(onClose);
 
   if (!open) return null;
 
   return (
-    <div
+    <dialog
+      ref={dialogRef}
       className="codex-overlay-backdrop"
       onClick={onClose}
-      role="presentation"
+      aria-label={t("whatsnew.title")}
     >
       <aside
         className="codex-overlay"
-        role="dialog"
-        aria-label={t("whatsnew.title")}
         onClick={(e) => e.stopPropagation()}
       >
         <button className="codex-close" onClick={onClose} aria-label={t("whatsnew.closeAria")}>
@@ -90,6 +87,6 @@ export default function WhatsNew({
           <NoteEntry key={note.version} note={note} />
         ))}
       </aside>
-    </div>
+    </dialog>
   );
 }

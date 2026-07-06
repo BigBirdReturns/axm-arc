@@ -1,0 +1,694 @@
+{
+  "meta": {
+    "id": "severed-march",
+    "name": "The Severed March",
+    "description": "A province has been cut off by war, its garrisons overrun and its roads held by an occupying warlord. You command a liberation column tasked with taking it back stronghold by stronghold, from the crossroads picket to the Marchlord's own seat. Every fort you break and every order you give becomes doctrine for the strongholds still ahead.",
+    "author": "axm-arc team",
+    "version": "1.0.0",
+    "engineVersion": "1.0.0",
+    "domain": "war-campaign",
+    "estimatedCycles": 22
+  },
+  "attributes": [
+    { "id": "might", "name": "Might", "description": "Raw assault power — the force that breaks a gate, a shield wall, or an enemy's will to hold ground." },
+    { "id": "celerity", "name": "Celerity", "description": "Speed and maneuver — the pace that turns a flank or seizes a crossing before the enemy can answer it." },
+    { "id": "ward", "name": "Ward", "description": "Protection and resistance — the discipline that keeps a line, a body, or a position from breaking." },
+    { "id": "command", "name": "Command", "description": "Leadership and coordination — the clarity that turns a column of soldiers into a column that moves as one." }
+  ],
+  "roles": [
+    { "id": "banner-knight", "name": "Banner Knight", "attributeWeights": { "command": 0.6, "might": 0.3, "ward": 0.1 } },
+    { "id": "outrider", "name": "Outrider", "attributeWeights": { "celerity": 0.6, "might": 0.2, "command": 0.1, "ward": 0.1 } },
+    { "id": "hexward", "name": "Hexward", "attributeWeights": { "ward": 0.6, "command": 0.2, "celerity": 0.1, "might": 0.1 } },
+    { "id": "chirurgeon", "name": "Chirurgeon", "attributeWeights": { "ward": 0.45, "command": 0.45, "celerity": 0.1 } }
+  ],
+  "tiers": [
+    { "id": "levy", "name": "Levy", "statBudgetMin": 20, "statBudgetMax": 32, "upkeepCost": 1, "baseEfficiencyModifier": 1.5 },
+    { "id": "banneret", "name": "Banneret", "statBudgetMin": 32, "statBudgetMax": 48, "upkeepCost": 3, "baseEfficiencyModifier": 1.0 },
+    { "id": "paragon", "name": "Paragon", "statBudgetMin": 48, "statBudgetMax": 60, "upkeepCost": 6, "baseEfficiencyModifier": 0.5 }
+  ],
+  "currencyName": "Scrip",
+  "materialName": "Salvage",
+  "tokenName": "March Orders",
+  "reputationName": "Liberation",
+  "tokensPerCycle": 2,
+  "maxTokens": 4,
+  "infrastructureTokenBonus": 0.25,
+  "namePool": {
+    "firstNames": [
+      "Aldous", "Branwen", "Caspar", "Dovie", "Edrick",
+      "Fenn", "Garrit", "Halina", "Ionas", "Junia",
+      "Korvin", "Leska", "Meric", "Nadine", "Osric"
+    ],
+    "lastNames": [
+      "Ashcolumn", "Brakemoor", "Cutrow", "Duskfield", "Emberline",
+      "Fallowmarch", "Greyward", "Hollowreach", "Ironvale", "Justmark"
+    ]
+  },
+  "customTraits": [],
+  "progressionTiers": [
+    {
+      "id": "chapter-1",
+      "name": "Chapter I: The Cut-Off Roads",
+      "flavorText": "The province's outer roads, held by scared garrison troops and toll-fort skeleton crews. Three easy fights to get the column moving and the supply lines open.",
+      "unlockConditions": { "orgMilestones": [], "reputationMinimum": null },
+      "challenges": ["crossroads-picket", "river-toll-fort", "granary-town"],
+      "requiredChallenges": ["crossroads-picket", "river-toll-fort", "granary-town"],
+      "optionalChallenges": []
+    },
+    {
+      "id": "chapter-2",
+      "name": "Chapter II: The Held Interior",
+      "flavorText": "Past the outer roads, the occupier dug in properly: a walled market town, a mountain signal beacon, a traitor lord's fortified keep. The column earns every mile.",
+      "unlockConditions": { "orgMilestones": ["granary-town-cleared"], "reputationMinimum": 5 },
+      "challenges": ["walled-market-town", "mountain-beacon", "traitor-lords-keep"],
+      "requiredChallenges": ["walled-market-town", "mountain-beacon", "traitor-lords-keep"],
+      "optionalChallenges": []
+    },
+    {
+      "id": "chapter-3",
+      "name": "Chapter III: The Sever and the Seat",
+      "flavorText": "One pass fortress stands between the column and the Marchlord himself. Break it, and the province's capital is the only stronghold left standing.",
+      "unlockConditions": { "orgMilestones": ["traitor-lords-keep-cleared"], "reputationMinimum": 15 },
+      "challenges": ["the-sever", "marchlords-seat"],
+      "requiredChallenges": ["the-sever", "marchlords-seat"],
+      "optionalChallenges": []
+    }
+  ],
+  "attunementChains": [
+    {
+      "id": "sigils-of-the-march",
+      "name": "Sigils of the March",
+      "steps": [
+        { "type": "challenge_clear", "target": "walled-market-town" },
+        { "type": "challenge_clear", "target": "traitor-lords-keep" },
+        { "type": "challenge_clear", "target": "the-sever" }
+      ],
+      "grantsAccessTo": ["marchlords-seat"]
+    }
+  ],
+  "challenges": [
+    {
+      "id": "crossroads-picket",
+      "name": "The Crossroads Picket",
+      "description": "A picket line of provincial garrison troops holds the crossroads north of the cut-off province, more frightened than dangerous. Break it quietly and the column's advance goes unremarked.",
+      "rosterRequirements": { "minAgents": 2, "maxAgents": 4, "roleRequirements": [] },
+      "accessRequirements": { "orgMilestones": [], "agentAttunements": [], "attunementThreshold": null },
+      "difficultyRating": 12,
+      "mechanicChecks": [
+        {
+          "id": "crossroads-breach",
+          "name": "Breach the Gatehouse",
+          "description": "Force the barricade before the picket can signal the garrison proper.",
+          "attributeWeights": [{ "attributeId": "might", "weight": 0.7 }, { "attributeId": "celerity", "weight": 0.3 }],
+          "difficultyThreshold": 6,
+          "thresholdMode": "fixed",
+          "scope": "team_aggregate",
+          "failureConsequence": { "type": "stress", "severity": 0.1 }
+        },
+        {
+          "id": "crossroads-ground",
+          "name": "Read the Ground",
+          "description": "Every soldier in the column sizes up the crossroads for ambush lines before committing.",
+          "attributeWeights": [{ "attributeId": "celerity", "weight": 0.6 }, { "attributeId": "command", "weight": 0.4 }],
+          "difficultyThreshold": 5,
+          "scope": "per_agent",
+          "failureConsequence": { "type": "agent_damage", "severity": 0.2 }
+        }
+      ],
+      "completionCriteria": { "type": "all_mechanics_passed", "parameters": {} },
+      "timePressure": null,
+      "outcomes": {
+        "success": {
+          "rewardTable": [{ "itemId": "picket-line-horn", "dropRate": 1.0 }],
+          "narrative": "The picket scatters before the horn ever sounds. The crossroads are yours, and the road south lies open.",
+          "reputationGain": 1,
+          "currencyReward": 30,
+          "milestoneFlag": "crossroads-picket-cleared"
+        },
+        "partial": {
+          "rewardTable": [],
+          "narrative": "The picket breaks but a runner slips free. The crossroads are passable, though the garrison now knows you're coming.",
+          "agentDowntimeCycles": 1
+        },
+        "failure": {
+          "rewardTable": [],
+          "narrative": "The picket holds longer than it should. The column falls back to regroup.",
+          "stressPenalty": 2,
+          "tokenRefund": 0.5
+        }
+      }
+    },
+    {
+      "id": "river-toll-fort",
+      "name": "The River Toll Fort",
+      "description": "A garrison fort squats on the ford, taxing every refugee who tries to cross. Outriders can push upstream and take it from the flank before the toll-masters know they're flanked.",
+      "rosterRequirements": { "minAgents": 3, "maxAgents": 5, "roleRequirements": [{ "roleId": "outrider", "count": 1 }] },
+      "accessRequirements": { "orgMilestones": ["crossroads-picket-cleared"], "agentAttunements": [], "attunementThreshold": null },
+      "difficultyRating": 18,
+      "mechanicChecks": [
+        {
+          "id": "river-ford",
+          "name": "Force the Ford",
+          "description": "The Outrider fords the shallows upstream and lands on the fort's unguarded flank.",
+          "attributeWeights": [{ "attributeId": "celerity", "weight": 0.8 }, { "attributeId": "might", "weight": 0.2 }],
+          "difficultyThreshold": 9,
+          "scope": "role_specific",
+          "roleIds": ["outrider"],
+          "failureConsequence": { "type": "agent_damage", "severity": 0.4 }
+        },
+        {
+          "id": "river-toll",
+          "name": "Break the Toll Line",
+          "description": "The rest of the column storms the fort's toll gate while the flank lands.",
+          "attributeWeights": [{ "attributeId": "might", "weight": 0.6 }, { "attributeId": "celerity", "weight": 0.4 }],
+          "difficultyThreshold": 6,
+          "thresholdMode": "perAssignedAgent",
+          "scope": "team_aggregate",
+          "failureConsequence": { "type": "team_damage", "severity": 0.3 }
+        }
+      ],
+      "completionCriteria": { "type": "all_mechanics_passed", "parameters": {} },
+      "timePressure": null,
+      "outcomes": {
+        "success": {
+          "rewardTable": [{ "itemId": "riverwardens-lance", "dropRate": 1.0 }],
+          "narrative": "The toll gate falls and the ford is yours. Refugees cross for free for the first time in months.",
+          "reputationGain": 2,
+          "currencyReward": 50,
+          "milestoneFlag": "river-toll-fort-cleared"
+        },
+        "partial": {
+          "rewardTable": [],
+          "narrative": "The fort falls but the toll-masters escape downstream with the ledgers. The ford is open regardless.",
+          "agentDowntimeCycles": 1
+        },
+        "failure": {
+          "rewardTable": [],
+          "narrative": "The flank lands too late. The toll line holds and the column pulls back across the river.",
+          "stressPenalty": 3,
+          "tokenRefund": 0.5
+        }
+      }
+    },
+    {
+      "id": "granary-town",
+      "name": "The Granary Town",
+      "description": "A market town's granary has been requisitioned wholesale by the occupier, and its people are starving under guard. Take it fast — the wounded and the hungry can't wait for a siege.",
+      "rosterRequirements": { "minAgents": 3, "maxAgents": 5, "roleRequirements": [{ "roleId": "chirurgeon", "count": 1 }] },
+      "accessRequirements": { "orgMilestones": ["river-toll-fort-cleared"], "agentAttunements": [], "attunementThreshold": null },
+      "difficultyRating": 24,
+      "mechanicChecks": [
+        {
+          "id": "granary-triage",
+          "name": "Steady the Line",
+          "description": "The Chirurgeon keeps the wounded and the starving upright through the whole fight.",
+          "attributeWeights": [{ "attributeId": "ward", "weight": 0.7 }, { "attributeId": "command", "weight": 0.3 }],
+          "difficultyThreshold": 11,
+          "scope": "role_specific",
+          "roleIds": ["chirurgeon"],
+          "failureConsequence": { "type": "stress", "severity": 0.4 }
+        },
+        {
+          "id": "granary-hold",
+          "name": "Hold the Column",
+          "description": "The column pushes the guard detail out of the granary yard without torching the stores.",
+          "attributeWeights": [{ "attributeId": "might", "weight": 0.5 }, { "attributeId": "ward", "weight": 0.5 }],
+          "difficultyThreshold": 6,
+          "thresholdMode": "perAssignedAgent",
+          "scope": "team_aggregate",
+          "failureConsequence": { "type": "team_damage", "severity": 0.3 }
+        },
+        {
+          "id": "granary-scout",
+          "name": "Read the Ground",
+          "description": "Every soldier checks the granary yard for the mantraps the guard detail likes to leave behind.",
+          "attributeWeights": [{ "attributeId": "celerity", "weight": 0.5 }, { "attributeId": "command", "weight": 0.5 }],
+          "difficultyThreshold": 6,
+          "scope": "per_agent",
+          "failureConsequence": { "type": "agent_damage", "severity": 0.2 }
+        }
+      ],
+      "completionCriteria": { "type": "all_mechanics_passed", "parameters": {} },
+      "timePressure": null,
+      "outcomes": {
+        "success": {
+          "rewardTable": [{ "itemId": "granary-ledger-seal", "dropRate": 1.0 }],
+          "narrative": "The granary doors open to the town for the first time since the occupation began. The ledger seal changes hands with the stores.",
+          "reputationGain": 3,
+          "currencyReward": 70,
+          "milestoneFlag": "granary-town-cleared"
+        },
+        "partial": {
+          "rewardTable": [],
+          "narrative": "The guard detail is driven out, but half the stores burn in the retreat. The town eats regardless.",
+          "reputationGain": 1,
+          "agentDowntimeCycles": 1
+        },
+        "failure": {
+          "rewardTable": [],
+          "narrative": "The guard detail holds the granary. The town goes hungry another season.",
+          "stressPenalty": 4,
+          "tokenRefund": 0.25
+        }
+      }
+    },
+    {
+      "id": "walled-market-town",
+      "name": "The Walled Market Town",
+      "description": "The occupier dug in properly here: a walled market town with a garrisoned gatehouse and militia patrolling the alleys behind it. This is the interior's front door.",
+      "rosterRequirements": { "minAgents": 4, "maxAgents": 6, "roleRequirements": [{ "roleId": "banner-knight", "count": 1 }, { "roleId": "outrider", "count": 1 }] },
+      "accessRequirements": { "orgMilestones": ["granary-town-cleared"], "agentAttunements": [], "attunementThreshold": null },
+      "difficultyRating": 35,
+      "mechanicChecks": [
+        {
+          "id": "market-gate",
+          "name": "Breach the Gatehouse",
+          "description": "The column forces the market town's reinforced gate under crossbow fire from the wall.",
+          "attributeWeights": [{ "attributeId": "might", "weight": 0.6 }, { "attributeId": "celerity", "weight": 0.4 }],
+          "difficultyThreshold": 7,
+          "thresholdMode": "perAssignedAgent",
+          "scope": "team_aggregate",
+          "failureConsequence": { "type": "team_damage", "severity": 0.4 }
+        },
+        {
+          "id": "market-command",
+          "name": "Marshal the Assault",
+          "description": "The Banner Knight holds the timing of the breach so the column doesn't bunch at the gate.",
+          "attributeWeights": [{ "attributeId": "command", "weight": 0.7 }, { "attributeId": "might", "weight": 0.3 }],
+          "difficultyThreshold": 13,
+          "scope": "role_specific",
+          "roleIds": ["banner-knight"],
+          "failureConsequence": { "type": "agent_damage", "severity": 0.5 }
+        },
+        {
+          "id": "market-lanes",
+          "name": "Cut the Escape Lanes",
+          "description": "The Outrider seals the alley mouths so the militia can't scatter and regroup behind the column.",
+          "attributeWeights": [{ "attributeId": "celerity", "weight": 0.8 }, { "attributeId": "might", "weight": 0.2 }],
+          "difficultyThreshold": 13,
+          "scope": "role_specific",
+          "roleIds": ["outrider"],
+          "failureConsequence": { "type": "team_damage", "severity": 0.3 }
+        }
+      ],
+      "completionCriteria": { "type": "all_mechanics_passed", "parameters": {} },
+      "timePressure": null,
+      "outcomes": {
+        "success": {
+          "rewardTable": [{ "itemId": "marketwardens-chainmail", "dropRate": 1.0 }],
+          "narrative": "The gate falls and the alleys go quiet behind it. The market town's militia lays down arms rather than be run down in the lanes.",
+          "reputationGain": 4,
+          "currencyReward": 100,
+          "milestoneFlag": "walled-market-town-cleared"
+        },
+        "partial": {
+          "rewardTable": [],
+          "narrative": "The gate falls but the militia scatters into the alleys anyway. The town square is yours; the rest will take longer to settle.",
+          "reputationGain": 2,
+          "agentDowntimeCycles": 2
+        },
+        "failure": {
+          "rewardTable": [],
+          "narrative": "The gate holds against the breach. The column withdraws under crossbow fire from the wall.",
+          "stressPenalty": 4,
+          "tokenRefund": 0.25
+        }
+      }
+    },
+    {
+      "id": "mountain-beacon",
+      "name": "The Mountain Beacon",
+      "description": "A signal beacon on the high pass warns the interior of every column movement. Take it before the next fire is lit, or the whole occupation garrison learns you're coming.",
+      "rosterRequirements": { "minAgents": 4, "maxAgents": 6, "roleRequirements": [{ "roleId": "hexward", "count": 1 }] },
+      "accessRequirements": { "orgMilestones": ["walled-market-town-cleared"], "agentAttunements": [], "attunementThreshold": null },
+      "difficultyRating": 42,
+      "mechanicChecks": [
+        {
+          "id": "beacon-ward",
+          "name": "Break the Ward-Fire",
+          "description": "The Hexward smothers the warding charm keeping the beacon lit through wind and rain.",
+          "attributeWeights": [{ "attributeId": "ward", "weight": 0.8 }, { "attributeId": "command", "weight": 0.2 }],
+          "difficultyThreshold": 15,
+          "scope": "role_specific",
+          "roleIds": ["hexward"],
+          "failureConsequence": { "type": "agent_damage", "severity": 0.5 }
+        },
+        {
+          "id": "beacon-climb",
+          "name": "Steady the Line",
+          "description": "The column climbs the exposed switchbacks together, roped and slow, with nowhere to take cover.",
+          "attributeWeights": [{ "attributeId": "celerity", "weight": 0.5 }, { "attributeId": "ward", "weight": 0.5 }],
+          "difficultyThreshold": 7,
+          "thresholdMode": "perAssignedAgent",
+          "scope": "team_aggregate",
+          "failureConsequence": { "type": "team_damage", "severity": 0.4 }
+        }
+      ],
+      "completionCriteria": { "type": "all_mechanics_passed", "parameters": {} },
+      "timePressure": { "rounds": 8, "aggregateThreshold": 70, "attributeId": "celerity" },
+      "outcomes": {
+        "success": {
+          "rewardTable": [{ "itemId": "beacon-keepers-lamp", "dropRate": 1.0 }],
+          "narrative": "The beacon goes dark before the next watch can light it. For the first time in the campaign, the column moves unannounced.",
+          "reputationGain": 4,
+          "currencyReward": 110,
+          "milestoneFlag": "mountain-beacon-cleared"
+        },
+        "partial": {
+          "rewardTable": [],
+          "narrative": "The beacon is smothered, but not before a single flare goes up. Something in the interior has already noticed.",
+          "reputationGain": 2,
+          "agentDowntimeCycles": 2
+        },
+        "failure": {
+          "rewardTable": [],
+          "narrative": "The climb costs too much time. The beacon flares, and the whole garrison hears it.",
+          "stressPenalty": 4,
+          "tokenRefund": 0.25
+        }
+      }
+    },
+    {
+      "id": "traitor-lords-keep",
+      "name": "The Traitor Lord's Keep",
+      "description": "A provincial lord sold his own garrison to the occupier and now holds his family keep as its stronghold. His guard knows the ground better than the column ever will.",
+      "rosterRequirements": { "minAgents": 5, "maxAgents": 6, "roleRequirements": [{ "roleId": "banner-knight", "count": 1 }, { "roleId": "hexward", "count": 1 }, { "roleId": "chirurgeon", "count": 1 }] },
+      "accessRequirements": { "orgMilestones": ["mountain-beacon-cleared"], "agentAttunements": [], "attunementThreshold": null },
+      "difficultyRating": 50,
+      "mechanicChecks": [
+        {
+          "id": "keep-gate",
+          "name": "Breach the Gatehouse",
+          "description": "The column forces the keep's gatehouse against defenders who know every murder-hole in it.",
+          "attributeWeights": [{ "attributeId": "might", "weight": 0.6 }, { "attributeId": "celerity", "weight": 0.4 }],
+          "difficultyThreshold": 8,
+          "thresholdMode": "perAssignedAgent",
+          "scope": "team_aggregate",
+          "failureConsequence": { "type": "agent_damage", "severity": 0.5 }
+        },
+        {
+          "id": "keep-hold",
+          "name": "Hold the Column",
+          "description": "The Banner Knight keeps the column together through the courtyard's crossfire.",
+          "attributeWeights": [{ "attributeId": "command", "weight": 0.7 }, { "attributeId": "might", "weight": 0.3 }],
+          "difficultyThreshold": 16,
+          "scope": "role_specific",
+          "roleIds": ["banner-knight"],
+          "failureConsequence": { "type": "cascade", "severity": 0.6 }
+        },
+        {
+          "id": "keep-wards",
+          "name": "Break the Traitor's Wards",
+          "description": "The Hexward unravels the wards the lord bought from the occupier to seal his own hall.",
+          "attributeWeights": [{ "attributeId": "ward", "weight": 0.8 }, { "attributeId": "command", "weight": 0.2 }],
+          "difficultyThreshold": 16,
+          "scope": "role_specific",
+          "roleIds": ["hexward"],
+          "failureConsequence": { "type": "agent_damage", "severity": 0.5 }
+        },
+        {
+          "id": "keep-triage",
+          "name": "Steady the Line",
+          "description": "The Chirurgeon holds the column upright through a fight with no clean ground to fall back to.",
+          "attributeWeights": [{ "attributeId": "ward", "weight": 0.5 }, { "attributeId": "command", "weight": 0.5 }],
+          "difficultyThreshold": 15,
+          "scope": "role_specific",
+          "roleIds": ["chirurgeon"],
+          "failureConsequence": { "type": "stress", "severity": 0.5 }
+        }
+      ],
+      "completionCriteria": { "type": "all_mechanics_passed", "parameters": {} },
+      "timePressure": null,
+      "outcomes": {
+        "success": {
+          "rewardTable": [{ "itemId": "traitor-lords-signet", "dropRate": 1.0 }],
+          "narrative": "The traitor lord's banner comes down from his own gatehouse. His signet ring changes hands one last time.",
+          "reputationGain": 5,
+          "currencyReward": 140,
+          "milestoneFlag": "traitor-lords-keep-cleared"
+        },
+        "partial": {
+          "rewardTable": [],
+          "narrative": "The keep falls, but the lord himself slips out through a postern gate he never disclosed to his own guard.",
+          "reputationGain": 2,
+          "agentDowntimeCycles": 2
+        },
+        "failure": {
+          "rewardTable": [],
+          "narrative": "The wards hold and the courtyard crossfire is too much. The column falls back from the traitor's walls.",
+          "stressPenalty": 5,
+          "tokenRefund": 0.25
+        }
+      }
+    },
+    {
+      "id": "the-sever",
+      "name": "The Sever",
+      "description": "A pass fortress cuts the only road to the Marchlord's capital, and its garrison has had a season to prepare for exactly this column. Everyone who marches on the capital marches through here first.",
+      "rosterRequirements": { "minAgents": 5, "maxAgents": 6, "roleRequirements": [{ "roleId": "banner-knight", "count": 1 }, { "roleId": "outrider", "count": 1 }, { "roleId": "hexward", "count": 1 }] },
+      "accessRequirements": { "orgMilestones": ["traitor-lords-keep-cleared"], "agentAttunements": [], "attunementThreshold": null },
+      "difficultyRating": 65,
+      "mechanicChecks": [
+        {
+          "id": "sever-gate",
+          "name": "Breach the Gatehouse",
+          "description": "The column forces the fortress gate against a garrison that has done nothing but drill for this fight.",
+          "attributeWeights": [{ "attributeId": "might", "weight": 0.6 }, { "attributeId": "celerity", "weight": 0.4 }],
+          "difficultyThreshold": 8,
+          "thresholdMode": "perAssignedAgent",
+          "scope": "team_aggregate",
+          "failureConsequence": { "type": "team_damage", "severity": 0.5 }
+        },
+        {
+          "id": "sever-command",
+          "name": "Hold the Column",
+          "description": "The Banner Knight keeps the column's shape as the pass narrows to a killing lane.",
+          "attributeWeights": [{ "attributeId": "command", "weight": 0.8 }, { "attributeId": "might", "weight": 0.2 }],
+          "difficultyThreshold": 17,
+          "scope": "role_specific",
+          "roleIds": ["banner-knight"],
+          "failureConsequence": { "type": "cascade", "severity": 0.6 }
+        },
+        {
+          "id": "sever-flank",
+          "name": "Turn the Flank",
+          "description": "The Outrider scales the scree slope to hit the garrison's rear before the pass closes.",
+          "attributeWeights": [{ "attributeId": "celerity", "weight": 0.8 }, { "attributeId": "might", "weight": 0.2 }],
+          "difficultyThreshold": 17,
+          "scope": "role_specific",
+          "roleIds": ["outrider"],
+          "failureConsequence": { "type": "agent_damage", "severity": 0.6 }
+        },
+        {
+          "id": "sever-barrage",
+          "name": "Weather the Barrage",
+          "description": "Every soldier in the column endures the fortress's arrow and stone barrage as it closes the distance.",
+          "attributeWeights": [{ "attributeId": "ward", "weight": 0.7 }, { "attributeId": "command", "weight": 0.3 }],
+          "difficultyThreshold": 12,
+          "scope": "per_agent",
+          "failureConsequence": { "type": "stress", "severity": 0.5 }
+        }
+      ],
+      "completionCriteria": { "type": "all_mechanics_passed", "parameters": {} },
+      "timePressure": { "rounds": 10, "aggregateThreshold": 90, "attributeId": "might" },
+      "outcomes": {
+        "success": {
+          "rewardTable": [{ "itemId": "torn-standard-of-the-fourth", "dropRate": 1.0 }],
+          "narrative": "The Sever's gate comes down, and with it the last thing standing between the column and the capital. The road to the Marchlord's Seat is open.",
+          "reputationGain": 7,
+          "currencyReward": 200,
+          "milestoneFlag": "the-sever-cleared"
+        },
+        "partial": {
+          "rewardTable": [],
+          "narrative": "The pass falls, but the garrison's captain escapes south with warning. The capital knows the column is coming now.",
+          "reputationGain": 3,
+          "agentDowntimeCycles": 3
+        },
+        "failure": {
+          "rewardTable": [],
+          "narrative": "The killing lane holds. The column pulls back from the Sever to lick its wounds and try again.",
+          "stressPenalty": 6,
+          "tokenRefund": 0.25
+        }
+      }
+    },
+    {
+      "id": "marchlords-seat",
+      "name": "The Marchlord's Seat",
+      "description": "The capital, and the Marchlord who ordered the province cut off in the first place. He has nowhere left to retreat to, and neither does the column — this is where the liberation is decided, one way or the other.",
+      "rosterRequirements": { "minAgents": 2, "maxAgents": 4, "roleRequirements": [{ "roleId": "banner-knight", "count": 1 }, { "roleId": "chirurgeon", "count": 1 }] },
+      "accessRequirements": { "orgMilestones": ["the-sever-cleared"], "agentAttunements": ["sigils-of-the-march"], "attunementThreshold": 0.5 },
+      "difficultyRating": 78,
+      "mechanicChecks": [
+        {
+          "id": "seat-gate",
+          "name": "Breach the Gatehouse",
+          "description": "The last gate in the province, and the Marchlord's household guard has been told there is no surrender.",
+          "attributeWeights": [{ "attributeId": "might", "weight": 0.5 }, { "attributeId": "command", "weight": 0.5 }],
+          "difficultyThreshold": 9,
+          "thresholdMode": "perAssignedAgent",
+          "scope": "team_aggregate",
+          "failureConsequence": { "type": "team_damage", "severity": 0.6 }
+        },
+        {
+          "id": "seat-command",
+          "name": "Hold the Column",
+          "description": "The Banner Knight carries the column through the throne hall against the Marchlord's household guard.",
+          "attributeWeights": [{ "attributeId": "command", "weight": 0.7 }, { "attributeId": "might", "weight": 0.3 }],
+          "difficultyThreshold": 19,
+          "scope": "role_specific",
+          "roleIds": ["banner-knight"],
+          "failureConsequence": { "type": "cascade", "severity": 0.7 }
+        },
+        {
+          "id": "seat-triage",
+          "name": "Steady the Line",
+          "description": "The Chirurgeon keeps the column standing through a fight with no reinforcements coming and no ground to give.",
+          "attributeWeights": [{ "attributeId": "ward", "weight": 0.6 }, { "attributeId": "command", "weight": 0.4 }],
+          "difficultyThreshold": 18,
+          "scope": "role_specific",
+          "roleIds": ["chirurgeon"],
+          "failureConsequence": { "type": "agent_damage", "severity": 0.6 }
+        },
+        {
+          "id": "seat-ground",
+          "name": "Read the Ground",
+          "description": "Every soldier reads the throne hall for the Marchlord's last tricks before the final push.",
+          "attributeWeights": [{ "attributeId": "command", "weight": 0.5 }, { "attributeId": "ward", "weight": 0.5 }],
+          "difficultyThreshold": 12,
+          "scope": "per_agent",
+          "failureConsequence": { "type": "stress", "severity": 0.5 }
+        }
+      ],
+      "completionCriteria": { "type": "all_mechanics_passed", "parameters": {} },
+      "timePressure": { "rounds": 12, "aggregateThreshold": 110, "attributeId": "command" },
+      "outcomes": {
+        "success": {
+          "rewardTable": [{ "itemId": "marchlords-coronet", "dropRate": 1.0 }, { "itemId": "torn-standard-of-the-fourth", "dropRate": 0.5 }],
+          "narrative": "The Marchlord's seat falls, and with it the occupation. The province is cut off no longer — the column made sure of that, stronghold by stronghold.",
+          "reputationGain": 10,
+          "currencyReward": 300,
+          "milestoneFlag": "marchlords-seat-cleared"
+        },
+        "partial": {
+          "rewardTable": [{ "itemId": "marchlords-coronet", "dropRate": 0.5 }],
+          "narrative": "The throne hall falls, but the Marchlord himself is gone by the time the column reaches it. The capital is yours; he is someone else's problem now.",
+          "reputationGain": 4,
+          "agentDowntimeCycles": 3
+        },
+        "failure": {
+          "rewardTable": [],
+          "narrative": "The household guard holds the throne hall. The column withdraws from the capital, the march not yet finished.",
+          "stressPenalty": 7,
+          "tokenRefund": 0.25
+        }
+      }
+    }
+  ],
+  "difficultyModes": [],
+  "items": [
+    {
+      "id": "picket-line-horn",
+      "name": "Picket Line Horn",
+      "slot": "trinket",
+      "statBonuses": { "celerity": 1 },
+      "tierRequirement": "levy",
+      "flavorText": "A brass horn looted off a runner who never got to blow it."
+    },
+    {
+      "id": "riverwardens-lance",
+      "name": "Riverwarden's Lance",
+      "slot": "weapon",
+      "statBonuses": { "might": 2 },
+      "tierRequirement": "levy",
+      "flavorText": "Balanced for fighting from horseback in the shallows, toll-master's blood still in the fluting."
+    },
+    {
+      "id": "granary-ledger-seal",
+      "name": "Granary Ledger Seal",
+      "slot": "trinket",
+      "statBonuses": { "ward": 1, "command": 1 },
+      "tierRequirement": "levy",
+      "flavorText": "Stamped wax that once rationed a town; now it rations nothing but respect."
+    },
+    {
+      "id": "marketwardens-chainmail",
+      "name": "Marketwarden's Chainmail",
+      "slot": "chest",
+      "statBonuses": { "ward": 3 },
+      "tierRequirement": "banneret",
+      "flavorText": "Riveted for a militia that never expected to need it this badly."
+    },
+    {
+      "id": "beacon-keepers-lamp",
+      "name": "Beacon-Keeper's Lamp",
+      "slot": "trinket",
+      "statBonuses": { "celerity": 2, "ward": 1 },
+      "tierRequirement": "banneret",
+      "flavorText": "Its shutter code still signals the old warnings, if anyone left remembers how to read them."
+    },
+    {
+      "id": "traitor-lords-signet",
+      "name": "Traitor Lord's Signet",
+      "slot": "trinket",
+      "statBonuses": { "command": 2, "might": 1 },
+      "tierRequirement": "banneret",
+      "flavorText": "The seal of a man who chose the wrong side twice."
+    },
+    {
+      "id": "torn-standard-of-the-fourth",
+      "name": "Torn Standard of the Fourth",
+      "slot": "trinket",
+      "statBonuses": { "command": 3, "might": 1 },
+      "tierRequirement": "paragon",
+      "flavorText": "Fought over so many times at the Sever that the eagle on it is unrecognizable."
+    },
+    {
+      "id": "marchlords-coronet",
+      "name": "Marchlord's Coronet",
+      "slot": "trinket",
+      "statBonuses": { "command": 2, "ward": 2, "might": 1, "celerity": 1 },
+      "tierRequirement": "paragon",
+      "flavorText": "Plain iron, dented twice, and the only crown the province ever wanted back."
+    }
+  ],
+  "narrativeEvents": [
+    {
+      "trigger": { "type": "first_clear", "target": "crossroads-picket" },
+      "title": "The Column Moves",
+      "text": "The picket falls without the garrison ever learning it happened. For the first time since the cut-off, a liberation column is moving inside the province.",
+      "rewards": [],
+      "agentUnlock": null
+    },
+    {
+      "trigger": { "type": "tier_complete", "target": "chapter-1" },
+      "title": "The Crossroads Secured",
+      "text": "The outer roads are clear, the ford is open, and the granary town is fed. The column has proven it can hold ground, not just take it.",
+      "rewards": [],
+      "agentUnlock": null
+    },
+    {
+      "trigger": { "type": "tier_complete", "target": "chapter-2" },
+      "title": "The Interior Falls",
+      "text": "Market town, beacon, and traitor's keep — all cleared. The occupier's interior defenses are gone, and only the Sever stands between the column and the capital.",
+      "rewards": [],
+      "agentUnlock": null
+    },
+    {
+      "trigger": { "type": "first_clear", "target": "the-sever" },
+      "title": "The Pass Breaks Open",
+      "text": "The Sever's gate comes down after a season of the garrison's preparation. The road to the Marchlord's Seat lies open for the first time since the war began.",
+      "rewards": [],
+      "agentUnlock": null
+    },
+    {
+      "trigger": { "type": "arc_complete", "target": "severed-march" },
+      "title": "The March Ends",
+      "text": "The Marchlord's seat has fallen. The province is whole again, stronghold by stronghold, and the column that did it is written into its history.",
+      "rewards": [],
+      "agentUnlock": null
+    }
+  ],
+  "scaling": { "type": "fixed", "scalingRules": {} }
+}

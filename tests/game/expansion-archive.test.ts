@@ -114,6 +114,85 @@ describe("expansion archive roster (read-only)", () => {
   });
 });
 
+describe("expansion archive union model (PR 044)", () => {
+  beforeEach(() => {
+    globalThis.localStorage = new MemoryStorage();
+  });
+
+  it("library-only rows (no ledger history) render Unattempted, inLibrary, not artifactMissing", () => {
+    ensureBundledArc(FIRST_CHARTER);
+    ensureBundledArc(KARAZHAN);
+    const library = loadArcLibrary(); // RAID_ARC deliberately NOT in the library
+    const ledger = commitNightVictory(playToClear(3)); // committed on RAID_ARC
+    const rows = expansionRoster(library, ledger, null);
+
+    const firstCharterRow = rows.find((r) => r.arcId === FIRST_CHARTER.meta.id);
+    const karazhanRow = rows.find((r) => r.arcId === KARAZHAN.meta.id);
+    expect(firstCharterRow).toBeTruthy();
+    expect(karazhanRow).toBeTruthy();
+    for (const row of [firstCharterRow!, karazhanRow!]) {
+      expect(row.status).toBe("unattempted");
+      expect(row.inLibrary).toBe(true);
+      expect(row.artifactMissing).toBe(false);
+    }
+  });
+
+  it("ledger-only rows (played but unlibraried) render as artifact-missing", () => {
+    ensureBundledArc(FIRST_CHARTER);
+    ensureBundledArc(KARAZHAN);
+    const library = loadArcLibrary(); // RAID_ARC not in the library
+    const ledger = commitNightVictory(playToClear(3));
+    const digest = cartridgeDigest(RAID_ARC);
+    const rows = expansionRoster(library, ledger, null);
+
+    const matches = rows.filter((r) => r.digest === digest);
+    expect(matches.length).toBe(1);
+    const row = matches[0]!;
+    expect(row.artifactMissing).toBe(true);
+    expect(row.inLibrary).toBe(false);
+    expect(row.status).not.toBe("unattempted");
+    const expectedCartridgeId = ledger.progress.tiers.find((t) => t.cartridgeDigest === digest)?.cartridgeId;
+    expect(expectedCartridgeId).toBeTruthy();
+    expect(row.name).toBe(expectedCartridgeId);
+    expect(row.tiersCleared).toBeGreaterThanOrEqual(1);
+  });
+
+  it("importing the cartridge merges the artifact-missing row into the library row — no duplicate", () => {
+    ensureBundledArc(FIRST_CHARTER);
+    ensureBundledArc(KARAZHAN);
+    ensureBundledArc(RAID_ARC); // now in the library too
+    const library = loadArcLibrary();
+    const ledger = commitNightVictory(playToClear(3));
+    const digest = cartridgeDigest(RAID_ARC);
+    const rows = expansionRoster(library, ledger, null);
+
+    const matches = rows.filter((r) => r.digest === digest);
+    expect(matches.length).toBe(1);
+    expect(matches[0]!.inLibrary).toBe(true);
+    expect(matches[0]!.artifactMissing).toBe(false);
+  });
+
+  it("lastCommitSeq is the max commitSeq among the digest's commits", () => {
+    const ledger = commitNightVictory(playToClear(3));
+    const digest = cartridgeDigest(RAID_ARC);
+    const rec = expansionRecord(digest, ledger);
+    const expected = Math.max(...ledger.commits.filter((c) => c.cartridgeDigest === digest).map((c) => c.commitSeq));
+    expect(rec.lastCommitSeq).toBe(expected);
+  });
+
+  it("is pure — reading does not mutate the ledger or the library", () => {
+    ensureBundledArc(FIRST_CHARTER);
+    ensureBundledArc(KARAZHAN);
+    const library = loadArcLibrary();
+    const ledger = commitNightVictory(playToClear(3));
+    const ledgerSnapshot = JSON.stringify(ledger);
+    const librarySnapshot = JSON.stringify(library);
+    expansionRoster(library, ledger, null);
+    expect(JSON.stringify(ledger)).toBe(ledgerSnapshot);
+    expect(JSON.stringify(library)).toBe(librarySnapshot);
+  });
+});
+
 describe("expansion campaign record (read-only)", () => {
   beforeEach(() => {
     globalThis.localStorage = new MemoryStorage();
@@ -124,6 +203,7 @@ describe("expansion campaign record (read-only)", () => {
     expect(rec).toEqual({
       digest: "anything", tiers: [], totalPulls: 0, totalWipes: 0,
       victories: 0, failedLockouts: 0, scars: [], legends: [], precedents: [],
+      lastCommitSeq: null,
     });
   });
 

@@ -18,6 +18,8 @@ export interface ExpansionRow {
   isActive: boolean;
   tiersPlayed: number;
   tiersCleared: number;
+  inLibrary: boolean;
+  artifactMissing: boolean;
 }
 
 const STATUS_RANK: Record<ExpansionRow["status"], number> = {
@@ -27,15 +29,23 @@ const STATUS_RANK: Record<ExpansionRow["status"], number> = {
 };
 
 /** Join the library against the ledger's recorded tiers, one row per library
- *  expansion. Pure — never mutates either input. Sort: cleared, then
- *  in-progress, then unattempted last; within a status, most tiers cleared
- *  first; ties broken by name codepoint order (never localeCompare). */
+ *  expansion, UNIONED (PR 044) with any ledger-recorded digest that has no
+ *  library counterpart — an "artifact-missing" row surfacing history for a
+ *  cartridge the guild played but no longer (or not yet) holds in the
+ *  library. A digest present in both sources renders exactly once, as its
+ *  library row — the union is derived on every read, so importing the
+ *  cartridge later simply makes its digest match a library row and the
+ *  artifact-missing row disappears on the next render. Pure — never mutates
+ *  either input. Sort: cleared, then in-progress, then unattempted last;
+ *  within a status, most tiers cleared first; ties broken by name codepoint
+ *  order (never localeCompare) — artifact-missing rows are not special-cased
+ *  in the sort. */
 export function expansionRoster(
   library: ArcLibraryEntry[],
   ledger: CampaignLedger | null,
   activeArcId: string | null,
 ): ExpansionRow[] {
-  const rows: ExpansionRow[] = library.map((entry) => {
+  const libraryRows: ExpansionRow[] = library.map((entry) => {
     const digest = cartridgeDigest(entry.arc);
     const matched = ledger ? ledger.progress.tiers.filter((t) => t.cartridgeDigest === digest) : [];
     const tiersPlayed = matched.length;
@@ -52,10 +62,50 @@ export function expansionRoster(
       isActive: entry.arc.meta.id === activeArcId,
       tiersPlayed,
       tiersCleared,
+      inLibrary: true,
+      artifactMissing: false,
     };
   });
 
-  return rows.sort((a, b) => {
+  const libraryDigests = new Set(libraryRows.map((r) => r.digest));
+
+  const ledgerDigests = ledger
+    ? new Set([
+        ...ledger.progress.tiers.map((t) => t.cartridgeDigest),
+        ...ledger.commits.map((c) => c.cartridgeDigest),
+      ])
+    : new Set<string>();
+
+  const artifactMissingRows: ExpansionRow[] = ledger
+    ? [...ledgerDigests]
+        .filter((digest) => !libraryDigests.has(digest))
+        .map((digest) => {
+          const matched = ledger.progress.tiers.filter((t) => t.cartridgeDigest === digest);
+          const tiersPlayed = matched.length;
+          const tiersCleared = matched.filter((t) => t.cleared).length;
+          const status: ExpansionRow["status"] =
+            tiersPlayed === 0 ? "unattempted" : tiersCleared === tiersPlayed ? "cleared" : "in-progress";
+          const cartridgeId =
+            ledger.progress.tiers.find((t) => t.cartridgeDigest === digest)?.cartridgeId ??
+            ledger.commits.find((c) => c.cartridgeDigest === digest)?.cartridgeId ??
+            digest;
+          return {
+            arcId: cartridgeId,
+            name: cartridgeId,
+            digest,
+            trust: "",
+            source: "ledger",
+            status,
+            isActive: false,
+            tiersPlayed,
+            tiersCleared,
+            inLibrary: false,
+            artifactMissing: true,
+          };
+        })
+    : [];
+
+  return [...libraryRows, ...artifactMissingRows].sort((a, b) => {
     const rankDiff = STATUS_RANK[a.status] - STATUS_RANK[b.status];
     if (rankDiff !== 0) return rankDiff;
     const clearedDiff = b.tiersCleared - a.tiersCleared;
@@ -101,6 +151,7 @@ export interface ExpansionRecord {
   scars: ScarLine[];
   legends: LegendLine[];
   precedents: PrecedentLine[];
+  lastCommitSeq: number | null;
 }
 
 /** Derive one expansion's campaign record from the ledger, by cartridge
@@ -109,7 +160,7 @@ export interface ExpansionRecord {
  *  arrays) — never a fabricated one. */
 export function expansionRecord(digest: string, ledger: CampaignLedger | null): ExpansionRecord {
   if (!ledger) {
-    return { digest, tiers: [], totalPulls: 0, totalWipes: 0, victories: 0, failedLockouts: 0, scars: [], legends: [], precedents: [] };
+    return { digest, tiers: [], totalPulls: 0, totalWipes: 0, victories: 0, failedLockouts: 0, scars: [], legends: [], precedents: [], lastCommitSeq: null };
   }
 
   const tiers: TierLine[] = ledger.progress.tiers
@@ -130,5 +181,7 @@ export function expansionRecord(digest: string, ledger: CampaignLedger | null): 
     .filter((s) => s.sourceBossRef.cartridgeDigest === digest)
     .map((s) => ({ name: s.name, note: s.effect.note, modifier: s.effect.modifier }));
 
-  return { digest, tiers, totalPulls, totalWipes, victories, failedLockouts, scars, legends, precedents };
+  const lastCommitSeq = commits.length ? Math.max(...commits.map((c) => c.commitSeq)) : null;
+
+  return { digest, tiers, totalPulls, totalWipes, victories, failedLockouts, scars, legends, precedents, lastCommitSeq };
 }

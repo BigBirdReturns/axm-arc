@@ -200,6 +200,7 @@ export type MessageId =
   | "archive.failed"
   | "archive.night"
   | "archive.notRecorded"
+  | "archive.noShortfall"
   | "archive.carryReady"
   | "archive.carryIncompatible"
   | "archive.carryUnavailable"
@@ -886,6 +887,7 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "archive.failed": "Failed lockout",
     "archive.night": "Night",
     "archive.notRecorded": "Not recorded",
+    "archive.noShortfall": "No shortfall",
     "archive.carryReady": "Ready to carry",
     "archive.carryIncompatible": "Incompatible",
     "archive.carryUnavailable": "Can't assess — cartridge unavailable",
@@ -1582,6 +1584,7 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "archive.failed": "失敗封鎖",
     "archive.night": "夜",
     "archive.notRecorded": "未紀錄",
+    "archive.noShortfall": "無差距",
     "archive.carryReady": "可承接",
     "archive.carryIncompatible": "不相容",
     "archive.carryUnavailable": "無法評估——卡帶缺失",

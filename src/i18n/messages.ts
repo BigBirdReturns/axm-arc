@@ -111,6 +111,7 @@ export type MessageId =
   | "title.releaseNotes"
   | "title.workshop"
   | "title.raidNight"
+  | "title.guildHall"
   | "raidnight.title"
   | "raidnight.subtitle"
   | "raidnight.raidParty"
@@ -134,6 +135,19 @@ export type MessageId =
   | "raidnight.moraleShaky"
   | "raidnight.stressStrained"
   | "raidnight.lootReceived"
+  | "guildhall.title"
+  | "guildhall.empty"
+  | "guildhall.emptyBody"
+  | "guildhall.back"
+  | "guildhall.record"
+  | "guildhall.legacyLevel"
+  | "guildhall.tiersCleared"
+  | "guildhall.victories"
+  | "guildhall.failedLockouts"
+  | "guildhall.roster"
+  | "guildhall.scars"
+  | "guildhall.precedents"
+  | "guildhall.readOnlyNote"
   | "raidnight.partyIllegal"
   | "raidnight.needed"
   | "raidnight.putUp"
@@ -726,6 +740,7 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "title.releaseNotes": "Release notes",
     "title.workshop": "Workshop",
     "title.raidNight": "Raid Night",
+    "title.guildHall": "Guild Hall",
     "raidnight.title": "RAID NIGHT",
     "raidnight.subtitle": "One lockout. One wall. Pull until the guild is ready.",
     "raidnight.raidParty": "Raid Party",
@@ -752,6 +767,19 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "raidnight.moraleShaky": "shaky — morale under 30",
     "raidnight.stressStrained": "strained — stress over 7",
     "raidnight.lootReceived": (p) => `${num(p, "n")} loot`,
+    "guildhall.title": "Guild Hall",
+    "guildhall.empty": "No guild yet",
+    "guildhall.emptyBody": "No guild has been founded. Clear a raid night and commit it to the guild to begin a campaign record.",
+    "guildhall.back": "Back",
+    "guildhall.record": "Campaign record",
+    "guildhall.legacyLevel": "Legacy",
+    "guildhall.tiersCleared": "Tiers cleared",
+    "guildhall.victories": "Victories",
+    "guildhall.failedLockouts": "Failed lockouts",
+    "guildhall.roster": "Roster",
+    "guildhall.scars": "Scars",
+    "guildhall.precedents": "Precedents",
+    "guildhall.readOnlyNote": "The Guild Hall reads the ledger — it never changes it.",
     "raidnight.partyIllegal": (p) => `Party needs ${num(p, "min")}–${num(p, "max")}, including its required roles`,
     "raidnight.needed": "needed",
     "raidnight.putUp": "put up",
@@ -1356,6 +1384,7 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "title.releaseNotes": "發行說明",
     "title.workshop": "工坊",
     "title.raidNight": "團本之夜",
+    "title.guildHall": "公會大廳",
     "raidnight.title": "團本之夜",
     "raidnight.subtitle": "一次鎖定，一道高牆。不斷開怪，直到公會準備就緒。",
     "raidnight.raidParty": "出戰隊伍",
@@ -1380,6 +1409,19 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "raidnight.moraleShaky": "動搖——士氣低於 30",
     "raidnight.stressStrained": "緊繃——壓力高於 7",
     "raidnight.lootReceived": (p) => `${num(p, "n")} 件戰利品`,
+    "guildhall.title": "公會大廳",
+    "guildhall.empty": "尚無公會",
+    "guildhall.emptyBody": "尚未創建公會。通關一場團本之夜並提交至公會，即可開始戰役紀錄。",
+    "guildhall.back": "返回",
+    "guildhall.record": "戰役紀錄",
+    "guildhall.legacyLevel": "傳承",
+    "guildhall.tiersCleared": "已通關階級",
+    "guildhall.victories": "勝利",
+    "guildhall.failedLockouts": "失敗封鎖",
+    "guildhall.roster": "名冊",
+    "guildhall.scars": "傷疤",
+    "guildhall.precedents": "先例",
+    "guildhall.readOnlyNote": "公會大廳只讀取紀錄，永不更改。",
     "raidnight.partyIllegal": (p) => `隊伍需要 ${num(p, "min")}–${num(p, "max")} 人，且包含必需的職責`,
     "raidnight.needed": "需要",
     "raidnight.putUp": "打出",

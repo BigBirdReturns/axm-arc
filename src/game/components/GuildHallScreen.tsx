@@ -5,12 +5,14 @@
 import { useMemo } from "react";
 import { t, useLocale } from "../../i18n/index.js";
 import { loadLedger } from "../lib/ledger.js";
-import { summarizeGuildHall } from "../lib/guild-hall.js";
+import { summarizeGuildHall, agentMemoryCards } from "../lib/guild-hall.js";
 
 export function GuildHallScreen({ onBack }: { onBack: () => void }): JSX.Element {
   useLocale();
   // Read-only: the Hall loads the ledger once and never mutates it.
-  const summary = useMemo(() => summarizeGuildHall(loadLedger()), []);
+  const ledger = useMemo(() => loadLedger(), []);
+  const summary = useMemo(() => summarizeGuildHall(ledger), [ledger]);
+  const raiders = useMemo(() => agentMemoryCards(ledger), [ledger]);
 
   const stat = (label: string, value: string | number) => (
     <div className="stat-cell">
@@ -44,6 +46,26 @@ export function GuildHallScreen({ onBack }: { onBack: () => void }): JSX.Element
             {stat(t("guildhall.roster"), summary.rosterSize)}
             {stat(t("guildhall.scars"), summary.scars)}
             {stat(t("guildhall.precedents"), summary.precedents)}
+          </div>
+          <div className="audit-section" style={{ marginTop: 16 }}>
+            {t("guildhall.raiders")}{" "}<span className="badge rn-num">{raiders.length}</span>
+          </div>
+          <div className="guild-hall-raiders">
+            {raiders.map((r) => (
+              <div key={r.agentId} className="card rn-agent guild-hall-raider">
+                <div className="row between">
+                  <span className="agent-name">{r.name}</span>
+                  <span className="rn-agent-tags">
+                    <span className={`badge rn-attend-mem ${r.reliability === "reliable" ? "pass" : ""}`}>{t("raidnight.nightsAttended", { n: r.nightsAttended })}</span>
+                    {r.nightsBenched > 0 && <span className="badge rn-bench-mem">{t("raidnight.benchedCount", { n: r.nightsBenched })}</span>}
+                    {r.role && <span className="badge role">{r.role}</span>}
+                  </span>
+                </div>
+                <div className="agent-meta">
+                  {t("raidnight.morale")} <span className="rn-num">{r.morale}</span> · {t("raidnight.stress")} <span className="rn-num">{r.stress}</span>
+                </div>
+              </div>
+            ))}
           </div>
           <div className="agent-meta guild-hall-note">{t("guildhall.readOnlyNote")}</div>
         </div>

@@ -148,6 +148,7 @@ export type MessageId =
   | "guildhall.scars"
   | "guildhall.precedents"
   | "guildhall.readOnlyNote"
+  | "guildhall.raiders"
   | "raidnight.partyIllegal"
   | "raidnight.needed"
   | "raidnight.putUp"
@@ -780,6 +781,7 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "guildhall.scars": "Scars",
     "guildhall.precedents": "Precedents",
     "guildhall.readOnlyNote": "The Guild Hall reads the ledger — it never changes it.",
+    "guildhall.raiders": "Raiders",
     "raidnight.partyIllegal": (p) => `Party needs ${num(p, "min")}–${num(p, "max")}, including its required roles`,
     "raidnight.needed": "needed",
     "raidnight.putUp": "put up",
@@ -1422,6 +1424,7 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "guildhall.scars": "傷疤",
     "guildhall.precedents": "先例",
     "guildhall.readOnlyNote": "公會大廳只讀取紀錄，永不更改。",
+    "guildhall.raiders": "團員",
     "raidnight.partyIllegal": (p) => `隊伍需要 ${num(p, "min")}–${num(p, "max")} 人，且包含必需的職責`,
     "raidnight.needed": "需要",
     "raidnight.putUp": "打出",

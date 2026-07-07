@@ -21,6 +21,36 @@ export interface GuildHallSummary {
   precedents: number;
 }
 
+/** One raider's memory card: identity + the attendance record the ledger holds.
+ *  Role is the cartridge's own role id (vocabulary flows verbatim). */
+export interface AgentMemoryCard {
+  agentId: string;
+  name: string;
+  role: string | null;
+  nightsAttended: number;
+  nightsBenched: number;
+  reliability: string;
+  morale: number;
+  stress: number;
+}
+
+/** Derive the roster's memory cards, most-attended first. Pure over the ledger. */
+export function agentMemoryCards(ledger: CampaignLedger | null): AgentMemoryCard[] {
+  if (!ledger) return [];
+  return ledger.roster
+    .map((m) => ({
+      agentId: m.agentId,
+      name: m.agent.name,
+      role: m.agent.role,
+      nightsAttended: m.attendance.nightsAttended,
+      nightsBenched: m.attendance.nightsBenched,
+      reliability: m.attendance.reliability,
+      morale: m.agent.morale,
+      stress: m.agent.stress,
+    }))
+    .sort((a, b) => b.nightsAttended - a.nightsAttended || (a.name < b.name ? -1 : 1));
+}
+
 /** Derive the campaign-record summary. A null ledger is an honest empty hall —
  *  no guild founded yet — not a fabricated one. */
 export function summarizeGuildHall(ledger: CampaignLedger | null): GuildHallSummary {

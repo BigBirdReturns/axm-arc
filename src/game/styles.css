@@ -2942,3 +2942,75 @@ dialog.codex-overlay-backdrop::backdrop { background: transparent; }
   opacity: 0.92;
   transform: translate(-50%, -50%) rotate(-9deg) scale(1);
 }
+
+/* ══ Raid Night — reuses arc's management-UI tokens & classes (no raid-only palette) ══ */
+.raid-shell { position: fixed; inset: 0; display: flex; flex-direction: column;
+  background: var(--paper); color: var(--ink); font-family: var(--serif); }
+.rn-num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+.rn-topbar { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem;
+  padding: 10px 18px; background: var(--paper-alt); border-bottom: 1px solid var(--rule); }
+.rn-brand { display: flex; align-items: baseline; gap: 12px; }
+.rn-kicker { font-family: var(--display); font-size: .7rem; letter-spacing: .22em; text-transform: uppercase; color: var(--gold); font-weight: 700; }
+.rn-boss { font-family: var(--imprint); font-size: 1.15rem; }
+.rn-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.rn-chip { white-space: nowrap; }
+
+.rn-body { flex: 1; min-height: 0; display: grid; grid-template-columns: 320px 1fr 380px; gap: 12px; padding: 12px; overflow: hidden; }
+.rn-body-single { display: block; overflow: auto; padding: 16px; }
+.rn-left, .rn-right { overflow: auto; }
+.rn-center { display: flex; flex-direction: column; align-items: center; overflow: auto; }
+
+.rn-rolegroup { margin-bottom: 10px; }
+.rn-agents { display: flex; flex-direction: column; gap: 8px; }
+.rn-agent { text-align: left; width: 100%; cursor: pointer; font: inherit; }
+.rn-agent .stat-strip { margin: 6px 0 0; }
+
+.rn-encounter { text-align: center; margin: 22px 0 12px; }
+.rn-state { font-family: var(--display); font-size: 1.7rem; font-weight: 800; letter-spacing: .1em; }
+.rn-state-clear { color: var(--positive); }
+.rn-state-wipe { color: var(--accent); }
+.rn-state-ready { color: var(--muted); font-size: 1rem; letter-spacing: .24em; }
+.rn-encounter-boss { font-family: var(--imprint); font-size: 1.2rem; margin-top: 4px; }
+.rn-encounter-sub { color: var(--muted); font-size: .85rem; margin-top: 2px; }
+.raid-actions { display: flex; align-items: center; gap: 10px; margin: 12px 0; flex-wrap: wrap; justify-content: center; }
+.raid-pull { font-size: .95rem; padding: 10px 22px; }
+
+.raid-delta { border-left: 3px solid var(--gold); padding: 8px 10px; margin-top: 10px; font-size: .85rem; max-width: 560px; }
+.raid-delta-tag { font-family: var(--display); font-size: .62rem; letter-spacing: .14em; text-transform: uppercase; color: var(--gold); font-weight: 700; margin-right: 6px; }
+
+.raid-diagnosis .projection-cause { display: block; margin-bottom: 8px; }
+.raid-cause-tag { text-transform: capitalize; }
+.cause-variance .raid-cause-tag { border-color: var(--rule-dk); }
+.cause-gear .raid-cause-tag, .cause-build .raid-cause-tag { border-color: var(--accent); color: var(--accent); }
+.raid-culprit { margin: 3px 0 3px 8px; font-size: .82rem; }
+.raid-factor { margin-left: 20px; font-size: .76rem; color: var(--muted); }
+.raid-bottleneck { margin: 4px 0; padding-left: 16px; font-size: .84rem; }
+
+.raid-fixes { display: flex; flex-direction: column; gap: 8px; }
+.raid-fix { display: flex; justify-content: space-between; align-items: stretch; gap: 10px; border-left: 3px solid var(--rule-dk); }
+.raid-fix[data-lever="gear"] { border-left-color: var(--gold); }
+.raid-fix[data-lever="train"] { border-left-color: var(--positive); }
+.raid-fix[data-lever="rest"], .raid-fix[data-lever="rally"] { border-left-color: var(--accent); }
+.raid-fix[data-lever="bench_swap"] { border-left-color: var(--dim); }
+.raid-fix[data-lever="tradeoff"] { border-left-color: var(--accent-dp); }
+.raid-fix-body { flex: 1; }
+.raid-fix-proj { font-size: .78rem; color: var(--positive); margin: 3px 0; }
+.raid-fix .secondary { align-self: center; }
+.raid-receipt { margin-top: 10px; font-size: .82rem; }
+.raid-applied { margin-top: 4px; color: var(--positive); font-weight: 600; font-size: .78rem; }
+
+.rn-consequence .rn-cons-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 6px 0; }
+.rn-cons-card { padding: 8px 10px; }
+.rn-cons-card .recommendation-body { font-size: .8rem; }
+.rn-btn-commit { width: 100%; margin-top: 10px; font-size: .95rem; padding: 12px; letter-spacing: .04em; }
+.rn-committed-line { color: var(--gold); text-align: center; margin: 10px 0; }
+.rn-next { display: flex; gap: 8px; flex-wrap: wrap; }
+.rn-hint { text-align: center; margin-top: 2rem; }
+
+.rn-bottom { display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  padding: 10px 18px; background: var(--paper-alt); border-top: 1px solid var(--rule); }
+.rn-bottom-ledger { font-size: .78rem; color: var(--muted); }
+.rn-bottom-actions { display: flex; gap: 8px; }
+
+@media (max-width: 900px) { .rn-body { grid-template-columns: 1fr; overflow: auto; } .raid-shell { position: static; min-height: 100vh; } }

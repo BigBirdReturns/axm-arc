@@ -3,7 +3,7 @@
 // a committed ledger summarizes to exactly what it recorded, and the derivation
 // is pure (no mutation of the ledger it reads).
 import { describe, it, expect } from "vitest";
-import { summarizeGuildHall, agentMemoryCards, scarViews, precedentViews, lootFairnessView, campaignRecordView } from "../../src/game/lib/guild-hall.js";
+import { summarizeGuildHall, agentMemoryCards, scarViews, precedentViews, lootFairnessView, campaignRecordView, rosterGrowthView } from "../../src/game/lib/guild-hall.js";
 import {
   newRaidNight, pull, applyFix, commitNightVictory, commitNightFailed, type RaidNightState,
 } from "../../src/game/lib/raid-night.js";
@@ -177,6 +177,44 @@ describe("guild hall campaign record", () => {
     const ledger = commitNightVictory(playToClear(3));
     const snapshot = JSON.stringify(ledger);
     campaignRecordView(ledger);
+    expect(JSON.stringify(ledger)).toBe(snapshot);
+  });
+});
+
+describe("guild hall roster growth", () => {
+  it("a null ledger has no growth", () => {
+    expect(rosterGrowthView(null)).toEqual([]);
+  });
+
+  it("derives one row per roster member, attrs sorted by attributeId codepoint, delta = current - base", () => {
+    const ledger = commitNightVictory(playToClear(3));
+    const rows = rosterGrowthView(ledger);
+    expect(rows.length).toBe(ledger.roster.length);
+    for (const row of rows) {
+      const mem = ledger.roster.find((m) => m.agentId === row.agentId)!;
+      expect(row.name).toBe(mem.agent.name);
+      for (let i = 1; i < row.attrs.length; i++) {
+        expect(row.attrs[i - 1]!.attributeId < row.attrs[i]!.attributeId).toBe(true);
+      }
+      for (const a of row.attrs) {
+        expect(a.delta).toBe(a.current - a.base);
+      }
+      const totalGrowth = row.attrs.reduce((sum, a) => sum + a.delta, 0);
+      expect(row.totalGrowth).toBe(totalGrowth);
+    }
+  });
+
+  it("orders rows by totalGrowth desc", () => {
+    const rows = rosterGrowthView(commitNightVictory(playToClear(3)));
+    for (let i = 1; i < rows.length; i++) {
+      expect(rows[i - 1]!.totalGrowth).toBeGreaterThanOrEqual(rows[i]!.totalGrowth);
+    }
+  });
+
+  it("is pure — reading does not mutate the ledger", () => {
+    const ledger = commitNightVictory(playToClear(3));
+    const snapshot = JSON.stringify(ledger);
+    rosterGrowthView(ledger);
     expect(JSON.stringify(ledger)).toBe(snapshot);
   });
 });

@@ -163,6 +163,10 @@ export type MessageId =
   | "guildhall.pulls"
   | "guildhall.wipes"
   | "guildhall.bestPull"
+  | "guildhall.growth"
+  | "guildhall.base"
+  | "guildhall.now"
+  | "guildhall.totalGrowth"
   | "raidnight.partyIllegal"
   | "raidnight.needed"
   | "raidnight.putUp"
@@ -810,6 +814,10 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "guildhall.pulls": "Pulls",
     "guildhall.wipes": "Wipes",
     "guildhall.bestPull": "Best pull",
+    "guildhall.growth": "Roster growth",
+    "guildhall.base": "Base",
+    "guildhall.now": "Now",
+    "guildhall.totalGrowth": "Total growth",
     "raidnight.partyIllegal": (p) => `Party needs ${num(p, "min")}–${num(p, "max")}, including its required roles`,
     "raidnight.needed": "needed",
     "raidnight.putUp": "put up",
@@ -1467,6 +1475,10 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "guildhall.pulls": "嘗試",
     "guildhall.wipes": "團滅",
     "guildhall.bestPull": "最佳嘗試",
+    "guildhall.growth": "名冊成長",
+    "guildhall.base": "初始",
+    "guildhall.now": "現在",
+    "guildhall.totalGrowth": "總成長",
     "raidnight.partyIllegal": (p) => `隊伍需要 ${num(p, "min")}–${num(p, "max")} 人，且包含必需的職責`,
     "raidnight.needed": "需要",
     "raidnight.putUp": "打出",

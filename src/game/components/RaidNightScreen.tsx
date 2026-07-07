@@ -307,7 +307,7 @@ function FixButton({ fix, disabled, chosen, onApply }: {
           <span className="badge tier"><span className="raid-fix-glyph">{LEVER_GLYPH[fix.lever] ?? "•"}</span> <span className="raid-fix-lever">{fix.lever}</span></span>
         </div>
         <div className="recommendation-body raid-fix-desc">{fix.description}</div>
-        <div className="raid-fix-proj">→ {fix.projectedEffect}</div>
+        <div className="raid-fix-proj"><span className="badge pending raid-fix-proj-tag">{t("raidnight.ifApplied")}</span> → {fix.projectedEffect}</div>
         <div className="agent-meta raid-fix-cost">{t("raidnight.tradeoffLabel")}: {fix.cost}</div>
       </div>
       <button className="secondary" disabled={disabled} onClick={onApply}>{t("raidnight.apply")}</button>

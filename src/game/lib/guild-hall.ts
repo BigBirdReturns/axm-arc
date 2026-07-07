@@ -51,6 +51,30 @@ export function agentMemoryCards(ledger: CampaignLedger | null): AgentMemoryCard
     .sort((a, b) => b.nightsAttended - a.nightsAttended || (a.name < b.name ? -1 : 1));
 }
 
+/** A scar the guild carries: a boss's lasting mark, its readiness modifier and
+ *  the note explaining what hardened the guild. */
+export interface ScarView { scarId: string; name: string; note: string; modifier: number; durationTiers: number; }
+
+/** A precedent the guild set: a distribution decision and the basis it was made
+ *  on — the record of how the guild decided, not just what it decided. */
+export interface PrecedentView { type: string; basis: string; winner: string | null; involved: number; }
+
+/** Derive the scars carried by the guild. Pure over the ledger. */
+export function scarViews(ledger: CampaignLedger | null): ScarView[] {
+  if (!ledger) return [];
+  return ledger.scars.map((s) => ({
+    scarId: s.scarId, name: s.name, note: s.effect.note, modifier: s.effect.modifier, durationTiers: s.durationTiers,
+  }));
+}
+
+/** Derive the precedents the guild set, most-recent first. Pure over the ledger. */
+export function precedentViews(ledger: CampaignLedger | null): PrecedentView[] {
+  if (!ledger) return [];
+  return ledger.precedents
+    .map((p) => ({ type: p.type, basis: p.decisionBasis, winner: p.winner, involved: p.agentsInvolved.length }))
+    .reverse();
+}
+
 /** Derive the campaign-record summary. A null ledger is an honest empty hall —
  *  no guild founded yet — not a fabricated one. */
 export function summarizeGuildHall(ledger: CampaignLedger | null): GuildHallSummary {

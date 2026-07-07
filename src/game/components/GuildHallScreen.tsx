@@ -5,7 +5,7 @@
 import { useMemo } from "react";
 import { t, useLocale } from "../../i18n/index.js";
 import { loadLedger } from "../lib/ledger.js";
-import { summarizeGuildHall, agentMemoryCards } from "../lib/guild-hall.js";
+import { summarizeGuildHall, agentMemoryCards, scarViews, precedentViews } from "../lib/guild-hall.js";
 
 export function GuildHallScreen({ onBack }: { onBack: () => void }): JSX.Element {
   useLocale();
@@ -13,6 +13,8 @@ export function GuildHallScreen({ onBack }: { onBack: () => void }): JSX.Element
   const ledger = useMemo(() => loadLedger(), []);
   const summary = useMemo(() => summarizeGuildHall(ledger), [ledger]);
   const raiders = useMemo(() => agentMemoryCards(ledger), [ledger]);
+  const scars = useMemo(() => scarViews(ledger), [ledger]);
+  const precedents = useMemo(() => precedentViews(ledger), [ledger]);
 
   const stat = (label: string, value: string | number) => (
     <div className="stat-cell">
@@ -67,6 +69,30 @@ export function GuildHallScreen({ onBack }: { onBack: () => void }): JSX.Element
               </div>
             ))}
           </div>
+          <div className="audit-section" style={{ marginTop: 16 }}>
+            {t("guildhall.scars")}{" "}<span className="badge rn-num">{scars.length}</span>
+          </div>
+          <div className="guild-hall-scars">
+            {scars.length ? scars.map((s) => (
+              <div key={s.scarId} className="recommendation-card guild-hall-scar">
+                <div className="mechanic-name">✦ {s.name} <span className="badge tier rn-num">+{s.modifier}</span></div>
+                <div className="recommendation-body">{s.note}</div>
+              </div>
+            )) : <span className="empty">—</span>}
+          </div>
+
+          <div className="audit-section" style={{ marginTop: 16 }}>
+            {t("guildhall.precedents")}{" "}<span className="badge rn-num">{precedents.length}</span>
+          </div>
+          <div className="guild-hall-precedents">
+            {precedents.length ? precedents.map((p, i) => (
+              <div key={i} className="mechanic-row guild-hall-precedent">
+                <span className="badge">{p.type}</span> <span className="badge tier">{p.basis}</span>
+                {p.winner && <> · {p.winner}</>}
+              </div>
+            )) : <span className="empty">—</span>}
+          </div>
+
           <div className="agent-meta guild-hall-note">{t("guildhall.readOnlyNote")}</div>
         </div>
       )}

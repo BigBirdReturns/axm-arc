@@ -145,6 +145,7 @@ export type MessageId =
   | "raidnight.startFresh"
   | "raidnight.callItNight"
   | "raidnight.consequences"
+  | "raidnight.consNotSaved"
   | "raidnight.commit"
   | "raidnight.committed"
   | "raidnight.consequencesRemain"
@@ -756,6 +757,7 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "raidnight.startFresh": "Start Fresh Here",
     "raidnight.callItNight": "Call It a Night",
     "raidnight.consequences": "What this night did to the guild",
+    "raidnight.consNotSaved": "not recorded yet",
     "raidnight.commit": "Commit to Guild Record",
     "raidnight.committed": "Committed",
     "raidnight.consequencesRemain": "The night is won. The consequences remain.",
@@ -1376,6 +1378,7 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "raidnight.startFresh": "在此重新開始",
     "raidnight.callItNight": "今晚到此為止",
     "raidnight.consequences": "這一夜為公會留下了什麼",
+    "raidnight.consNotSaved": "尚未記錄",
     "raidnight.commit": "寫入公會記錄",
     "raidnight.committed": "已寫入",
     "raidnight.consequencesRemain": "勝負已定，餘波長存。",

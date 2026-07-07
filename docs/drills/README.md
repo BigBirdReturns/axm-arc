@@ -13,6 +13,7 @@ seam; it protects every future cartridge.
 | `workshop-drill.mjs` | Workshop flow incl. broken-JSON error panel, en + zh-Hant |
 | `offline-drill.mjs` | PWA: service worker takes control → network killed → reload boots, zero external requests |
 | `installability.mjs` | CDP `getInstallabilityErrors` on the manifest/SW |
+| `guildhall-playtest-drill.mjs` | The Guild Hall renders a committed ledger — every panel populated, zero page errors, and the Hall never writes the ledger it reads |
 
 ## Running (2026 tooling — adapt freely, keep the assertions)
 

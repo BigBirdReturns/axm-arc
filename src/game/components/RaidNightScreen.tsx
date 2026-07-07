@@ -109,6 +109,9 @@ export function RaidNightScreen({ onBack }: Props): JSX.Element {
         <div className="rn-chips">
           <span className="badge role rn-chip">{guildChip}</span>
           <span className="badge tier rn-chip">{t("raidnight.attempt", { n: state.pull })}</span>
+          {state.bestShortfall !== null && !state.cleared && (
+            <span className="badge rn-chip rn-num rn-closest">{t("raidnight.closestYet", { n: Math.round(state.bestShortfall) })}</span>
+          )}
           <span className={`badge rn-chip ${committed ? "pass" : "pending"}`}>
             {committed ? t("raidnight.committed") : t("raidnight.ledgerNone")}
           </span>

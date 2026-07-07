@@ -118,6 +118,7 @@ export type MessageId =
   | "raidnight.pull"
   | "raidnight.pullAgain"
   | "raidnight.attempt"
+  | "raidnight.closestYet"
   | "raidnight.cleared"
   | "raidnight.clearedIn"
   | "raidnight.wipe"
@@ -727,6 +728,7 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "raidnight.pull": "Pull the Boss",
     "raidnight.pullAgain": "Pull Again",
     "raidnight.attempt": (p) => `Attempt ${num(p, "n")}`,
+    "raidnight.closestYet": (p) => `closest yet: ${num(p, "n")} short`,
     "raidnight.cleared": "CLEARED",
     "raidnight.clearedIn": (p) => {
       const n = num(p, "n");
@@ -1351,6 +1353,7 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "raidnight.pull": "開怪",
     "raidnight.pullAgain": "再次開怪",
     "raidnight.attempt": (p) => `第 ${num(p, "n")} 次嘗試`,
+    "raidnight.closestYet": (p) => `最接近：差 ${num(p, "n")}`,
     "raidnight.cleared": "已通關",
     "raidnight.clearedIn": (p) => `以 ${num(p, "n")} 次嘗試通關`,
     "raidnight.wipe": "團滅",

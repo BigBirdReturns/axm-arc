@@ -134,3 +134,60 @@ export function summarizeGuildHall(ledger: CampaignLedger | null): GuildHallSumm
     precedents: ledger.precedents.length,
   };
 }
+
+/** One tier's record row, in ledger order — tier order is meaningful and is
+ *  never re-sorted. */
+export interface TierRecordRow {
+  tierIndex: number;
+  tierLabel: string;
+  cleared: boolean;
+  grade: string | null;
+  pulls: number;
+  wipes: number;
+  bestPull: number | null;
+  isCurrent: boolean;
+}
+
+/** The tier-by-tier campaign record: identity + commit count + one row per
+ *  tier the ledger has recorded, in the order the ledger holds them. */
+export interface CampaignRecordView {
+  guildName: string;
+  legacyLevel: number;
+  legacyPoints: number;
+  commits: number;
+  currentTierIndex: number;
+  tiersCleared: number;
+  tiersSeen: number;
+  tiers: TierRecordRow[];
+}
+
+/** Derive the tier-by-tier campaign record. A null ledger is an honest empty
+ *  view — no fabricated tiers. Pure over the ledger; tier order is preserved. */
+export function campaignRecordView(ledger: CampaignLedger | null): CampaignRecordView {
+  if (!ledger) {
+    return {
+      guildName: "", legacyLevel: 0, legacyPoints: 0, commits: 0,
+      currentTierIndex: 0, tiersCleared: 0, tiersSeen: 0, tiers: [],
+    };
+  }
+  const tiers: TierRecordRow[] = ledger.progress.tiers.map((tr) => ({
+    tierIndex: tr.tierIndex,
+    tierLabel: tr.tierLabel,
+    cleared: tr.cleared,
+    grade: tr.grade,
+    pulls: tr.pulls,
+    wipes: tr.wipes,
+    bestPull: tr.bestPull,
+    isCurrent: tr.tierIndex === ledger.progress.currentTierIndex,
+  }));
+  return {
+    guildName: ledger.guild.name,
+    legacyLevel: ledger.guild.legacyLevel,
+    legacyPoints: ledger.guild.legacyPoints,
+    commits: ledger.commits.length,
+    currentTierIndex: ledger.progress.currentTierIndex,
+    tiersCleared: tiers.filter((t) => t.cleared).length,
+    tiersSeen: tiers.length,
+    tiers,
+  };
+}

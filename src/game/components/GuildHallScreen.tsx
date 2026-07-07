@@ -5,7 +5,7 @@
 import { useMemo } from "react";
 import { t, useLocale } from "../../i18n/index.js";
 import { loadLedger } from "../lib/ledger.js";
-import { summarizeGuildHall, agentMemoryCards, scarViews, precedentViews, lootFairnessView } from "../lib/guild-hall.js";
+import { summarizeGuildHall, agentMemoryCards, scarViews, precedentViews, lootFairnessView, campaignRecordView } from "../lib/guild-hall.js";
 
 export function GuildHallScreen({ onBack }: { onBack: () => void }): JSX.Element {
   useLocale();
@@ -16,6 +16,7 @@ export function GuildHallScreen({ onBack }: { onBack: () => void }): JSX.Element
   const scars = useMemo(() => scarViews(ledger), [ledger]);
   const precedents = useMemo(() => precedentViews(ledger), [ledger]);
   const fairness = useMemo(() => lootFairnessView(ledger), [ledger]);
+  const record = useMemo(() => campaignRecordView(ledger), [ledger]);
 
   const stat = (label: string, value: string | number) => (
     <div className="stat-cell">
@@ -49,7 +50,26 @@ export function GuildHallScreen({ onBack }: { onBack: () => void }): JSX.Element
             {stat(t("guildhall.roster"), summary.rosterSize)}
             {stat(t("guildhall.scars"), summary.scars)}
             {stat(t("guildhall.precedents"), summary.precedents)}
+            {stat(t("guildhall.legacyPoints"), record.legacyPoints)}
+            {stat(t("guildhall.commits"), record.commits)}
           </div>
+
+          <div className="audit-section" style={{ marginTop: 16 }}>
+            {t("guildhall.tiers")}{" "}<span className="badge rn-num">{record.tiers.length}</span>
+          </div>
+          <div className="guild-hall-tiers">
+            {record.tiers.length ? record.tiers.map((tr) => (
+              <div key={tr.tierIndex} className="mechanic-row guild-hall-tier">
+                <span className="agent-name">{tr.tierLabel}</span>{" "}
+                {tr.isCurrent && <span className="badge pass">{t("guildhall.current")}</span>}
+                {tr.grade && <span className="badge tier">{tr.grade}</span>}
+                {" "}· {t("guildhall.pulls")} <span className="rn-num">{tr.pulls}</span>
+                {" "}· {t("guildhall.wipes")} <span className="rn-num">{tr.wipes}</span>
+                {" "}· {t("guildhall.bestPull")} <span className="rn-num">{tr.bestPull ?? "—"}</span>
+              </div>
+            )) : <span className="empty">—</span>}
+          </div>
+
           <div className="audit-section" style={{ marginTop: 16 }}>
             {t("guildhall.raiders")}{" "}<span className="badge rn-num">{raiders.length}</span>
           </div>

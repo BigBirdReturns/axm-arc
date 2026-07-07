@@ -61,8 +61,15 @@ export function RaidNightScreen({ onBack }: Props): JSX.Element {
         <span className="agent-name">{a.name}</span>
         <span className="rn-agent-tags">
           {(() => {
-            const benched = state.ledger?.roster.find((m) => m.agentId === a.id)?.bench.benchedCount ?? 0;
-            return benched > 0 ? <span className="badge rn-bench-mem">{t("raidnight.benchedCount", { n: benched })}</span> : null;
+            const mem = state.ledger?.roster.find((m) => m.agentId === a.id);
+            const attended = mem?.attendance.nightsAttended ?? 0;
+            const benched = mem?.bench.benchedCount ?? 0;
+            return (
+              <>
+                {attended > 0 && <span className={`badge rn-attend-mem ${mem?.attendance.reliability === "reliable" ? "pass" : ""}`}>{t("raidnight.nightsAttended", { n: attended })}</span>}
+                {benched > 0 && <span className="badge rn-bench-mem">{t("raidnight.benchedCount", { n: benched })}</span>}
+              </>
+            );
           })()}
           <span className="badge role">{roleName(a.role)}</span>
         </span>

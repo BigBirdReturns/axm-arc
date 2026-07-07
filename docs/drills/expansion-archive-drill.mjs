@@ -99,9 +99,8 @@ out.journeyShown = await has(".expansion-archive-journey");
 // "incompatible" badge for library rows, an honest "unavailable" badge for
 // the artifact-missing row) — its stable class must be present.
 out.carryShown = await has(".expansion-archive-carry");
-// Provenance (PR 049): every row — library or artifact-missing — shows its
-// source badge (bundled/imported/ledger), reusing the same stable class.
-out.sourceShown = await has(".expansion-archive-source");
+// Provenance (PR 049): library rows carry a reused TrustLabel chip.
+out.trustShown = await has(".trust-chip");
 
 // Screenshot the artifact-missing archive before the no-write reload navigates
 // away — the visual proof that a committed-but-unlibraried cartridge's record

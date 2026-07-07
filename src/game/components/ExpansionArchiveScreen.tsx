@@ -207,7 +207,6 @@ export function ExpansionArchiveScreen({ onBack }: { onBack: () => void }): JSX.
                     })()}
                     <span className={statusBadgeClass(row.status)}>{statusLabel(row.status)}</span>
                     {renderCarryBadge(row)}
-                    <span className="badge expansion-archive-source">{row.source}</span>
                   </span>
                 </div>
                 <div className="agent-meta">

@@ -1,6 +1,7 @@
 # RFC: Tier-2 guild persistence — memory across raid cartridges
 
-**Status: Proposed — no code until this RFC is accepted (owner-gated).**
+**Status: Accepted (Option B) — architecture decided; the object model is drafted
+in `docs/RFC_TIER2_LEDGER_SCHEMA.md`. No code until the schema RFC is accepted too.**
 
 Triggered by the Raid Night v0 playtest (`docs/playtests/raid-night-v0.md`),
 which passed on the immediate loop and named the first missing desire exactly:

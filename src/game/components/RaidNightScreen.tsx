@@ -56,6 +56,8 @@ export function RaidNightScreen({ onBack }: Props): JSX.Element {
       className={`card clickable rn-agent ${fielded ? "good" : ""}`}
       onClick={() => setState((s) => toggleFielded(s, a.id))}
       title={fielded ? t("raidnight.benchVerb") : t("raidnight.field")}
+      aria-pressed={fielded}
+      aria-label={`${a.name}, ${roleName(a.role)} — ${fielded ? t("raidnight.benchVerb") : t("raidnight.field")}`}
     >
       <div className="row between">
         <span className="agent-name">{a.name}</span>
@@ -87,11 +89,11 @@ export function RaidNightScreen({ onBack }: Props): JSX.Element {
       <div className="row" style={{ gap: 12, marginTop: 6 }}>
         <div className="bar-wrap">
           <div className="bar-label"><span>{t("raidnight.morale")}</span><span className="rn-num">{a.morale}</span></div>
-          <ThresholdBar value={a.morale} max={100} kind="morale" threshold={30} direction="below" />
+          <ThresholdBar value={a.morale} max={100} kind="morale" threshold={30} direction="below" label={t("raidnight.morale")} />
         </div>
         <div className="bar-wrap">
           <div className="bar-label"><span>{t("raidnight.stress")}</span><span className="rn-num">{a.stress}/10</span></div>
-          <ThresholdBar value={a.stress} max={10} kind="stress" threshold={7} direction="above" />
+          <ThresholdBar value={a.stress} max={10} kind="stress" threshold={7} direction="above" label={t("raidnight.stress")} />
         </div>
       </div>
       {(a.morale < 30 || a.stress > 7) && (

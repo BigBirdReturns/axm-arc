@@ -110,6 +110,57 @@ export type MessageId =
   | "title.designerPrototype"
   | "title.releaseNotes"
   | "title.workshop"
+  | "title.raidNight"
+  | "raidnight.title"
+  | "raidnight.subtitle"
+  | "raidnight.raidParty"
+  | "raidnight.bench"
+  | "raidnight.pull"
+  | "raidnight.pullAgain"
+  | "raidnight.attempt"
+  | "raidnight.cleared"
+  | "raidnight.clearedIn"
+  | "raidnight.wipe"
+  | "raidnight.whyWiped"
+  | "raidnight.bottleneck"
+  | "raidnight.threeThings"
+  | "raidnight.apply"
+  | "raidnight.applied"
+  | "raidnight.field"
+  | "raidnight.benchVerb"
+  | "raidnight.partyIllegal"
+  | "raidnight.needed"
+  | "raidnight.putUp"
+  | "raidnight.stress"
+  | "raidnight.morale"
+  | "raidnight.back"
+  | "raidnight.reset"
+  | "raidnight.lastPull"
+  | "raidnight.changed"
+  | "raidnight.tradeoffLabel"
+  | "raidnight.guildCarried"
+  | "raidnight.freshGuild"
+  | "raidnight.incompatible"
+  | "raidnight.startFresh"
+  | "raidnight.callItNight"
+  | "raidnight.consequences"
+  | "raidnight.commit"
+  | "raidnight.committed"
+  | "raidnight.consequencesRemain"
+  | "raidnight.startNextTier"
+  | "raidnight.tryIncompatible"
+  | "raidnight.ready"
+  | "raidnight.ledgerNone"
+  | "raidnight.rightHint"
+  | "raidnight.consScars"
+  | "raidnight.consLegends"
+  | "raidnight.consMorale"
+  | "raidnight.consLoot"
+  | "raidnight.consLootFair"
+  | "raidnight.consPrecedents"
+  | "raidnight.consProgress"
+  | "raidnight.consTierUnlocked"
+  | "raidnight.consNoAdvance"
   // ── roster screen ──
   | "roster.personnel"
   | "roster.activeCount"
@@ -666,6 +717,60 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "title.designerPrototype": "Designer Prototype",
     "title.releaseNotes": "Release notes",
     "title.workshop": "Workshop",
+    "title.raidNight": "Raid Night",
+    "raidnight.title": "RAID NIGHT",
+    "raidnight.subtitle": "One lockout. One wall. Pull until the guild is ready.",
+    "raidnight.raidParty": "Raid Party",
+    "raidnight.bench": "Bench",
+    "raidnight.pull": "Pull the Boss",
+    "raidnight.pullAgain": "Pull Again",
+    "raidnight.attempt": (p) => `Attempt ${num(p, "n")}`,
+    "raidnight.cleared": "CLEARED",
+    "raidnight.clearedIn": (p) => {
+      const n = num(p, "n");
+      return `cleared in ${n} ${n === 1 ? "attempt" : "attempts"}`;
+    },
+    "raidnight.wipe": "WIPE",
+    "raidnight.whyWiped": "Why we wiped",
+    "raidnight.bottleneck": "Bottleneck",
+    "raidnight.threeThings": "Three things you can change before reset",
+    "raidnight.apply": "Apply",
+    "raidnight.applied": "Applied — pull again.",
+    "raidnight.field": "Field",
+    "raidnight.benchVerb": "Bench",
+    "raidnight.partyIllegal": (p) => `Party needs ${num(p, "min")}–${num(p, "max")}, including its required roles`,
+    "raidnight.needed": "needed",
+    "raidnight.putUp": "put up",
+    "raidnight.stress": "stress",
+    "raidnight.morale": "morale",
+    "raidnight.back": "Back",
+    "raidnight.reset": "New Guild",
+    "raidnight.lastPull": "Last pull",
+    "raidnight.changed": "Changed before next pull",
+    "raidnight.tradeoffLabel": "Tradeoff",
+    "raidnight.guildCarried": (p) => `Guild carried — ${num(p, "n")} raiders`,
+    "raidnight.freshGuild": "Fresh guild — no ledger yet",
+    "raidnight.incompatible": "INCOMPATIBLE GUILD",
+    "raidnight.startFresh": "Start Fresh Here",
+    "raidnight.callItNight": "Call It a Night",
+    "raidnight.consequences": "What this night did to the guild",
+    "raidnight.commit": "Commit to Guild Record",
+    "raidnight.committed": "Committed",
+    "raidnight.consequencesRemain": "The night is won. The consequences remain.",
+    "raidnight.startNextTier": (p) => `Start Next Tier — ${str(p, "boss")}`,
+    "raidnight.tryIncompatible": "Try an incompatible tier (demo)",
+    "raidnight.ready": "READY",
+    "raidnight.ledgerNone": "No record yet",
+    "raidnight.rightHint": "Pull the boss to see the outcome.",
+    "raidnight.consScars": "Scars",
+    "raidnight.consLegends": "Legends of the run",
+    "raidnight.consMorale": "Morale & stress",
+    "raidnight.consLoot": "Loot & fairness",
+    "raidnight.consLootFair": "won · fairness preserved",
+    "raidnight.consPrecedents": "New precedents",
+    "raidnight.consProgress": "Progression",
+    "raidnight.consTierUnlocked": "Next tier unlocked",
+    "raidnight.consNoAdvance": "No tier advance",
 
     "roster.personnel": "Personnel",
     "roster.activeCount": (p) => `${num(p, "count")} Active`,
@@ -1234,6 +1339,57 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     // "title.designerPrototype" intentionally untranslated (see EN_ONLY_IDS).
     "title.releaseNotes": "發行說明",
     "title.workshop": "工坊",
+    "title.raidNight": "團本之夜",
+    "raidnight.title": "團本之夜",
+    "raidnight.subtitle": "一次鎖定，一道高牆。不斷開怪，直到公會準備就緒。",
+    "raidnight.raidParty": "出戰隊伍",
+    "raidnight.bench": "替補席",
+    "raidnight.pull": "開怪",
+    "raidnight.pullAgain": "再次開怪",
+    "raidnight.attempt": (p) => `第 ${num(p, "n")} 次嘗試`,
+    "raidnight.cleared": "已通關",
+    "raidnight.clearedIn": (p) => `以 ${num(p, "n")} 次嘗試通關`,
+    "raidnight.wipe": "團滅",
+    "raidnight.whyWiped": "團滅原因",
+    "raidnight.bottleneck": "瓶頸",
+    "raidnight.threeThings": "重置前你可以改變的三件事",
+    "raidnight.apply": "採用",
+    "raidnight.applied": "已採用——再次開怪。",
+    "raidnight.field": "上場",
+    "raidnight.benchVerb": "換下",
+    "raidnight.partyIllegal": (p) => `隊伍需要 ${num(p, "min")}–${num(p, "max")} 人，且包含必需的職責`,
+    "raidnight.needed": "需要",
+    "raidnight.putUp": "打出",
+    "raidnight.stress": "壓力",
+    "raidnight.morale": "士氣",
+    "raidnight.back": "返回",
+    "raidnight.reset": "新公會",
+    "raidnight.lastPull": "上次開怪",
+    "raidnight.changed": "下次開怪前的變更",
+    "raidnight.tradeoffLabel": "取捨",
+    "raidnight.guildCarried": (p) => `公會延續——${num(p, "n")} 名團員`,
+    "raidnight.freshGuild": "全新公會——尚無記錄",
+    "raidnight.incompatible": "公會不相容",
+    "raidnight.startFresh": "在此重新開始",
+    "raidnight.callItNight": "今晚到此為止",
+    "raidnight.consequences": "這一夜為公會留下了什麼",
+    "raidnight.commit": "寫入公會記錄",
+    "raidnight.committed": "已寫入",
+    "raidnight.consequencesRemain": "勝負已定，餘波長存。",
+    "raidnight.startNextTier": (p) => `進入下一階——${str(p, "boss")}`,
+    "raidnight.tryIncompatible": "嘗試不相容的階段（示範）",
+    "raidnight.ready": "準備就緒",
+    "raidnight.ledgerNone": "尚無記錄",
+    "raidnight.rightHint": "開怪以查看結果。",
+    "raidnight.consScars": "傷痕",
+    "raidnight.consLegends": "此戰傳奇",
+    "raidnight.consMorale": "士氣與壓力",
+    "raidnight.consLoot": "戰利品與公平",
+    "raidnight.consLootFair": "件 · 分配公平",
+    "raidnight.consPrecedents": "新慣例",
+    "raidnight.consProgress": "進程",
+    "raidnight.consTierUnlocked": "解鎖下一階",
+    "raidnight.consNoAdvance": "未推進階段",
 
     "roster.personnel": "人員",
     "roster.activeCount": (p) => `${num(p, "count")} 名現役`,

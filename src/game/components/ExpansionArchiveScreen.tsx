@@ -1,12 +1,13 @@
 // The Expansion Archive — a read-only join of the arc library and the campaign
 // ledger (RFC_EXPANSION_ARCHIVE). It loads its own data and renders the join;
 // it never writes the library or the ledger. PR 042 stands up the minimal
-// route + the expansion roster; later PRs add per-panel derivations.
+// route + the expansion roster; PR 043 adds the per-expansion campaign record
+// (tiers, outcomes, scars, legends, precedents) under each played row.
 import { useMemo } from "react";
 import { t, useLocale } from "../../i18n/index.js";
 import { loadArcLibrary, loadActiveArcId } from "../lib/arc-library.js";
 import { loadLedger } from "../lib/ledger.js";
-import { expansionRoster } from "../lib/expansion-archive.js";
+import { expansionRoster, expansionRecord, type ExpansionRow } from "../lib/expansion-archive.js";
 
 export function ExpansionArchiveScreen({ onBack }: { onBack: () => void }): JSX.Element {
   useLocale();
@@ -26,6 +27,69 @@ export function ExpansionArchiveScreen({ onBack }: { onBack: () => void }): JSX.
 
   const statusBadgeClass = (status: "cleared" | "in-progress" | "unattempted") =>
     status === "cleared" ? "badge pass" : status === "in-progress" ? "badge tier" : "badge";
+
+  // Renders one played expansion's campaign record — omitted entirely for
+  // unattempted rows (nothing recorded is honest; there is no empty state to
+  // fake). Each sub-section (scars/legends/precedents) is itself omitted when
+  // its array is empty, rather than rendering an empty placeholder.
+  const renderRecord = (row: ExpansionRow) => {
+    const record = expansionRecord(row.digest, ledger);
+    return (
+      <div className="expansion-archive-record">
+        <div className="agent-meta">{t("archive.record")}</div>
+        <div className="expansion-archive-tiers">
+          {record.tiers.map((tr, i) => (
+            <div key={i} className="mechanic-row expansion-archive-tier">
+              <span className="agent-name">{tr.tierLabel}</span>{" "}
+              {tr.grade && <span className="badge tier">{t("archive.grade")} {tr.grade}</span>}
+              {" "}· {t("guildhall.pulls")} <span className="rn-num">{tr.pulls}</span>
+              {" "}· {t("guildhall.wipes")} <span className="rn-num">{tr.wipes}</span>
+              {" "}· {t("guildhall.bestPull")} <span className="rn-num">{tr.bestPull ?? "—"}</span>
+            </div>
+          ))}
+        </div>
+        <div className="agent-meta expansion-archive-outcomes">
+          {t("guildhall.victories")} <span className="rn-num">{record.victories}</span>
+          {" "}· {t("guildhall.failedLockouts")} <span className="rn-num">{record.failedLockouts}</span>
+          {" "}· {t("guildhall.pulls")} <span className="rn-num">{record.totalPulls}</span>
+          {" "}· {t("guildhall.wipes")} <span className="rn-num">{record.totalWipes}</span>
+        </div>
+
+        {record.scars.length > 0 && (
+          <div className="expansion-archive-scars">
+            <div className="agent-meta">{t("guildhall.scars")}{" "}<span className="badge rn-num">{record.scars.length}</span></div>
+            {record.scars.map((s, i) => (
+              <div key={i} className="mechanic-row expansion-archive-scar">
+                <span className="agent-name">{s.name}</span>{" "}
+                <span className="badge tier rn-num">+{s.modifier}</span>{" "}{s.note}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {record.legends.length > 0 && (
+          <div className="expansion-archive-legends">
+            <div className="agent-meta">{t("archive.legends")}{" "}<span className="badge rn-num">{record.legends.length}</span></div>
+            {record.legends.map((l, i) => (
+              <div key={i} className="mechanic-row expansion-archive-legend">{l.citation}</div>
+            ))}
+          </div>
+        )}
+
+        {record.precedents.length > 0 && (
+          <div className="expansion-archive-precedents">
+            <div className="agent-meta">{t("guildhall.precedents")}{" "}<span className="badge rn-num">{record.precedents.length}</span></div>
+            {record.precedents.map((p, i) => (
+              <div key={i} className="mechanic-row expansion-archive-precedent">
+                <span className="badge">{p.type}</span> <span className="badge tier">{p.decisionBasis}</span>
+                {p.winner && <> · {p.winner}</>}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="screen expansion-archive">
@@ -58,6 +122,7 @@ export function ExpansionArchiveScreen({ onBack }: { onBack: () => void }): JSX.
                 <div className="agent-meta">
                   {t("archive.tiersCleared")} <span className="rn-num">{row.tiersCleared}/{row.tiersPlayed}</span>
                 </div>
+                {row.status !== "unattempted" && renderRecord(row)}
               </div>
             ))}
           </div>

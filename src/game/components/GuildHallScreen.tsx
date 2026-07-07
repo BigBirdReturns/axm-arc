@@ -5,7 +5,7 @@
 import { useMemo } from "react";
 import { t, useLocale } from "../../i18n/index.js";
 import { loadLedger } from "../lib/ledger.js";
-import { summarizeGuildHall, agentMemoryCards, scarViews, precedentViews, lootFairnessView, campaignRecordView, rosterGrowthView } from "../lib/guild-hall.js";
+import { summarizeGuildHall, agentMemoryCards, scarViews, precedentViews, lootFairnessView, campaignRecordView, rosterGrowthView, benchAttendanceView } from "../lib/guild-hall.js";
 
 export function GuildHallScreen({ onBack }: { onBack: () => void }): JSX.Element {
   useLocale();
@@ -18,6 +18,7 @@ export function GuildHallScreen({ onBack }: { onBack: () => void }): JSX.Element
   const fairness = useMemo(() => lootFairnessView(ledger), [ledger]);
   const record = useMemo(() => campaignRecordView(ledger), [ledger]);
   const growth = useMemo(() => rosterGrowthView(ledger), [ledger]);
+  const attendance = useMemo(() => benchAttendanceView(ledger), [ledger]);
 
   const stat = (label: string, value: string | number) => (
     <div className="stat-cell">
@@ -110,6 +111,28 @@ export function GuildHallScreen({ onBack }: { onBack: () => void }): JSX.Element
                       <span className="badge rn-num">+{a.delta}</span>
                     </span>
                   ))}
+                </div>
+              </div>
+            )) : <span className="empty">—</span>}
+          </div>
+
+          <div className="audit-section" style={{ marginTop: 16 }}>
+            {t("guildhall.attendanceBench")}{" "}<span className="badge rn-num">{attendance.length}</span>
+          </div>
+          <div className="guild-hall-attendance">
+            {attendance.length ? attendance.map((a) => (
+              <div key={a.agentId} className="card rn-agent guild-hall-attendance-row">
+                <div className="row between">
+                  <span className="agent-name">{a.name}</span>
+                  <span className="rn-agent-tags">
+                    <span className="badge tier rn-num">{a.attendanceRate}%</span>
+                    <span className="badge">{a.reliability}</span>
+                  </span>
+                </div>
+                <div className="agent-meta">
+                  {t("guildhall.attendanceRate")} <span className="rn-num">{a.attendanceRate}%</span>
+                  {" "}· {t("guildhall.benched")} <span className="rn-num">{a.benchedCount}</span>
+                  {" "}· {t("guildhall.resentment")} <span className="rn-num">{a.resentment}</span>
                 </div>
               </div>
             )) : <span className="empty">—</span>}

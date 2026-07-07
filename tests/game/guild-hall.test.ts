@@ -3,7 +3,7 @@
 // a committed ledger summarizes to exactly what it recorded, and the derivation
 // is pure (no mutation of the ledger it reads).
 import { describe, it, expect } from "vitest";
-import { summarizeGuildHall, agentMemoryCards, scarViews, precedentViews, lootFairnessView, campaignRecordView, rosterGrowthView } from "../../src/game/lib/guild-hall.js";
+import { summarizeGuildHall, agentMemoryCards, scarViews, precedentViews, lootFairnessView, campaignRecordView, rosterGrowthView, benchAttendanceView } from "../../src/game/lib/guild-hall.js";
 import {
   newRaidNight, pull, applyFix, commitNightVictory, commitNightFailed, type RaidNightState,
 } from "../../src/game/lib/raid-night.js";
@@ -215,6 +215,46 @@ describe("guild hall roster growth", () => {
     const ledger = commitNightVictory(playToClear(3));
     const snapshot = JSON.stringify(ledger);
     rosterGrowthView(ledger);
+    expect(JSON.stringify(ledger)).toBe(snapshot);
+  });
+});
+
+describe("guild hall attendance & bench", () => {
+  it("a null ledger has no attendance rows", () => {
+    expect(benchAttendanceView(null)).toEqual([]);
+  });
+
+  it("derives one row per roster member, carrying the recorded attendance/bench fields", () => {
+    const ledger = commitNightVictory(playToClear(3));
+    const rows = benchAttendanceView(ledger);
+    expect(rows.length).toBe(ledger.roster.length);
+    for (const row of rows) {
+      const mem = ledger.roster.find((m) => m.agentId === row.agentId)!;
+      expect(row.name).toBe(mem.agent.name);
+      expect(row.nightsAttended).toBe(mem.attendance.nightsAttended);
+      expect(row.nightsBenched).toBe(mem.attendance.nightsBenched);
+      expect(row.reliability).toBe(mem.attendance.reliability);
+      expect(row.benchedCount).toBe(mem.bench.benchedCount);
+      expect(row.resentment).toBe(mem.bench.resentment);
+      expect(row.attendanceRate).toBeGreaterThanOrEqual(0);
+      expect(row.attendanceRate).toBeLessThanOrEqual(100);
+      const total = row.nightsAttended + row.nightsBenched;
+      const expectedRate = total > 0 ? Math.round((100 * row.nightsAttended) / total) : 0;
+      expect(row.attendanceRate).toBe(expectedRate);
+    }
+  });
+
+  it("orders rows by attendanceRate desc", () => {
+    const rows = benchAttendanceView(commitNightVictory(playToClear(3)));
+    for (let i = 1; i < rows.length; i++) {
+      expect(rows[i - 1]!.attendanceRate).toBeGreaterThanOrEqual(rows[i]!.attendanceRate);
+    }
+  });
+
+  it("is pure — reading does not mutate the ledger", () => {
+    const ledger = commitNightVictory(playToClear(3));
+    const snapshot = JSON.stringify(ledger);
+    benchAttendanceView(ledger);
     expect(JSON.stringify(ledger)).toBe(snapshot);
   });
 });

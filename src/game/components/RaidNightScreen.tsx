@@ -9,21 +9,31 @@
 import { useState } from "react";
 import { t, useLocale } from "../../i18n/index.js";
 import {
-  RAID_ARC, raidBoss, newRaidNight, pull, applyFix, toggleFielded, partyLegal,
+  RAID_ARC, RAID_ARC_T2, newRaidNight, newRaidNightFrom, pull, applyFix, toggleFielded, partyLegal,
+  nightConsequences, commitNightVictory, commitNightFailed,
   type RaidNightState,
 } from "../lib/raid-night.js";
-import type { Agent } from "../../engine/types.js";
+import { validateArc } from "../../engine/schema.js";
+import severedMarch from "../../../cartridges/severed-march.arc.json";
+import type { Agent, Arc } from "../../engine/types.js";
 import type { Fix } from "../../sim/wipe-diagnosis.js";
 
 interface Props { onBack: () => void; }
 
 const CHECK_ATTRS = ["mitigation", "restoration", "output", "control"];
+// A deliberately different-profile cartridge, to prove the refusal surface.
+const INCOMPATIBLE: Arc = validateArc(severedMarch);
+
+function bossOf(arc: Arc) {
+  return arc.challenges.find((c) => c.id === "the-hollow-choir") ?? arc.challenges[arc.challenges.length - 1]!;
+}
 
 export function RaidNightScreen({ onBack }: Props): JSX.Element {
   useLocale();
   const [state, setState] = useState<RaidNightState>(() => newRaidNight(1));
-  const boss = raidBoss();
-  const roleName = (id: string | null) => RAID_ARC.roles.find((r) => r.id === id)?.name ?? id ?? "—";
+  const [committed, setCommitted] = useState<import("../lib/ledger.js").CampaignLedger | null>(null);
+  const boss = bossOf(state.arc);
+  const roleName = (id: string | null) => state.arc.roles.find((r) => r.id === id)?.name ?? id ?? "—";
   const legal = partyLegal(state);
 
   const party = state.partyIds.map((id) => state.org.agents[id]).filter(Boolean) as Agent[];
@@ -58,10 +68,30 @@ export function RaidNightScreen({ onBack }: Props): JSX.Element {
           <div>
             <div className="raid-kicker">{t("raidnight.title")}</div>
             <h1 className="raid-boss">{boss.name}</h1>
-            <div className="raid-sub">{t("raidnight.subtitle")}</div>
+            <div className="raid-sub">
+              {state.ledger
+                ? t("raidnight.guildCarried", { n: state.ledger.roster.length })
+                : t("raidnight.freshGuild")}
+            </div>
           </div>
           <div className="raid-attempt">{t("raidnight.attempt", { n: state.pull })}</div>
         </div>
+
+        {/* ── incompatible ledger: refuse projection, show why, offer a clean out ── */}
+        {state.blocked && (
+          <div className="raid-blocked">
+            <div className="raid-wipe-head">{t("raidnight.incompatible")}</div>
+            <p>{state.blocked.message}</p>
+            <ul className="raid-bottleneck">
+              {state.blocked.dimensions.filter((d) => !d.match).map((d) => (
+                <li key={d.dimension}>▸ <strong>{d.dimension}</strong>: {d.ledgerValue.join(", ")} ≠ {d.cartridgeValue.join(", ")}</li>
+              ))}
+            </ul>
+            <button className="primary" onClick={() => setState(newRaidNightFrom(state.arc, null, 1))}>
+              {t("raidnight.startFresh")}
+            </button>
+          </div>
+        )}
 
         {/* ── roster: field / bench ── */}
         <div className="raid-roster">
@@ -80,9 +110,14 @@ export function RaidNightScreen({ onBack }: Props): JSX.Element {
           {!legal && <span className="raid-illegal">{t("raidnight.partyIllegal", {
             min: boss.rosterRequirements.minAgents, max: boss.rosterRequirements.maxAgents,
           })}</span>}
-          <button className="primary raid-pull" disabled={!legal} onClick={() => setState((s) => pull(s))}>
+          <button className="primary raid-pull" disabled={!legal || !!state.blocked} onClick={() => setState((s) => pull(s))}>
             {state.pull === 0 ? t("raidnight.pull") : t("raidnight.pullAgain")}
           </button>
+          {state.diagnosis && !state.cleared && (
+            <button className="secondary" onClick={() => { commitNightFailed(state); setCommitted(state.ledger); }}>
+              {t("raidnight.callItNight")}
+            </button>
+          )}
         </div>
 
         {/* ── did the last fix matter? (grounded delta from the previous pull) ── */}
@@ -90,12 +125,39 @@ export function RaidNightScreen({ onBack }: Props): JSX.Element {
           <div className="raid-delta"><span className="raid-delta-tag">{t("raidnight.lastPull")}</span> {state.pullDelta}</div>
         )}
 
-        {/* ── result ── */}
-        {state.cleared && (
-          <div className="raid-cleared">
-            <strong>{t("raidnight.cleared")}</strong> — {boss.name} · {t("raidnight.clearedIn", { n: state.pull })}
-          </div>
-        )}
+        {/* ── result: clear → consequence screen → commit → next tier ── */}
+        {state.cleared && (() => {
+          const cons = nightConsequences(state);
+          return (
+            <div className="raid-cleared">
+              <div className="raid-wipe-head raid-victory">{t("raidnight.cleared")} — {boss.name} · {t("raidnight.clearedIn", { n: state.pull })}</div>
+              <h3>{t("raidnight.consequences")}</h3>
+              <ul className="raid-bottleneck">
+                {cons.scarsEarned.map((s) => <li key={s.scarId}>✦ {s.name} — {s.effect.note}</li>)}
+                {cons.legends.map((l, i) => <li key={i}>★ {state.org.agents[l.agentId]?.name}: {l.citation}</li>)}
+                <li>{cons.loot.length} loot · {cons.moraleShifts.length} morale states · {cons.precedentsSet.length} precedents</li>
+              </ul>
+              {!committed ? (
+                <button className="primary" onClick={() => setCommitted(commitNightVictory(state))}>
+                  {t("raidnight.commit")}
+                </button>
+              ) : (
+                <div className="raid-receipt">
+                  <span className="raid-receipt-tag">{t("raidnight.committed")}</span>
+                  {t("raidnight.consequencesRemain")}
+                  <div className="raid-next">
+                    <button className="primary" onClick={() => { setState(newRaidNightFrom(RAID_ARC_T2, committed, 1)); setCommitted(null); }}>
+                      {t("raidnight.startNextTier", { boss: bossOf(RAID_ARC_T2).name })}
+                    </button>
+                    <button className="secondary" onClick={() => { setState(newRaidNightFrom(INCOMPATIBLE, committed, 1)); setCommitted(null); }}>
+                      {t("raidnight.tryIncompatible")}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {state.diagnosis && !state.cleared && (
           <div className="raid-diagnosis">

@@ -138,6 +138,17 @@ export type MessageId =
   | "raidnight.lastPull"
   | "raidnight.changed"
   | "raidnight.tradeoffLabel"
+  | "raidnight.guildCarried"
+  | "raidnight.freshGuild"
+  | "raidnight.incompatible"
+  | "raidnight.startFresh"
+  | "raidnight.callItNight"
+  | "raidnight.consequences"
+  | "raidnight.commit"
+  | "raidnight.committed"
+  | "raidnight.consequencesRemain"
+  | "raidnight.startNextTier"
+  | "raidnight.tryIncompatible"
   // ── roster screen ──
   | "roster.personnel"
   | "roster.activeCount"
@@ -725,6 +736,17 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "raidnight.lastPull": "Last pull",
     "raidnight.changed": "Changed before next pull",
     "raidnight.tradeoffLabel": "Tradeoff",
+    "raidnight.guildCarried": (p) => `Guild carried — ${num(p, "n")} raiders`,
+    "raidnight.freshGuild": "Fresh guild — no ledger yet",
+    "raidnight.incompatible": "INCOMPATIBLE GUILD",
+    "raidnight.startFresh": "Start Fresh Here",
+    "raidnight.callItNight": "Call It a Night",
+    "raidnight.consequences": "What this night did to the guild",
+    "raidnight.commit": "Commit to Guild Record",
+    "raidnight.committed": "Committed",
+    "raidnight.consequencesRemain": "The night is won. The consequences remain.",
+    "raidnight.startNextTier": (p) => `Start Next Tier — ${str(p, "boss")}`,
+    "raidnight.tryIncompatible": "Try an incompatible tier (demo)",
 
     "roster.personnel": "Personnel",
     "roster.activeCount": (p) => `${num(p, "count")} Active`,
@@ -1321,6 +1343,17 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "raidnight.lastPull": "上次開怪",
     "raidnight.changed": "下次開怪前的變更",
     "raidnight.tradeoffLabel": "取捨",
+    "raidnight.guildCarried": (p) => `公會延續——${num(p, "n")} 名團員`,
+    "raidnight.freshGuild": "全新公會——尚無記錄",
+    "raidnight.incompatible": "公會不相容",
+    "raidnight.startFresh": "在此重新開始",
+    "raidnight.callItNight": "今晚到此為止",
+    "raidnight.consequences": "這一夜為公會留下了什麼",
+    "raidnight.commit": "寫入公會記錄",
+    "raidnight.committed": "已寫入",
+    "raidnight.consequencesRemain": "勝負已定，餘波長存。",
+    "raidnight.startNextTier": (p) => `進入下一階——${str(p, "boss")}`,
+    "raidnight.tryIncompatible": "嘗試不相容的階段（示範）",
 
     "roster.personnel": "人員",
     "roster.activeCount": (p) => `${num(p, "count")} 名現役`,

@@ -1,29 +1,35 @@
-// Raid-night slice logic — the playable loop around the wipe-diagnosis slice
-// (cartridges/first-lockout.arc.json). Pure functions over an immutable state:
-// build the guild, assign the party, pull the boss, diagnose a wipe, apply
-// exactly one fix, pull again. NO tier-2 persistence, no extra bosses, no
-// campaign architecture — one lockout on one cartridge.
+// Raid-night slice logic — the playable loop around the wipe-diagnosis slice.
+// Pull the boss, diagnose a wipe, apply one fix, pull again — and (tier-2) start
+// the night from a guild ledger instead of a generated roster. The starting-org
+// source is the projection seam (src/game/lib/ledger.ts): no ledger → generate
+// exactly as before (standalone play preserved); a compatible ledger → project
+// the guild in; an incompatible one → refuse with a readable report.
 //
 // Each pull uses an incrementing pull number as the resolver's cycle, so a
-// re-pull after a fix is a fresh attempt (new roll) that reflects the improved
-// roster — the "one more pull" feel without any new system.
+// re-pull after a fix is a fresh attempt (new roll) on the improved roster.
 
 import firstLockout from "../../../cartridges/first-lockout.arc.json";
+import secondLockout from "../../../cartridges/second-lockout.arc.json";
 import { validateArc } from "../../engine/schema.js";
 import { resolveChallenge } from "../../engine/resolver.js";
 import { Rng } from "../../engine/prng.js";
-import { buildStartingOrg } from "../../sim/cartridge-conformance.js";
 import { diagnoseWipe, type Fix, type WipeDiagnosis } from "../../sim/wipe-diagnosis.js";
+import {
+  project, commitVictory, commitFailedLockout, buildConsequences, saveLedger,
+  type CampaignLedger, type CompatibilityReport, type ConsequenceSet, type NightResult,
+} from "./ledger.js";
 import type { Agent, Arc, Challenge, Organization, RunReport } from "../../engine/types.js";
 
 const BOSS_ID = "the-hollow-choir"; // the wall this slice is built around
 const TRAIN_GAIN = 3;
 const RALLY_TO = 60;
 
-export const RAID_ARC: Arc = validateArc(firstLockout);
-export function raidBoss(): Challenge {
-  return RAID_ARC.challenges.find((c) => c.id === BOSS_ID)!;
+export const RAID_ARC: Arc = validateArc(firstLockout);       // tier 1
+export const RAID_ARC_T2: Arc = validateArc(secondLockout);   // tier 2 (profile-compatible)
+function bossOf(arc: Arc): Challenge {
+  return arc.challenges.find((c) => c.id === BOSS_ID) ?? arc.challenges[arc.challenges.length - 1]!;
 }
+export function raidBoss(): Challenge { return bossOf(RAID_ARC); }
 
 /** What the fix changed, plus enough to judge on the next pull whether it
  *  mattered — the check it targeted and that check's value/threshold last pull. */
@@ -36,9 +42,14 @@ export interface LastFix {
 }
 
 export interface RaidNightState {
+  arc: Arc;             // which cartridge (tier) this night is
+  ledger: CampaignLedger | null;   // the guild carried in, if any
+  blocked: CompatibilityReport | null;  // set when the ledger is incompatible with this cartridge
   org: Organization;
   partyIds: string[];   // the fielded raid party (8–10)
   pull: number;         // attempts taken (drives the seed → fresh rolls)
+  wipes: number;        // failed pulls this night
+  bestShortfall: number | null;    // closest the raid came (min wall shortfall)
   report: RunReport | null;
   diagnosis: WipeDiagnosis | null;
   cleared: boolean;
@@ -67,19 +78,29 @@ export function legalParty(challenge: Challenge, org: Organization): string[] {
   return chosen.slice(0, size).map((a) => a.id);
 }
 
+/** Tier 1, no ledger — a fresh guild, exactly as before (the null-ledger path). */
 export function newRaidNight(seed = 1): RaidNightState {
-  const org = buildStartingOrg(RAID_ARC, seed, { rosterSize: 12 });
+  return startNight(RAID_ARC, null, seed);
+}
+
+/** Start a night on any cartridge from an optional guild ledger. Compatible →
+ *  the guild projects in; incompatible → `blocked` carries the readable report
+ *  and the org is a fresh fallback the player may choose to play (start fresh). */
+export function newRaidNightFrom(arc: Arc, ledger: CampaignLedger | null, seed = 1): RaidNightState {
+  return startNight(arc, ledger, seed);
+}
+
+function startNight(arc: Arc, ledger: CampaignLedger | null, seed: number): RaidNightState {
+  const proj = project(ledger, arc, seed);
+  const boss = bossOf(arc);
+  const org = proj.ok ? proj.org! : project(null, arc, seed).org!; // fresh fallback behind the refusal
   return {
+    arc, ledger, blocked: proj.ok ? null : proj.compatibility,
     org,
-    partyIds: legalParty(raidBoss(), org),
-    pull: 0,
-    report: null,
-    diagnosis: null,
-    cleared: false,
-    fixApplied: null,
-    receipt: null,
-    lastFix: null,
-    pullDelta: null,
+    partyIds: legalParty(boss, org),
+    pull: 0, wipes: 0, bestShortfall: null,
+    report: null, diagnosis: null, cleared: false,
+    fixApplied: null, receipt: null, lastFix: null, pullDelta: null,
   };
 }
 
@@ -99,7 +120,7 @@ const r1 = (n: number) => Math.round(n * 10) / 10;
 
 /** Whether the current party satisfies the boss's roster requirements. */
 export function partyLegal(state: RaidNightState): boolean {
-  const boss = raidBoss();
+  const boss = bossOf(state.arc);
   const party = state.partyIds.map((id) => state.org.agents[id]).filter(Boolean) as Agent[];
   if (party.length < boss.rosterRequirements.minAgents || party.length > boss.rosterRequirements.maxAgents) {
     return false;
@@ -112,7 +133,7 @@ export function partyLegal(state: RaidNightState): boolean {
 /** Field or bench an agent, keeping within the boss's size bounds. Returns the
  *  same state (no-op) if the move would break the size ceiling/floor. */
 export function toggleFielded(state: RaidNightState, agentId: string): RaidNightState {
-  const boss = raidBoss();
+  const boss = bossOf(state.arc);
   const inParty = state.partyIds.includes(agentId);
   if (inParty) {
     if (state.partyIds.length <= boss.rosterRequirements.minAgents) return state;
@@ -125,15 +146,15 @@ export function toggleFielded(state: RaidNightState, agentId: string): RaidNight
 /** Pull the boss. Deterministic in (org state, pull number). On a wipe, attaches
  *  the diagnosis. Clears the per-wipe fix gate so the next wipe allows one fix. */
 export function pull(state: RaidNightState): RaidNightState {
-  const boss = raidBoss();
+  const boss = bossOf(state.arc);
   const assignedAgents = state.partyIds.map((id) => state.org.agents[id]).filter(Boolean) as Agent[];
   const cycle = state.pull + 1;
   const report = resolveChallenge({
-    challenge: boss, assignedAgents, org: state.org, arc: RAID_ARC,
+    challenge: boss, assignedAgents, org: state.org, arc: state.arc,
     rng: new Rng(0), cycle, collectDiagnostics: true,
   });
   const cleared = report.outcome === "success";
-  const diagnosis = cleared ? null : diagnoseWipe(report, boss, state.org, RAID_ARC);
+  const diagnosis = cleared ? null : diagnoseWipe(report, boss, state.org, state.arc);
 
   // If a fix was carried into this pull, report whether it mattered — grounded
   // in the fixed check's value moving (or not) against its threshold.
@@ -156,8 +177,17 @@ export function pull(state: RaidNightState): RaidNightState {
     }
   }
 
+  const shortfall = diagnosis?.failedChecks[0]?.shortfall ?? null;
+  const bestShortfall = cleared
+    ? 0
+    : shortfall == null ? state.bestShortfall
+    : state.bestShortfall == null ? shortfall
+    : Math.min(state.bestShortfall, shortfall);
+
   return {
     ...state, pull: cycle, report, diagnosis, cleared,
+    wipes: cleared ? state.wipes : state.wipes + 1,
+    bestShortfall,
     fixApplied: null, receipt: null, lastFix: null, pullDelta,
   };
 }
@@ -243,4 +273,35 @@ export function applyFix(state: RaidNightState, fix: Fix): RaidNightState {
   }
 
   return { ...state, org, partyIds, fixApplied: fix.lever, receipt, lastFix };
+}
+
+// ── commits (the ceremonial persistence path; Q3) ────────────────────────────
+
+function nightResult(state: RaidNightState): NightResult {
+  return {
+    arc: state.arc, org: state.org, cleared: state.cleared,
+    pulls: state.pull, wipes: state.wipes, bestPull: state.bestShortfall,
+  };
+}
+
+/** The consequence set shown BEFORE anything persists — nothing is committed
+ *  that the player didn't see. */
+export function nightConsequences(state: RaidNightState): ConsequenceSet {
+  return buildConsequences(state.ledger, nightResult(state));
+}
+
+/** Commit a cleared night to the guild record ("Commit to Guild Record"). May
+ *  advance progression. Persists locally and returns the new ledger. */
+export function commitNightVictory(state: RaidNightState): CampaignLedger {
+  const led = commitVictory(state.ledger, nightResult(state));
+  saveLedger(led);
+  return led;
+}
+
+/** Commit a failed lockout ("Call It a Night"). Preserves scars/morale/stress/
+ *  attendance/bench/best-pull; does not advance the tier gate. */
+export function commitNightFailed(state: RaidNightState): CampaignLedger {
+  const led = commitFailedLockout(state.ledger, nightResult(state));
+  saveLedger(led);
+  return led;
 }

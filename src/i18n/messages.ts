@@ -188,6 +188,9 @@ export type MessageId =
   | "archive.unattempted"
   | "archive.tiersCleared"
   | "archive.readOnlyNote"
+  | "archive.record"
+  | "archive.grade"
+  | "archive.legends"
   | "raidnight.partyIllegal"
   | "raidnight.needed"
   | "raidnight.putUp"
@@ -859,6 +862,9 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "archive.unattempted": "Unattempted",
     "archive.tiersCleared": "Tiers cleared",
     "archive.readOnlyNote": "The Expansion Archive reads the library and the ledger — it never changes either.",
+    "archive.record": "Campaign record",
+    "archive.grade": "Grade",
+    "archive.legends": "Legends",
     "raidnight.partyIllegal": (p) => `Party needs ${num(p, "min")}–${num(p, "max")}, including its required roles`,
     "raidnight.needed": "needed",
     "raidnight.putUp": "put up",
@@ -1540,6 +1546,9 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "archive.unattempted": "未嘗試",
     "archive.tiersCleared": "已通關階級",
     "archive.readOnlyNote": "擴充典藏只讀取資料庫與紀錄，永不更改。",
+    "archive.record": "戰役紀錄",
+    "archive.grade": "評級",
+    "archive.legends": "傳奇",
     "raidnight.partyIllegal": (p) => `隊伍需要 ${num(p, "min")}–${num(p, "max")} 人，且包含必需的職責`,
     "raidnight.needed": "需要",
     "raidnight.putUp": "打出",

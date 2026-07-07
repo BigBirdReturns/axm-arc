@@ -63,3 +63,72 @@ export function expansionRoster(
     return a.name < b.name ? -1 : a.name > b.name ? 1 : 0;
   });
 }
+
+// ── per-expansion campaign record (PR 043) ───────────────────────────────────
+// The record that came out of playing one expansion — every fact attributable
+// to it by cartridge digest, and nothing else. A pure join of the ledger's
+// tiers/commits/scars against a single digest; no cross-cartridge fabrication.
+
+/** One tier this expansion's ledger recorded — in ledger order (tier order is
+ *  meaningful; never re-sorted). */
+export interface TierLine {
+  tierLabel: string;
+  cleared: boolean;
+  grade: string | null;
+  pulls: number;
+  wipes: number;
+  bestPull: number | null;
+}
+
+/** A scar this expansion's boss left on the guild. */
+export interface ScarLine { name: string; note: string; modifier: number }
+
+/** A legend citation earned during this expansion — verbatim, never t(). */
+export interface LegendLine { agentId: string; citation: string }
+
+/** A precedent this expansion's nights set. */
+export interface PrecedentLine { type: string; decisionBasis: string; winner: string | null }
+
+/** The full campaign record for one expansion, joined by cartridge digest.
+ *  Everything here is attributable to `digest` — no cross-cartridge data. */
+export interface ExpansionRecord {
+  digest: string;
+  tiers: TierLine[];
+  totalPulls: number;
+  totalWipes: number;
+  victories: number;
+  failedLockouts: number;
+  scars: ScarLine[];
+  legends: LegendLine[];
+  precedents: PrecedentLine[];
+}
+
+/** Derive one expansion's campaign record from the ledger, by cartridge
+ *  digest. Pure — never mutates the ledger. A null ledger or a digest with no
+ *  match is an honest empty record (the passed digest, zero counts, empty
+ *  arrays) — never a fabricated one. */
+export function expansionRecord(digest: string, ledger: CampaignLedger | null): ExpansionRecord {
+  if (!ledger) {
+    return { digest, tiers: [], totalPulls: 0, totalWipes: 0, victories: 0, failedLockouts: 0, scars: [], legends: [], precedents: [] };
+  }
+
+  const tiers: TierLine[] = ledger.progress.tiers
+    .filter((t) => t.cartridgeDigest === digest)
+    .map((t) => ({ tierLabel: t.tierLabel, cleared: t.cleared, grade: t.grade, pulls: t.pulls, wipes: t.wipes, bestPull: t.bestPull }));
+
+  const commits = ledger.commits.filter((c) => c.cartridgeDigest === digest);
+  const totalPulls = commits.reduce((sum, c) => sum + c.pulls, 0);
+  const totalWipes = commits.reduce((sum, c) => sum + c.wipes, 0);
+  const victories = commits.filter((c) => c.type === "victory").length;
+  const failedLockouts = commits.filter((c) => c.type === "failed-lockout").length;
+  const legends: LegendLine[] = commits.flatMap((c) => c.consequences.legends);
+  const precedents: PrecedentLine[] = commits.flatMap((c) =>
+    c.consequences.precedentsSet.map((p) => ({ type: p.type, decisionBasis: p.decisionBasis, winner: p.winner })),
+  );
+
+  const scars: ScarLine[] = ledger.scars
+    .filter((s) => s.sourceBossRef.cartridgeDigest === digest)
+    .map((s) => ({ name: s.name, note: s.effect.note, modifier: s.effect.modifier }));
+
+  return { digest, tiers, totalPulls, totalWipes, victories, failedLockouts, scars, legends, precedents };
+}

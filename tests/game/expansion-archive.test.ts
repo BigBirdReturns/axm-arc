@@ -4,10 +4,11 @@
 // ledger is all-unattempted; a committed victory ledger surfaces at least one
 // non-unattempted row; ordering and purity hold.
 import { describe, it, expect, beforeEach } from "vitest";
-import { expansionRoster } from "../../src/game/lib/expansion-archive.js";
+import { expansionRoster, expansionRecord } from "../../src/game/lib/expansion-archive.js";
 import { loadArcLibrary, ensureBundledArc, type ArcLibraryEntry } from "../../src/game/lib/arc-library.js";
 import { FIRST_CHARTER, KARAZHAN } from "../../src/arcs/index.js";
 import { newRaidNight, pull, applyFix, commitNightVictory, RAID_ARC, type RaidNightState } from "../../src/game/lib/raid-night.js";
+import { cartridgeDigest } from "../../src/engine/cartridge-digest.js";
 
 // arc-library.ts reads/writes the ambient `localStorage` global directly.
 // Vitest's node environment doesn't provide one, so install a minimal
@@ -110,5 +111,58 @@ describe("expansion archive roster (read-only)", () => {
     expansionRoster(library, ledger, library[0]!.arc.meta.id);
     expect(JSON.stringify(ledger)).toBe(ledgerSnapshot);
     expect(JSON.stringify(library)).toBe(librarySnapshot);
+  });
+});
+
+describe("expansion campaign record (read-only)", () => {
+  beforeEach(() => {
+    globalThis.localStorage = new MemoryStorage();
+  });
+
+  it("null ledger is an honest empty record", () => {
+    const rec = expansionRecord("anything", null);
+    expect(rec).toEqual({
+      digest: "anything", tiers: [], totalPulls: 0, totalWipes: 0,
+      victories: 0, failedLockouts: 0, scars: [], legends: [], precedents: [],
+    });
+  });
+
+  it("a committed victory ledger on RAID_ARC surfaces its record by digest", () => {
+    const ledger = commitNightVictory(playToClear(3));
+    const digest = cartridgeDigest(RAID_ARC);
+    const rec = expansionRecord(digest, ledger);
+
+    const expectedTiers = ledger.progress.tiers.filter((t) => t.cartridgeDigest === digest);
+    expect(rec.tiers.length).toBe(expectedTiers.length);
+    expect(rec.tiers.length).toBeGreaterThan(0);
+    expect(rec.victories).toBeGreaterThanOrEqual(1);
+
+    const expectedTotalPulls = ledger.commits
+      .filter((c) => c.cartridgeDigest === digest)
+      .reduce((s, c) => s + c.pulls, 0);
+    expect(rec.totalPulls).toBe(expectedTotalPulls);
+
+    const expectedScars = ledger.scars.filter((s) => s.sourceBossRef.cartridgeDigest === digest);
+    expect(rec.scars.length).toBe(expectedScars.length);
+  });
+
+  it("a digest with no match is an honest empty record", () => {
+    const ledger = commitNightVictory(playToClear(3));
+    const rec = expansionRecord("digest-nobody-played", ledger);
+    expect(rec.tiers).toEqual([]);
+    expect(rec.totalPulls).toBe(0);
+    expect(rec.totalWipes).toBe(0);
+    expect(rec.victories).toBe(0);
+    expect(rec.failedLockouts).toBe(0);
+    expect(rec.scars).toEqual([]);
+    expect(rec.legends).toEqual([]);
+    expect(rec.precedents).toEqual([]);
+  });
+
+  it("is pure — reading does not mutate the ledger", () => {
+    const ledger = commitNightVictory(playToClear(3));
+    const snapshot = JSON.stringify(ledger);
+    expansionRecord(cartridgeDigest(RAID_ARC), ledger);
+    expect(JSON.stringify(ledger)).toBe(snapshot);
   });
 });

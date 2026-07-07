@@ -175,7 +175,10 @@ export function RaidNightScreen({ onBack }: Props): JSX.Element {
           <aside className="rn-right sidebar">
             {!state.cleared && state.diagnosis && (
               <div className="raid-diagnosis">
-                <div className="audit-section">{t("raidnight.whyWiped")}</div>
+                <div className="audit-section">
+                  {t("raidnight.whyWiped")}{" "}
+                  <span className="badge fail raid-check-count rn-num">{state.diagnosis.failedChecks.length}</span>
+                </div>
                 <div className={`projection-cause raid-cause cause-${state.diagnosis.primaryCause.kind}`}>
                   <span className="badge raid-cause-tag">{state.diagnosis.primaryCause.kind}</span>{" "}
                   {state.diagnosis.primaryCause.note}
@@ -205,7 +208,10 @@ export function RaidNightScreen({ onBack }: Props): JSX.Element {
                   ))}
                 </ul>
 
-                <div className="audit-section" style={{ marginTop: 12 }}>{t("raidnight.threeThings")}</div>
+                <div className="audit-section" style={{ marginTop: 12 }}>
+                  {t("raidnight.threeThings")}{" "}
+                  <span className="badge raid-fix-count rn-num">{state.diagnosis.fixes.length}</span>
+                </div>
                 <div className="raid-fixes">
                   {state.diagnosis.fixes.map((fix, i) => (
                     <FixButton key={i} fix={fix} disabled={state.fixApplied !== null}

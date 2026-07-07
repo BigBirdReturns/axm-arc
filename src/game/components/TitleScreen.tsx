@@ -17,9 +17,10 @@ interface Props {
   onOpenWorkshop: () => void;
   onOpenRaidNight: () => void;
   onOpenGuildHall: () => void;
+  onOpenArchive: () => void;
 }
 
-export function TitleScreen({ arc, onContinue, onNewGame, onOpenLibrary, onOpenDesigner, onOpenWorkshop, onOpenRaidNight, onOpenGuildHall }: Props): JSX.Element {
+export function TitleScreen({ arc, onContinue, onNewGame, onOpenLibrary, onOpenDesigner, onOpenWorkshop, onOpenRaidNight, onOpenGuildHall, onOpenArchive }: Props): JSX.Element {
   useLocale(); // re-render this screen's chrome on locale switch
   const existing = loadSave(arc);
   const hasSave = existing !== null;
@@ -106,6 +107,12 @@ export function TitleScreen({ arc, onContinue, onNewGame, onOpenLibrary, onOpenD
             onClick={onOpenGuildHall}
           >
             {t("title.guildHall")}
+          </button>
+          <button
+            className="secondary"
+            onClick={onOpenArchive}
+          >
+            {t("archive.title")}
           </button>
           <button
             className="secondary"

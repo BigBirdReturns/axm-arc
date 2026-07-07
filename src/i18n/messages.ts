@@ -199,6 +199,7 @@ export type MessageId =
   | "archive.victory"
   | "archive.failed"
   | "archive.night"
+  | "archive.notRecorded"
   | "raidnight.partyIllegal"
   | "raidnight.needed"
   | "raidnight.putUp"
@@ -881,6 +882,7 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "archive.victory": "Victory",
     "archive.failed": "Failed lockout",
     "archive.night": "Night",
+    "archive.notRecorded": "Not recorded",
     "raidnight.partyIllegal": (p) => `Party needs ${num(p, "min")}–${num(p, "max")}, including its required roles`,
     "raidnight.needed": "needed",
     "raidnight.putUp": "put up",
@@ -1573,6 +1575,7 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "archive.victory": "勝利",
     "archive.failed": "失敗封鎖",
     "archive.night": "夜",
+    "archive.notRecorded": "未紀錄",
     "raidnight.partyIllegal": (p) => `隊伍需要 ${num(p, "min")}–${num(p, "max")} 人，且包含必需的職責`,
     "raidnight.needed": "需要",
     "raidnight.putUp": "打出",

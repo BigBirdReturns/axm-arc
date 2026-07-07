@@ -171,6 +171,12 @@ export type MessageId =
   | "guildhall.attendanceRate"
   | "guildhall.benched"
   | "guildhall.resentment"
+  | "guildhall.readiness"
+  | "guildhall.avgMorale"
+  | "guildhall.avgStress"
+  | "guildhall.scarModifier"
+  | "guildhall.gearModifier"
+  | "guildhall.readinessNote"
   | "raidnight.partyIllegal"
   | "raidnight.needed"
   | "raidnight.putUp"
@@ -826,6 +832,12 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "guildhall.attendanceRate": "Attendance",
     "guildhall.benched": "Benched",
     "guildhall.resentment": "Resentment",
+    "guildhall.readiness": "Next-tier readiness",
+    "guildhall.avgMorale": "Avg morale",
+    "guildhall.avgStress": "Avg stress",
+    "guildhall.scarModifier": "Scar readiness",
+    "guildhall.gearModifier": "Gear readiness",
+    "guildhall.readinessNote": "The strength this guild carries forward — read from the ledger, not a promise against any specific raid.",
     "raidnight.partyIllegal": (p) => `Party needs ${num(p, "min")}–${num(p, "max")}, including its required roles`,
     "raidnight.needed": "needed",
     "raidnight.putUp": "put up",
@@ -1491,6 +1503,12 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "guildhall.attendanceRate": "出席率",
     "guildhall.benched": "替補次數",
     "guildhall.resentment": "不滿",
+    "guildhall.readiness": "下一階級準備度",
+    "guildhall.avgMorale": "平均士氣",
+    "guildhall.avgStress": "平均壓力",
+    "guildhall.scarModifier": "傷疤加成",
+    "guildhall.gearModifier": "裝備加成",
+    "guildhall.readinessNote": "這是公會帶往下一階級的實力——取自紀錄，並非對任何特定團本的保證。",
     "raidnight.partyIllegal": (p) => `隊伍需要 ${num(p, "min")}–${num(p, "max")} 人，且包含必需的職責`,
     "raidnight.needed": "需要",
     "raidnight.putUp": "打出",

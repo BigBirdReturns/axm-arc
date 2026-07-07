@@ -5,7 +5,7 @@
 import { useMemo } from "react";
 import { t, useLocale } from "../../i18n/index.js";
 import { loadLedger } from "../lib/ledger.js";
-import { summarizeGuildHall, agentMemoryCards, scarViews, precedentViews, lootFairnessView, campaignRecordView, rosterGrowthView, benchAttendanceView } from "../lib/guild-hall.js";
+import { summarizeGuildHall, agentMemoryCards, scarViews, precedentViews, lootFairnessView, campaignRecordView, rosterGrowthView, benchAttendanceView, nextTierReadiness } from "../lib/guild-hall.js";
 
 export function GuildHallScreen({ onBack }: { onBack: () => void }): JSX.Element {
   useLocale();
@@ -19,6 +19,7 @@ export function GuildHallScreen({ onBack }: { onBack: () => void }): JSX.Element
   const record = useMemo(() => campaignRecordView(ledger), [ledger]);
   const growth = useMemo(() => rosterGrowthView(ledger), [ledger]);
   const attendance = useMemo(() => benchAttendanceView(ledger), [ledger]);
+  const readiness = useMemo(() => nextTierReadiness(ledger), [ledger]);
 
   const stat = (label: string, value: string | number) => (
     <div className="stat-cell">
@@ -191,6 +192,18 @@ export function GuildHallScreen({ onBack }: { onBack: () => void }): JSX.Element
               </div>
             )) : <span className="empty">—</span>}
           </div>
+
+          <div className="audit-section" style={{ marginTop: 16 }}>{t("guildhall.readiness")}</div>
+          <div className="stat-strip guild-hall-readiness">
+            {stat(t("guildhall.roster"), readiness.rosterSize)}
+            {stat(t("guildhall.avgMorale"), readiness.avgMorale)}
+            {stat(t("guildhall.avgStress"), readiness.avgStress)}
+            {stat(t("guildhall.scarModifier"), readiness.scarModifier)}
+            {stat(t("guildhall.gearModifier"), readiness.gearModifier)}
+            {stat(t("guildhall.legacyLevel"), readiness.legacyLevel)}
+            {stat(t("guildhall.precedents"), readiness.precedents)}
+          </div>
+          <div className="agent-meta guild-hall-readiness-note">{t("guildhall.readinessNote")}</div>
 
           <div className="agent-meta guild-hall-note">{t("guildhall.readOnlyNote")}</div>
         </div>

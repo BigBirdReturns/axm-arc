@@ -92,6 +92,12 @@ export function RaidNightScreen({ onBack }: Props): JSX.Element {
           <ThresholdBar value={a.stress} max={10} kind="stress" threshold={7} direction="above" />
         </div>
       </div>
+      {(a.morale < 30 || a.stress > 7) && (
+        <div className="rn-agent-warn">
+          {a.morale < 30 && <span className="warning rn-morale-warn">{t("raidnight.moraleShaky")}</span>}
+          {a.stress > 7 && <span className="warning rn-stress-warn">{t("raidnight.stressStrained")}</span>}
+        </div>
+      )}
     </button>
   );
 

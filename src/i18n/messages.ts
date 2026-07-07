@@ -195,6 +195,10 @@ export type MessageId =
   | "archive.artifactMissingNote"
   | "archive.digest"
   | "archive.lastCommit"
+  | "archive.journey"
+  | "archive.victory"
+  | "archive.failed"
+  | "archive.night"
   | "raidnight.partyIllegal"
   | "raidnight.needed"
   | "raidnight.putUp"
@@ -873,6 +877,10 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "archive.artifactMissingNote": "This guild has history for this cartridge, but the cartridge is not currently in the library.",
     "archive.digest": "Digest",
     "archive.lastCommit": "Last recorded commit",
+    "archive.journey": "Journey",
+    "archive.victory": "Victory",
+    "archive.failed": "Failed lockout",
+    "archive.night": "Night",
     "raidnight.partyIllegal": (p) => `Party needs ${num(p, "min")}–${num(p, "max")}, including its required roles`,
     "raidnight.needed": "needed",
     "raidnight.putUp": "put up",
@@ -1561,6 +1569,10 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "archive.artifactMissingNote": "此公會擁有這個卡帶的歷史紀錄，但該卡帶目前不在資料庫中。",
     "archive.digest": "摘要",
     "archive.lastCommit": "最後紀錄提交",
+    "archive.journey": "歷程",
+    "archive.victory": "勝利",
+    "archive.failed": "失敗封鎖",
+    "archive.night": "夜",
     "raidnight.partyIllegal": (p) => `隊伍需要 ${num(p, "min")}–${num(p, "max")} 人，且包含必需的職責`,
     "raidnight.needed": "需要",
     "raidnight.putUp": "打出",

@@ -92,6 +92,9 @@ out.committedLedgerArchive = {
 };
 out.recordShown = await has(".expansion-archive-record");
 out.artifactMissingShown = await has(".expansion-archive-artifact-missing");
+// A committed ledger has at least one recorded night — the journey timeline
+// (PR 045) must render it.
+out.journeyShown = await has(".expansion-archive-journey");
 
 // Screenshot the artifact-missing archive before the no-write reload navigates
 // away — the visual proof that a committed-but-unlibraried cartridge's record

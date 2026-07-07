@@ -63,13 +63,23 @@ export interface Bottleneck {
 
 /** A concrete, state-derived move available before the next pull. `lever` is the
  *  real action class (bench swap, gear, rest, rally, train, tradeoff); `target`
- *  names the actual agent/item; `cost` states the honest price. */
+ *  names the actual agent/item for display; the id fields let a UI APPLY the fix
+ *  unambiguously. `attrId` is the attribute a gear/train fix moves. */
 export interface Fix {
   lever: "bench_swap" | "gear" | "rest" | "rally" | "train" | "tradeoff";
   description: string;
   target: string;
   cost: string;
   impact: number;
+  /** The agent the fix acts on (equip/train/rest/rally target, or the one benched
+   *  in a swap). Absent for the no-op re-pull tradeoff. */
+  agentId?: string;
+  /** The benched agent a swap/composition fix fields. */
+  swapAgentId?: string;
+  /** The item a gear fix equips. */
+  itemId?: string;
+  /** The attribute a gear/train fix raises. */
+  attrId?: string;
 }
 
 export interface WipeDiagnosis {
@@ -210,6 +220,8 @@ function generateFixes(
       target: swapCandidate.a.name,
       cost: `${culprit.name} takes a morale hit for being sat on progression`,
       impact: swapCandidate.gain,
+      agentId: culprit.id,
+      swapAgentId: swapCandidate.a.id,
     });
   }
 
@@ -229,6 +241,9 @@ function generateFixes(
         target: gearCandidate.name,
         cost: "spend a drop / bank stock; someone else waits on that item",
         impact: bonus,
+        agentId: culprit.id,
+        itemId: gearCandidate.id,
+        attrId: attr,
       });
     }
   }
@@ -241,6 +256,7 @@ function generateFixes(
       target: culprit.name,
       cost: "they sit the next pull; you run a person short or bench-swap anyway",
       impact: culprit.stress,
+      agentId: culprit.id,
     });
   }
 
@@ -252,6 +268,7 @@ function generateFixes(
       target: culprit.name,
       cost: "costs a cycle / a currency; doesn't fix an underlying gear or fit gap",
       impact: (50 - culprit.morale) / 10,
+      agentId: culprit.id,
     });
   }
 
@@ -263,6 +280,8 @@ function generateFixes(
       target: culprit.name,
       cost: "a training cycle before the raid; slower than a swap but permanent",
       impact: 2,
+      agentId: culprit.id,
+      attrId: attr,
     });
   }
 
@@ -281,6 +300,8 @@ function generateFixes(
       target: benchIntended.name,
       cost: "trade a defensive slot for offense; the sat starter remembers it",
       impact: 1,
+      swapAgentId: benchIntended.id,
+      attrId: attr,
     });
   }
 

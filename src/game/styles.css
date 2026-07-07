@@ -2942,3 +2942,43 @@ dialog.codex-overlay-backdrop::backdrop { background: transparent; }
   opacity: 0.92;
   transform: translate(-50%, -50%) rotate(-9deg) scale(1);
 }
+
+/* ── Raid Night (the first playable wipe-diagnosis loop) ── */
+.raid-night .title-content { max-width: 1100px; }
+.raid-header { display: flex; justify-content: space-between; align-items: flex-end; gap: 1rem; border-bottom: 1px solid var(--rule, #3a342c); padding-bottom: .5rem; margin-bottom: 1rem; }
+.raid-kicker { letter-spacing: .2em; font-size: .7rem; opacity: .7; }
+.raid-boss { margin: .1rem 0; font-size: 1.6rem; }
+.raid-sub { opacity: .75; font-size: .85rem; }
+.raid-attempt { font-variant-numeric: tabular-nums; font-weight: 700; opacity: .9; white-space: nowrap; }
+.raid-roster { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.raid-roster h2 { font-size: .8rem; letter-spacing: .1em; text-transform: uppercase; opacity: .8; }
+.raid-grid { display: flex; flex-wrap: wrap; gap: .4rem; }
+.raid-agent { display: flex; flex-direction: column; align-items: flex-start; gap: .1rem; text-align: left; padding: .4rem .5rem; border: 1px solid var(--rule, #3a342c); border-radius: 6px; background: transparent; cursor: pointer; min-width: 150px; color: inherit; font: inherit; }
+.raid-agent.fielded { border-color: #7a9a5a; background: rgba(122,154,90,.10); }
+.raid-agent.benched { opacity: .72; }
+.raid-agent-name { font-weight: 700; font-size: .9rem; }
+.raid-agent-role { font-size: .72rem; opacity: .75; }
+.raid-agent-attrs { display: flex; flex-wrap: wrap; gap: .35rem; font-size: .68rem; font-variant-numeric: tabular-nums; opacity: .85; margin-top: .15rem; }
+.raid-agent-cond { font-size: .66rem; opacity: .6; }
+.raid-actions { display: flex; align-items: center; gap: 1rem; margin: 1rem 0; }
+.raid-pull { font-size: 1rem; padding: .6rem 1.4rem; }
+.raid-illegal { color: #c98b4b; font-size: .82rem; }
+.raid-cleared { border: 1px solid #7a9a5a; background: rgba(122,154,90,.12); padding: .8rem 1rem; border-radius: 8px; font-size: 1.05rem; }
+.raid-diagnosis { border: 1px solid var(--rule, #3a342c); border-radius: 8px; padding: 1rem 1.1rem; margin-top: .5rem; }
+.raid-wipe-head { font-weight: 800; letter-spacing: .08em; color: #c15b4b; margin-bottom: .5rem; }
+.raid-diagnosis h3 { font-size: .78rem; letter-spacing: .1em; text-transform: uppercase; opacity: .8; margin: .9rem 0 .3rem; }
+.raid-check { margin-bottom: .5rem; }
+.raid-check-head { font-size: .9rem; }
+.raid-scope { font-size: .7rem; opacity: .6; }
+.raid-culprit { margin: .15rem 0 .15rem .8rem; font-size: .84rem; }
+.raid-factor { margin-left: 1.4rem; font-size: .78rem; opacity: .7; }
+.raid-bottleneck { margin: .2rem 0; padding-left: 1rem; font-size: .86rem; }
+.raid-fixes { display: flex; flex-direction: column; gap: .5rem; }
+.raid-fix { display: flex; justify-content: space-between; align-items: center; gap: 1rem; border: 1px solid var(--rule, #3a342c); border-radius: 6px; padding: .5rem .7rem; }
+.raid-fix.chosen { border-color: #7a9a5a; background: rgba(122,154,90,.10); }
+.raid-fix-body { font-size: .86rem; }
+.raid-fix-lever { font-weight: 700; opacity: .8; }
+.raid-fix-cost { font-size: .74rem; opacity: .6; margin-top: .15rem; }
+.raid-applied { margin-top: .5rem; color: #7a9a5a; font-weight: 600; }
+.raid-footer { display: flex; gap: .6rem; margin-top: 1.2rem; }
+@media (max-width: 720px) { .raid-roster { grid-template-columns: 1fr; } }

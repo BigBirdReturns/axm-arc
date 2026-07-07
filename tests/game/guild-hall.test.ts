@@ -3,7 +3,7 @@
 // a committed ledger summarizes to exactly what it recorded, and the derivation
 // is pure (no mutation of the ledger it reads).
 import { describe, it, expect } from "vitest";
-import { summarizeGuildHall } from "../../src/game/lib/guild-hall.js";
+import { summarizeGuildHall, agentMemoryCards } from "../../src/game/lib/guild-hall.js";
 import {
   newRaidNight, pull, applyFix, commitNightVictory, commitNightFailed, type RaidNightState,
 } from "../../src/game/lib/raid-night.js";
@@ -48,6 +48,32 @@ describe("guild hall summary (read-only)", () => {
     const ledger = commitNightVictory(playToClear(3));
     const snapshot = JSON.stringify(ledger);
     summarizeGuildHall(ledger);
+    agentMemoryCards(ledger);
     expect(JSON.stringify(ledger)).toBe(snapshot);
+  });
+});
+
+describe("guild hall agent memory cards", () => {
+  it("a null ledger has no raiders", () => {
+    expect(agentMemoryCards(null)).toEqual([]);
+  });
+
+  it("derives one card per roster member, carrying the recorded attendance", () => {
+    const ledger = commitNightVictory(playToClear(3));
+    const cards = agentMemoryCards(ledger);
+    expect(cards.length).toBe(ledger.roster.length);
+    for (const c of cards) {
+      const mem = ledger.roster.find((m) => m.agentId === c.agentId)!;
+      expect(c.name).toBe(mem.agent.name);
+      expect(c.nightsAttended).toBe(mem.attendance.nightsAttended);
+      expect(c.role).toBe(mem.agent.role);
+    }
+  });
+
+  it("orders most-attended first", () => {
+    const cards = agentMemoryCards(commitNightVictory(playToClear(3)));
+    for (let i = 1; i < cards.length; i++) {
+      expect(cards[i - 1]!.nightsAttended).toBeGreaterThanOrEqual(cards[i]!.nightsAttended);
+    }
   });
 });

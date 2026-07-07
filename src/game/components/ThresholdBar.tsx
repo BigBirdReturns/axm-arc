@@ -19,6 +19,7 @@ export function ThresholdBar({
   kind,
   threshold,
   direction,
+  label,
 }: {
   value: number;
   /** Maximum value used for the fill width percentage. */
@@ -32,6 +33,8 @@ export function ThresholdBar({
    * "below" → tripped when value <= threshold (morale falling into low).
    */
   direction: "above" | "below";
+  /** Accessible name for the meter (e.g. "morale"). Defaults to `kind`. */
+  label?: string;
 }): JSX.Element {
   const prev = useRef(value);
   const [pulse, setPulse] = useState(false);
@@ -49,8 +52,17 @@ export function ThresholdBar({
 
   const fillPct = Math.max(0, Math.min(100, (value / max) * 100));
 
+  const tripped = direction === "above" ? value >= threshold : value <= threshold;
   return (
-    <div className={`bar ${kind}${pulse ? " pulse" : ""}`}>
+    <div
+      className={`bar ${kind}${pulse ? " pulse" : ""}`}
+      role="meter"
+      aria-label={label ?? kind}
+      aria-valuenow={value}
+      aria-valuemin={0}
+      aria-valuemax={max}
+      aria-invalid={tripped || undefined}
+    >
       <div className="fill" style={{ width: `${fillPct}%` }} />
     </div>
   );

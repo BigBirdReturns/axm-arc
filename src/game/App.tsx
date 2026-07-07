@@ -33,6 +33,7 @@ import { DesignerScreen } from "./components/DesignerScreen.js";
 import { WorkshopScreen } from "./components/WorkshopScreen.js";
 import { RaidNightScreen } from "./components/RaidNightScreen.js";
 import { GuildHallScreen } from "./components/GuildHallScreen.js";
+import { ExpansionArchiveScreen } from "./components/ExpansionArchiveScreen.js";
 import { CountUp } from "../liveness/index.js";
 import { CycleChecklist } from "./components/CycleChecklist.js";
 import { ThresholdBar } from "./components/ThresholdBar.js";
@@ -211,7 +212,7 @@ function buildNewOrg(activeArc: typeof FIRST_CHARTER): Organization {
 }
 
 export function App(): JSX.Element {
-  const [mode, setMode] = useState<"title" | "play" | "library" | "designer" | "workshop" | "raidnight" | "guildhall">("title");
+  const [mode, setMode] = useState<"title" | "play" | "library" | "designer" | "workshop" | "raidnight" | "guildhall" | "archive">("title");
   // Subscribe to the module-level locale so every t() call below re-renders on
   // switch; `locale` is also a dependency of the memos that bake t() output.
   const [locale] = useLocale();
@@ -525,6 +526,7 @@ export function App(): JSX.Element {
         onOpenWorkshop={() => setMode("workshop")}
         onOpenRaidNight={() => setMode("raidnight")}
         onOpenGuildHall={() => setMode("guildhall")}
+        onOpenArchive={() => setMode("archive")}
       />
     );
   }
@@ -543,6 +545,10 @@ export function App(): JSX.Element {
 
   if (mode === "guildhall") {
     return <GuildHallScreen onBack={() => setMode("title")} />;
+  }
+
+  if (mode === "archive") {
+    return <ExpansionArchiveScreen onBack={() => setMode("title")} />;
   }
 
   if (mode === "library") {

@@ -177,6 +177,17 @@ export type MessageId =
   | "guildhall.scarModifier"
   | "guildhall.gearModifier"
   | "guildhall.readinessNote"
+  // ── expansion archive ──
+  | "archive.title"
+  | "archive.back"
+  | "archive.expansions"
+  | "archive.emptyBody"
+  | "archive.active"
+  | "archive.cleared"
+  | "archive.inProgress"
+  | "archive.unattempted"
+  | "archive.tiersCleared"
+  | "archive.readOnlyNote"
   | "raidnight.partyIllegal"
   | "raidnight.needed"
   | "raidnight.putUp"
@@ -838,6 +849,16 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "guildhall.scarModifier": "Scar readiness",
     "guildhall.gearModifier": "Gear readiness",
     "guildhall.readinessNote": "The strength this guild carries forward — read from the ledger, not a promise against any specific raid.",
+    "archive.title": "Expansion Archive",
+    "archive.back": "Back",
+    "archive.expansions": "Expansions",
+    "archive.emptyBody": "No expansions in the library yet.",
+    "archive.active": "Active",
+    "archive.cleared": "Cleared",
+    "archive.inProgress": "In progress",
+    "archive.unattempted": "Unattempted",
+    "archive.tiersCleared": "Tiers cleared",
+    "archive.readOnlyNote": "The Expansion Archive reads the library and the ledger — it never changes either.",
     "raidnight.partyIllegal": (p) => `Party needs ${num(p, "min")}–${num(p, "max")}, including its required roles`,
     "raidnight.needed": "needed",
     "raidnight.putUp": "put up",
@@ -1509,6 +1530,16 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "guildhall.scarModifier": "傷疤加成",
     "guildhall.gearModifier": "裝備加成",
     "guildhall.readinessNote": "這是公會帶往下一階級的實力——取自紀錄，並非對任何特定團本的保證。",
+    "archive.title": "擴充典藏",
+    "archive.back": "返回",
+    "archive.expansions": "擴充",
+    "archive.emptyBody": "資料庫中尚無擴充。",
+    "archive.active": "使用中",
+    "archive.cleared": "已通關",
+    "archive.inProgress": "進行中",
+    "archive.unattempted": "未嘗試",
+    "archive.tiersCleared": "已通關階級",
+    "archive.readOnlyNote": "擴充典藏只讀取資料庫與紀錄，永不更改。",
     "raidnight.partyIllegal": (p) => `隊伍需要 ${num(p, "min")}–${num(p, "max")} 人，且包含必需的職責`,
     "raidnight.needed": "需要",
     "raidnight.putUp": "打出",

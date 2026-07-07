@@ -149,6 +149,18 @@ export type MessageId =
   | "raidnight.consequencesRemain"
   | "raidnight.startNextTier"
   | "raidnight.tryIncompatible"
+  | "raidnight.ready"
+  | "raidnight.ledgerNone"
+  | "raidnight.rightHint"
+  | "raidnight.consScars"
+  | "raidnight.consLegends"
+  | "raidnight.consMorale"
+  | "raidnight.consLoot"
+  | "raidnight.consLootFair"
+  | "raidnight.consPrecedents"
+  | "raidnight.consProgress"
+  | "raidnight.consTierUnlocked"
+  | "raidnight.consNoAdvance"
   // ── roster screen ──
   | "roster.personnel"
   | "roster.activeCount"
@@ -747,6 +759,18 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "raidnight.consequencesRemain": "The night is won. The consequences remain.",
     "raidnight.startNextTier": (p) => `Start Next Tier — ${str(p, "boss")}`,
     "raidnight.tryIncompatible": "Try an incompatible tier (demo)",
+    "raidnight.ready": "READY",
+    "raidnight.ledgerNone": "No record yet",
+    "raidnight.rightHint": "Pull the boss to see the outcome.",
+    "raidnight.consScars": "Scars",
+    "raidnight.consLegends": "Legends of the run",
+    "raidnight.consMorale": "Morale & stress",
+    "raidnight.consLoot": "Loot & fairness",
+    "raidnight.consLootFair": "won · fairness preserved",
+    "raidnight.consPrecedents": "New precedents",
+    "raidnight.consProgress": "Progression",
+    "raidnight.consTierUnlocked": "Next tier unlocked",
+    "raidnight.consNoAdvance": "No tier advance",
 
     "roster.personnel": "Personnel",
     "roster.activeCount": (p) => `${num(p, "count")} Active`,
@@ -1354,6 +1378,18 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "raidnight.consequencesRemain": "勝負已定，餘波長存。",
     "raidnight.startNextTier": (p) => `進入下一階——${str(p, "boss")}`,
     "raidnight.tryIncompatible": "嘗試不相容的階段（示範）",
+    "raidnight.ready": "準備就緒",
+    "raidnight.ledgerNone": "尚無記錄",
+    "raidnight.rightHint": "開怪以查看結果。",
+    "raidnight.consScars": "傷痕",
+    "raidnight.consLegends": "此戰傳奇",
+    "raidnight.consMorale": "士氣與壓力",
+    "raidnight.consLoot": "戰利品與公平",
+    "raidnight.consLootFair": "件 · 分配公平",
+    "raidnight.consPrecedents": "新慣例",
+    "raidnight.consProgress": "進程",
+    "raidnight.consTierUnlocked": "解鎖下一階",
+    "raidnight.consNoAdvance": "未推進階段",
 
     "roster.personnel": "人員",
     "roster.activeCount": (p) => `${num(p, "count")} 名現役`,

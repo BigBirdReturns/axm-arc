@@ -45,7 +45,7 @@ export function ExpansionArchiveScreen({ onBack }: { onBack: () => void }): JSX.
               {tr.grade && <span className="badge tier">{t("archive.grade")} {tr.grade}</span>}
               {" "}· {t("guildhall.pulls")} <span className="rn-num">{tr.pulls}</span>
               {" "}· {t("guildhall.wipes")} <span className="rn-num">{tr.wipes}</span>
-              {" "}· {t("guildhall.bestPull")} <span className="rn-num">{tr.bestPull ?? "—"}</span>
+              {" "}· {t("guildhall.bestPull")} <span className="rn-num">{tr.bestPull ?? t("archive.notRecorded")}</span>
             </div>
           ))}
         </div>
@@ -91,7 +91,7 @@ export function ExpansionArchiveScreen({ onBack }: { onBack: () => void }): JSX.
 
         {record.lastCommitSeq !== null && (
           <div className="agent-meta expansion-archive-last-commit">
-            {t("archive.lastCommit")} <span className="rn-num">#{record.lastCommitSeq}</span>
+            {t("archive.lastCommit")} <span className="rn-num">{record.lastCommitSeq + 1}</span>
           </div>
         )}
       </div>
@@ -123,7 +123,6 @@ export function ExpansionArchiveScreen({ onBack }: { onBack: () => void }): JSX.
               {journey.map((entry, i) => (
                 <div key={entry.commitSeq} className="mechanic-row expansion-archive-journey-entry">
                   <span className="agent-name">{t("archive.night")} {i + 1}</span>{" "}
-                  <span className="badge rn-num">#{entry.commitSeq}</span>{" "}
                   <span className="agent-name">{entry.cartridgeId}</span>{" "}
                   <span className={entry.type === "victory" ? "badge pass" : "badge"}>
                     {entry.type === "victory" ? t("archive.victory") : t("archive.failed")}

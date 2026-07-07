@@ -1,0 +1,371 @@
+{
+  "meta": {
+    "id": "first-lockout",
+    "name": "The First Lockout",
+    "description": "A raid guild's first night against a sealed ward-hall: three bosses, one lockout, no do-overs until next week's reset. The Gate-Warden barely tests the roster, the Tidewright tightens the screws, and the Hollow Choir behind the third door is the wall the guild talks about all week — win or wipe.",
+    "author": "axm-arc team",
+    "version": "1.0.0",
+    "engineVersion": "1.0.0",
+    "domain": "raid-night",
+    "estimatedCycles": 6
+  },
+  "attributes": [
+    { "id": "mitigation", "name": "Mitigation", "description": "Damage soaked and shrugged off — the difference between a hit that staggers and one that drops someone." },
+    { "id": "restoration", "name": "Restoration", "description": "Wounds closed and stamina returned mid-fight — the thing that keeps a raid standing past the first mistake." },
+    { "id": "output", "name": "Output", "description": "Sustained damage dealt to the boss — the clock every enrage timer is racing against." },
+    { "id": "control", "name": "Control", "description": "Positioning, interrupts, and timing discipline — the difference between a clean mechanic and a wipe nobody saw coming." }
+  ],
+  "roles": [
+    { "id": "warden", "name": "Warden", "attributeWeights": { "mitigation": 0.5, "control": 0.3, "output": 0.1, "restoration": 0.1 } },
+    { "id": "mender", "name": "Mender", "attributeWeights": { "restoration": 0.6, "control": 0.2, "mitigation": 0.1, "output": 0.1 } },
+    { "id": "striker", "name": "Striker", "attributeWeights": { "output": 0.6, "control": 0.3, "mitigation": 0.05, "restoration": 0.05 } }
+  ],
+  "tiers": [
+    { "id": "recruit", "name": "Recruit", "statBudgetMin": 20, "statBudgetMax": 32, "upkeepCost": 1, "baseEfficiencyModifier": 1.5 },
+    { "id": "regular", "name": "Regular", "statBudgetMin": 32, "statBudgetMax": 48, "upkeepCost": 3, "baseEfficiencyModifier": 1.0 },
+    { "id": "core", "name": "Core", "statBudgetMin": 48, "statBudgetMax": 60, "upkeepCost": 6, "baseEfficiencyModifier": 0.5 }
+  ],
+  "currencyName": "Guild Coin",
+  "materialName": "Salvaged Component",
+  "tokenName": "Raid Lockouts",
+  "reputationName": "Guild Standing",
+  "tokensPerCycle": 2,
+  "maxTokens": 4,
+  "infrastructureTokenBonus": 0.25,
+  "namePool": {
+    "firstNames": [
+      "Aris", "Bettina", "Corvid", "Dashel", "Ettra",
+      "Fendrick", "Gwynth", "Hollis", "Iskra", "Jorund",
+      "Kessia", "Lorimer", "Maeve", "Norrin", "Odalys"
+    ],
+    "lastNames": [
+      "Ashbind", "Brightward", "Cindermoor", "Duskgate", "Emberlock",
+      "Fallowcrest", "Greymantle", "Hollowchoir", "Ironclasp", "Justwarden"
+    ]
+  },
+  "customTraits": [
+    {
+      "id": "steady-hands",
+      "name": "Steady Hands",
+      "description": "Never rattled by a bad pull — this raider's control never slips when it matters most.",
+      "effects": [{ "kind": "attributeCheckBonus", "attributeId": "control", "bonus": 2 }]
+    },
+    {
+      "id": "combat-medic",
+      "name": "Combat Medic",
+      "description": "Keeps working triage even mid-mechanic, closing wounds other healers would let ride.",
+      "effects": [{ "kind": "attributeCheckBonus", "attributeId": "restoration", "bonus": 2 }]
+    },
+    {
+      "id": "berserker-focus",
+      "name": "Berserker Focus",
+      "description": "Locks onto the boss and doesn't let go, even as the fight goes sideways around them.",
+      "effects": [{ "kind": "attributeCheckBonus", "attributeId": "output", "bonus": 2 }]
+    }
+  ],
+  "progressionTiers": [
+    {
+      "id": "lockout-opening",
+      "name": "Opening Pulls",
+      "flavorText": "The night starts easy: the Gate-Warden is a check on whether the roster can execute a mechanic at all, not a real test of the guild's ceiling.",
+      "unlockConditions": { "orgMilestones": [], "reputationMinimum": null },
+      "challenges": ["the-gate-warden"],
+      "requiredChallenges": ["the-gate-warden"],
+      "optionalChallenges": []
+    },
+    {
+      "id": "lockout-middle",
+      "name": "The Middle Pull",
+      "flavorText": "Past the gate, the fight gets real. The Tidewright punishes a raid that can't survive its own surge damage, tank included.",
+      "unlockConditions": { "orgMilestones": ["the-gate-warden-cleared"], "reputationMinimum": 1 },
+      "challenges": ["the-tidewright"],
+      "requiredChallenges": ["the-tidewright"],
+      "optionalChallenges": []
+    },
+    {
+      "id": "lockout-wall",
+      "name": "The Wall",
+      "flavorText": "The Hollow Choir is why this lockout has a name people remember. Every guild that gets here talks about the pull count.",
+      "unlockConditions": { "orgMilestones": ["the-tidewright-cleared"], "reputationMinimum": 3 },
+      "challenges": ["the-hollow-choir"],
+      "requiredChallenges": ["the-hollow-choir"],
+      "optionalChallenges": []
+    }
+  ],
+  "attunementChains": [
+    {
+      "id": "ward-hall-sigils",
+      "name": "Ward-Hall Sigils",
+      "steps": [
+        { "type": "challenge_clear", "target": "the-gate-warden" },
+        { "type": "challenge_clear", "target": "the-tidewright" }
+      ],
+      "grantsAccessTo": ["the-hollow-choir"]
+    }
+  ],
+  "challenges": [
+    {
+      "id": "the-gate-warden",
+      "name": "The Gate-Warden",
+      "description": "A sentinel construct guarding the ward-hall's outer door. It casts one big spell on a timer and otherwise just needs the raid to hit it — a first-pull test of execution, not gear.",
+      "rosterRequirements": { "minAgents": 8, "maxAgents": 10, "roleRequirements": [{ "roleId": "warden", "count": 1 }, { "roleId": "mender", "count": 1 }, { "roleId": "striker", "count": 1 }] },
+      "accessRequirements": { "orgMilestones": [], "agentAttunements": [], "attunementThreshold": null },
+      "difficultyRating": 20,
+      "mechanicChecks": [
+        {
+          "id": "silence-the-cast",
+          "name": "Silence the Cast",
+          "description": "A Striker breaks the Gate-Warden's channel before it finishes casting its one dangerous spell.",
+          "attributeWeights": [{ "attributeId": "output", "weight": 0.6 }, { "attributeId": "control", "weight": 0.4 }],
+          "difficultyThreshold": 9,
+          "scope": "role_specific",
+          "roleIds": ["striker"],
+          "failureConsequence": { "type": "team_damage", "severity": 0.2 }
+        },
+        {
+          "id": "break-the-barrier",
+          "name": "Break the Barrier",
+          "description": "The whole raid grinds down the Gate-Warden's shield before its enrage timer resets it.",
+          "attributeWeights": [{ "attributeId": "output", "weight": 0.7 }, { "attributeId": "control", "weight": 0.3 }],
+          "difficultyThreshold": 5,
+          "thresholdMode": "perAssignedAgent",
+          "scope": "team_aggregate",
+          "failureConsequence": { "type": "stress", "severity": 0.2 }
+        }
+      ],
+      "completionCriteria": { "type": "all_mechanics_passed", "parameters": {} },
+      "timePressure": null,
+      "outcomes": {
+        "success": {
+          "rewardTable": [{ "itemId": "gate-warden-plating", "dropRate": 1.0 }],
+          "narrative": "The shield cracks, the cast breaks, and the outer door swings open. First pull of the night, first kill.",
+          "reputationGain": 1,
+          "currencyReward": 40,
+          "milestoneFlag": "the-gate-warden-cleared"
+        },
+        "partial": {
+          "rewardTable": [],
+          "narrative": "The Gate-Warden falls, but the interrupt slips and half the raid eats the cast. Everyone's still standing.",
+          "reputationGain": 0,
+          "agentDowntimeCycles": 1
+        },
+        "failure": {
+          "rewardTable": [],
+          "narrative": "The shield holds past the enrage and the Gate-Warden resets clean. Back to the door.",
+          "stressPenalty": 1,
+          "tokenRefund": 0.5
+        }
+      }
+    },
+    {
+      "id": "the-tidewright",
+      "name": "The Tidewright",
+      "description": "A drowned engineer bound to the ward-hall's flooded second chamber, it drowns the room in periodic surges that the raid has to weather while the tank keeps its attention off the healers.",
+      "rosterRequirements": { "minAgents": 8, "maxAgents": 10, "roleRequirements": [{ "roleId": "warden", "count": 1 }, { "roleId": "mender", "count": 1 }] },
+      "accessRequirements": { "orgMilestones": ["the-gate-warden-cleared"], "agentAttunements": [], "attunementThreshold": null },
+      "difficultyRating": 35,
+      "mechanicChecks": [
+        {
+          "id": "weather-the-surge",
+          "name": "Weather the Surge",
+          "description": "Every raider has to survive the Tidewright's periodic flood surge on their own footing.",
+          "attributeWeights": [{ "attributeId": "mitigation", "weight": 0.5 }, { "attributeId": "restoration", "weight": 0.5 }],
+          "difficultyThreshold": 9,
+          "scope": "per_agent",
+          "failureConsequence": { "type": "agent_damage", "severity": 0.4 }
+        },
+        {
+          "id": "hold-the-line",
+          "name": "Hold the Line",
+          "description": "The Warden keeps the Tidewright's attention locked down through every surge, off the healers.",
+          "attributeWeights": [{ "attributeId": "mitigation", "weight": 0.6 }, { "attributeId": "control", "weight": 0.4 }],
+          "difficultyThreshold": 14,
+          "scope": "role_specific",
+          "roleIds": ["warden"],
+          "failureConsequence": { "type": "cascade", "severity": 0.5 }
+        }
+      ],
+      "completionCriteria": { "type": "all_mechanics_passed", "parameters": {} },
+      "timePressure": null,
+      "outcomes": {
+        "success": {
+          "rewardTable": [{ "itemId": "tidewrights-aegis", "dropRate": 1.0 }, { "itemId": "surgebreaker-draught", "dropRate": 0.5 }],
+          "narrative": "The last surge breaks against a line that never moved. The Tidewright sinks back into the flooded floor for good.",
+          "reputationGain": 2,
+          "currencyReward": 70,
+          "milestoneFlag": "the-tidewright-cleared"
+        },
+        "partial": {
+          "rewardTable": [],
+          "narrative": "The Tidewright goes down, but a late surge catches a straggler. The chamber's clear regardless.",
+          "reputationGain": 1,
+          "agentDowntimeCycles": 1
+        },
+        "failure": {
+          "rewardTable": [],
+          "narrative": "A surge lands wrong and the aggro slips. The raid pulls back to the outer door to reset.",
+          "stressPenalty": 2,
+          "tokenRefund": 0.5
+        }
+      }
+    },
+    {
+      "id": "the-hollow-choir",
+      "name": "The Hollow Choir",
+      "description": "The ward-hall's last ward: a chorus of bound voices that hits harder the longer the fight runs and unravels any Mender who can't cleanse the dirge fast enough. This is the fight the whole lockout was building to, and it does not go easy on a first attempt.",
+      "rosterRequirements": { "minAgents": 8, "maxAgents": 10, "roleRequirements": [{ "roleId": "warden", "count": 1 }, { "roleId": "mender", "count": 1 }] },
+      "accessRequirements": { "orgMilestones": ["the-tidewright-cleared"], "agentAttunements": ["ward-hall-sigils"], "attunementThreshold": 0.5 },
+      "difficultyRating": 55,
+      "mechanicChecks": [
+        {
+          "id": "break-the-dirge",
+          "name": "Break the Dirge",
+          "description": "The raid has to out-damage the Choir's rising dirge before its harmonics stack out of control.",
+          "attributeWeights": [{ "attributeId": "output", "weight": 0.75 }, { "attributeId": "control", "weight": 0.25 }],
+          "difficultyThreshold": 14,
+          "thresholdMode": "perAssignedAgent",
+          "scope": "team_aggregate",
+          "failureConsequence": { "type": "cascade", "severity": 0.6 }
+        },
+        {
+          "id": "cleanse-the-chord",
+          "name": "Cleanse the Chord",
+          "description": "The Mender has to scrub the Choir's discordant chord off the raid before it corrodes into real damage.",
+          "attributeWeights": [{ "attributeId": "restoration", "weight": 0.6 }, { "attributeId": "control", "weight": 0.4 }],
+          "difficultyThreshold": 20,
+          "scope": "role_specific",
+          "roleIds": ["mender"],
+          "failureConsequence": { "type": "agent_damage", "severity": 0.6 }
+        }
+      ],
+      "completionCriteria": { "type": "survival_check", "parameters": {} },
+      "timePressure": null,
+      "outcomes": {
+        "success": {
+          "rewardTable": [{ "itemId": "choir-silencing-bell", "dropRate": 1.0 }, { "itemId": "hollow-chorus-signet", "dropRate": 0.5 }],
+          "narrative": "The dirge breaks mid-swell and the Hollow Choir falls silent for the first time in longer than anyone in the hall can say. The lockout ends in a kill.",
+          "reputationGain": 5,
+          "currencyReward": 150,
+          "milestoneFlag": "the-hollow-choir-cleared"
+        },
+        "partial": {
+          "rewardTable": [],
+          "narrative": "The Choir falls, but not before the chord gets loose and half the raid limps out corroded. A kill's a kill.",
+          "reputationGain": 2,
+          "agentDowntimeCycles": 2
+        },
+        "failure": {
+          "rewardTable": [],
+          "narrative": "The dirge outraces the raid's damage, or the chord outraces the cleanse — either way, the Choir resets and the hall goes quiet again. Next week.",
+          "stressPenalty": 3,
+          "tokenRefund": 0.25
+        }
+      }
+    }
+  ],
+  "difficultyModes": [],
+  "items": [
+    {
+      "id": "gate-warden-plating",
+      "name": "Gate-Warden Plating",
+      "slot": "chest",
+      "statBonuses": { "mitigation": 2 },
+      "tierRequirement": "recruit",
+      "flavorText": "Stripped off a construct that never got to finish its cast."
+    },
+    {
+      "id": "tidewrights-aegis",
+      "name": "Tidewright's Aegis",
+      "slot": "trinket",
+      "statBonuses": { "mitigation": 1, "control": 1 },
+      "tierRequirement": "regular",
+      "flavorText": "Still drips, no matter how long it's been out of the flooded chamber."
+    },
+    {
+      "id": "surgebreaker-draught",
+      "name": "Surgebreaker Draught",
+      "slot": "consumable",
+      "statBonuses": { "restoration": 2 },
+      "tierRequirement": "regular",
+      "flavorText": "Brewed from the same salt the Tidewright drowned in."
+    },
+    {
+      "id": "choir-silencing-bell",
+      "name": "Choir-Silencing Bell",
+      "slot": "trinket",
+      "statBonuses": { "output": 3 },
+      "tierRequirement": "core",
+      "flavorText": "Rings exactly once. That's all it took."
+    },
+    {
+      "id": "hollow-chorus-signet",
+      "name": "Hollow Chorus Signet",
+      "slot": "trinket",
+      "statBonuses": { "restoration": 2, "control": 1 },
+      "tierRequirement": "core",
+      "flavorText": "The last bound voice, finally quiet, set in plain iron."
+    },
+    {
+      "id": "wardhall-marching-boots",
+      "name": "Ward-Hall Marching Boots",
+      "slot": "feet",
+      "statBonuses": { "control": 2 },
+      "tierRequirement": "recruit",
+      "flavorText": "Standard issue for anyone expected to be on time for the pull."
+    },
+    {
+      "id": "recruits-honest-blade",
+      "name": "Recruit's Honest Blade",
+      "slot": "weapon",
+      "statBonuses": { "output": 2 },
+      "tierRequirement": "recruit",
+      "flavorText": "Nothing special. It just hits the thing you point it at."
+    },
+    {
+      "id": "menders-steady-hand",
+      "name": "Mender's Steady Hand",
+      "slot": "trinket",
+      "statBonuses": { "restoration": 1, "mitigation": 1 },
+      "tierRequirement": "regular",
+      "flavorText": "Worn smooth from bracing against a chest that kept trying to fall over."
+    }
+  ],
+  "narrativeEvents": [
+    {
+      "trigger": { "type": "first_clear", "target": "the-gate-warden" },
+      "title": "First Pull, First Kill",
+      "text": "The Gate-Warden goes down on the first real attempt of the night. The guild's Discord fills up with too many exclamation points for a boss this easy — nobody wants to say it, but everyone knows the real test is behind the next door.",
+      "rewards": [],
+      "agentUnlock": null
+    },
+    {
+      "trigger": { "type": "first_clear", "target": "the-tidewright" },
+      "title": "The Flooded Chamber Goes Dry",
+      "text": "The last surge breaks against the tank's line and the Tidewright sinks for good. Somebody's already asking if there's time for one more pull tonight.",
+      "rewards": [],
+      "agentUnlock": null
+    },
+    {
+      "trigger": { "type": "agent_milestone", "target": "wipe" },
+      "title": "That One Went Bad Fast",
+      "text": "The dirge stacks past the point anyone can pull it back, and the raid goes down in a scramble of last-second cooldowns that don't land in time. Somebody starts typing 'gg' before the release timer even hits zero.",
+      "rewards": [],
+      "agentUnlock": null
+    },
+    {
+      "trigger": { "type": "agent_milestone", "target": "clutch-clear" },
+      "title": "One Health Bar From the Wipe",
+      "text": "The last Mender standing scrubs the chord off three raiders in the same global cooldown, and the Choir falls with the raid frame reading red across the board. Nobody breathes until the loot window pops.",
+      "rewards": [],
+      "agentUnlock": null
+    },
+    {
+      "trigger": { "type": "agent_milestone", "target": "loot-dispute" },
+      "title": "Two Hands, One Bell",
+      "text": "The Choir-Silencing Bell drops and two raiders who both watched their own numbers all night both have a case for it. The guild's loot council spends longer arguing about the bell than the pull that killed the boss took.",
+      "rewards": [],
+      "agentUnlock": null
+    }
+  ],
+  "scaling": { "type": "fixed", "scalingRules": {} }
+}

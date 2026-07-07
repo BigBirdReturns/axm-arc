@@ -1,13 +1,16 @@
 import type {
   Agent,
+  AgentContribution,
   AgentRunResult,
   Arc,
   Challenge,
+  CheckDiagnostic,
   LootDrop,
   MechanicCheck,
   MechanicResult,
   Organization,
   RunReport,
+  ScoreBreakdown,
 } from "./types";
 import { AFFLICTION_PENALTIES, RELATIONSHIP_MODS, DEFAULT_TRAIT_POOL } from "./constants";
 import { Rng, hashSeed } from "./prng";
@@ -23,6 +26,11 @@ export interface ResolveChallengeOpts {
    *  Defaults to 0. Honored only when the party clears the same count+role gates
    *  the shell used to offer the option; a no-op otherwise (see steadinessFor). */
   tokensSpent?: number;
+  /** When true, the returned RunReport carries a `diagnostics` block capturing
+   *  the per-check, per-agent term breakdown behind every score. Off by default
+   *  and purely additive — a run with it set is byte-identical to one without,
+   *  because it captures values already computed rather than drawing anew. */
+  collectDiagnostics?: boolean;
 }
 
 function effectiveThreshold(check: MechanicCheck, partySize: number): number {
@@ -154,6 +162,7 @@ function scoreAgent(
   arc: Arc,
   rng: Rng,
   steadiness = 1,
+  out?: { breakdown?: ScoreBreakdown },
 ): number {
   const rawScore = check.attributeWeights.reduce((s, aw) => {
     return s + (agent.attributes[aw.attributeId] ?? 0) * aw.weight;
@@ -177,9 +186,19 @@ function scoreAgent(
 
   const traitBonus = applyTraitBonuses(agent, check, arc);
 
-  return (
-    rawScore + gearBonus + relMod + moraleMod + afflictionMod + variance + volatilitySwing + traitBonus
-  );
+  const total =
+    rawScore + gearBonus + relMod + moraleMod + afflictionMod + variance + volatilitySwing + traitBonus;
+
+  // Diagnostics capture: only fills the out-param when the caller asked for it.
+  // These are the exact terms just summed — no extra rng, no recomputation — so
+  // a run with `out` set is byte-identical to one without.
+  if (out) {
+    out.breakdown = {
+      rawScore, gearBonus, relMod, moraleMod, afflictionMod, variance, volatilitySwing, traitBonus, total,
+    };
+  }
+
+  return total;
 }
 
 function timePressureCheck(challenge: Challenge, agents: Agent[], org: Organization, arc: Arc): boolean {
@@ -288,6 +307,20 @@ export function resolveChallenge(opts: ResolveChallengeOpts): RunReport {
 
   const agentResults: AgentRunResult[] = [];
 
+  // Diagnostics: off by default. When on, we capture each score's term
+  // breakdown into per-check entries as the existing loops run — no extra rng,
+  // no second pass, so the run stays byte-identical.
+  const collectDiag = opts.collectDiagnostics ?? false;
+  const checkDiag = new Map<string, CheckDiagnostic>();
+  const diagFor = (check: MechanicCheck, threshold: number): CheckDiagnostic => {
+    let d = checkDiag.get(check.id);
+    if (!d) {
+      d = { mechanicId: check.id, scope: check.scope, threshold, passed: true, contributions: [] };
+      checkDiag.set(check.id, d);
+    }
+    return d;
+  };
+
   for (const agent of assignedAgents) {
     const mechanicResults: MechanicResult[] = [];
     const others = assignedAgents.filter((a) => a.id !== agent.id);
@@ -311,8 +344,14 @@ export function resolveChallenge(opts: ResolveChallengeOpts): RunReport {
             continue;
           }
         }
-        score = scoreAgent(agent, check, others, org, arc, rng, steadiness);
+        const cap: { breakdown?: ScoreBreakdown } = {};
+        score = scoreAgent(agent, check, others, org, arc, rng, steadiness, collectDiag ? cap : undefined);
         passed = score >= threshold;
+        if (collectDiag && cap.breakdown) {
+          const d = diagFor(check, threshold);
+          d.contributions.push({ agentId: agent.id, score, breakdown: cap.breakdown });
+          if (!passed) d.passed = false;
+        }
       } else {
         // team_aggregate — compute on first agent, share result
         const existingResult = mechanicResults.find((mr) => mr.mechanicId === check.id);
@@ -320,9 +359,21 @@ export function resolveChallenge(opts: ResolveChallengeOpts): RunReport {
           mechanicResults.push({ ...existingResult });
           continue;
         }
-        // Sum all agents' individual scores
+        // Sum all agents' individual scores. Note this branch runs once PER
+        // assigned agent (mechanicResults is per-agent), so every agent rolls
+        // their own version of the aggregate — a down happens when a specific
+        // agent catches a failing roll, not on one shared team number.
+        const localContribs: AgentContribution[] = [];
         const teamScore = assignedAgents.reduce((s, a) => {
-          return s + scoreAgent(a, check, assignedAgents.filter((o) => o.id !== a.id), org, arc, rng, steadiness);
+          const cap: { breakdown?: ScoreBreakdown } = {};
+          const contribution = scoreAgent(
+            a, check, assignedAgents.filter((o) => o.id !== a.id), org, arc, rng, steadiness,
+            collectDiag ? cap : undefined,
+          );
+          if (collectDiag && cap.breakdown) {
+            localContribs.push({ agentId: a.id, score: contribution, breakdown: cap.breakdown });
+          }
+          return s + contribution;
         }, 0);
         // Macro variance prevents large teams from flatlining via law of large
         // numbers. Symmetric and mean-zero, so the lever scales it too.
@@ -330,6 +381,25 @@ export function resolveChallenge(opts: ResolveChallengeOpts): RunReport {
         score = teamScore + macroVariance;
         threshold = effectiveThreshold(check, assignedAgents.length);
         passed = score >= threshold;
+        if (collectDiag) {
+          // Keep the WORST of the per-agent rolls (the one that could drop
+          // someone) and fail the check if ANY agent's roll failed — so the
+          // diagnosis explains the roll that actually mattered, not the last.
+          const prior = checkDiag.get(check.id);
+          if (!prior) {
+            checkDiag.set(check.id, {
+              mechanicId: check.id, scope: check.scope, threshold,
+              passed, teamScore: score, contributions: localContribs,
+            });
+          } else {
+            if (score < (prior.teamScore ?? Infinity)) {
+              prior.teamScore = score;
+              prior.threshold = threshold;
+              prior.contributions = localContribs;
+            }
+            if (!passed) prior.passed = false;
+          }
+        }
       }
 
       mechanicResults.push({ mechanicId: check.id, score, threshold, passed });
@@ -385,5 +455,8 @@ export function resolveChallenge(opts: ResolveChallengeOpts): RunReport {
     lootDrops,
     dramaTriggers: [],
     narrativeSeed,
+    ...(collectDiag
+      ? { diagnostics: { challengeId: challenge.id, checks: [...checkDiag.values()] } }
+      : {}),
   };
 }

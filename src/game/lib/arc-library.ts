@@ -85,24 +85,35 @@ function schemaErrorLines(e: unknown): string[] {
   return lines.length > 0 ? lines : [msg];
 }
 
-// Validate a JSON string and (on success) add it to the library as an
-// imported, unsigned arc. Never throws — validation errors come back as
-// strings so callers can render them cleanly.
-export function importArcFromJson(
+// Parse + validate a JSON string against the arc schema, without touching the
+// library. This is the validate-only half of importArcFromJson, factored out
+// so the workshop's "Validate" button (no save) and the library's
+// "Validate & Save" button share one validation path instead of two.
+export function validateArcJson(
   json: string,
-): { ok: true; entry: ArcLibraryEntry } | { ok: false; errors: string[] } {
+): { ok: true; arc: Arc } | { ok: false; errors: string[] } {
   let parsed: unknown;
   try {
     parsed = JSON.parse(json);
   } catch (e) {
     return { ok: false, errors: [`JSON parse error: ${(e as Error).message}`] };
   }
-  let arc: Arc;
   try {
-    arc = validateArc(parsed);
+    return { ok: true, arc: validateArc(parsed) };
   } catch (e) {
     return { ok: false, errors: schemaErrorLines(e) };
   }
+}
+
+// Validate a JSON string and (on success) add it to the library as an
+// imported, unsigned arc. Never throws — validation errors come back as
+// strings so callers can render them cleanly.
+export function importArcFromJson(
+  json: string,
+): { ok: true; entry: ArcLibraryEntry } | { ok: false; errors: string[] } {
+  const validated = validateArcJson(json);
+  if (!validated.ok) return validated;
+  const arc = validated.arc;
   const entries = loadArcLibrary();
   // Replace any existing imported entry with the same id (re-import updates).
   // Never overwrite a bundled entry.

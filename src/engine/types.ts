@@ -355,6 +355,54 @@ export interface RunReport {
   dramaTriggers: DramaTrigger[];
   narrativeSeed: number;
   rewardsGranted?: { currency: number; reputation: number };
+  /** Populated only when resolveChallenge is called with `collectDiagnostics`.
+   *  Off by default: absent here means byte-identical output to a run without
+   *  it. This is the same numbers the resolver already computed, captured
+   *  rather than recomputed, so a wipe can be explained from the exact terms
+   *  that decided it (see src/sim/wipe-diagnosis.ts). */
+  diagnostics?: RunDiagnostics;
+}
+
+/** The named terms scoreAgent() sums into one check score. Captured, never
+ *  recomputed — the single derivation is the resolver's, so a diagnosis can
+ *  never disagree with the run it explains. `total` is their sum (=== the
+ *  MechanicResult score for per_agent/role_specific; the agent's contribution
+ *  to the sum for team_aggregate). */
+export interface ScoreBreakdown {
+  rawScore: number;
+  gearBonus: number;
+  relMod: number;
+  moraleMod: number;
+  afflictionMod: number;
+  variance: number;
+  volatilitySwing: number;
+  traitBonus: number;
+  total: number;
+}
+
+export interface AgentContribution {
+  agentId: string;
+  score: number;
+  breakdown: ScoreBreakdown;
+}
+
+export interface CheckDiagnostic {
+  mechanicId: string;
+  scope: "per_agent" | "role_specific" | "team_aggregate";
+  threshold: number;
+  passed: boolean;
+  /** For team_aggregate: the summed team score against the (party-scaled)
+   *  threshold. Undefined for per-agent/role scopes. */
+  teamScore?: number;
+  /** Every agent's contribution to this check — the one scored value for
+   *  per_agent/role_specific, or each agent's addend for team_aggregate.
+   *  Agents out of a role_specific check's scope are omitted. */
+  contributions: AgentContribution[];
+}
+
+export interface RunDiagnostics {
+  challengeId: string;
+  checks: CheckDiagnostic[];
 }
 
 // ── Narrative ─────────────────────────────────────────────────────────────────

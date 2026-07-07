@@ -1,0 +1,693 @@
+{
+  "meta": {
+    "id": "palisade-war",
+    "name": "The Palisade War",
+    "description": "Frontier clans raid each other's stockades for plunder and dread; you run one clan's war-band, holdfast by holdfast.",
+    "author": "axm-arc team",
+    "version": "1.0.0",
+    "engineVersion": "1.0.0",
+    "domain": "stockade-raiding",
+    "estimatedCycles": 22
+  },
+  "attributes": [
+    { "id": "muscle", "name": "Muscle", "description": "Raw breach power — the força that splits a gate, a shield line, or a stockade wall." },
+    { "id": "cunning", "name": "Cunning", "description": "Timing and deception — the read on a watch-change or a patrol gap that turns a raid quiet instead of bloody." },
+    { "id": "bulwark", "name": "Bulwark", "description": "Defense and armor — what keeps a raider or a rampart standing under a counter-raid." },
+    { "id": "craft", "name": "Craft", "description": "Siegecraft and logistics — the engineering that fires a granary, saps a wall, or keeps a stockade's own stores full." }
+  ],
+  "roles": [
+    { "id": "raider", "name": "Raider", "attributeWeights": { "muscle": 0.6, "cunning": 0.2, "bulwark": 0.1, "craft": 0.1 } },
+    { "id": "sapper", "name": "Sapper", "attributeWeights": { "craft": 0.6, "muscle": 0.2, "cunning": 0.1, "bulwark": 0.1 } },
+    { "id": "warden", "name": "Warden", "attributeWeights": { "bulwark": 0.6, "craft": 0.2, "muscle": 0.1, "cunning": 0.1 } },
+    { "id": "forager", "name": "Forager", "attributeWeights": { "cunning": 0.45, "craft": 0.45, "muscle": 0.1 } }
+  ],
+  "tiers": [
+    { "id": "whelp", "name": "Whelp", "statBudgetMin": 20, "statBudgetMax": 32, "upkeepCost": 1, "baseEfficiencyModifier": 1.5 },
+    { "id": "proven", "name": "Proven", "statBudgetMin": 32, "statBudgetMax": 48, "upkeepCost": 3, "baseEfficiencyModifier": 1.0 },
+    { "id": "warleader", "name": "Warleader", "statBudgetMin": 48, "statBudgetMax": 60, "upkeepCost": 6, "baseEfficiencyModifier": 0.5 }
+  ],
+  "currencyName": "Plunder",
+  "materialName": "Timber",
+  "tokenName": "War Parties",
+  "reputationName": "Dread",
+  "tokensPerCycle": 2,
+  "maxTokens": 4,
+  "infrastructureTokenBonus": 0.25,
+  "namePool": {
+    "firstNames": [
+      "Ansgar", "Brodie", "Cass", "Drommel", "Eska",
+      "Fenrik", "Gorran", "Halvard", "Ivo", "Jarra",
+      "Korth", "Lira", "Magne", "Nessa", "Orvik"
+    ],
+    "lastNames": [
+      "Ashfell", "Bonehollow", "Cragmoor", "Dredgewick", "Emberfast",
+      "Flintbarrow", "Gravemarch", "Harrowgate", "Ironrun", "Justwake"
+    ]
+  },
+  "customTraits": [],
+  "progressionTiers": [
+    {
+      "id": "chapter-1",
+      "name": "Chapter I: The Outlying Steads",
+      "flavorText": "The rival clan's outer holdings — a lone watchtower, a timber camp, a salt-cellar stead — sit lightly guarded and ripe for a first blooding. Easy plunder to build the war-band's name.",
+      "unlockConditions": { "orgMilestones": [], "reputationMinimum": 0 },
+      "challenges": ["lone-watchtower", "timber-camp", "salt-cellar-stead"],
+      "requiredChallenges": ["lone-watchtower", "timber-camp", "salt-cellar-stead"],
+      "optionalChallenges": []
+    },
+    {
+      "id": "chapter-2",
+      "name": "Chapter II: The Ring Forts",
+      "flavorText": "Word of the raids has spread, and the rival clan has dug in: a twin-gate fort, a hillcrest ring, a flooded moat holdfast. Every stockade now answers back.",
+      "unlockConditions": { "orgMilestones": ["salt-cellar-stead-cleared"], "reputationMinimum": 5 },
+      "challenges": ["twin-gate-fort", "hillcrest-ring", "flooded-moat-holdfast"],
+      "requiredChallenges": ["twin-gate-fort", "hillcrest-ring", "flooded-moat-holdfast"],
+      "optionalChallenges": []
+    },
+    {
+      "id": "chapter-3",
+      "name": "Chapter III: The Rival Seat",
+      "flavorText": "One outer palisade stands between the war-band and the rival clan's own bastion. Break it, and the feud is decided at the rival seat itself.",
+      "unlockConditions": { "orgMilestones": ["flooded-moat-holdfast-cleared"], "reputationMinimum": 15 },
+      "challenges": ["the-outer-palisade", "rival-bastion"],
+      "requiredChallenges": ["the-outer-palisade", "rival-bastion"],
+      "optionalChallenges": []
+    }
+  ],
+  "attunementChains": [
+    {
+      "id": "the-war-horns",
+      "name": "The War Horns",
+      "steps": [
+        { "type": "challenge_clear", "target": "twin-gate-fort" },
+        { "type": "challenge_clear", "target": "flooded-moat-holdfast" },
+        { "type": "challenge_clear", "target": "the-outer-palisade" }
+      ],
+      "grantsAccessTo": ["rival-bastion"]
+    }
+  ],
+  "challenges": [
+    {
+      "id": "lone-watchtower",
+      "name": "The Lone Watchtower",
+      "description": "A single watchtower on the rival clan's outer boundary, manned by a bored two-man watch. The war-band's first raid, meant to be over before the tower's own bell can ring.",
+      "rosterRequirements": { "minAgents": 2, "maxAgents": 4, "roleRequirements": [] },
+      "accessRequirements": { "orgMilestones": [], "agentAttunements": [], "attunementThreshold": null },
+      "difficultyRating": 12,
+      "mechanicChecks": [
+        {
+          "id": "watchtower-breach",
+          "name": "Breach the Palisade",
+          "description": "Force the tower's outer stakes before the watch can raise the alarm.",
+          "attributeWeights": [{ "attributeId": "muscle", "weight": 0.7 }, { "attributeId": "cunning", "weight": 0.3 }],
+          "difficultyThreshold": 6,
+          "scope": "team_aggregate",
+          "failureConsequence": { "type": "stress", "severity": 0.1 }
+        },
+        {
+          "id": "watchtower-timing",
+          "name": "Time the Watch-Change",
+          "description": "Every raider reads the tower's watch rotation for the gap between shifts.",
+          "attributeWeights": [{ "attributeId": "cunning", "weight": 0.6 }, { "attributeId": "bulwark", "weight": 0.4 }],
+          "difficultyThreshold": 5,
+          "scope": "per_agent",
+          "failureConsequence": { "type": "agent_damage", "severity": 0.2 }
+        }
+      ],
+      "completionCriteria": { "type": "all_mechanics_passed", "parameters": {} },
+      "timePressure": null,
+      "outcomes": {
+        "success": {
+          "rewardTable": [{ "itemId": "watchmans-bronze-horn", "dropRate": 1.0 }],
+          "narrative": "The tower falls before its bell ever sounds. The war-band's first plunder is small, but the boundary is broken.",
+          "reputationGain": 1,
+          "currencyReward": 30,
+          "milestoneFlag": "lone-watchtower-cleared"
+        },
+        "partial": {
+          "rewardTable": [],
+          "narrative": "The tower falls but a runner slips the perimeter. The boundary is broken, though the rival clan now knows a war-band is moving.",
+          "agentDowntimeCycles": 1
+        },
+        "failure": {
+          "rewardTable": [],
+          "narrative": "The watch-change never opens. The raiders pull back before the bell can ring on them instead.",
+          "stressPenalty": 2,
+          "tokenRefund": 0.5
+        }
+      }
+    },
+    {
+      "id": "timber-camp",
+      "name": "The Timber Camp",
+      "description": "A logging camp feeds the rival clan's stockade repairs. Burn its stores and every wall the rivals rebuild this season goes up slower.",
+      "rosterRequirements": { "minAgents": 3, "maxAgents": 5, "roleRequirements": [{ "roleId": "sapper", "count": 1 }] },
+      "accessRequirements": { "orgMilestones": ["lone-watchtower-cleared"], "agentAttunements": [], "attunementThreshold": null },
+      "difficultyRating": 18,
+      "mechanicChecks": [
+        {
+          "id": "timbercamp-fire",
+          "name": "Fire the Granary",
+          "description": "The Sapper rigs the timber stacks and the camp's grain store to burn together.",
+          "attributeWeights": [{ "attributeId": "craft", "weight": 0.8 }, { "attributeId": "muscle", "weight": 0.2 }],
+          "difficultyThreshold": 9,
+          "scope": "role_specific",
+          "roleIds": ["sapper"],
+          "failureConsequence": { "type": "agent_damage", "severity": 0.4 }
+        },
+        {
+          "id": "timbercamp-withdrawal",
+          "name": "Hold the Withdrawal",
+          "description": "The rest of the war-band covers the burn and pulls out before the camp's guards regroup.",
+          "attributeWeights": [{ "attributeId": "muscle", "weight": 0.6 }, { "attributeId": "cunning", "weight": 0.4 }],
+          "difficultyThreshold": 6,
+          "thresholdMode": "perAssignedAgent",
+          "scope": "team_aggregate",
+          "failureConsequence": { "type": "team_damage", "severity": 0.3 }
+        }
+      ],
+      "completionCriteria": { "type": "all_mechanics_passed", "parameters": {} },
+      "timePressure": null,
+      "outcomes": {
+        "success": {
+          "rewardTable": [{ "itemId": "timber-raiders-hookblade", "dropRate": 1.0 }],
+          "narrative": "The timber camp goes up in one long burn. Every stockade wall the rival clan repairs this season will go up slower for it.",
+          "reputationGain": 2,
+          "currencyReward": 50,
+          "milestoneFlag": "timber-camp-cleared"
+        },
+        "partial": {
+          "rewardTable": [],
+          "narrative": "The stacks catch, but the grain store is saved. The camp still burns; the rivals still eat.",
+          "agentDowntimeCycles": 1
+        },
+        "failure": {
+          "rewardTable": [],
+          "narrative": "The rigging is found too soon. The camp's guards drive the war-band off before a spark ever catches.",
+          "stressPenalty": 3,
+          "tokenRefund": 0.5
+        }
+      }
+    },
+    {
+      "id": "salt-cellar-stead",
+      "name": "The Salt-Cellar Stead",
+      "description": "A stead built over the rival clan's salt cellar, the one store that keeps their whole war-band fed through a siege. Take it fast and the feud tilts before it properly starts.",
+      "rosterRequirements": { "minAgents": 3, "maxAgents": 5, "roleRequirements": [{ "roleId": "forager", "count": 1 }] },
+      "accessRequirements": { "orgMilestones": ["timber-camp-cleared"], "agentAttunements": [], "attunementThreshold": null },
+      "difficultyRating": 24,
+      "mechanicChecks": [
+        {
+          "id": "saltcellar-steady",
+          "name": "Steady the Stores",
+          "description": "The Forager keeps the salt cellar's stores from spoiling or scattering under fire.",
+          "attributeWeights": [{ "attributeId": "cunning", "weight": 0.7 }, { "attributeId": "craft", "weight": 0.3 }],
+          "difficultyThreshold": 11,
+          "scope": "role_specific",
+          "roleIds": ["forager"],
+          "failureConsequence": { "type": "stress", "severity": 0.4 }
+        },
+        {
+          "id": "saltcellar-withdrawal",
+          "name": "Hold the Withdrawal",
+          "description": "The war-band pushes the stead's guard detail out without torching the salt cellar itself.",
+          "attributeWeights": [{ "attributeId": "muscle", "weight": 0.5 }, { "attributeId": "bulwark", "weight": 0.5 }],
+          "difficultyThreshold": 6,
+          "thresholdMode": "perAssignedAgent",
+          "scope": "team_aggregate",
+          "failureConsequence": { "type": "team_damage", "severity": 0.3 }
+        },
+        {
+          "id": "saltcellar-watch",
+          "name": "Time the Watch-Change",
+          "description": "Every raider checks the stead's yard for the snares the guard detail likes to leave behind.",
+          "attributeWeights": [{ "attributeId": "cunning", "weight": 0.5 }, { "attributeId": "bulwark", "weight": 0.5 }],
+          "difficultyThreshold": 6,
+          "scope": "per_agent",
+          "failureConsequence": { "type": "agent_damage", "severity": 0.2 }
+        }
+      ],
+      "completionCriteria": { "type": "all_mechanics_passed", "parameters": {} },
+      "timePressure": null,
+      "outcomes": {
+        "success": {
+          "rewardTable": [{ "itemId": "salt-cellar-ration-seal", "dropRate": 1.0 }],
+          "narrative": "The salt cellar changes hands whole. The rival clan's war-band eats thinner rations from here on.",
+          "reputationGain": 3,
+          "currencyReward": 70,
+          "milestoneFlag": "salt-cellar-stead-cleared"
+        },
+        "partial": {
+          "rewardTable": [],
+          "narrative": "The guard detail is driven off, but half the salt cellar is fouled in the retreat. The stead is yours regardless.",
+          "reputationGain": 1,
+          "agentDowntimeCycles": 1
+        },
+        "failure": {
+          "rewardTable": [],
+          "narrative": "The guard detail holds the stead. The rival clan eats well another season.",
+          "stressPenalty": 4,
+          "tokenRefund": 0.25
+        }
+      }
+    },
+    {
+      "id": "twin-gate-fort",
+      "name": "The Twin-Gate Fort",
+      "description": "The rival clan dug in properly here: a fort with two gatehouses covering each other, and pickets watching the approach. This is the ring forts' front door.",
+      "rosterRequirements": { "minAgents": 4, "maxAgents": 6, "roleRequirements": [{ "roleId": "raider", "count": 1 }, { "roleId": "forager", "count": 1 }] },
+      "accessRequirements": { "orgMilestones": ["salt-cellar-stead-cleared"], "agentAttunements": [], "attunementThreshold": null },
+      "difficultyRating": 35,
+      "mechanicChecks": [
+        {
+          "id": "twingate-breach",
+          "name": "Breach the Palisade",
+          "description": "The war-band forces the near gate while the far gate's crossbowmen open up.",
+          "attributeWeights": [{ "attributeId": "muscle", "weight": 0.6 }, { "attributeId": "cunning", "weight": 0.4 }],
+          "difficultyThreshold": 7,
+          "thresholdMode": "perAssignedAgent",
+          "scope": "team_aggregate",
+          "failureConsequence": { "type": "team_damage", "severity": 0.4 }
+        },
+        {
+          "id": "twingate-command",
+          "name": "Marshal the Assault",
+          "description": "The Raider holds the breach's timing so the war-band doesn't bunch between the two gates.",
+          "attributeWeights": [{ "attributeId": "muscle", "weight": 0.7 }, { "attributeId": "cunning", "weight": 0.3 }],
+          "difficultyThreshold": 13,
+          "scope": "role_specific",
+          "roleIds": ["raider"],
+          "failureConsequence": { "type": "agent_damage", "severity": 0.5 }
+        },
+        {
+          "id": "twingate-lanes",
+          "name": "Time the Watch-Change",
+          "description": "The Forager reads the second gate's watch-change so it can't reinforce the first in time.",
+          "attributeWeights": [{ "attributeId": "cunning", "weight": 0.8 }, { "attributeId": "muscle", "weight": 0.2 }],
+          "difficultyThreshold": 13,
+          "scope": "role_specific",
+          "roleIds": ["forager"],
+          "failureConsequence": { "type": "team_damage", "severity": 0.3 }
+        }
+      ],
+      "completionCriteria": { "type": "all_mechanics_passed", "parameters": {} },
+      "timePressure": null,
+      "outcomes": {
+        "success": {
+          "rewardTable": [{ "itemId": "twin-gate-key-bar", "dropRate": 1.0 }],
+          "narrative": "The near gate falls before the far one can answer. The fort's crossbowmen lay down arms rather than hold a stockade with one gate already open.",
+          "reputationGain": 4,
+          "currencyReward": 100,
+          "milestoneFlag": "twin-gate-fort-cleared"
+        },
+        "partial": {
+          "rewardTable": [],
+          "narrative": "The near gate falls but the far gate's watch scatters into the ring forts beyond. The fort's yard is yours; the rest will answer harder.",
+          "reputationGain": 2,
+          "agentDowntimeCycles": 2
+        },
+        "failure": {
+          "rewardTable": [],
+          "narrative": "The far gate's crossbowmen hold the breach too long. The war-band withdraws under fire from both gates.",
+          "stressPenalty": 4,
+          "tokenRefund": 0.25
+        }
+      }
+    },
+    {
+      "id": "hillcrest-ring",
+      "name": "The Hillcrest Ring",
+      "description": "A ring stockade on the high ground warns the rest of the rival clan of every war-band on the move. Take it before the next signal fire is lit, or the whole clan learns you're coming.",
+      "rosterRequirements": { "minAgents": 4, "maxAgents": 6, "roleRequirements": [{ "roleId": "warden", "count": 1 }] },
+      "accessRequirements": { "orgMilestones": ["twin-gate-fort-cleared"], "agentAttunements": [], "attunementThreshold": null },
+      "difficultyRating": 42,
+      "mechanicChecks": [
+        {
+          "id": "hillcrest-ward",
+          "name": "Hold the Withdrawal",
+          "description": "The Warden holds the ring's collapsing palisade open long enough for the war-band to get inside.",
+          "attributeWeights": [{ "attributeId": "bulwark", "weight": 0.8 }, { "attributeId": "craft", "weight": 0.2 }],
+          "difficultyThreshold": 15,
+          "scope": "role_specific",
+          "roleIds": ["warden"],
+          "failureConsequence": { "type": "agent_damage", "severity": 0.5 }
+        },
+        {
+          "id": "hillcrest-climb",
+          "name": "Steady the Climb",
+          "description": "The war-band climbs the exposed hillside switchbacks together, roped and slow, with nowhere to take cover.",
+          "attributeWeights": [{ "attributeId": "cunning", "weight": 0.5 }, { "attributeId": "bulwark", "weight": 0.5 }],
+          "difficultyThreshold": 7,
+          "thresholdMode": "perAssignedAgent",
+          "scope": "team_aggregate",
+          "failureConsequence": { "type": "team_damage", "severity": 0.4 }
+        }
+      ],
+      "completionCriteria": { "type": "all_mechanics_passed", "parameters": {} },
+      "timePressure": { "rounds": 8, "aggregateThreshold": 70, "attributeId": "cunning" },
+      "outcomes": {
+        "success": {
+          "rewardTable": [{ "itemId": "hillcrest-ring-mail", "dropRate": 1.0 }],
+          "narrative": "The ring falls before the next signal fire can be lit. For the first time in the feud, the war-band moves unannounced.",
+          "reputationGain": 4,
+          "currencyReward": 110,
+          "milestoneFlag": "hillcrest-ring-cleared"
+        },
+        "partial": {
+          "rewardTable": [],
+          "narrative": "The ring falls, but not before a single signal fire catches. Something in the rival seat has already noticed.",
+          "reputationGain": 2,
+          "agentDowntimeCycles": 2
+        },
+        "failure": {
+          "rewardTable": [],
+          "narrative": "The climb costs too much time. The signal fire catches, and the whole rival clan hears it.",
+          "stressPenalty": 4,
+          "tokenRefund": 0.25
+        }
+      }
+    },
+    {
+      "id": "flooded-moat-holdfast",
+      "name": "The Flooded Moat Holdfast",
+      "description": "A holdfast ringed by a flooded moat, held by a garrison that knows the ground better than any raider ever will. The rival clan built it to be the ring forts' hardest answer.",
+      "rosterRequirements": { "minAgents": 5, "maxAgents": 6, "roleRequirements": [{ "roleId": "raider", "count": 1 }, { "roleId": "warden", "count": 1 }, { "roleId": "forager", "count": 1 }] },
+      "accessRequirements": { "orgMilestones": ["hillcrest-ring-cleared"], "agentAttunements": [], "attunementThreshold": null },
+      "difficultyRating": 50,
+      "mechanicChecks": [
+        {
+          "id": "moat-breach",
+          "name": "Breach the Palisade",
+          "description": "The war-band fords the moat and forces the holdfast's gate against defenders who know every crossing point in it.",
+          "attributeWeights": [{ "attributeId": "muscle", "weight": 0.6 }, { "attributeId": "cunning", "weight": 0.4 }],
+          "difficultyThreshold": 8,
+          "thresholdMode": "perAssignedAgent",
+          "scope": "team_aggregate",
+          "failureConsequence": { "type": "agent_damage", "severity": 0.5 }
+        },
+        {
+          "id": "moat-hold",
+          "name": "Hold the Withdrawal",
+          "description": "The Raider keeps the war-band together through the holdfast yard's crossfire.",
+          "attributeWeights": [{ "attributeId": "muscle", "weight": 0.7 }, { "attributeId": "cunning", "weight": 0.3 }],
+          "difficultyThreshold": 16,
+          "scope": "role_specific",
+          "roleIds": ["raider"],
+          "failureConsequence": { "type": "cascade", "severity": 0.6 }
+        },
+        {
+          "id": "moat-wards",
+          "name": "Break the Moat Wardens",
+          "description": "The Warden breaks the holdfast's own moat-wardens, the garrison's answer to any war-band that gets past the flood.",
+          "attributeWeights": [{ "attributeId": "bulwark", "weight": 0.8 }, { "attributeId": "craft", "weight": 0.2 }],
+          "difficultyThreshold": 16,
+          "scope": "role_specific",
+          "roleIds": ["warden"],
+          "failureConsequence": { "type": "agent_damage", "severity": 0.5 }
+        },
+        {
+          "id": "moat-triage",
+          "name": "Steady the Stores",
+          "description": "The Forager keeps the war-band's own supply upright through a fight with no clean ground to fall back to.",
+          "attributeWeights": [{ "attributeId": "cunning", "weight": 0.5 }, { "attributeId": "craft", "weight": 0.5 }],
+          "difficultyThreshold": 15,
+          "scope": "role_specific",
+          "roleIds": ["forager"],
+          "failureConsequence": { "type": "stress", "severity": 0.5 }
+        }
+      ],
+      "completionCriteria": { "type": "all_mechanics_passed", "parameters": {} },
+      "timePressure": null,
+      "outcomes": {
+        "success": {
+          "rewardTable": [{ "itemId": "moat-wardens-grapnel", "dropRate": 1.0 }],
+          "narrative": "The holdfast's gate comes down from its own moat-wardens' grapnels. Its stores change hands one last time.",
+          "reputationGain": 5,
+          "currencyReward": 140,
+          "milestoneFlag": "flooded-moat-holdfast-cleared"
+        },
+        "partial": {
+          "rewardTable": [],
+          "narrative": "The holdfast falls, but its garrison captain slips out through a sluice gate no war-band had charted.",
+          "reputationGain": 2,
+          "agentDowntimeCycles": 2
+        },
+        "failure": {
+          "rewardTable": [],
+          "narrative": "The moat wardens hold and the yard's crossfire is too much. The war-band falls back from the flooded walls.",
+          "stressPenalty": 5,
+          "tokenRefund": 0.25
+        }
+      }
+    },
+    {
+      "id": "the-outer-palisade",
+      "name": "The Outer Palisade",
+      "description": "The last palisade before the rival clan's own seat, and its garrison has had a season to prepare for exactly this war-band. Everyone who raids the seat crosses here first.",
+      "rosterRequirements": { "minAgents": 5, "maxAgents": 6, "roleRequirements": [{ "roleId": "raider", "count": 1 }, { "roleId": "forager", "count": 1 }, { "roleId": "warden", "count": 1 }] },
+      "accessRequirements": { "orgMilestones": ["flooded-moat-holdfast-cleared"], "agentAttunements": [], "attunementThreshold": null },
+      "difficultyRating": 65,
+      "mechanicChecks": [
+        {
+          "id": "outerpalisade-breach",
+          "name": "Breach the Palisade",
+          "description": "The war-band forces the outer palisade against a garrison that has done nothing but drill for this raid.",
+          "attributeWeights": [{ "attributeId": "muscle", "weight": 0.6 }, { "attributeId": "cunning", "weight": 0.4 }],
+          "difficultyThreshold": 8,
+          "thresholdMode": "perAssignedAgent",
+          "scope": "team_aggregate",
+          "failureConsequence": { "type": "team_damage", "severity": 0.5 }
+        },
+        {
+          "id": "outerpalisade-command",
+          "name": "Marshal the Assault",
+          "description": "The Raider keeps the war-band's shape as the palisade's approach narrows to a killing lane.",
+          "attributeWeights": [{ "attributeId": "muscle", "weight": 0.8 }, { "attributeId": "cunning", "weight": 0.2 }],
+          "difficultyThreshold": 17,
+          "scope": "role_specific",
+          "roleIds": ["raider"],
+          "failureConsequence": { "type": "cascade", "severity": 0.6 }
+        },
+        {
+          "id": "outerpalisade-flank",
+          "name": "Turn the Flank",
+          "description": "The Forager scouts the scree slope to hit the garrison's rear before the lane closes.",
+          "attributeWeights": [{ "attributeId": "cunning", "weight": 0.8 }, { "attributeId": "muscle", "weight": 0.2 }],
+          "difficultyThreshold": 17,
+          "scope": "role_specific",
+          "roleIds": ["forager"],
+          "failureConsequence": { "type": "agent_damage", "severity": 0.6 }
+        },
+        {
+          "id": "outerpalisade-barrage",
+          "name": "Weather the Barrage",
+          "description": "Every raider in the war-band endures the palisade's arrow and stone barrage as it closes the distance.",
+          "attributeWeights": [{ "attributeId": "bulwark", "weight": 0.7 }, { "attributeId": "craft", "weight": 0.3 }],
+          "difficultyThreshold": 12,
+          "scope": "per_agent",
+          "failureConsequence": { "type": "stress", "severity": 0.5 }
+        }
+      ],
+      "completionCriteria": { "type": "all_mechanics_passed", "parameters": {} },
+      "timePressure": { "rounds": 10, "aggregateThreshold": 90, "attributeId": "muscle" },
+      "outcomes": {
+        "success": {
+          "rewardTable": [{ "itemId": "outer-palisade-standard", "dropRate": 1.0 }],
+          "narrative": "The outer palisade comes down, and with it the last thing standing between the war-band and the rival seat. The road to the bastion is open.",
+          "reputationGain": 7,
+          "currencyReward": 200,
+          "milestoneFlag": "the-outer-palisade-cleared"
+        },
+        "partial": {
+          "rewardTable": [],
+          "narrative": "The palisade falls, but the garrison's captain escapes toward the seat with warning. The rival bastion knows the war-band is coming now.",
+          "reputationGain": 3,
+          "agentDowntimeCycles": 3
+        },
+        "failure": {
+          "rewardTable": [],
+          "narrative": "The killing lane holds. The war-band pulls back from the outer palisade to lick its wounds and try again.",
+          "stressPenalty": 6,
+          "tokenRefund": 0.25
+        }
+      }
+    },
+    {
+      "id": "rival-bastion",
+      "name": "The Rival Bastion",
+      "description": "The rival clan's own seat, and the warleader who ordered every counter-raid against you in the first place. There is nowhere left for either war-band to retreat to — this is where the feud is decided, one way or the other.",
+      "rosterRequirements": { "minAgents": 3, "maxAgents": 5, "roleRequirements": [{ "roleId": "raider", "count": 1 }, { "roleId": "sapper", "count": 1 }] },
+      "accessRequirements": { "orgMilestones": ["the-outer-palisade-cleared"], "agentAttunements": ["the-war-horns"], "attunementThreshold": 0.5 },
+      "difficultyRating": 78,
+      "mechanicChecks": [
+        {
+          "id": "bastion-gate",
+          "name": "Breach the Palisade",
+          "description": "The last gate in the rival seat, and its warleader's household guard has been told there is no yielding.",
+          "attributeWeights": [{ "attributeId": "muscle", "weight": 0.5 }, { "attributeId": "craft", "weight": 0.5 }],
+          "difficultyThreshold": 9,
+          "thresholdMode": "perAssignedAgent",
+          "scope": "team_aggregate",
+          "failureConsequence": { "type": "team_damage", "severity": 0.6 }
+        },
+        {
+          "id": "bastion-command",
+          "name": "Marshal the Assault",
+          "description": "The Raider carries the war-band through the bastion yard against the warleader's household guard.",
+          "attributeWeights": [{ "attributeId": "muscle", "weight": 0.7 }, { "attributeId": "cunning", "weight": 0.3 }],
+          "difficultyThreshold": 19,
+          "scope": "role_specific",
+          "roleIds": ["raider"],
+          "failureConsequence": { "type": "cascade", "severity": 0.7 }
+        },
+        {
+          "id": "bastion-sap",
+          "name": "Fire the Granary",
+          "description": "The Sapper fires the bastion's own granary and stores so there is nothing left to hold a siege on.",
+          "attributeWeights": [{ "attributeId": "craft", "weight": 0.7 }, { "attributeId": "muscle", "weight": 0.3 }],
+          "difficultyThreshold": 18,
+          "scope": "role_specific",
+          "roleIds": ["sapper"],
+          "failureConsequence": { "type": "agent_damage", "severity": 0.6 }
+        },
+        {
+          "id": "bastion-ground",
+          "name": "Time the Watch-Change",
+          "description": "Every raider reads the bastion yard for the warleader's last tricks before the final push.",
+          "attributeWeights": [{ "attributeId": "cunning", "weight": 0.5 }, { "attributeId": "bulwark", "weight": 0.5 }],
+          "difficultyThreshold": 12,
+          "scope": "per_agent",
+          "failureConsequence": { "type": "stress", "severity": 0.5 }
+        }
+      ],
+      "completionCriteria": { "type": "all_mechanics_passed", "parameters": {} },
+      "timePressure": { "rounds": 12, "aggregateThreshold": 110, "attributeId": "cunning" },
+      "outcomes": {
+        "success": {
+          "rewardTable": [{ "itemId": "warleaders-bastion-crown", "dropRate": 1.0 }, { "itemId": "outer-palisade-standard", "dropRate": 0.5 }],
+          "narrative": "The rival bastion falls, and with it the feud. The frontier answers to one war-band now — the one that broke every holdfast to get here.",
+          "reputationGain": 10,
+          "currencyReward": 300,
+          "milestoneFlag": "rival-bastion-cleared"
+        },
+        "partial": {
+          "rewardTable": [{ "itemId": "warleaders-bastion-crown", "dropRate": 0.5 }],
+          "narrative": "The bastion yard falls, but the warleader is gone by the time the war-band reaches the hall. The seat is yours; the warleader is someone else's feud now.",
+          "reputationGain": 4,
+          "agentDowntimeCycles": 3
+        },
+        "failure": {
+          "rewardTable": [],
+          "narrative": "The household guard holds the hall. The war-band withdraws from the rival seat, the feud not yet finished.",
+          "stressPenalty": 7,
+          "tokenRefund": 0.25
+        }
+      }
+    }
+  ],
+  "difficultyModes": [],
+  "items": [
+    {
+      "id": "watchmans-bronze-horn",
+      "name": "Watchman's Bronze Horn",
+      "slot": "trinket",
+      "statBonuses": { "cunning": 1 },
+      "tierRequirement": "whelp",
+      "flavorText": "A brass horn looted off a watch that never got to blow it."
+    },
+    {
+      "id": "timber-raiders-hookblade",
+      "name": "Timber-Raider's Hookblade",
+      "slot": "weapon",
+      "statBonuses": { "muscle": 2 },
+      "tierRequirement": "whelp",
+      "flavorText": "Balanced for hooking timber stacks off a burn pile, rival ash still in the grain."
+    },
+    {
+      "id": "salt-cellar-ration-seal",
+      "name": "Salt-Cellar Ration Seal",
+      "slot": "trinket",
+      "statBonuses": { "bulwark": 1, "craft": 1 },
+      "tierRequirement": "whelp",
+      "flavorText": "Stamped wax that once rationed a stead's salt; now it rations nothing but respect."
+    },
+    {
+      "id": "twin-gate-key-bar",
+      "name": "Twin-Gate Key-Bar",
+      "slot": "trinket",
+      "statBonuses": { "craft": 3 },
+      "tierRequirement": "proven",
+      "flavorText": "Pried from the twin gate's own lock, and it still fits every rival stockade the war-band has cracked since."
+    },
+    {
+      "id": "hillcrest-ring-mail",
+      "name": "Hillcrest Ring-Mail",
+      "slot": "chest",
+      "statBonuses": { "bulwark": 3 },
+      "tierRequirement": "proven",
+      "flavorText": "Riveted for a ring stockade garrison that never expected to need it this badly."
+    },
+    {
+      "id": "moat-wardens-grapnel",
+      "name": "Moat-Warden's Grapnel",
+      "slot": "trinket",
+      "statBonuses": { "cunning": 2, "bulwark": 1 },
+      "tierRequirement": "proven",
+      "flavorText": "Its hook still catches the old crossing lines, if anyone left remembers where they run."
+    },
+    {
+      "id": "outer-palisade-standard",
+      "name": "Outer Palisade Standard",
+      "slot": "trinket",
+      "statBonuses": { "muscle": 3, "cunning": 1 },
+      "tierRequirement": "warleader",
+      "flavorText": "Fought over so many times at the outer palisade that the sigil on it is unrecognizable."
+    },
+    {
+      "id": "warleaders-bastion-crown",
+      "name": "Warleader's Bastion-Crown",
+      "slot": "trinket",
+      "statBonuses": { "muscle": 2, "bulwark": 2, "craft": 1, "cunning": 1 },
+      "tierRequirement": "warleader",
+      "flavorText": "Plain iron, dented twice, and the only crown either clan on this frontier ever wanted back."
+    }
+  ],
+  "narrativeEvents": [
+    {
+      "trigger": { "type": "first_clear", "target": "lone-watchtower" },
+      "title": "The First Torch",
+      "text": "The lone watchtower falls without the rival clan ever learning it happened. For the first time since the feud began, a war-band is raiding inside their boundary — and somewhere on the ring forts, a counter-raid is already being called.",
+      "rewards": [],
+      "agentUnlock": null
+    },
+    {
+      "trigger": { "type": "tier_complete", "target": "chapter-1" },
+      "title": "The Steads Answer",
+      "text": "The outer steads are stripped bare, and the rival clan finally rides out in answer — a counter-raid on the war-band's own stockade, turned back at the gate. The feud is no longer one-sided.",
+      "rewards": [],
+      "agentUnlock": null
+    },
+    {
+      "trigger": { "type": "tier_complete", "target": "chapter-2" },
+      "title": "The Rings Fall Silent",
+      "text": "Twin-gate fort, hillcrest ring, and flooded moat holdfast — all cleared. The rival clan's ring forts are gone, and only the outer palisade stands between the war-band and their seat.",
+      "rewards": [],
+      "agentUnlock": null
+    },
+    {
+      "trigger": { "type": "first_clear", "target": "the-outer-palisade" },
+      "title": "The Palisade Cracks",
+      "text": "The outer palisade comes down after a season of the garrison's preparation. For the first time since the feud began, the road to the rival bastion lies open.",
+      "rewards": [],
+      "agentUnlock": null
+    },
+    {
+      "trigger": { "type": "arc_complete", "target": "palisade-war" },
+      "title": "The War Ends",
+      "text": "The rival bastion has fallen. The frontier is one clan's now, holdfast by holdfast, and the war-band that did it is written into its dread.",
+      "rewards": [],
+      "agentUnlock": null
+    }
+  ],
+  "scaling": { "type": "fixed", "scalingRules": {} }
+}

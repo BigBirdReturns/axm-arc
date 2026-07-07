@@ -109,6 +109,7 @@ export type MessageId =
   | "title.colophon"
   | "title.designerPrototype"
   | "title.releaseNotes"
+  | "title.workshop"
   // ── roster screen ──
   | "roster.personnel"
   | "roster.activeCount"
@@ -448,6 +449,33 @@ export type MessageId =
   | "library.validateSave"
   | "library.validationFailed"
   | "library.imported"
+  // ── workshop screen ──
+  | "workshop.heading"
+  | "workshop.intro"
+  | "workshop.newFromSkeleton"
+  | "workshop.duplicateFromLibrary"
+  | "workshop.duplicateSelectAria"
+  | "workshop.duplicateSelectPlaceholder"
+  | "workshop.duplicateLoad"
+  | "workshop.duplicateEmptyLibrary"
+  | "workshop.importFileAria"
+  | "workshop.editorAria"
+  | "workshop.validate"
+  | "workshop.saveToLibrary"
+  | "workshop.exportArc"
+  | "workshop.validOk"
+  | "workshop.digest"
+  | "workshop.validationFailed"
+  | "workshop.countChallenges"
+  | "workshop.countRoles"
+  | "workshop.countItems"
+  | "workshop.countAttunementChains"
+  | "workshop.countNarrativeEvents"
+  | "workshop.countProgressionTiers"
+  | "workshop.saved"
+  | "workshop.saveBlocked"
+  | "workshop.exported"
+  | "workshop.exportBlocked"
   // ── codex overlay ──
   | "codex.attributes"
   | "codex.roles"
@@ -637,6 +665,7 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "title.colophon": (p) => `AXM Arc · v${str(p, "version")} · Engine ${str(p, "engine")}`,
     "title.designerPrototype": "Designer Prototype",
     "title.releaseNotes": "Release notes",
+    "title.workshop": "Workshop",
 
     "roster.personnel": "Personnel",
     "roster.activeCount": (p) => `${num(p, "count")} Active`,
@@ -1013,6 +1042,51 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "library.validationFailed": "Validation failed:",
     "library.imported": (p) => `Imported "${str(p, "name")}" v${str(p, "version")}.`,
 
+    "workshop.heading": "Cartridge Workshop",
+    "workshop.intro": "Author or edit a cartridge as JSON. Validate runs the real schema check used everywhere else; nothing here is saved until you say so.",
+    "workshop.newFromSkeleton": "New from Skeleton",
+    "workshop.duplicateFromLibrary": "Duplicate from Library",
+    "workshop.duplicateSelectAria": "Choose an arc from the library to duplicate",
+    "workshop.duplicateSelectPlaceholder": "Choose an arc…",
+    "workshop.duplicateLoad": "Load into Editor",
+    "workshop.duplicateEmptyLibrary": "No arcs in the library yet.",
+    "workshop.importFileAria": "Import a cartridge file",
+    "workshop.editorAria": "Cartridge JSON editor",
+    "workshop.validate": "Validate",
+    "workshop.saveToLibrary": "Save to Library",
+    "workshop.exportArc": "Export .arc.json",
+    "workshop.validOk": "Valid.",
+    "workshop.digest": (p) => `Digest ${str(p, "digest")}`,
+    "workshop.validationFailed": "Validation failed:",
+    "workshop.countChallenges": (p) => {
+      const n = num(p, "n");
+      return `${n} challenge${n === 1 ? "" : "s"}`;
+    },
+    "workshop.countRoles": (p) => {
+      const n = num(p, "n");
+      return `${n} role${n === 1 ? "" : "s"}`;
+    },
+    "workshop.countItems": (p) => {
+      const n = num(p, "n");
+      return `${n} item${n === 1 ? "" : "s"}`;
+    },
+    "workshop.countAttunementChains": (p) => {
+      const n = num(p, "n");
+      return `${n} attunement chain${n === 1 ? "" : "s"}`;
+    },
+    "workshop.countNarrativeEvents": (p) => {
+      const n = num(p, "n");
+      return `${n} narrative event${n === 1 ? "" : "s"}`;
+    },
+    "workshop.countProgressionTiers": (p) => {
+      const n = num(p, "n");
+      return `${n} progression tier${n === 1 ? "" : "s"}`;
+    },
+    "workshop.saved": (p) => `Saved "${str(p, "name")}" v${str(p, "version")} to the library.`,
+    "workshop.saveBlocked": "Save blocked — validation failed:",
+    "workshop.exported": (p) => `Exported "${str(p, "name")}" as ${str(p, "file")}.`,
+    "workshop.exportBlocked": "Export blocked — validation failed:",
+
     "codex.attributes": "Attributes",
     "codex.roles": "Roles",
     "codex.traits": "Traits",
@@ -1159,6 +1233,7 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "title.colophon": (p) => `AXM 弧 · v${str(p, "version")} · 引擎 ${str(p, "engine")}`,
     // "title.designerPrototype" intentionally untranslated (see EN_ONLY_IDS).
     "title.releaseNotes": "發行說明",
+    "title.workshop": "工坊",
 
     "roster.personnel": "人員",
     "roster.activeCount": (p) => `${num(p, "count")} 名現役`,
@@ -1507,6 +1582,33 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "library.validateSave": "驗證並儲存",
     "library.validationFailed": "驗證失敗：",
     "library.imported": (p) => `已匯入「${str(p, "name")}」v${str(p, "version")}。`,
+
+    "workshop.heading": "卡帶工坊",
+    "workshop.intro": "以 JSON 撰寫或編輯卡帶。「驗證」執行的是與其他地方相同的真實結構檢查；在你按下儲存之前，這裡的內容不會被寫入。",
+    "workshop.newFromSkeleton": "從骨架新建",
+    "workshop.duplicateFromLibrary": "從資料庫複製",
+    "workshop.duplicateSelectAria": "選擇要複製的資料庫弧",
+    "workshop.duplicateSelectPlaceholder": "選擇一個弧…",
+    "workshop.duplicateLoad": "載入編輯器",
+    "workshop.duplicateEmptyLibrary": "資料庫中尚無任何弧。",
+    "workshop.importFileAria": "匯入卡帶檔案",
+    "workshop.editorAria": "卡帶 JSON 編輯器",
+    "workshop.validate": "驗證",
+    "workshop.saveToLibrary": "儲存至資料庫",
+    "workshop.exportArc": "匯出 .arc.json",
+    "workshop.validOk": "有效。",
+    "workshop.digest": (p) => `指紋 ${str(p, "digest")}`,
+    "workshop.validationFailed": "驗證失敗：",
+    "workshop.countChallenges": (p) => `${num(p, "n")} 個挑戰`,
+    "workshop.countRoles": (p) => `${num(p, "n")} 個職責`,
+    "workshop.countItems": (p) => `${num(p, "n")} 件物品`,
+    "workshop.countAttunementChains": (p) => `${num(p, "n")} 條調諧鏈`,
+    "workshop.countNarrativeEvents": (p) => `${num(p, "n")} 個敘事事件`,
+    "workshop.countProgressionTiers": (p) => `${num(p, "n")} 個進程階段`,
+    "workshop.saved": (p) => `已將「${str(p, "name")}」v${str(p, "version")} 儲存至資料庫。`,
+    "workshop.saveBlocked": "儲存受阻——驗證失敗：",
+    "workshop.exported": (p) => `已將「${str(p, "name")}」匯出為 ${str(p, "file")}。`,
+    "workshop.exportBlocked": "匯出受阻——驗證失敗：",
 
     "codex.attributes": "屬性",
     "codex.roles": "職責",

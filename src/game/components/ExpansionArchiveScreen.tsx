@@ -7,7 +7,7 @@ import { useMemo } from "react";
 import { t, useLocale } from "../../i18n/index.js";
 import { loadArcLibrary, loadActiveArcId } from "../lib/arc-library.js";
 import { loadLedger } from "../lib/ledger.js";
-import { expansionRoster, expansionRecord, type ExpansionRow } from "../lib/expansion-archive.js";
+import { expansionRoster, expansionRecord, journeyTimeline, type ExpansionRow } from "../lib/expansion-archive.js";
 
 export function ExpansionArchiveScreen({ onBack }: { onBack: () => void }): JSX.Element {
   useLocale();
@@ -17,6 +17,7 @@ export function ExpansionArchiveScreen({ onBack }: { onBack: () => void }): JSX.
   const ledger = useMemo(() => loadLedger(), []);
   const activeArcId = useMemo(() => loadActiveArcId(), []);
   const rows = useMemo(() => expansionRoster(library, ledger, activeArcId), [library, ledger, activeArcId]);
+  const journey = useMemo(() => journeyTimeline(ledger), [ledger]);
 
   const statusLabel = (status: "cleared" | "in-progress" | "unattempted") =>
     status === "cleared"
@@ -112,6 +113,29 @@ export function ExpansionArchiveScreen({ onBack }: { onBack: () => void }): JSX.
         <div className="card empty expansion-archive-empty">{t("archive.emptyBody")}</div>
       ) : (
         <div className="expansion-archive-body">
+          <div className="audit-section">
+            {t("archive.journey")}{" "}<span className="badge rn-num">{journey.length}</span>
+          </div>
+          {journey.length === 0 ? (
+            <span className="empty">—</span>
+          ) : (
+            <div className="expansion-archive-journey">
+              {journey.map((entry, i) => (
+                <div key={entry.commitSeq} className="mechanic-row expansion-archive-journey-entry">
+                  <span className="agent-name">{t("archive.night")} {i + 1}</span>{" "}
+                  <span className="badge rn-num">#{entry.commitSeq}</span>{" "}
+                  <span className="agent-name">{entry.cartridgeId}</span>{" "}
+                  <span className={entry.type === "victory" ? "badge pass" : "badge"}>
+                    {entry.type === "victory" ? t("archive.victory") : t("archive.failed")}
+                  </span>{" "}
+                  {entry.grade && <span className="badge tier">{t("archive.grade")} {entry.grade}</span>}
+                  {" "}· {t("guildhall.pulls")} <span className="rn-num">{entry.pulls}</span>
+                  {" "}· {t("guildhall.wipes")} <span className="rn-num">{entry.wipes}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
           <div className="audit-section">
             {t("archive.expansions")}{" "}<span className="badge rn-num">{rows.length}</span>
           </div>

@@ -185,3 +185,39 @@ export function expansionRecord(digest: string, ledger: CampaignLedger | null): 
 
   return { digest, tiers, totalPulls, totalWipes, victories, failedLockouts, scars, legends, precedents, lastCommitSeq };
 }
+
+// ── journey timeline (PR 045) ─────────────────────────────────────────────────
+// The cross-expansion chronology — every recorded night, in the order the
+// ledger recorded it, regardless of which cartridge it belongs to. Distinct
+// from expansionRecord (grouped by cartridge digest): this is the guild's
+// campaign as it was actually lived, night by night.
+
+/** One recorded night, in ledger (commitSeq-ascending) order. */
+export interface JourneyEntry {
+  commitSeq: number;
+  cartridgeId: string;
+  digest: string;
+  type: "victory" | "failed-lockout";
+  cleared: boolean;
+  grade: string | null;
+  pulls: number;
+  wipes: number;
+}
+
+/** Derive the guild's journey timeline from the ledger's append-only commit
+ *  log. Pure — never mutates the ledger, never re-sorts (the ledger's stored
+ *  order IS the recorded chronology). A null ledger is an honest empty
+ *  journey. */
+export function journeyTimeline(ledger: CampaignLedger | null): JourneyEntry[] {
+  if (!ledger) return [];
+  return ledger.commits.map((c) => ({
+    commitSeq: c.commitSeq,
+    cartridgeId: c.cartridgeId,
+    digest: c.cartridgeDigest,
+    type: c.type,
+    cleared: c.consequences.clearedTier,
+    grade: c.type === "victory" ? c.grade : null,
+    pulls: c.pulls,
+    wipes: c.wipes,
+  }));
+}

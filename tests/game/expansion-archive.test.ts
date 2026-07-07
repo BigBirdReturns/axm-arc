@@ -4,10 +4,10 @@
 // ledger is all-unattempted; a committed victory ledger surfaces at least one
 // non-unattempted row; ordering and purity hold.
 import { describe, it, expect, beforeEach } from "vitest";
-import { expansionRoster, expansionRecord } from "../../src/game/lib/expansion-archive.js";
+import { expansionRoster, expansionRecord, journeyTimeline } from "../../src/game/lib/expansion-archive.js";
 import { loadArcLibrary, ensureBundledArc, type ArcLibraryEntry } from "../../src/game/lib/arc-library.js";
 import { FIRST_CHARTER, KARAZHAN } from "../../src/arcs/index.js";
-import { newRaidNight, pull, applyFix, commitNightVictory, RAID_ARC, type RaidNightState } from "../../src/game/lib/raid-night.js";
+import { newRaidNight, pull, applyFix, commitNightVictory, commitNightFailed, RAID_ARC, type RaidNightState } from "../../src/game/lib/raid-night.js";
 import { cartridgeDigest } from "../../src/engine/cartridge-digest.js";
 
 // arc-library.ts reads/writes the ambient `localStorage` global directly.
@@ -243,6 +243,52 @@ describe("expansion campaign record (read-only)", () => {
     const ledger = commitNightVictory(playToClear(3));
     const snapshot = JSON.stringify(ledger);
     expansionRecord(cartridgeDigest(RAID_ARC), ledger);
+    expect(JSON.stringify(ledger)).toBe(snapshot);
+  });
+});
+
+describe("journey timeline (PR 045 — cross-expansion chronology)", () => {
+  beforeEach(() => {
+    globalThis.localStorage = new MemoryStorage();
+  });
+
+  it("null ledger is an honest empty journey", () => {
+    expect(journeyTimeline(null)).toEqual([]);
+  });
+
+  it("a committed victory ledger: one entry per commit, in ascending commitSeq order", () => {
+    const ledger = commitNightVictory(playToClear(3));
+    const timeline = journeyTimeline(ledger);
+    expect(timeline.length).toBe(ledger.commits.length);
+    expect(timeline.length).toBeGreaterThan(0);
+    for (let i = 0; i < timeline.length - 1; i++) {
+      expect(timeline[i]!.commitSeq).toBeLessThanOrEqual(timeline[i + 1]!.commitSeq);
+    }
+    const victoryEntry = timeline.find((e) => e.type === "victory");
+    expect(victoryEntry).toBeTruthy();
+    expect(victoryEntry!.grade).not.toBeNull();
+    for (let i = 0; i < timeline.length; i++) {
+      const commit = ledger.commits[i]!;
+      expect(timeline[i]!.digest).toBe(commit.cartridgeDigest);
+      expect(timeline[i]!.cartridgeId).toBe(commit.cartridgeId);
+    }
+  });
+
+  it("a failed-lockout ledger: that entry has type failed-lockout, null grade, not cleared", () => {
+    const state = newRaidNight(3);
+    const ledger = commitNightFailed(state);
+    const timeline = journeyTimeline(ledger);
+    expect(timeline.length).toBe(ledger.commits.length);
+    const failedEntry = timeline.find((e) => e.type === "failed-lockout");
+    expect(failedEntry).toBeTruthy();
+    expect(failedEntry!.grade).toBeNull();
+    expect(failedEntry!.cleared).toBe(false);
+  });
+
+  it("is pure — reading does not mutate the ledger", () => {
+    const ledger = commitNightVictory(playToClear(3));
+    const snapshot = JSON.stringify(ledger);
+    journeyTimeline(ledger);
     expect(JSON.stringify(ledger)).toBe(snapshot);
   });
 });

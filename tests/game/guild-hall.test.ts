@@ -3,7 +3,7 @@
 // a committed ledger summarizes to exactly what it recorded, and the derivation
 // is pure (no mutation of the ledger it reads).
 import { describe, it, expect } from "vitest";
-import { summarizeGuildHall, agentMemoryCards, scarViews, precedentViews, lootFairnessView, campaignRecordView, rosterGrowthView, benchAttendanceView } from "../../src/game/lib/guild-hall.js";
+import { summarizeGuildHall, agentMemoryCards, scarViews, precedentViews, lootFairnessView, campaignRecordView, rosterGrowthView, benchAttendanceView, nextTierReadiness } from "../../src/game/lib/guild-hall.js";
 import {
   newRaidNight, pull, applyFix, commitNightVictory, commitNightFailed, type RaidNightState,
 } from "../../src/game/lib/raid-night.js";
@@ -255,6 +255,44 @@ describe("guild hall attendance & bench", () => {
     const ledger = commitNightVictory(playToClear(3));
     const snapshot = JSON.stringify(ledger);
     benchAttendanceView(ledger);
+    expect(JSON.stringify(ledger)).toBe(snapshot);
+  });
+});
+
+describe("guild hall next-tier readiness", () => {
+  it("a null ledger is an honest all-zero view — no fabricated readiness", () => {
+    const readiness = nextTierReadiness(null);
+    expect(readiness).toEqual({
+      rosterSize: 0, avgMorale: 0, avgStress: 0, scarModifier: 0, gearModifier: 0,
+      legacyLevel: 0, precedents: 0, tiersCleared: 0, currentTierIndex: 0,
+    });
+  });
+
+  it("derives readiness entirely from the committed ledger's own carried signals", () => {
+    const ledger = commitNightVictory(playToClear(3));
+    const readiness = nextTierReadiness(ledger);
+    expect(readiness.rosterSize).toBe(ledger.roster.length);
+    expect(readiness.scarModifier).toBe(ledger.scars.reduce((s, x) => s + x.effect.modifier, 0));
+    expect(readiness.gearModifier).toBe(
+      ledger.gear.reduce((s, g) => s + (g.projection.kind === "legacy-readiness-modifier" ? g.projection.modifier : 0), 0)
+    );
+    expect(readiness.legacyLevel).toBe(ledger.guild.legacyLevel);
+    expect(readiness.precedents).toBe(ledger.precedents.length);
+    expect(readiness.tiersCleared).toBe(ledger.progress.tiers.filter((t) => t.cleared).length);
+    expect(readiness.currentTierIndex).toBe(ledger.progress.currentTierIndex);
+
+    const morales = ledger.roster.map((m) => m.agent.morale);
+    const stresses = ledger.roster.map((m) => m.agent.stress);
+    expect(readiness.avgMorale).toBeGreaterThanOrEqual(Math.min(...morales));
+    expect(readiness.avgMorale).toBeLessThanOrEqual(Math.max(...morales));
+    expect(readiness.avgStress).toBeGreaterThanOrEqual(Math.min(...stresses));
+    expect(readiness.avgStress).toBeLessThanOrEqual(Math.max(...stresses));
+  });
+
+  it("is pure — reading does not mutate the ledger", () => {
+    const ledger = commitNightVictory(playToClear(3));
+    const snapshot = JSON.stringify(ledger);
+    nextTierReadiness(ledger);
     expect(JSON.stringify(ledger)).toBe(snapshot);
   });
 });

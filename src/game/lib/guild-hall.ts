@@ -199,6 +199,45 @@ export function benchAttendanceView(ledger: CampaignLedger | null): AttendanceRo
   return rows.sort((a, b) => b.attendanceRate - a.attendanceRate || b.nightsAttended - a.nightsAttended || (a.name < b.name ? -1 : 1));
 }
 
+/** The guild's carried strength — never a candidate cartridge's requirements
+ *  (Article 6: the runtime may not claim what it cannot prove; the Hall has no
+ *  next cartridge in hand, only its own ledger). */
+export interface ReadinessSummary {
+  rosterSize: number;
+  avgMorale: number;
+  avgStress: number;
+  scarModifier: number;
+  gearModifier: number;
+  legacyLevel: number;
+  precedents: number;
+  tiersCleared: number;
+  currentTierIndex: number;
+}
+
+/** Derive next-tier readiness entirely from the ledger's own carried-forward
+ *  signals — no fabricated requirement against an unseen cartridge. Pure over
+ *  the ledger; a null ledger is an honest all-zero view. */
+export function nextTierReadiness(ledger: CampaignLedger | null): ReadinessSummary {
+  if (!ledger) {
+    return {
+      rosterSize: 0, avgMorale: 0, avgStress: 0, scarModifier: 0, gearModifier: 0,
+      legacyLevel: 0, precedents: 0, tiersCleared: 0, currentTierIndex: 0,
+    };
+  }
+  const rosterSize = ledger.roster.length;
+  const avgMorale = rosterSize > 0 ? Math.round(ledger.roster.reduce((s, m) => s + m.agent.morale, 0) / rosterSize) : 0;
+  const avgStress = rosterSize > 0 ? Math.round(ledger.roster.reduce((s, m) => s + m.agent.stress, 0) / rosterSize) : 0;
+  const scarModifier = ledger.scars.reduce((s, x) => s + x.effect.modifier, 0);
+  const gearModifier = ledger.gear.reduce((s, g) => s + (g.projection.kind === "legacy-readiness-modifier" ? g.projection.modifier : 0), 0);
+  return {
+    rosterSize, avgMorale, avgStress, scarModifier, gearModifier,
+    legacyLevel: ledger.guild.legacyLevel,
+    precedents: ledger.precedents.length,
+    tiersCleared: ledger.progress.tiers.filter((t) => t.cleared).length,
+    currentTierIndex: ledger.progress.currentTierIndex,
+  };
+}
+
 /** One tier's record row, in ledger order — tier order is meaningful and is
  *  never re-sorted. */
 export interface TierRecordRow {

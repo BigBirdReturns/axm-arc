@@ -76,12 +76,15 @@ out.panels = {
 };
 out.allPanelsRendered = Object.values(out.panels).every(Boolean);
 
+// Receipt: capture the populated Hall itself, before the no-write reload
+// navigates away — this screenshot is the visual proof of the whole program.
+await page.screenshot({ path: "/tmp/claude-0/-home-user/65fd6ca3-5fb5-56c1-92df-ef191fdf9c5d/scratchpad/guildhall-playtest.png", fullPage: true });
+
 // Prove no write path: the Hall loads the ledger once and never mutates it.
 const after = await page.evaluate(() => localStorage.getItem("axm-arc:campaign-ledger:v1"));
 await page.reload({ waitUntil: "networkidle" });
 const afterReload = await page.evaluate(() => localStorage.getItem("axm-arc:campaign-ledger:v1"));
 out.ledgerUnchanged = before === after && after === afterReload;
 
-await page.screenshot({ path: "/tmp/claude-0/-home-user/65fd6ca3-5fb5-56c1-92df-ef191fdf9c5d/scratchpad/guildhall-playtest.png" });
 console.log(JSON.stringify(out, null, 2));
 await browser.close(); server.close();

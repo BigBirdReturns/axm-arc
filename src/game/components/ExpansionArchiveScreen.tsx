@@ -87,6 +87,12 @@ export function ExpansionArchiveScreen({ onBack }: { onBack: () => void }): JSX.
             ))}
           </div>
         )}
+
+        {record.lastCommitSeq !== null && (
+          <div className="agent-meta expansion-archive-last-commit">
+            {t("archive.lastCommit")} <span className="rn-num">#{record.lastCommitSeq}</span>
+          </div>
+        )}
       </div>
     );
   };
@@ -111,17 +117,35 @@ export function ExpansionArchiveScreen({ onBack }: { onBack: () => void }): JSX.
           </div>
           <div className="expansion-archive-roster">
             {rows.map((row) => (
-              <div key={row.arcId} className="card mechanic-row expansion-archive-row">
+              <div
+                key={row.arcId}
+                className={
+                  row.artifactMissing
+                    ? "card mechanic-row expansion-archive-row expansion-archive-artifact-missing"
+                    : "card mechanic-row expansion-archive-row"
+                }
+              >
                 <div className="row between">
                   <span className="agent-name">{row.name}</span>
                   <span className="rn-agent-tags">
                     {row.isActive && <span className="badge pass">{t("archive.active")}</span>}
+                    {row.artifactMissing && <span className="badge">{t("archive.artifactMissing")}</span>}
                     <span className={statusBadgeClass(row.status)}>{statusLabel(row.status)}</span>
                   </span>
                 </div>
                 <div className="agent-meta">
                   {t("archive.tiersCleared")} <span className="rn-num">{row.tiersCleared}/{row.tiersPlayed}</span>
                 </div>
+                {row.artifactMissing && (
+                  <div className="agent-meta expansion-archive-digest">
+                    {t("archive.digest")} <span className="rn-num">{row.digest.slice(0, 10)}</span>
+                  </div>
+                )}
+                {row.artifactMissing && (
+                  <div className="agent-meta expansion-archive-artifact-missing-note">
+                    {t("archive.artifactMissingNote")}
+                  </div>
+                )}
                 {row.status !== "unattempted" && renderRecord(row)}
               </div>
             ))}

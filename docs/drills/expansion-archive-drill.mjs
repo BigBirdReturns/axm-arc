@@ -1,14 +1,13 @@
 // Expansion Archive route drill: the Archive opens from the title and renders
 // read-only — a fresh install has the bundled cartridges, so the roster
 // renders even with no ledger (all unattempted), zero page errors. Then a
-// real committed-ledger pass: import the raid-night cartridge into the
-// library via the real paste-import seam (Raid Night always plays
-// cartridges/first-lockout.arc.json regardless of the active/library arc, so
-// this is the only honest way to get its digest into the library roster
-// alongside a committed ledger for that same digest), play a night to
-// CLEARED, commit to the guild record, then reopen the Archive and prove the
-// per-expansion record (PR 043) renders populated — and that the Archive
-// never wrote the library or the ledger it read.
+// real committed-ledger pass proving the UNION MODEL (PR 044): play a raid
+// night to CLEARED and commit it to the guild record WITHOUT ever importing
+// the raid-night cartridge into the library, then reopen the Archive and
+// prove the played digest surfaces as an artifact-missing row — status still
+// real (cleared), its per-expansion record (PR 043) still rendering, plus the
+// "artifact missing" marker — and that the Archive never wrote the library or
+// the ledger it read.
 import { chromium } from "playwright-core";
 import { createServer } from "http";
 import { readFile } from "fs/promises";
@@ -50,26 +49,18 @@ const out = {
 };
 await page.screenshot({ path: "/tmp/claude-0/-home-user/65fd6ca3-5fb5-56c1-92df-ef191fdf9c5d/scratchpad/expansion-archive.png" });
 
-// ── committed-ledger pass ────────────────────────────────────────────────────
+// ── committed-ledger pass (union model — NOT imported into the library) ────
 // Return to the title from the empty Archive.
 await click("^Back$|^返回$");
 await page.waitForTimeout(200);
 
-// Raid Night always plays cartridges/first-lockout.arc.json (RAID_ARC), which
-// resolveActiveArc() does NOT bundle into the library (only first-charter and
-// karazhan are). Import it via the real Library paste-import seam — the same
-// path any player uses to add an expansion — so the played digest has a
-// library row for the Archive to join against.
-const raidArcJson = await readFile("/home/user/axm-arc/cartridges/first-lockout.arc.json", "utf8");
-await click("arc library|model library|scenario library|library|資料庫");
-await page.waitForTimeout(300);
-await page.fill("textarea", raidArcJson);
-await click("^Validate & Save$|^驗證並儲存$");
-await page.waitForTimeout(300);
-out.raidArcImported = /The First Lockout/i.test(await body());
-await click("^Back$|^返回$");
-await page.waitForTimeout(200);
-
+// Deliberately skip the paste-import step this time: Raid Night always plays
+// cartridges/first-lockout.arc.json (RAID_ARC), which resolveActiveArc() does
+// NOT bundle into the library (only first-charter and karazhan are). By never
+// importing it, the committed ledger below records a digest with no library
+// counterpart — exactly the "artifact missing" case the union model (PR 044)
+// must surface.
+//
 // Real commit walk (mirrors guildhall-playtest-drill.mjs): raid night →
 // pull/apply-fix loop until CLEARED → Commit to Guild Record.
 await click("raid night|團本之夜");
@@ -100,10 +91,12 @@ out.committedLedgerArchive = {
   rosterShown: await has(".expansion-archive-roster"),
 };
 out.recordShown = await has(".expansion-archive-record");
+out.artifactMissingShown = await has(".expansion-archive-artifact-missing");
 
-// Screenshot the POPULATED archive before the no-write reload navigates away —
-// the visual proof of the per-expansion record rendering.
-await page.screenshot({ path: "/tmp/claude-0/-home-user/65fd6ca3-5fb5-56c1-92df-ef191fdf9c5d/scratchpad/expansion-archive-populated.png", fullPage: true });
+// Screenshot the artifact-missing archive before the no-write reload navigates
+// away — the visual proof that a committed-but-unlibraried cartridge's record
+// renders as artifact-missing (the whole point of the union fix).
+await page.screenshot({ path: "/tmp/claude-0/-home-user/65fd6ca3-5fb5-56c1-92df-ef191fdf9c5d/scratchpad/expansion-archive-union.png", fullPage: true });
 
 // Prove no write path: the Archive loads the ledger once and never mutates it.
 const after = await page.evaluate((k) => localStorage.getItem(k), LEDGER_KEY);

@@ -138,6 +138,7 @@ export type MessageId =
   | "raidnight.lastPull"
   | "raidnight.changed"
   | "raidnight.tradeoffLabel"
+  | "raidnight.ifApplied"
   | "raidnight.guildCarried"
   | "raidnight.freshGuild"
   | "raidnight.incompatible"
@@ -748,6 +749,7 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "raidnight.lastPull": "Last pull",
     "raidnight.changed": "Changed before next pull",
     "raidnight.tradeoffLabel": "Tradeoff",
+    "raidnight.ifApplied": "If applied",
     "raidnight.guildCarried": (p) => `Guild carried — ${num(p, "n")} raiders`,
     "raidnight.freshGuild": "Fresh guild — no ledger yet",
     "raidnight.incompatible": "INCOMPATIBLE GUILD",
@@ -1354,6 +1356,7 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "raidnight.bottleneck": "瓶頸",
     "raidnight.threeThings": "重置前你可以改變的三件事",
     "raidnight.apply": "採用",
+    "raidnight.ifApplied": "若採用",
     "raidnight.applied": "已採用——再次開怪。",
     "raidnight.field": "上場",
     "raidnight.benchVerb": "換下",

@@ -97,8 +97,10 @@ bar and you pass the control question.
    runs one arc at a time; world keeps a per-cartridge ledger keyed by digest.
    *Neither carries one org across a sequence of content packs.* Persisting the
    guild — veterans, liabilities, loot history — across raid cartridges is the
-   campaign's spine, and it is an **engine/schema RFC, owner-gated**, not a hack.
-   This is the decision that unlocks "campaign" over "one-off."
+   campaign's spine, and it is an **owner-gated RFC**, not a hack. Now written
+   up: `docs/RFC_TIER2_PERSISTENCE.md` (Proposed; recommends a projected guild
+   ledger — game-layer, no engine change). This is the decision that unlocks
+   "campaign" over "one-off."
 2. **Attendance / availability** as per-lockout state — possibly just stress plus
    a schedule field; scope it before building.
 3. **Loot → fairness / morale wiring** — substrate exists (loot + drama +

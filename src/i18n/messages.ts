@@ -133,6 +133,7 @@ export type MessageId =
   | "raidnight.nightsAttended"
   | "raidnight.moraleShaky"
   | "raidnight.stressStrained"
+  | "raidnight.lootReceived"
   | "raidnight.partyIllegal"
   | "raidnight.needed"
   | "raidnight.putUp"
@@ -750,6 +751,7 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "raidnight.nightsAttended": (p) => `${num(p, "n")} nights`,
     "raidnight.moraleShaky": "shaky — morale under 30",
     "raidnight.stressStrained": "strained — stress over 7",
+    "raidnight.lootReceived": (p) => `${num(p, "n")} loot`,
     "raidnight.partyIllegal": (p) => `Party needs ${num(p, "min")}–${num(p, "max")}, including its required roles`,
     "raidnight.needed": "needed",
     "raidnight.putUp": "put up",
@@ -1377,6 +1379,7 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "raidnight.nightsAttended": (p) => `出戰 ${num(p, "n")} 次`,
     "raidnight.moraleShaky": "動搖——士氣低於 30",
     "raidnight.stressStrained": "緊繃——壓力高於 7",
+    "raidnight.lootReceived": (p) => `${num(p, "n")} 件戰利品`,
     "raidnight.partyIllegal": (p) => `隊伍需要 ${num(p, "min")}–${num(p, "max")} 人，且包含必需的職責`,
     "raidnight.needed": "需要",
     "raidnight.putUp": "打出",

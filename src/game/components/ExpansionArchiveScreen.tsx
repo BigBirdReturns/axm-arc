@@ -5,9 +5,10 @@
 // (tiers, outcomes, scars, legends, precedents) under each played row.
 import { useMemo } from "react";
 import { t, useLocale } from "../../i18n/index.js";
-import { loadArcLibrary, loadActiveArcId } from "../lib/arc-library.js";
+import { loadArcLibrary, loadActiveArcId, type ArcLibraryEntry } from "../lib/arc-library.js";
 import { loadLedger } from "../lib/ledger.js";
-import { expansionRoster, expansionRecord, journeyTimeline, type ExpansionRow } from "../lib/expansion-archive.js";
+import { expansionRoster, expansionRecord, journeyTimeline, carryVerdict, type ExpansionRow } from "../lib/expansion-archive.js";
+import { cartridgeDigest } from "../../engine/cartridge-digest.js";
 
 export function ExpansionArchiveScreen({ onBack }: { onBack: () => void }): JSX.Element {
   useLocale();
@@ -18,6 +19,33 @@ export function ExpansionArchiveScreen({ onBack }: { onBack: () => void }): JSX.
   const activeArcId = useMemo(() => loadActiveArcId(), []);
   const rows = useMemo(() => expansionRoster(library, ledger, activeArcId), [library, ledger, activeArcId]);
   const journey = useMemo(() => journeyTimeline(ledger), [ledger]);
+  // Library rows have a real cartridge in hand — join back to it by digest
+  // (the safest key: robust to id churn) so the carry-forward signal only
+  // ever runs against an actual loaded Arc, never a digest alone.
+  const libraryByDigest = useMemo(() => {
+    const m = new Map<string, ArcLibraryEntry>();
+    for (const entry of library) m.set(cartridgeDigest(entry.arc), entry);
+    return m;
+  }, [library]);
+
+  // The carry-forward badge (PR 047): "can this guild carry into this
+  // expansion?" Library rows get a genuine verdict from the loaded cartridge;
+  // artifact-missing rows have no cartridge to check and render an honest
+  // "can't assess" state instead — never a guessed verdict.
+  const renderCarryBadge = (row: ExpansionRow) => {
+    if (row.artifactMissing) {
+      return <span className="badge expansion-archive-carry">{t("archive.carryUnavailable")}</span>;
+    }
+    const entry = libraryByDigest.get(row.digest);
+    if (!entry) return null; // structurally shouldn't happen for a library row
+    const verdict = carryVerdict(entry.arc, ledger);
+    if (verdict === "null-ledger") return null;
+    return verdict === "compatible" ? (
+      <span className="badge pass expansion-archive-carry">{t("archive.carryReady")}</span>
+    ) : (
+      <span className="badge expansion-archive-carry">{t("archive.carryIncompatible")}</span>
+    );
+  };
 
   const statusLabel = (status: "cleared" | "in-progress" | "unattempted") =>
     status === "cleared"
@@ -154,6 +182,7 @@ export function ExpansionArchiveScreen({ onBack }: { onBack: () => void }): JSX.
                     {row.isActive && <span className="badge pass">{t("archive.active")}</span>}
                     {row.artifactMissing && <span className="badge">{t("archive.artifactMissing")}</span>}
                     <span className={statusBadgeClass(row.status)}>{statusLabel(row.status)}</span>
+                    {renderCarryBadge(row)}
                   </span>
                 </div>
                 <div className="agent-meta">

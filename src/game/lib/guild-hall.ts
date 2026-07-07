@@ -163,6 +163,42 @@ export function rosterGrowthView(ledger: CampaignLedger | null): RosterGrowthRow
   return rows.sort((a, b) => b.totalGrowth - a.totalGrowth || (a.name < b.name ? -1 : 1));
 }
 
+/** One roster member's attendance & bench standing: the ledger's stored
+ *  aggregates plus a computed attendance rate. Reliability is an engine
+ *  value (e.g. "steady"/"reliable") and flows verbatim — never through t(). */
+export interface AttendanceRow {
+  agentId: string;
+  name: string;
+  nightsAttended: number;
+  nightsBenched: number;
+  benchedCount: number;
+  resentment: number;
+  reliability: string;
+  attendanceRate: number;
+}
+
+/** Derive the roster's attendance & bench standing, highest attendance rate
+ *  first. Pure over the ledger's stored aggregates — no per-night timeline
+ *  reconstruction. A null ledger is an honest empty view. */
+export function benchAttendanceView(ledger: CampaignLedger | null): AttendanceRow[] {
+  if (!ledger) return [];
+  const rows: AttendanceRow[] = ledger.roster.map((m) => {
+    const total = m.attendance.nightsAttended + m.attendance.nightsBenched;
+    const attendanceRate = total > 0 ? Math.round((100 * m.attendance.nightsAttended) / total) : 0;
+    return {
+      agentId: m.agentId,
+      name: m.agent.name,
+      nightsAttended: m.attendance.nightsAttended,
+      nightsBenched: m.attendance.nightsBenched,
+      benchedCount: m.bench.benchedCount,
+      resentment: m.bench.resentment,
+      reliability: m.attendance.reliability,
+      attendanceRate,
+    };
+  });
+  return rows.sort((a, b) => b.attendanceRate - a.attendanceRate || b.nightsAttended - a.nightsAttended || (a.name < b.name ? -1 : 1));
+}
+
 /** One tier's record row, in ledger order — tier order is meaningful and is
  *  never re-sorted. */
 export interface TierRecordRow {

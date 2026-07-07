@@ -156,6 +156,13 @@ export type MessageId =
   | "guildhall.passedOver"
   | "guildhall.gearEarned"
   | "guildhall.contributedClear"
+  | "guildhall.legacyPoints"
+  | "guildhall.commits"
+  | "guildhall.tiers"
+  | "guildhall.current"
+  | "guildhall.pulls"
+  | "guildhall.wipes"
+  | "guildhall.bestPull"
   | "raidnight.partyIllegal"
   | "raidnight.needed"
   | "raidnight.putUp"
@@ -796,6 +803,13 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "guildhall.passedOver": "Passed over",
     "guildhall.gearEarned": "Gear earned",
     "guildhall.contributedClear": "Contributed to clear",
+    "guildhall.legacyPoints": "Legacy points",
+    "guildhall.commits": "Commits",
+    "guildhall.tiers": "Tiers",
+    "guildhall.current": "Current",
+    "guildhall.pulls": "Pulls",
+    "guildhall.wipes": "Wipes",
+    "guildhall.bestPull": "Best pull",
     "raidnight.partyIllegal": (p) => `Party needs ${num(p, "min")}–${num(p, "max")}, including its required roles`,
     "raidnight.needed": "needed",
     "raidnight.putUp": "put up",
@@ -1446,6 +1460,13 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "guildhall.passedOver": "被略過",
     "guildhall.gearEarned": "已獲裝備",
     "guildhall.contributedClear": "助力通關",
+    "guildhall.legacyPoints": "傳承點數",
+    "guildhall.commits": "提交",
+    "guildhall.tiers": "階級",
+    "guildhall.current": "目前",
+    "guildhall.pulls": "嘗試",
+    "guildhall.wipes": "團滅",
+    "guildhall.bestPull": "最佳嘗試",
     "raidnight.partyIllegal": (p) => `隊伍需要 ${num(p, "min")}–${num(p, "max")} 人，且包含必需的職責`,
     "raidnight.needed": "需要",
     "raidnight.putUp": "打出",

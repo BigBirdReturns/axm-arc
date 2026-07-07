@@ -3,7 +3,7 @@
 // a committed ledger summarizes to exactly what it recorded, and the derivation
 // is pure (no mutation of the ledger it reads).
 import { describe, it, expect } from "vitest";
-import { summarizeGuildHall, agentMemoryCards, scarViews, precedentViews, lootFairnessView } from "../../src/game/lib/guild-hall.js";
+import { summarizeGuildHall, agentMemoryCards, scarViews, precedentViews, lootFairnessView, campaignRecordView } from "../../src/game/lib/guild-hall.js";
 import {
   newRaidNight, pull, applyFix, commitNightVictory, commitNightFailed, type RaidNightState,
 } from "../../src/game/lib/raid-night.js";
@@ -135,5 +135,48 @@ describe("guild hall loot & fairness history", () => {
     for (let i = 1; i < view.rows.length; i++) {
       expect(view.rows[i - 1]!.received).toBeGreaterThanOrEqual(view.rows[i]!.received);
     }
+  });
+});
+
+describe("guild hall campaign record", () => {
+  it("a null ledger is an honest empty view — no fabricated tiers", () => {
+    const view = campaignRecordView(null);
+    expect(view.tiers).toEqual([]);
+    expect(view.legacyPoints).toBe(0);
+    expect(view.commits).toBe(0);
+  });
+
+  it("derives one row per recorded tier, carrying legacy points and commit count", () => {
+    const ledger = commitNightVictory(playToClear(3));
+    const view = campaignRecordView(ledger);
+    expect(view.tiers.length).toBe(ledger.progress.tiers.length);
+    expect(view.commits).toBe(ledger.commits.length);
+    expect(view.legacyPoints).toBe(ledger.guild.legacyPoints);
+    expect(view.tiersCleared).toBe(ledger.progress.tiers.filter((t) => t.cleared).length);
+  });
+
+  it("preserves ledger tier order — never re-sorted", () => {
+    const ledger = commitNightVictory(playToClear(3));
+    const view = campaignRecordView(ledger);
+    expect(view.tiers.map((t) => t.tierIndex)).toEqual(ledger.progress.tiers.map((t) => t.tierIndex));
+  });
+
+  it("marks exactly the current tier, matching currentTierIndex", () => {
+    const ledger = commitNightVictory(playToClear(3));
+    const view = campaignRecordView(ledger);
+    const currentRows = view.tiers.filter((t) => t.isCurrent);
+    if (view.tiers.length > 0 && view.currentTierIndex < view.tiers.length) {
+      expect(currentRows.length).toBe(1);
+      expect(currentRows[0]!.tierIndex).toBe(view.currentTierIndex);
+    } else {
+      expect(currentRows.length).toBe(0);
+    }
+  });
+
+  it("is pure — reading does not mutate the ledger", () => {
+    const ledger = commitNightVictory(playToClear(3));
+    const snapshot = JSON.stringify(ledger);
+    campaignRecordView(ledger);
+    expect(JSON.stringify(ledger)).toBe(snapshot);
   });
 });

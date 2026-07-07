@@ -8,6 +8,7 @@ import { t, useLocale } from "../../i18n/index.js";
 import { loadArcLibrary, loadActiveArcId, type ArcLibraryEntry } from "../lib/arc-library.js";
 import { loadLedger } from "../lib/ledger.js";
 import { expansionRoster, expansionRecord, journeyTimeline, carryVerdict, type ExpansionRow } from "../lib/expansion-archive.js";
+import { summarizeGuildHall } from "../lib/guild-hall.js";
 import { cartridgeDigest } from "../../engine/cartridge-digest.js";
 import { KarazhanEmblem, isKarazhan } from "../karazhan-theme.js";
 import { TrustLabel } from "../../codex/index.js";
@@ -18,6 +19,7 @@ export function ExpansionArchiveScreen({ onBack }: { onBack: () => void }): JSX.
   // mutates either.
   const library = useMemo(() => loadArcLibrary(), []);
   const ledger = useMemo(() => loadLedger(), []);
+  const summary = useMemo(() => summarizeGuildHall(ledger), [ledger]);
   const activeArcId = useMemo(() => loadActiveArcId(), []);
   const rows = useMemo(() => expansionRoster(library, ledger, activeArcId), [library, ledger, activeArcId]);
   const journey = useMemo(() => journeyTimeline(ledger), [ledger]);
@@ -102,7 +104,7 @@ export function ExpansionArchiveScreen({ onBack }: { onBack: () => void }): JSX.
             <div className="agent-meta">{t("guildhall.scars")}{" "}<span className="badge rn-num">{record.scars.length}</span></div>
             {record.scars.map((s, i) => (
               <div key={i} className="recommendation-card expansion-archive-scar">
-                <div className="mechanic-name">✦ {s.name} <span className="badge tier rn-num">+{s.modifier}</span></div>
+                <div className="mechanic-name"><span aria-hidden="true">✦</span> {s.name} <span className="badge tier rn-num">+{s.modifier}</span></div>
                 <div className="recommendation-body">{s.note}</div>
               </div>
             ))}
@@ -140,10 +142,11 @@ export function ExpansionArchiveScreen({ onBack }: { onBack: () => void }): JSX.
   };
 
   return (
-    <div className="screen expansion-archive">
+    <div className="screen expansion-archive" role="region" aria-label={t("archive.title")}>
       <header className="rn-topbar">
         <div className="rn-brand">
           <span className="rn-kicker">{t("archive.title")}</span>
+          {summary.hasGuild && <span className="rn-boss">{summary.guildName}</span>}
         </div>
         <div className="rn-chips">
           <button className="secondary" onClick={onBack}>{t("archive.back")}</button>
@@ -154,13 +157,21 @@ export function ExpansionArchiveScreen({ onBack }: { onBack: () => void }): JSX.
         <div className="card empty expansion-archive-empty">{t("archive.emptyBody")}</div>
       ) : (
         <div className="expansion-archive-body">
+          {summary.hasGuild && (
+            <div className="stat-strip expansion-archive-guild">
+              {stat(t("guildhall.legacyLevel"), summary.legacyLevel)}
+              {stat(t("guildhall.commits"), summary.commits)}
+              {stat(t("guildhall.roster"), summary.rosterSize)}
+              {stat(t("guildhall.tiersCleared"), `${summary.tiersCleared}/${summary.tiersSeen}`)}
+            </div>
+          )}
           <div className="audit-section">
             {t("archive.journey")}{" "}<span className="badge rn-num">{journey.length}</span>
           </div>
           {journey.length === 0 ? (
             <span className="empty">—</span>
           ) : (
-            <div className="expansion-archive-journey">
+            <div className="expansion-archive-journey" aria-label={`${t("archive.journey")} ${journey.length}`}>
               {journey.map((entry, i) => (
                 <div key={entry.commitSeq} className="mechanic-row">
                   <span className="agent-name">{t("archive.night")} {i + 1}</span>{" "}
@@ -179,7 +190,7 @@ export function ExpansionArchiveScreen({ onBack }: { onBack: () => void }): JSX.
           <div className="audit-section">
             {t("archive.expansions")}{" "}<span className="badge rn-num">{rows.length}</span>
           </div>
-          <div className="expansion-archive-roster">
+          <div className="expansion-archive-roster" aria-label={`${t("archive.expansions")} ${rows.length}`}>
             {rows.map((row) => (
               <div
                 key={row.arcId}

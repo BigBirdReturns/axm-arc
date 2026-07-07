@@ -91,6 +91,9 @@ out.committedLedgerArchive = {
   rosterShown: await has(".expansion-archive-roster"),
 };
 out.recordShown = await has(".expansion-archive-record");
+// A committed ledger has a guild → the guild-identity stat-strip (PR 050)
+// must render atop the archive.
+out.guildHeaderShown = await has(".expansion-archive-guild");
 out.artifactMissingShown = await has(".expansion-archive-artifact-missing");
 // A committed ledger has at least one recorded night — the journey timeline
 // (PR 045) must render it.

@@ -5,7 +5,7 @@
 import { useMemo } from "react";
 import { t, useLocale } from "../../i18n/index.js";
 import { loadLedger } from "../lib/ledger.js";
-import { summarizeGuildHall, agentMemoryCards, scarViews, precedentViews, lootFairnessView, campaignRecordView } from "../lib/guild-hall.js";
+import { summarizeGuildHall, agentMemoryCards, scarViews, precedentViews, lootFairnessView, campaignRecordView, rosterGrowthView } from "../lib/guild-hall.js";
 
 export function GuildHallScreen({ onBack }: { onBack: () => void }): JSX.Element {
   useLocale();
@@ -17,6 +17,7 @@ export function GuildHallScreen({ onBack }: { onBack: () => void }): JSX.Element
   const precedents = useMemo(() => precedentViews(ledger), [ledger]);
   const fairness = useMemo(() => lootFairnessView(ledger), [ledger]);
   const record = useMemo(() => campaignRecordView(ledger), [ledger]);
+  const growth = useMemo(() => rosterGrowthView(ledger), [ledger]);
 
   const stat = (label: string, value: string | number) => (
     <div className="stat-cell">
@@ -90,6 +91,30 @@ export function GuildHallScreen({ onBack }: { onBack: () => void }): JSX.Element
               </div>
             ))}
           </div>
+          <div className="audit-section" style={{ marginTop: 16 }}>
+            {t("guildhall.growth")}{" "}<span className="badge rn-num">{growth.length}</span>
+          </div>
+          <div className="guild-hall-growth">
+            {growth.length ? growth.map((g) => (
+              <div key={g.agentId} className="card rn-agent guild-hall-growth-row">
+                <div className="row between">
+                  <span className="agent-name">{g.name}</span>
+                  <span className="badge tier rn-num">{t("guildhall.totalGrowth")} +{g.totalGrowth}</span>
+                </div>
+                <div className="agent-meta guild-hall-growth-attrs">
+                  {g.attrs.map((a) => (
+                    <span key={a.attributeId} className="mechanic-row guild-hall-growth-attr">
+                      {a.attributeId}{" "}
+                      <span className="rn-num">{a.base}</span> → <span className="rn-num">{a.current}</span>
+                      {" "}({t("guildhall.base")}/{t("guildhall.now")}){" "}
+                      <span className="badge rn-num">+{a.delta}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )) : <span className="empty">—</span>}
+          </div>
+
           <div className="audit-section" style={{ marginTop: 16 }}>
             {t("guildhall.scars")}{" "}<span className="badge rn-num">{scars.length}</span>
           </div>

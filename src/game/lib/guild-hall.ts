@@ -135,6 +135,34 @@ export function summarizeGuildHall(ledger: CampaignLedger | null): GuildHallSumm
   };
 }
 
+/** One attribute's recorded growth: first-seen base vs. current, and the
+ *  delta (the engine caps growth; this just reads the two numbers). Attribute
+ *  ids are cartridge vocabulary — verbatim, never translated. */
+export interface AttrGrowth { attributeId: string; base: number; current: number; delta: number }
+
+/** One roster member's growth history: total growth plus one row per
+ *  attribute the ledger has ever recorded for them. */
+export interface RosterGrowthRow { agentId: string; name: string; totalGrowth: number; attrs: AttrGrowth[] }
+
+/** Derive the roster's growth history, most-grown first. Pure over the
+ *  ledger; a null ledger is an honest empty view — no fabricated growth. */
+export function rosterGrowthView(ledger: CampaignLedger | null): RosterGrowthRow[] {
+  if (!ledger) return [];
+  const rows: RosterGrowthRow[] = ledger.roster.map((m) => {
+    const keys = new Set([...Object.keys(m.growthBase), ...Object.keys(m.agent.attributes)]);
+    const attrs: AttrGrowth[] = [...keys]
+      .map((attributeId) => {
+        const base = m.growthBase[attributeId] ?? 0;
+        const current = m.agent.attributes[attributeId] ?? 0;
+        return { attributeId, base, current, delta: current - base };
+      })
+      .sort((a, b) => (a.attributeId < b.attributeId ? -1 : 1));
+    const totalGrowth = attrs.reduce((sum, a) => sum + a.delta, 0);
+    return { agentId: m.agentId, name: m.agent.name, totalGrowth, attrs };
+  });
+  return rows.sort((a, b) => b.totalGrowth - a.totalGrowth || (a.name < b.name ? -1 : 1));
+}
+
 /** One tier's record row, in ledger order — tier order is meaningful and is
  *  never re-sorted. */
 export interface TierRecordRow {

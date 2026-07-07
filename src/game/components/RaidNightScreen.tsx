@@ -269,7 +269,10 @@ function Consequence({ state, committed, onCommit, onNextTier, onTryIncompatible
   );
   return (
     <div className="rn-consequence">
-      <div className="audit-section">{t("raidnight.consequences")}</div>
+      <div className="audit-section">
+        {t("raidnight.consequences")}{" "}
+        {!committed && <span className="badge pending rn-cons-pending">{t("raidnight.consNotSaved")}</span>}
+      </div>
       <div className="rn-cons-grid">
         {card(t("raidnight.consScars"), <>{cons.scarsEarned.length ? cons.scarsEarned.map((s) => <div key={s.scarId}>✦ {s.name} — {s.effect.note}</div>) : <span className="empty">—</span>}</>)}
         {card(t("raidnight.consLegends"), <>{cons.legends.length ? cons.legends.map((l, i) => <div key={i}>★ {state.org.agents[l.agentId]?.name}: {l.citation}</div>) : <span className="empty">—</span>}</>)}

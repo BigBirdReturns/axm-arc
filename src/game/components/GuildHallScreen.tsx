@@ -5,7 +5,7 @@
 import { useMemo } from "react";
 import { t, useLocale } from "../../i18n/index.js";
 import { loadLedger } from "../lib/ledger.js";
-import { summarizeGuildHall, agentMemoryCards, scarViews, precedentViews } from "../lib/guild-hall.js";
+import { summarizeGuildHall, agentMemoryCards, scarViews, precedentViews, lootFairnessView } from "../lib/guild-hall.js";
 
 export function GuildHallScreen({ onBack }: { onBack: () => void }): JSX.Element {
   useLocale();
@@ -15,6 +15,7 @@ export function GuildHallScreen({ onBack }: { onBack: () => void }): JSX.Element
   const raiders = useMemo(() => agentMemoryCards(ledger), [ledger]);
   const scars = useMemo(() => scarViews(ledger), [ledger]);
   const precedents = useMemo(() => precedentViews(ledger), [ledger]);
+  const fairness = useMemo(() => lootFairnessView(ledger), [ledger]);
 
   const stat = (label: string, value: string | number) => (
     <div className="stat-cell">
@@ -89,6 +90,36 @@ export function GuildHallScreen({ onBack }: { onBack: () => void }): JSX.Element
               <div key={i} className="mechanic-row guild-hall-precedent">
                 <span className="badge">{p.type}</span> <span className="badge tier">{p.basis}</span>
                 {p.winner && <> · {p.winner}</>}
+              </div>
+            )) : <span className="empty">—</span>}
+          </div>
+
+          <div className="audit-section" style={{ marginTop: 16 }}>
+            {t("guildhall.fairness")}{" "}<span className="badge rn-num">{fairness.rows.length}</span>
+          </div>
+          <div className="stat-strip guild-hall-fairness">
+            {stat(t("guildhall.distribution"), fairness.distributionScore)}
+            {stat(t("guildhall.disputes"), fairness.disputesResolved)}
+          </div>
+          <div className="guild-hall-fairness-rows">
+            {fairness.rows.length ? fairness.rows.map((r) => (
+              <div key={r.agentId} className="mechanic-row guild-hall-fairness-row">
+                <span className="agent-name">{r.name}</span>{" "}
+                · {t("guildhall.received")} <span className="rn-num">{r.received}</span>
+                {" "}· {t("guildhall.passedOver")} <span className="rn-num">{r.passedOver}</span>
+              </div>
+            )) : <span className="empty">—</span>}
+          </div>
+
+          <div className="audit-section" style={{ marginTop: 16 }}>
+            {t("guildhall.gearEarned")}{" "}<span className="badge rn-num">{fairness.gear.length}</span>
+          </div>
+          <div className="guild-hall-gear">
+            {fairness.gear.length ? fairness.gear.map((g) => (
+              <div key={g.gearMemoryId} className="mechanic-row guild-hall-gear-row">
+                <span className="agent-name">{g.displayName}</span>
+                {g.acquiredBy && <> · {g.acquiredBy}</>}
+                {g.contributedToClear && <span className="badge pass">{t("guildhall.contributedClear")}</span>}
               </div>
             )) : <span className="empty">—</span>}
           </div>

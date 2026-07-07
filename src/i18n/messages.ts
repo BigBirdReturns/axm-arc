@@ -135,6 +135,9 @@ export type MessageId =
   | "raidnight.morale"
   | "raidnight.back"
   | "raidnight.reset"
+  | "raidnight.lastPull"
+  | "raidnight.changed"
+  | "raidnight.tradeoffLabel"
   // ── roster screen ──
   | "roster.personnel"
   | "roster.activeCount"
@@ -719,6 +722,9 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "raidnight.morale": "morale",
     "raidnight.back": "Back",
     "raidnight.reset": "New Guild",
+    "raidnight.lastPull": "Last pull",
+    "raidnight.changed": "Changed before next pull",
+    "raidnight.tradeoffLabel": "Tradeoff",
 
     "roster.personnel": "Personnel",
     "roster.activeCount": (p) => `${num(p, "count")} Active`,
@@ -1312,6 +1318,9 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "raidnight.morale": "士氣",
     "raidnight.back": "返回",
     "raidnight.reset": "新公會",
+    "raidnight.lastPull": "上次開怪",
+    "raidnight.changed": "下次開怪前的變更",
+    "raidnight.tradeoffLabel": "取捨",
 
     "roster.personnel": "人員",
     "roster.activeCount": (p) => `${num(p, "count")} 名現役`,

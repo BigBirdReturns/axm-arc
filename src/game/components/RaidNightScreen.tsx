@@ -85,6 +85,11 @@ export function RaidNightScreen({ onBack }: Props): JSX.Element {
           </button>
         </div>
 
+        {/* ── did the last fix matter? (grounded delta from the previous pull) ── */}
+        {state.pullDelta && (
+          <div className="raid-delta"><span className="raid-delta-tag">{t("raidnight.lastPull")}</span> {state.pullDelta}</div>
+        )}
+
         {/* ── result ── */}
         {state.cleared && (
           <div className="raid-cleared">
@@ -95,6 +100,12 @@ export function RaidNightScreen({ onBack }: Props): JSX.Element {
         {state.diagnosis && !state.cleared && (
           <div className="raid-diagnosis">
             <div className="raid-wipe-head">{t("raidnight.wipe")} — {boss.name}</div>
+
+            {/* Q3 — what KIND of problem, in one line, from the deciding factors */}
+            <div className={`raid-cause cause-${state.diagnosis.primaryCause.kind}`}>
+              <span className="raid-cause-tag">{state.diagnosis.primaryCause.kind}</span>
+              {state.diagnosis.primaryCause.note}
+            </div>
 
             <h3>{t("raidnight.whyWiped")}</h3>
             {state.diagnosis.failedChecks.map((fc) => (
@@ -134,7 +145,13 @@ export function RaidNightScreen({ onBack }: Props): JSX.Element {
                 />
               ))}
             </div>
-            {state.fixApplied && <div className="raid-applied">{t("raidnight.applied")}</div>}
+            {state.fixApplied && (
+              <div className="raid-receipt">
+                <span className="raid-receipt-tag">{t("raidnight.changed")}</span>
+                {state.receipt}
+                <div className="raid-applied">{t("raidnight.applied")}</div>
+              </div>
+            )}
           </div>
         )}
 
@@ -147,14 +164,23 @@ export function RaidNightScreen({ onBack }: Props): JSX.Element {
   );
 }
 
+const LEVER_GLYPH: Record<string, string> = {
+  gear: "⚙", train: "▲", rest: "✚", rally: "✦", bench_swap: "⇄", tradeoff: "⚖",
+};
+
 function FixButton({ fix, disabled, chosen, onApply }: {
   fix: Fix; disabled: boolean; chosen: boolean; onApply: () => void;
 }): JSX.Element {
   return (
-    <div className={`raid-fix ${chosen ? "chosen" : ""}`}>
+    <div className={`raid-fix ${chosen ? "chosen" : ""}`} data-lever={fix.lever}>
       <div className="raid-fix-body">
-        <span className="raid-fix-lever">[{fix.lever}]</span> {fix.description}
-        <div className="raid-fix-cost">{fix.cost}</div>
+        <div className="raid-fix-head">
+          <span className="raid-fix-glyph">{LEVER_GLYPH[fix.lever] ?? "•"}</span>
+          <span className="raid-fix-lever">{fix.lever}</span>
+        </div>
+        <div className="raid-fix-desc">{fix.description}</div>
+        <div className="raid-fix-proj">→ {fix.projectedEffect}</div>
+        <div className="raid-fix-cost">{t("raidnight.tradeoffLabel")}: {fix.cost}</div>
       </div>
       <button className="primary" disabled={disabled} onClick={onApply}>{t("raidnight.apply")}</button>
     </div>

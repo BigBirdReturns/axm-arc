@@ -79,4 +79,38 @@ describe("raid-night loop", () => {
     }
     expect(cleared).toBe(true);
   });
+
+  // ── feel-pass: the decision surface ───────────────────────────────────────
+  it("a wipe carries a primary cause and every fix a grounded projection", () => {
+    let s = newRaidNight(1);
+    for (let i = 0; i < 4 && !s.diagnosis; i++) s = pull(s);
+    const d = s.diagnosis!;
+    expect(["build", "role-fit", "stress-morale", "gear", "variance"]).toContain(d.primaryCause.kind);
+    expect(d.primaryCause.note.length).toBeGreaterThan(0);
+    for (const f of d.fixes) {
+      expect(f.projectedEffect.length).toBeGreaterThan(0);
+      expect(f.checkId).toBeTruthy();
+    }
+  });
+
+  it("applying a fix produces a before→after receipt and remembers the target check", () => {
+    let s = newRaidNight(1);
+    for (let i = 0; i < 4 && !s.diagnosis; i++) s = pull(s);
+    const fix = s.diagnosis!.fixes[0]!;
+    const after = applyFix(s, fix);
+    expect(after.receipt).toBeTruthy();
+    expect(after.receipt!.length).toBeGreaterThan(0);
+    expect(after.lastFix?.checkId).toBe(fix.checkId);
+  });
+
+  it("the next pull reports whether the fixed factor mattered", () => {
+    let s = newRaidNight(1);
+    for (let i = 0; i < 4 && !s.diagnosis; i++) s = pull(s);
+    s = applyFix(s, s.diagnosis!.fixes.find((f) => f.lever === "gear" || f.lever === "train") ?? s.diagnosis!.fixes[0]!);
+    const targetName = s.lastFix!.checkName;
+    s = pull(s);
+    expect(s.pullDelta).toBeTruthy();
+    // grounded: the delta names the check it was tracking
+    expect(s.pullDelta!).toContain(targetName);
+  });
 });

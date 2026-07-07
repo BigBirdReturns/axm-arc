@@ -2982,3 +2982,29 @@ dialog.codex-overlay-backdrop::backdrop { background: transparent; }
 .raid-applied { margin-top: .5rem; color: #7a9a5a; font-weight: 600; }
 .raid-footer { display: flex; gap: .6rem; margin-top: 1.2rem; }
 @media (max-width: 720px) { .raid-roster { grid-template-columns: 1fr; } }
+
+/* ── Raid Night feel-pass: the decision surface ── */
+.raid-cause { display: flex; align-items: baseline; gap: .5rem; font-size: .9rem; padding: .5rem .7rem; border-radius: 6px; margin-bottom: .6rem; border: 1px solid var(--rule, #3a342c); }
+.raid-cause-tag { font-size: .64rem; letter-spacing: .12em; text-transform: uppercase; font-weight: 800; padding: .1rem .4rem; border-radius: 4px; white-space: nowrap; }
+.cause-variance { border-color: #6a7ba0; } .cause-variance .raid-cause-tag { background: rgba(106,123,160,.25); }
+.cause-gear     { border-color: #b08a4a; } .cause-gear .raid-cause-tag { background: rgba(176,138,74,.25); }
+.cause-build    { border-color: #b0684a; } .cause-build .raid-cause-tag { background: rgba(176,104,74,.25); }
+.cause-stress-morale { border-color: #9a5aa0; } .cause-stress-morale .raid-cause-tag { background: rgba(154,90,160,.25); }
+.cause-role-fit { border-color: #5a9a8a; } .cause-role-fit .raid-cause-tag { background: rgba(90,154,138,.25); }
+.raid-delta { border: 1px solid #6a7ba0; background: rgba(106,123,160,.10); border-radius: 6px; padding: .5rem .7rem; margin: .6rem 0; font-size: .9rem; }
+.raid-delta-tag { font-size: .64rem; letter-spacing: .12em; text-transform: uppercase; font-weight: 800; opacity: .8; margin-right: .4rem; }
+/* fixes, distinct by lever */
+.raid-fix { align-items: stretch; border-left-width: 4px; }
+.raid-fix[data-lever="gear"]       { border-left-color: #b08a4a; }
+.raid-fix[data-lever="train"]      { border-left-color: #7a9a5a; }
+.raid-fix[data-lever="rest"], .raid-fix[data-lever="rally"] { border-left-color: #9a5aa0; }
+.raid-fix[data-lever="bench_swap"] { border-left-color: #6a7ba0; }
+.raid-fix[data-lever="tradeoff"]   { border-left-color: #b0684a; }
+.raid-fix-head { display: flex; align-items: center; gap: .35rem; margin-bottom: .15rem; }
+.raid-fix-glyph { font-size: 1rem; }
+.raid-fix-lever { font-size: .62rem; letter-spacing: .12em; text-transform: uppercase; font-weight: 800; opacity: .85; }
+.raid-fix-desc { font-size: .88rem; }
+.raid-fix-proj { font-size: .8rem; color: #7a9a5a; margin-top: .15rem; }
+.raid-receipt { border: 1px solid #7a9a5a; background: rgba(122,154,90,.10); border-radius: 6px; padding: .55rem .75rem; margin-top: .6rem; font-size: .9rem; }
+.raid-receipt-tag { font-size: .64rem; letter-spacing: .12em; text-transform: uppercase; font-weight: 800; opacity: .8; margin-right: .4rem; }
+.raid-receipt .raid-applied { margin-top: .25rem; }

@@ -80,6 +80,20 @@ export interface Fix {
   itemId?: string;
   /** The attribute a gear/train fix raises. */
   attrId?: string;
+  /** The failed check this fix is aimed at — lets the loop tell, on the next
+   *  pull, whether the fixed thing actually mattered. */
+  checkId?: string;
+  /** The grounded expected consequence, shown BEFORE applying: what this fix is
+   *  projected to do to the shortfall it targets. Resolver-derived, not advice. */
+  projectedEffect: string;
+}
+
+/** The one-line answer to "what KIND of problem was this" — build, role-fit,
+ *  stress/morale, gear, or mostly variance. Derived from the deciding factors,
+ *  not asserted. */
+export interface PrimaryCause {
+  kind: "build" | "role-fit" | "stress-morale" | "gear" | "variance";
+  note: string;
 }
 
 export interface WipeDiagnosis {
@@ -87,6 +101,7 @@ export interface WipeDiagnosis {
   challengeName: string;
   outcome: "success" | "partial" | "failure";
   cleared: boolean;
+  primaryCause: PrimaryCause;
   failedChecks: FailedCheckReport[];
   bottlenecks: Bottleneck[];
   fixes: Fix[];
@@ -206,6 +221,10 @@ function generateFixes(
   const attr = dominantAttr(check);
   const culpritExpected = expectedContribution(culprit, check, arc);
   const bench = Object.values(org.agents).filter((a) => !assignedIds.has(a.id));
+  const checkId = primary.mechanicId;
+  const S = round(primary.shortfall);
+  // Projected remaining shortfall after a gain of `g` closes part of S.
+  const closes = (g: number) => `≈ +${round(g)} on "${primary.mechanicName}" — short ${S} → ~${round(Math.max(0, S - g))}`;
 
   // 1. Bench swap — a benched, in-scope agent with a higher expected contribution.
   const swapCandidate = bench
@@ -222,6 +241,8 @@ function generateFixes(
       impact: swapCandidate.gain,
       agentId: culprit.id,
       swapAgentId: swapCandidate.a.id,
+      checkId,
+      projectedEffect: closes(swapCandidate.gain),
     });
   }
 
@@ -244,6 +265,8 @@ function generateFixes(
         agentId: culprit.id,
         itemId: gearCandidate.id,
         attrId: attr,
+        checkId,
+        projectedEffect: closes(bonus),
       });
     }
   }
@@ -257,6 +280,8 @@ function generateFixes(
       cost: "they sit the next pull; you run a person short or bench-swap anyway",
       impact: culprit.stress,
       agentId: culprit.id,
+      checkId,
+      projectedEffect: `clears ${culprit.name}'s stress${culprit.afflictionState.kind !== "none" ? ` and the ${culprit.afflictionState.kind} state` : ""} — steadier roll, no raw-power gain`,
     });
   }
 
@@ -269,6 +294,8 @@ function generateFixes(
       cost: "costs a cycle / a currency; doesn't fix an underlying gear or fit gap",
       impact: (50 - culprit.morale) / 10,
       agentId: culprit.id,
+      checkId,
+      projectedEffect: closes(Math.max(0, (60 - culprit.morale) / 10)),
     });
   }
 
@@ -282,6 +309,8 @@ function generateFixes(
       impact: 2,
       agentId: culprit.id,
       attrId: attr,
+      checkId,
+      projectedEffect: closes(3 * (check.attributeWeights.find((w) => w.attributeId === attr)?.weight ?? 1)),
     });
   }
 
@@ -302,6 +331,8 @@ function generateFixes(
       impact: 1,
       swapAgentId: benchIntended.id,
       attrId: attr,
+      checkId,
+      projectedEffect: closes(Math.max(1, expectedContribution(benchIntended, check, arc) - culpritExpected)),
     });
   }
 
@@ -314,6 +345,8 @@ function generateFixes(
       target: culprit.name,
       cost: "a lockout attempt spent; sometimes the honest read is 'the build is close, the dice weren't'",
       impact: 0,
+      checkId,
+      projectedEffect: "no roster change — a fresh roll on the same party",
     });
   }
 
@@ -422,10 +455,41 @@ export function diagnoseWipe(
     challengeName: challenge.name,
     outcome: report.outcome,
     cleared: report.outcome === "success",
+    primaryCause: computePrimaryCause(primary, fixes),
     failedChecks,
     bottlenecks,
     fixes,
   };
+}
+
+/** The one-line "what KIND of problem is this" answer, derived from the deciding
+ *  factors of the worst failed check — never asserted, always from the numbers. */
+function computePrimaryCause(primary: FailedCheckReport | undefined, fixes: Fix[]): PrimaryCause {
+  if (!primary) return { kind: "build", note: "The party fell short across the board." };
+  const S = Math.max(primary.shortfall, 0.001);
+  let rollMag = 0, smMag = 0, roleFit = 0, gearMissing = 0;
+  for (const c of primary.culprits) {
+    for (const f of c.factors) {
+      if (f.label === "roll") rollMag += Math.abs(f.value);
+      else if (f.label === "morale" || f.label === "affliction") smMag += Math.abs(f.value);
+      else if (f.label === "role-fit") roleFit += 1;
+      else if (f.label === "gear") gearMissing += 1;
+    }
+  }
+  if (rollMag >= 0.6 * S) {
+    return { kind: "variance", note: `The build is close — variance sank it (short ${round(S)}, ~${round(rollMag)} of that was the roll).` };
+  }
+  if (roleFit > 0) {
+    return { kind: "role-fit", note: "Off-role bodies are carrying a check they aren't built for." };
+  }
+  if (smMag >= 2) {
+    return { kind: "stress-morale", note: `Morale/stress dragged about ${round(smMag)} off the line.` };
+  }
+  const gearFix = fixes.find((f) => f.lever === "gear");
+  if (gearMissing > 0 && gearFix) {
+    return { kind: "gear", note: `No one's geared for this check — ${gearFix.target} is available.` };
+  }
+  return { kind: "build", note: `Raw output is short — the party isn't strong enough for this wall yet (short ${round(S)}).` };
 }
 
 function computeBottlenecks(failed: FailedCheckReport[]): Bottleneck[] {

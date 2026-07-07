@@ -1,9 +1,39 @@
 # RFC: The Expansion Archive — the guild's journey across cartridges, made browsable
 
-Status: **proposed** (owner-gated for scope). Implementation would land as PR 041–050.
-Depends on the tier-2 campaign ledger (RFC_TIER2_LEDGER_SCHEMA, shipped), the arc
-library (`src/game/lib/arc-library.ts`, shipped), and the Guild Hall (RFC_GUILD_HALL,
-shipped 032–040).
+Status: **accepted** (owner-ratified 2026-07-07; rulings recorded below). Implementation
+lands as PR 041–050. Depends on the tier-2 campaign ledger (RFC_TIER2_LEDGER_SCHEMA,
+shipped), the arc library (`src/game/lib/arc-library.ts`, shipped), and the Guild Hall
+(RFC_GUILD_HALL, shipped 032–040).
+
+## Owner rulings (2026-07-07)
+
+1. **Scope — accepted as read-only.** The Expansion Archive is the read-only
+   *library × ledger journey* surface. It answers, for the loaded guild:
+   - Which cartridges exist?
+   - Which has this guild actually played?
+   - Which did it clear, fail, or record?
+   - What grade, scars, precedents, pulls, wipes, legends, and progression state came
+     out of each?
+   - Which cartridge can this guild reasonably open next?
+
+   It is **not** authored expansion content (that is Workshop) and **not** a persisted
+   collection. **Schema footprint stays zero.** If persistence beyond the existing
+   library + ledger is ever needed, *stop and write a schema RFC first.*
+
+2. **Route — new route, not a Library section.** Library is cartridge *custody*
+   (import / validate / inspect / export / load / remove). The Archive is guild
+   *journey memory* (what this guild has done across cartridges). They read overlapping
+   data but answer different questions — do not overload Library.
+
+**Hard walls (enforced every PR):** no schema changes · no Workshop work · no authored
+expansion content · no world work · no new persistence model · no fabricated
+cartridge-relative readiness *unless a real cartridge profile is actually loaded*
+(the library hands us full `Arc` objects, so `compatibilityProfile(arc)` is a genuine
+loaded profile — never a guessed one).
+
+**Acceptance criterion:** the Expansion Archive is a read-only route that joins existing
+Library cartridge facts with existing guild ledger facts and proves the guild's campaign
+history is visible *without inventing unseen data.*
 
 ## The one rule
 
@@ -97,10 +127,7 @@ the human's to spec first. The single place a schema question *could* enter is a
 *derived* to avoid that). If, on review, you want any of that persisted, it becomes a
 separate ledger-schema RFC before a line of it is built.
 
-**Open calls for the owner:**
-1. Is the read-only *library × ledger journey* the right scope for "Expansion Archive",
-   or did you intend something more ambitious (e.g. authored expansion content, or a
-   persisted collection)? The former is safe and buildable now; the latter is a schema
-   RFC first.
-2. Should the Archive be its own route, or a section grafted onto the existing Library
-   screen? (This RFC assumes a new route for parity with the Guild Hall.)
+**Open calls — resolved by the owner rulings above (2026-07-07):**
+1. Scope → the read-only *library × ledger journey* (no authored content, no persisted
+   collection, zero schema).
+2. Route → a **new route**, not a Library section.

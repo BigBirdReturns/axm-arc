@@ -192,6 +192,47 @@ export function clearLedger(): void {
 export function exportLedger(ledger: CampaignLedger): { filename: string; json: string } {
   return { filename: `${ledger.guild.name.replace(/\s+/g, "-").toLowerCase()}.guild.json`, json: JSON.stringify(ledger, null, 2) };
 }
+
+export type ImportLedgerResult =
+  | { ok: true; ledger: CampaignLedger }
+  | { ok: false; errors: string[] };
+
+/** Structural check for an imported guild file — enough to reject a non-ledger
+ *  without standing up a second full schema (the cartridge validator is arc's
+ *  one seam; a guild ledger is a different, local-first artifact). Claims only
+ *  the load-bearing shape: a version, an id, a profile, progress, and the
+ *  append-only record. */
+function ledgerShapeErrors(value: unknown): string[] {
+  const errs: string[] = [];
+  if (typeof value !== "object" || value === null) return ["Not a guild ledger object."];
+  const l = value as Record<string, unknown>;
+  if (typeof l.schemaVersion !== "string" || !l.schemaVersion.startsWith("ledger/")) errs.push("Missing or unrecognized schemaVersion (expected 'ledger/...').");
+  if (typeof l.ledgerId !== "string") errs.push("Missing ledgerId.");
+  if (typeof l.profile !== "object" || l.profile === null) errs.push("Missing compatibility profile.");
+  if (typeof l.progress !== "object" || l.progress === null || !Array.isArray((l.progress as Record<string, unknown>).tiers)) errs.push("Missing progression record.");
+  if (!Array.isArray(l.roster)) errs.push("Missing roster.");
+  if (!Array.isArray(l.commits)) errs.push("Missing commit history.");
+  if (typeof l.nextCommitSeq !== "number") errs.push("Missing nextCommitSeq.");
+  return errs;
+}
+
+/** Import a previously-exported guild ledger from its JSON file — the read side
+ *  of exportLedger, closing the custody loop (Article 3: the ledger exports with
+ *  the run and re-imports). Never throws: structural errors come back as strings
+ *  so the UI can render them without a half-loaded guild ever reaching play.
+ *  Migrates on the way in (old records migrate). Never embeds or migrates a
+ *  cartridge — the guild is not the game. */
+export function importLedger(json: string): ImportLedgerResult {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(json);
+  } catch (e) {
+    return { ok: false, errors: [`JSON parse error: ${(e as Error).message}`] };
+  }
+  const errs = ledgerShapeErrors(parsed);
+  if (errs.length > 0) return { ok: false, errors: errs };
+  return { ok: true, ledger: migrate(parsed as CampaignLedger) };
+}
 /** Forward migration hook. Additive versions load as-is; a destructive bump would
  *  register a transform here. Never migrates a cartridge (it is not embedded). */
 function migrate(ledger: CampaignLedger): CampaignLedger {

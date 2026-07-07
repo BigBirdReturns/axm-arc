@@ -88,6 +88,20 @@ function dominantAttr(check: MechanicCheck): string | undefined {
   return [...check.attributeWeights].sort((a, b) => b.weight - a.weight)[0]?.attributeId;
 }
 
+/** The role a check is built to lean on — the role whose own dominant attribute
+ *  matches the check's. A damage wall's intended role is the striker; blaming
+ *  the tank for low damage on it is true but useless. Undefined if no role owns
+ *  the check's attribute. */
+function intendedRoleId(check: MechanicCheck, arc: Arc): string | undefined {
+  const attr = dominantAttr(check);
+  if (!attr) return undefined;
+  for (const role of arc.roles) {
+    const roleAttr = Object.entries(role.attributeWeights).sort((a, b) => b[1] - a[1])[0]?.[0];
+    if (roleAttr === attr) return role.id;
+  }
+  return undefined;
+}
+
 function gearBonusFor(agent: Agent, attrId: string | undefined, arc: Arc): number {
   if (!attrId) return 0;
   let g = 0;
@@ -252,15 +266,33 @@ function generateFixes(
     });
   }
 
-  // 6. Tradeoff — field a stronger rookie over a veteran, naming the retention cost.
-  const veteran = primary.culprits.find((c) => (org.agents[c.agentId]?.morale ?? 0) >= 60 && (org.agents[c.agentId]?.assignmentHistory.length ?? 0) > 0);
-  if (veteran && swapCandidate) {
+  // 6. Tradeoff — shift composition toward the role the check is built to lean
+  //    on, naming the cost. Constructible whenever the bench has such a body.
+  const intended = intendedRoleId(check, arc);
+  const benchIntended = intended
+    ? bench
+        .filter((a) => a.role === intended)
+        .sort((a, b) => expectedContribution(b, check, arc) - expectedContribution(a, check, arc))[0]
+    : undefined;
+  if (intended && benchIntended) {
     fixes.push({
       lever: "tradeoff",
-      description: `Field ${swapCandidate.a.name} over veteran ${org.agents[veteran.agentId]?.name} — more readiness, real retention risk`,
-      target: org.agents[veteran.agentId]?.name ?? "",
-      cost: "the veteran remembers being benched on progression; fairness vs. readiness",
-      impact: 0.5,
+      description: `Field ${benchIntended.name} (${intended}) and sit a defensive body — more ${attr ?? intended}, thinner safety net`,
+      target: benchIntended.name,
+      cost: "trade a defensive slot for offense; the sat starter remembers it",
+      impact: 1,
+    });
+  }
+
+  // Guaranteed floor: if fewer than three distinct levers surfaced, add an
+  // honest fallback so the readout always offers three moves — never a shrug.
+  if (new Set(fixes.map((f) => f.lever)).size < 3 && !fixes.some((f) => f.lever === "tradeoff")) {
+    fixes.push({
+      lever: "tradeoff",
+      description: `Re-pull as composed and accept the wipe risk — bank the attempt, read the next roll`,
+      target: culprit.name,
+      cost: "a lockout attempt spent; sometimes the honest read is 'the build is close, the dice weren't'",
+      impact: 0,
     });
   }
 
@@ -308,13 +340,20 @@ export function diagnoseWipe(
     const check = checkById.get(cd.mechanicId);
     if (!check) continue;
 
-    // Culprits: for a team check, the weakest addends; for per-agent/role, the
-    // agents who actually fell under the line.
+    // Culprits: for a team check, the weakest of the agents the check is BUILT
+    // to lean on (the strikers on a damage wall) — not the tank who was never
+    // going to carry it; for per-agent/role, the agents who fell under the line.
     const contributions = [...cd.contributions].sort((a, b) => a.score - b.score);
-    const failing =
-      cd.scope === "team_aggregate"
-        ? contributions.slice(0, Math.min(3, contributions.length))
-        : contributions.filter((c) => c.score < cd.threshold);
+    let failing: typeof contributions;
+    if (cd.scope === "team_aggregate") {
+      const intended = intendedRoleId(check, arc);
+      const onRole = intended
+        ? contributions.filter((c) => org.agents[c.agentId]?.role === intended)
+        : [];
+      failing = (onRole.length > 0 ? onRole : contributions).slice(0, 2);
+    } else {
+      failing = contributions.filter((c) => c.score < cd.threshold);
+    }
     const shortfall =
       cd.scope === "team_aggregate"
         ? cd.threshold - (cd.teamScore ?? 0)

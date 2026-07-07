@@ -1,5 +1,6 @@
 import type {
   Agent,
+  AgentContribution,
   AgentRunResult,
   Arc,
   Challenge,
@@ -358,7 +359,11 @@ export function resolveChallenge(opts: ResolveChallengeOpts): RunReport {
           mechanicResults.push({ ...existingResult });
           continue;
         }
-        // Sum all agents' individual scores
+        // Sum all agents' individual scores. Note this branch runs once PER
+        // assigned agent (mechanicResults is per-agent), so every agent rolls
+        // their own version of the aggregate — a down happens when a specific
+        // agent catches a failing roll, not on one shared team number.
+        const localContribs: AgentContribution[] = [];
         const teamScore = assignedAgents.reduce((s, a) => {
           const cap: { breakdown?: ScoreBreakdown } = {};
           const contribution = scoreAgent(
@@ -366,8 +371,7 @@ export function resolveChallenge(opts: ResolveChallengeOpts): RunReport {
             collectDiag ? cap : undefined,
           );
           if (collectDiag && cap.breakdown) {
-            diagFor(check, effectiveThreshold(check, assignedAgents.length))
-              .contributions.push({ agentId: a.id, score: contribution, breakdown: cap.breakdown });
+            localContribs.push({ agentId: a.id, score: contribution, breakdown: cap.breakdown });
           }
           return s + contribution;
         }, 0);
@@ -378,10 +382,23 @@ export function resolveChallenge(opts: ResolveChallengeOpts): RunReport {
         threshold = effectiveThreshold(check, assignedAgents.length);
         passed = score >= threshold;
         if (collectDiag) {
-          const d = diagFor(check, threshold);
-          d.teamScore = score;
-          d.threshold = threshold;
-          d.passed = passed;
+          // Keep the WORST of the per-agent rolls (the one that could drop
+          // someone) and fail the check if ANY agent's roll failed — so the
+          // diagnosis explains the roll that actually mattered, not the last.
+          const prior = checkDiag.get(check.id);
+          if (!prior) {
+            checkDiag.set(check.id, {
+              mechanicId: check.id, scope: check.scope, threshold,
+              passed, teamScore: score, contributions: localContribs,
+            });
+          } else {
+            if (score < (prior.teamScore ?? Infinity)) {
+              prior.teamScore = score;
+              prior.threshold = threshold;
+              prior.contributions = localContribs;
+            }
+            if (!passed) prior.passed = false;
+          }
         }
       }
 

@@ -9,6 +9,8 @@ import { loadArcLibrary, loadActiveArcId, type ArcLibraryEntry } from "../lib/ar
 import { loadLedger } from "../lib/ledger.js";
 import { expansionRoster, expansionRecord, journeyTimeline, carryVerdict, type ExpansionRow } from "../lib/expansion-archive.js";
 import { cartridgeDigest } from "../../engine/cartridge-digest.js";
+import { KarazhanEmblem, isKarazhan } from "../karazhan-theme.js";
+import { TrustLabel } from "../../codex/index.js";
 
 export function ExpansionArchiveScreen({ onBack }: { onBack: () => void }): JSX.Element {
   useLocale();
@@ -188,12 +190,24 @@ export function ExpansionArchiveScreen({ onBack }: { onBack: () => void }): JSX.
                 }
               >
                 <div className="row between">
-                  <span className="agent-name">{row.name}</span>
+                  <span className="agent-name">
+                    {!row.artifactMissing && isKarazhan(row.arcId) && (
+                      <span className="karazhan-emblem" aria-hidden="true">
+                        <KarazhanEmblem size={18} />
+                      </span>
+                    )}
+                    {row.name}
+                  </span>
                   <span className="rn-agent-tags">
                     {row.isActive && <span className="badge pass">{t("archive.active")}</span>}
                     {row.artifactMissing && <span className="badge">{t("archive.artifactMissing")}</span>}
+                    {!row.artifactMissing && (() => {
+                      const entry = libraryByDigest.get(row.digest);
+                      return entry ? <TrustLabel trust={entry.trust} /> : null;
+                    })()}
                     <span className={statusBadgeClass(row.status)}>{statusLabel(row.status)}</span>
                     {renderCarryBadge(row)}
+                    <span className="badge expansion-archive-source">{row.source}</span>
                   </span>
                 </div>
                 <div className="agent-meta">

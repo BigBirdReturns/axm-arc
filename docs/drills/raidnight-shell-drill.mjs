@@ -29,19 +29,29 @@ await page.evaluate(() => {
 await page.waitForTimeout(400);
 
 const has = (sel) => page.evaluate((s) => !!document.querySelector(s), sel);
-const bg = await page.evaluate(() => getComputedStyle(document.querySelector(".raid-shell")).backgroundColor);
+// The shell must reuse arc's OWN management-UI vocabulary + tokens and theme
+// with the app — not a hardcoded raid-only palette.
+const themed = await page.evaluate(() => ({
+  shell: getComputedStyle(document.querySelector(".raid-shell")).backgroundColor,
+  paper: getComputedStyle(document.documentElement).getPropertyValue("--paper").trim(),
+}));
 const out = {
   errs,
+  // runtime regions
   region_topbar: await has(".rn-topbar"),
   region_leftRoster: await has(".rn-left .rn-rolegroup .rn-agent"),
   region_centerEncounter: await has(".rn-center .rn-encounter"),
   region_rightPanel: await has(".rn-right"),
   region_bottomStrip: await has(".rn-bottom .rn-bottom-actions"),
-  darkShell: /rgb\(1[0-9]|rgb\(([0-9]|1[0-9]|2[0-9]),/.test(bg) || bg === "rgb(13, 12, 10)",
-  shellBg: bg,
-  // strong state chips + mono numbers present
-  chips: await has(".rn-chip"),
+  // arc-native reuse markers (provenance)
+  reuse_agentCards: await has(".rn-agent.card"),
+  reuse_roleBadges: await has(".rn-left .badge.role"),
+  reuse_attrStats: await has(".rn-agent .stat-strip .stat-cell .stat-val"),
+  reuse_thresholdBars: await has(".rn-agent .bar-wrap .bar"),
+  reuse_stateChips: await has(".rn-topbar .badge"),
+  themeConsistent: themed.paper.length > 0,
   monoNumbers: await has(".rn-num"),
+  themed,
 };
 await page.screenshot({ path: "/tmp/claude-0/-home-user/e5fc34d9-bf66-5d16-bd4a-2fff1c817b29/scratchpad/raidnight-shell.png" });
 console.log(JSON.stringify(out, null, 2));

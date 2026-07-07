@@ -95,6 +95,10 @@ out.artifactMissingShown = await has(".expansion-archive-artifact-missing");
 // A committed ledger has at least one recorded night — the journey timeline
 // (PR 045) must render it.
 out.journeyShown = await has(".expansion-archive-journey");
+// The carry-forward signal (PR 047) renders on every row (a "ready"/
+// "incompatible" badge for library rows, an honest "unavailable" badge for
+// the artifact-missing row) — its stable class must be present.
+out.carryShown = await has(".expansion-archive-carry");
 
 // Screenshot the artifact-missing archive before the no-write reload navigates
 // away — the visual proof that a committed-but-unlibraried cartridge's record

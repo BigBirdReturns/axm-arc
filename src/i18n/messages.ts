@@ -200,6 +200,9 @@ export type MessageId =
   | "archive.failed"
   | "archive.night"
   | "archive.notRecorded"
+  | "archive.carryReady"
+  | "archive.carryIncompatible"
+  | "archive.carryUnavailable"
   | "raidnight.partyIllegal"
   | "raidnight.needed"
   | "raidnight.putUp"
@@ -883,6 +886,9 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "archive.failed": "Failed lockout",
     "archive.night": "Night",
     "archive.notRecorded": "Not recorded",
+    "archive.carryReady": "Ready to carry",
+    "archive.carryIncompatible": "Incompatible",
+    "archive.carryUnavailable": "Can't assess — cartridge unavailable",
     "raidnight.partyIllegal": (p) => `Party needs ${num(p, "min")}–${num(p, "max")}, including its required roles`,
     "raidnight.needed": "needed",
     "raidnight.putUp": "put up",
@@ -1576,6 +1582,9 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "archive.failed": "失敗封鎖",
     "archive.night": "夜",
     "archive.notRecorded": "未紀錄",
+    "archive.carryReady": "可承接",
+    "archive.carryIncompatible": "不相容",
+    "archive.carryUnavailable": "無法評估——卡帶缺失",
     "raidnight.partyIllegal": (p) => `隊伍需要 ${num(p, "min")}–${num(p, "max")} 人，且包含必需的職責`,
     "raidnight.needed": "需要",
     "raidnight.putUp": "打出",

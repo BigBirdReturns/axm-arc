@@ -4,11 +4,12 @@
 // ledger is all-unattempted; a committed victory ledger surfaces at least one
 // non-unattempted row; ordering and purity hold.
 import { describe, it, expect, beforeEach } from "vitest";
-import { expansionRoster, expansionRecord, journeyTimeline } from "../../src/game/lib/expansion-archive.js";
+import { expansionRoster, expansionRecord, journeyTimeline, carryVerdict } from "../../src/game/lib/expansion-archive.js";
 import { loadArcLibrary, ensureBundledArc, type ArcLibraryEntry } from "../../src/game/lib/arc-library.js";
 import { FIRST_CHARTER, KARAZHAN } from "../../src/arcs/index.js";
 import { newRaidNight, pull, applyFix, commitNightVictory, commitNightFailed, RAID_ARC, type RaidNightState } from "../../src/game/lib/raid-night.js";
 import { cartridgeDigest } from "../../src/engine/cartridge-digest.js";
+import { checkCompatibility } from "../../src/game/lib/ledger.js";
 
 // arc-library.ts reads/writes the ambient `localStorage` global directly.
 // Vitest's node environment doesn't provide one, so install a minimal
@@ -289,6 +290,41 @@ describe("journey timeline (PR 045 — cross-expansion chronology)", () => {
     const ledger = commitNightVictory(playToClear(3));
     const snapshot = JSON.stringify(ledger);
     journeyTimeline(ledger);
+    expect(JSON.stringify(ledger)).toBe(snapshot);
+  });
+});
+
+describe("carry-forward compatibility signal (PR 047)", () => {
+  beforeEach(() => {
+    globalThis.localStorage = new MemoryStorage();
+  });
+
+  it("null ledger is always null-ledger — no guild to check", () => {
+    expect(carryVerdict(FIRST_CHARTER, null)).toBe("null-ledger");
+  });
+
+  it("a ledger built by playing RAID_ARC is compatible with RAID_ARC itself, and matches checkCompatibility verbatim", () => {
+    const ledger = commitNightVictory(playToClear(3));
+    const verdict = carryVerdict(RAID_ARC, ledger);
+    expect(verdict).toBe(checkCompatibility(ledger, RAID_ARC).verdict);
+    expect(verdict).toBe("compatible");
+  });
+
+  it("a different bundled cartridge's verdict is a faithful, non-null passthrough of checkCompatibility", () => {
+    const ledger = commitNightVictory(playToClear(3));
+    for (const other of [FIRST_CHARTER, KARAZHAN]) {
+      const verdict = carryVerdict(other, ledger);
+      expect(verdict).toBe(checkCompatibility(ledger, other).verdict);
+      expect(verdict).not.toBe("null-ledger");
+    }
+  });
+
+  it("is pure — reading does not mutate the ledger", () => {
+    const ledger = commitNightVictory(playToClear(3));
+    const snapshot = JSON.stringify(ledger);
+    carryVerdict(RAID_ARC, ledger);
+    carryVerdict(FIRST_CHARTER, ledger);
+    carryVerdict(KARAZHAN, ledger);
     expect(JSON.stringify(ledger)).toBe(snapshot);
   });
 });

@@ -6,6 +6,8 @@
 // summary the schema lacks.
 import type { ArcLibraryEntry } from "./arc-library.js";
 import type { CampaignLedger } from "./ledger.js";
+import { checkCompatibility } from "./ledger.js";
+import type { Arc } from "../../engine/types.js";
 import { cartridgeDigest } from "../../engine/cartridge-digest.js";
 
 export interface ExpansionRow {
@@ -112,6 +114,23 @@ export function expansionRoster(
     if (clearedDiff !== 0) return clearedDiff;
     return a.name < b.name ? -1 : a.name > b.name ? 1 : 0;
   });
+}
+
+// ── carry-forward compatibility signal (PR 047) ──────────────────────────────
+// "Can this guild carry into this expansion?" — a thin, named wrapper over the
+// ledger's own `checkCompatibility`, kept as a separate seam so the Archive
+// screen can call it per LIBRARY entry only. It takes a real `Arc` (never a
+// digest), so an artifact-missing row — which has no cartridge in hand — is
+// structurally excluded from ever calling this: there is nothing to check.
+
+export type CarryVerdict = "compatible" | "incompatible" | "null-ledger";
+
+/** Can this guild's recorded ledger carry into `arc`? A pure wrapper over
+ *  `checkCompatibility` — never reimplements the comparison. Requires a real
+ *  loaded `Arc`; there is no digest-only overload, because a digest alone
+ *  cannot be checked (only a cartridge actually in hand can). */
+export function carryVerdict(arc: Arc, ledger: CampaignLedger | null): CarryVerdict {
+  return checkCompatibility(ledger, arc).verdict;
 }
 
 // ── per-expansion campaign record (PR 043) ───────────────────────────────────

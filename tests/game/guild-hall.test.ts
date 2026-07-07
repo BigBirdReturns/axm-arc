@@ -3,7 +3,7 @@
 // a committed ledger summarizes to exactly what it recorded, and the derivation
 // is pure (no mutation of the ledger it reads).
 import { describe, it, expect } from "vitest";
-import { summarizeGuildHall, agentMemoryCards, scarViews, precedentViews } from "../../src/game/lib/guild-hall.js";
+import { summarizeGuildHall, agentMemoryCards, scarViews, precedentViews, lootFairnessView } from "../../src/game/lib/guild-hall.js";
 import {
   newRaidNight, pull, applyFix, commitNightVictory, commitNightFailed, type RaidNightState,
 } from "../../src/game/lib/raid-night.js";
@@ -99,5 +99,41 @@ describe("guild hall scars & precedents", () => {
   it("derives precedents most-recent first, never more than the ledger holds", () => {
     const ledger = commitNightVictory(playToClear(3));
     expect(precedentViews(ledger).length).toBe(ledger.precedents.length);
+  });
+});
+
+describe("guild hall loot & fairness history", () => {
+  it("a null ledger is an honest empty view — no fabricated distribution", () => {
+    const view = lootFairnessView(null);
+    expect(view.rows).toEqual([]);
+    expect(view.gear).toEqual([]);
+    expect(view.distributionScore).toBe(0);
+    expect(view.disputesResolved).toBe(0);
+    expect(view.totalAwarded).toBe(0);
+  });
+
+  it("derives one row per recorded agent share and one row per remembered item", () => {
+    const ledger = commitNightVictory(playToClear(3));
+    const view = lootFairnessView(ledger);
+    expect(view.rows.length).toBe(Object.keys(ledger.fairness.perAgent).length);
+    expect(view.gear.length).toBe(ledger.gear.length);
+    for (const row of view.gear) {
+      const mem = ledger.gear.find((g) => g.gearMemoryId === row.gearMemoryId)!;
+      expect(row.displayName).toBe(mem.displayName);
+    }
+  });
+
+  it("is pure — reading does not mutate the ledger", () => {
+    const ledger = commitNightVictory(playToClear(3));
+    const snapshot = JSON.stringify(ledger);
+    lootFairnessView(ledger);
+    expect(JSON.stringify(ledger)).toBe(snapshot);
+  });
+
+  it("orders rows by received desc", () => {
+    const view = lootFairnessView(commitNightVictory(playToClear(3)));
+    for (let i = 1; i < view.rows.length; i++) {
+      expect(view.rows[i - 1]!.received).toBeGreaterThanOrEqual(view.rows[i]!.received);
+    }
   });
 });

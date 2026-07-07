@@ -149,6 +149,13 @@ export type MessageId =
   | "guildhall.precedents"
   | "guildhall.readOnlyNote"
   | "guildhall.raiders"
+  | "guildhall.fairness"
+  | "guildhall.distribution"
+  | "guildhall.disputes"
+  | "guildhall.received"
+  | "guildhall.passedOver"
+  | "guildhall.gearEarned"
+  | "guildhall.contributedClear"
   | "raidnight.partyIllegal"
   | "raidnight.needed"
   | "raidnight.putUp"
@@ -782,6 +789,13 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "guildhall.precedents": "Precedents",
     "guildhall.readOnlyNote": "The Guild Hall reads the ledger — it never changes it.",
     "guildhall.raiders": "Raiders",
+    "guildhall.fairness": "Loot & fairness",
+    "guildhall.distribution": "Distribution score",
+    "guildhall.disputes": "Disputes resolved",
+    "guildhall.received": "Received",
+    "guildhall.passedOver": "Passed over",
+    "guildhall.gearEarned": "Gear earned",
+    "guildhall.contributedClear": "Contributed to clear",
     "raidnight.partyIllegal": (p) => `Party needs ${num(p, "min")}–${num(p, "max")}, including its required roles`,
     "raidnight.needed": "needed",
     "raidnight.putUp": "put up",
@@ -1425,6 +1439,13 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "guildhall.precedents": "先例",
     "guildhall.readOnlyNote": "公會大廳只讀取紀錄，永不更改。",
     "guildhall.raiders": "團員",
+    "guildhall.fairness": "戰利品與公平",
+    "guildhall.distribution": "分配評分",
+    "guildhall.disputes": "已解決爭議",
+    "guildhall.received": "獲得",
+    "guildhall.passedOver": "被略過",
+    "guildhall.gearEarned": "已獲裝備",
+    "guildhall.contributedClear": "助力通關",
     "raidnight.partyIllegal": (p) => `隊伍需要 ${num(p, "min")}–${num(p, "max")} 人，且包含必需的職責`,
     "raidnight.needed": "需要",
     "raidnight.putUp": "打出",

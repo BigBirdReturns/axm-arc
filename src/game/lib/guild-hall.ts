@@ -75,6 +75,39 @@ export function precedentViews(ledger: CampaignLedger | null): PrecedentView[] {
     .reverse();
 }
 
+/** One raider's share of the guild's loot, as the ledger's fairness memory recorded it. */
+export interface FairnessRow { agentId: string; name: string; received: number; passedOver: number }
+
+/** One item the guild remembers acquiring — memory, not a stat (Q1). */
+export interface GearRow { gearMemoryId: string; displayName: string; acquiredBy: string | null; contributedToClear: boolean }
+
+/** The loot & fairness history: the distribution score/disputes the ledger
+ *  tracked, plus one row per raider's share and one row per remembered item. */
+export interface LootFairnessView {
+  distributionScore: number;
+  disputesResolved: number;
+  totalAwarded: number;
+  rows: FairnessRow[];
+  gear: GearRow[];
+}
+
+/** Derive the loot & fairness history. Pure over the ledger. A null ledger is
+ *  an honest empty view — no fabricated distribution. */
+export function lootFairnessView(ledger: CampaignLedger | null): LootFairnessView {
+  if (!ledger) return { distributionScore: 0, disputesResolved: 0, totalAwarded: 0, rows: [], gear: [] };
+  const nameOf = (agentId: string) => ledger.roster.find((m) => m.agentId === agentId)?.agent.name ?? agentId;
+  const rows: FairnessRow[] = Object.entries(ledger.fairness.perAgent)
+    .map(([agentId, f]) => ({ agentId, name: nameOf(agentId), received: f.received, passedOver: f.passedOver }))
+    .sort((a, b) => b.received - a.received || (a.name < b.name ? -1 : 1));
+  const totalAwarded = rows.reduce((sum, r) => sum + r.received, 0);
+  const gear: GearRow[] = ledger.gear.map((g) => ({
+    gearMemoryId: g.gearMemoryId, displayName: g.displayName,
+    acquiredBy: g.acquiredByAgentId ? nameOf(g.acquiredByAgentId) : null,
+    contributedToClear: g.contributedToClear,
+  }));
+  return { distributionScore: ledger.fairness.distributionScore, disputesResolved: ledger.fairness.disputesResolved, totalAwarded, rows, gear };
+}
+
 /** Derive the campaign-record summary. A null ledger is an honest empty hall —
  *  no guild founded yet — not a fabricated one. */
 export function summarizeGuildHall(ledger: CampaignLedger | null): GuildHallSummary {

@@ -3,7 +3,7 @@
 // a committed ledger summarizes to exactly what it recorded, and the derivation
 // is pure (no mutation of the ledger it reads).
 import { describe, it, expect } from "vitest";
-import { summarizeGuildHall, agentMemoryCards } from "../../src/game/lib/guild-hall.js";
+import { summarizeGuildHall, agentMemoryCards, scarViews, precedentViews } from "../../src/game/lib/guild-hall.js";
 import {
   newRaidNight, pull, applyFix, commitNightVictory, commitNightFailed, type RaidNightState,
 } from "../../src/game/lib/raid-night.js";
@@ -75,5 +75,29 @@ describe("guild hall agent memory cards", () => {
     for (let i = 1; i < cards.length; i++) {
       expect(cards[i - 1]!.nightsAttended).toBeGreaterThanOrEqual(cards[i]!.nightsAttended);
     }
+  });
+});
+
+describe("guild hall scars & precedents", () => {
+  it("a null ledger has no scars or precedents", () => {
+    expect(scarViews(null)).toEqual([]);
+    expect(precedentViews(null)).toEqual([]);
+  });
+
+  it("derives a scar view per recorded scar, carrying its note and modifier", () => {
+    const ledger = commitNightVictory(playToClear(3));
+    const views = scarViews(ledger);
+    expect(views.length).toBe(ledger.scars.length);
+    for (const v of views) {
+      const scar = ledger.scars.find((s) => s.scarId === v.scarId)!;
+      expect(v.name).toBe(scar.name);
+      expect(v.note).toBe(scar.effect.note);
+      expect(v.modifier).toBe(scar.effect.modifier);
+    }
+  });
+
+  it("derives precedents most-recent first, never more than the ledger holds", () => {
+    const ledger = commitNightVictory(playToClear(3));
+    expect(precedentViews(ledger).length).toBe(ledger.precedents.length);
   });
 });

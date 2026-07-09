@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 import type { Arc } from "../../engine/types.js";
 import { CodexOverlay, TrustLabel } from "../../codex/index.js";
 import { cartridgeDigest } from "../../engine/cartridge-digest.js";
+import { compatibilityProfile } from "../lib/ledger.js";
 import {
   type ArcLibraryEntry,
   type ImportPreflight,
@@ -34,6 +35,10 @@ export function LibraryScreen({ arc, onBack, onLoadArc }: Props): JSX.Element {
   const [exportErrors, setExportErrors] = useState<{ arcName: string; errors: string[] } | null>(null);
   const [exportMsg, setExportMsg] = useState<string | null>(null);
   const [inspectEntry, setInspectEntry] = useState<ArcLibraryEntry | null>(null);
+  // Per-card vocabulary profile toggle (RFC_CARTRIDGE_LIBRARY PR 074) — keyed
+  // by the same id:source card key as the digest map. Reveals the exact facts
+  // checkCompatibility compares, reused verbatim from ledger.ts.
+  const [profileFor, setProfileFor] = useState<string | null>(null);
 
   // Content-identity anchor per entry, computed once per entries change — the
   // same fact the Archive joins by and world's boot-import verifies against
@@ -127,9 +132,11 @@ export function LibraryScreen({ arc, onBack, onLoadArc }: Props): JSX.Element {
           {entries.map((entry) => {
             const isActive = entry.arc.meta.id === arc.meta.id;
             const karazhan = isKarazhan(entry.arc.meta.id);
+            const cardKey = `${entry.arc.meta.id}:${entry.source}`;
+            const profileOpen = profileFor === cardKey;
             return (
               <div
-                key={`${entry.arc.meta.id}:${entry.source}`}
+                key={cardKey}
                 className="card"
                 data-arc={karazhan ? "karazhan" : undefined}
                 style={{ padding: 12 }}
@@ -150,7 +157,7 @@ export function LibraryScreen({ arc, onBack, onLoadArc }: Props): JSX.Element {
                       v{entry.arc.meta.version} · {entry.arc.meta.domain} · {entry.arc.meta.author} · {entry.source}
                     </div>
                     {(() => {
-                      const digest = digests.get(entry.arc.meta.id + ":" + entry.source)!;
+                      const digest = digests.get(cardKey)!;
                       return (
                         <div className="agent-meta library-digest" title={digest}>
                           <span>{t("archive.digest")}</span> <span className="rn-num">{digest.slice(0, 12)}…</span>
@@ -161,6 +168,12 @@ export function LibraryScreen({ arc, onBack, onLoadArc }: Props): JSX.Element {
                   <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
                     <button className="secondary" onClick={() => setInspectEntry(entry)}>
                       {t("library.inspect")}
+                    </button>
+                    <button
+                      className="secondary"
+                      onClick={() => setProfileFor(profileOpen ? null : cardKey)}
+                    >
+                      {t("library.profile")}
                     </button>
                     <button
                       className="secondary"
@@ -179,6 +192,35 @@ export function LibraryScreen({ arc, onBack, onLoadArc }: Props): JSX.Element {
                     )}
                   </div>
                 </div>
+                {profileOpen && (() => {
+                  // Pure reuse — the exact facts checkCompatibility compares
+                  // (RFC_CARTRIDGE_LIBRARY PR 074). Small + pure; fine to
+                  // recompute on render, no memoization needed.
+                  const p = compatibilityProfile(entry.arc);
+                  const rows: [string, string[]][] = [
+                    [t("library.profileRoles"), p.roleIds],
+                    [t("library.profileAttributes"), p.attributeIds],
+                    [t("guildhall.tiers"), p.tierIds],
+                    [t("library.profileSlots"), p.itemSlots],
+                    [t("library.profileVocab"), p.checkVocab],
+                  ];
+                  return (
+                    <div className="library-profile agent-meta" style={{ marginTop: 8 }}>
+                      <div title={p.profileDigest}>
+                        <span>{t("library.profileDigest")}</span>{" "}
+                        <span className="rn-num">{p.profileDigest.slice(0, 14)}…</span>
+                      </div>
+                      {rows.map(([label, values]) => (
+                        <div key={label} style={{ marginTop: 4 }}>
+                          <span>{label}</span> <span className="badge">{values.length}</span>{" "}
+                          <span className="rn-num" style={{ wordBreak: "break-word" }}>
+                            {values.join(" · ")}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
             );
           })}

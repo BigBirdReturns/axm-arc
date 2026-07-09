@@ -80,6 +80,15 @@ await page.waitForTimeout(400);
 const bodyTextDup = await page.evaluate(() => document.body.innerText);
 out.preflightDuplicate = (await has(".library-preflight")) && /byte-identical/i.test(bodyTextDup);
 
+// PR 074 — vocabulary profile inspection: click the first entry's Profile
+// button and check the panel renders with a visible profile digest — the
+// exact facts checkCompatibility compares, reused verbatim from ledger.ts.
+await click("^profile$|^設定檔$");
+await page.waitForTimeout(200);
+
+out.profileShown = await has(".library-profile");
+out.profileDigestShown = /prof1_/i.test(await page.evaluate(() => document.body.innerText));
+
 await page.screenshot({ path: "/tmp/claude-0/-home-user/65fd6ca3-5fb5-56c1-92df-ef191fdf9c5d/scratchpad/library-custody.png" });
 
 console.log(JSON.stringify(out, null, 2));

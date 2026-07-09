@@ -33,6 +33,15 @@ interface Props {
 export function WorkshopScreen({ onBack }: Props): JSX.Element {
   useLocale(); // this screen renders outside App's play shell — subscribe directly
   const [text, setText] = useState<string>(() => loadWorkshopDraft() ?? workshopSkeleton());
+  // Draft custody honesty (RFC_WORKSHOP PR 065): whether THIS session's
+  // editor was seeded from a stored draft, captured once at mount so it
+  // describes how the session started and never live-updates as the author
+  // edits, loads a skeleton, or duplicates from the library. A second
+  // loadWorkshopDraft() read here (rather than threading the first read
+  // through a combined initializer) is the cleaner shape for this file —
+  // both lazy initializers run exactly once per mount, so it costs one
+  // extra localStorage.getItem at startup, never a behavior difference.
+  const [restoredFromStorage] = useState<boolean>(() => loadWorkshopDraft() !== null);
   const [entries] = useState<ArcLibraryEntry[]>(() => loadArcLibrary());
   const [duplicateId, setDuplicateId] = useState("");
 
@@ -228,6 +237,15 @@ export function WorkshopScreen({ onBack }: Props): JSX.Element {
             {t("workshop.duplicateEmptyLibrary")}
           </div>
         )}
+
+        {restoredFromStorage && (
+          <div className="agent-meta workshop-draft-restored" role="status" style={{ marginTop: 12 }}>
+            {t("workshop.draftRestored")}
+          </div>
+        )}
+        <div className="agent-meta workshop-draft-notice" style={{ marginTop: restoredFromStorage ? 4 : 12 }}>
+          {t("workshop.draftPersists")}
+        </div>
 
         <textarea
           aria-label={t("workshop.editorAria")}

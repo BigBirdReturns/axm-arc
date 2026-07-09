@@ -15,7 +15,7 @@ seam; it protects every future cartridge.
 | `installability.mjs` | CDP `getInstallabilityErrors` on the manifest/SW |
 | `guildhall-playtest-drill.mjs` | The Guild Hall renders a committed ledger — every panel populated, zero page errors, and the Hall never writes the ledger it reads |
 | `expansion-archive-drill.mjs` | The Expansion Archive route opens from the title and renders the library × ledger roster on a fresh install — zero page errors |
-| `library-custody-drill.mjs` | Every Library entry shows its content digest — the custody surface names the identity everything else verifies by |
+| `library-custody-drill.mjs` | The full custody loop — import (preflight verdicts) → digest shown → duplicate detected → export receipt matches → carry signal honest → remove — with library storage changing ONLY through those explicit custody actions and the guild ledger byte-identical throughout |
 
 ## Running (2026 tooling — adapt freely, keep the assertions)
 

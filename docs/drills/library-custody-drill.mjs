@@ -14,6 +14,7 @@ import { extname, join } from "path";
 
 const ROOT = "/home/user/axm-arc/docs/game", BASE = "/axm-arc/game/";
 const LEDGER_KEY = "axm-arc:campaign-ledger:v1";
+const LIBRARY_KEY = "axm-arc:library:v1";
 const TYPES = { ".html":"text/html",".js":"text/javascript",".css":"text/css",".webmanifest":"application/manifest+json",".png":"image/png",".woff2":"font/woff2" };
 const server = createServer(async (req, res) => {
   let p = decodeURIComponent(req.url.split("?")[0]);
@@ -26,6 +27,10 @@ await new Promise((r) => server.listen(0, r));
 const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome" });
 const page = await browser.newPage({ viewport: { width: 1100, height: 800 } });
 const errs = []; page.on("pageerror", (e) => errs.push(e.message));
+// PR 080 — the Remove button and the arc-switch flow both gate on confirm();
+// auto-accept every dialog so the capstone drill can drive the full custody
+// loop, including remove, headlessly.
+page.on("dialog", (d) => d.accept());
 
 const click = (re) => page.evaluate((r) => {
   const b = [...document.querySelectorAll("button")].find((x) => new RegExp(r, "i").test(x.textContent || ""));
@@ -39,6 +44,8 @@ await page.reload({ waitUntil: "networkidle" });
 
 await click("arc library|資料庫");
 await page.waitForTimeout(400);
+
+const lib = () => page.evaluate((k) => localStorage.getItem(k), LIBRARY_KEY);
 
 const out = {
   errs,
@@ -89,6 +96,11 @@ await page.waitForTimeout(400);
 
 const bodyTextDup = await page.evaluate(() => document.body.innerText);
 out.preflightDuplicate = (await has(".library-preflight")) && /byte-identical/i.test(bodyTextDup);
+
+// PR 080 — custody-isolation snapshot #1: the library now holds the
+// imported severed-march. This is the baseline against which "playing
+// never touches the library" is later proven.
+const libAfterImport = await lib();
 
 // PR 074 — vocabulary profile inspection: click the first entry's Profile
 // button and check the panel renders with a visible profile digest — the
@@ -155,6 +167,13 @@ out.carryShown = await has(".library-carry");
 
 await page.screenshot({ path: "/tmp/claude-0/-home-user/65fd6ca3-5fb5-56c1-92df-ef191fdf9c5d/scratchpad/library-carry.png" });
 
+// PR 080 — custody-isolation snapshot #2: the raid-night commit walk just
+// played and committed a run. Playing and committing writes the LEDGER,
+// never the library — the library key must be byte-identical to the
+// pre-play snapshot.
+const libAfterPlay = await lib();
+out.libraryUntouchedByPlay = libAfterImport === libAfterPlay;
+
 // Prove no write: the Library reads the ledger once and never mutates it —
 // same read-only discipline as the Archive.
 const after = await page.evaluate((k) => localStorage.getItem(k), LEDGER_KEY);
@@ -182,6 +201,29 @@ await page.evaluate(() => {
 });
 await page.waitForTimeout(400);
 out.crossNavBackToLibrary = await has(".library-digest");
+
+// ── PR 080 — remove (the capstone step): proves the custody loop is
+// complete and that library storage changes ONLY through explicit custody
+// actions. Only the imported card carries a `.icon` remove button (bundled
+// arcs have no remove affordance), so it is the sole match.
+const ledgerBeforeRemove = await page.evaluate((k) => localStorage.getItem(k), LEDGER_KEY);
+const entriesBeforeRemove = await page.evaluate(() => document.querySelectorAll(".library-digest").length);
+
+await page.evaluate(() => {
+  const btn = [...document.querySelectorAll("button.icon")][0];
+  if (btn) btn.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+});
+await page.waitForTimeout(300);
+
+out.removed =
+  (await page.evaluate(() => document.querySelectorAll(".library-digest").length)) === entriesBeforeRemove - 1;
+const libAfterRemove = await lib();
+out.removedFromStorage = !(libAfterRemove || "").includes("severed-march");
+
+out.ledgerUntouchedByRemove =
+  (await page.evaluate((k) => localStorage.getItem(k), LEDGER_KEY)) === ledgerBeforeRemove;
+
+await page.screenshot({ path: "/tmp/claude-0/-home-user/65fd6ca3-5fb5-56c1-92df-ef191fdf9c5d/scratchpad/library-carry.png" });
 
 console.log(JSON.stringify(out, null, 2));
 await browser.close(); server.close();

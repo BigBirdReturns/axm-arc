@@ -617,6 +617,16 @@ export type MessageId =
   | "workshop.saveBlocked"
   | "workshop.exported"
   | "workshop.exportBlocked"
+  | "workshop.playtest"
+  | "workshop.playtestParams"
+  | "workshop.clearRate"
+  | "workshop.stallRate"
+  | "workshop.maxCycleRate"
+  | "workshop.gateViolations"
+  | "workshop.medianCurrency"
+  | "workshop.medianTierClear"
+  | "workshop.stallReasons"
+  | "workshop.firstStalls"
   // ── codex overlay ──
   | "codex.attributes"
   | "codex.roles"
@@ -1370,6 +1380,16 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "workshop.saveBlocked": "Save blocked — validation failed:",
     "workshop.exported": (p) => `Exported "${str(p, "name")}" as ${str(p, "file")}.`,
     "workshop.exportBlocked": "Export blocked — validation failed:",
+    "workshop.playtest": "Playtest",
+    "workshop.playtestParams": (p) => `${num(p, "runs")} seeded runs · up to ${num(p, "cycles")} cycles — bounded preview, not certification`,
+    "workshop.clearRate": "Clear rate",
+    "workshop.stallRate": "Stall rate",
+    "workshop.maxCycleRate": "Hit cycle cap",
+    "workshop.gateViolations": "Gate violations",
+    "workshop.medianCurrency": "Median final currency",
+    "workshop.medianTierClear": "Median clear cycle by tier",
+    "workshop.stallReasons": "Stall reasons",
+    "workshop.firstStalls": "First stalls",
 
     "codex.attributes": "Attributes",
     "codex.roles": "Roles",
@@ -2033,6 +2053,16 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "workshop.saveBlocked": "儲存受阻——驗證失敗：",
     "workshop.exported": (p) => `已將「${str(p, "name")}」匯出為 ${str(p, "file")}。`,
     "workshop.exportBlocked": "匯出受阻——驗證失敗：",
+    "workshop.playtest": "試玩",
+    "workshop.playtestParams": (p) => `${num(p, "runs")} 次種子模擬 · 最多 ${num(p, "cycles")} 週期——有界預覽，非認證`,
+    "workshop.clearRate": "通關率",
+    "workshop.stallRate": "停滯率",
+    "workshop.maxCycleRate": "達週期上限",
+    "workshop.gateViolations": "閘門違規",
+    "workshop.medianCurrency": "最終資金中位數",
+    "workshop.medianTierClear": "各階級通關週期中位數",
+    "workshop.stallReasons": "停滯原因",
+    "workshop.firstStalls": "首次停滯",
 
     "codex.attributes": "屬性",
     "codex.roles": "職責",

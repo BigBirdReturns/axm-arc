@@ -14,7 +14,15 @@ import {
   loadArcLibrary,
   validateArcJson,
 } from "../lib/arc-library.js";
-import { loadWorkshopDraft, saveWorkshopDraft, summarizeArc, workshopSkeleton, type ArcSummary } from "../lib/workshop.js";
+import {
+  loadWorkshopDraft,
+  playtestPreview,
+  saveWorkshopDraft,
+  summarizeArc,
+  workshopSkeleton,
+  type ArcSummary,
+  type PlaytestReport,
+} from "../lib/workshop.js";
 import { t, useLocale } from "../../i18n/index.js";
 
 interface Props {
@@ -30,6 +38,8 @@ export function WorkshopScreen({ onBack }: Props): JSX.Element {
   const [validateErrors, setValidateErrors] = useState<string[]>([]);
   const [validateResult, setValidateResult] = useState<{ digest: string; summary: ArcSummary } | null>(null);
 
+  const [playtestReport, setPlaytestReport] = useState<PlaytestReport | null>(null);
+
   const [saveErrors, setSaveErrors] = useState<string[] | null>(null);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
 
@@ -41,6 +51,7 @@ export function WorkshopScreen({ onBack }: Props): JSX.Element {
   const clearResults = (): void => {
     setValidateErrors([]);
     setValidateResult(null);
+    setPlaytestReport(null);
     setSaveErrors(null);
     setSaveMsg(null);
     setExportErrors(null);
@@ -77,6 +88,7 @@ export function WorkshopScreen({ onBack }: Props): JSX.Element {
   };
 
   const handleValidate = (): void => {
+    setPlaytestReport(null);
     const result = validateArcJson(text);
     if (!result.ok) {
       setValidateErrors(result.errors);
@@ -85,6 +97,23 @@ export function WorkshopScreen({ onBack }: Props): JSX.Element {
     }
     setValidateErrors([]);
     setValidateResult({ digest: cartridgeDigest(result.arc), summary: summarizeArc(result.arc) });
+  };
+
+  const handlePlaytest = (): void => {
+    // Re-validate the draft text through the same seam Validate uses — the
+    // Playtest action never runs on text that hasn't just been confirmed
+    // valid, and bails silently to the error panel (mirroring Save/Export)
+    // if the draft drifted invalid since the last Validate click.
+    const result = validateArcJson(text);
+    if (!result.ok) {
+      setValidateErrors(result.errors);
+      setValidateResult(null);
+      setPlaytestReport(null);
+      return;
+    }
+    setValidateErrors([]);
+    setValidateResult({ digest: cartridgeDigest(result.arc), summary: summarizeArc(result.arc) });
+    setPlaytestReport(playtestPreview(result.arc));
   };
 
   const handleSave = (): void => {
@@ -222,6 +251,79 @@ export function WorkshopScreen({ onBack }: Props): JSX.Element {
               {" · "}
               {t("workshop.countProgressionTiers", { n: validateResult.summary.progressionTiers })}
             </div>
+            <div style={{ marginTop: 8 }}>
+              <button className="secondary" onClick={handlePlaytest}>
+                {t("workshop.playtest")}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {playtestReport && (
+          <div className="workshop-playtest" style={{ marginTop: 12 }}>
+            <div className="agent-meta">
+              {t("workshop.playtestParams", { runs: playtestReport.seeds, cycles: playtestReport.maxCycles })}
+            </div>
+            <div className="stat-strip" style={{ marginTop: 8 }}>
+              <div className="stat-cell">
+                <span className="stat-lbl">{t("workshop.clearRate")}</span>
+                <span className="stat-val rn-num">{Math.round(playtestReport.aggregate.clearRate * 100)}%</span>
+              </div>
+              <div className="stat-cell">
+                <span className="stat-lbl">{t("workshop.stallRate")}</span>
+                <span className="stat-val rn-num">{Math.round(playtestReport.aggregate.stallRate * 100)}%</span>
+              </div>
+              <div className="stat-cell">
+                <span className="stat-lbl">{t("workshop.maxCycleRate")}</span>
+                <span className="stat-val rn-num">{Math.round(playtestReport.aggregate.maxCycleRate * 100)}%</span>
+              </div>
+              <div className="stat-cell">
+                <span className="stat-lbl">{t("workshop.gateViolations")}</span>
+                <span className="stat-val rn-num">
+                  {playtestReport.aggregate.totalGateViolations === 0 ? (
+                    <span className="badge pass">0</span>
+                  ) : (
+                    playtestReport.aggregate.totalGateViolations
+                  )}
+                </span>
+              </div>
+              <div className="stat-cell">
+                <span className="stat-lbl">{t("workshop.medianCurrency")}</span>
+                <span className="stat-val rn-num">{playtestReport.aggregate.medianFinalCurrency}</span>
+              </div>
+            </div>
+
+            <div className="audit-section" style={{ marginTop: 12 }}>{t("workshop.medianTierClear")}</div>
+            {Object.entries(playtestReport.aggregate.medianTierClear).map(([tierId, cycle]) => (
+              <div key={tierId} className="mechanic-row">
+                <span className="agent-name">{tierId}</span>{" "}
+                <span className="rn-num">{cycle === null ? t("archive.notRecorded") : cycle}</span>
+              </div>
+            ))}
+
+            {Object.keys(playtestReport.aggregate.stallReasons).length > 0 && (
+              <>
+                <div className="audit-section" style={{ marginTop: 12 }}>{t("workshop.stallReasons")}</div>
+                {Object.entries(playtestReport.aggregate.stallReasons).map(([reason, count]) => (
+                  <div key={reason} className="mechanic-row">
+                    <span className="agent-name">{reason}</span>{" "}
+                    <span className="rn-num">{count}</span>
+                  </div>
+                ))}
+              </>
+            )}
+
+            {Object.keys(playtestReport.aggregate.firstStalls).length > 0 && (
+              <>
+                <div className="audit-section" style={{ marginTop: 12 }}>{t("workshop.firstStalls")}</div>
+                {Object.entries(playtestReport.aggregate.firstStalls).map(([challengeId, count]) => (
+                  <div key={challengeId} className="mechanic-row">
+                    <span className="agent-name">{challengeId}</span>{" "}
+                    <span className="rn-num">{count}</span>
+                  </div>
+                ))}
+              </>
+            )}
           </div>
         )}
 

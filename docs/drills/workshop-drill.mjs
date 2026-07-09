@@ -46,6 +46,22 @@ out.savedClicked = await click("button", "Save to Library|存入");
 await page.waitForTimeout(500);
 body = await page.evaluate(() => document.body.innerText);
 out.savedMsg = /saved|已存/i.test(body);
+// playtest preview — bounded seeded runs through the shared conformance harness
+out.playtestClicked = await click("button", "^playtest$|^試玩$");
+let playtestShown = false, playtestParamsShown = false;
+for (let i = 0; i < 10 && !playtestShown; i++) {
+  await page.waitForTimeout(500);
+  playtestShown = await page.evaluate(() => !!document.querySelector(".workshop-playtest"));
+}
+if (playtestShown) {
+  body = await page.evaluate(() => document.body.innerText);
+  playtestParamsShown = /seeded runs|種子模擬/i.test(body);
+}
+out.playtestShown = playtestShown;
+out.playtestParamsShown = playtestParamsShown;
+if (playtestShown) {
+  await page.screenshot({ path: "/tmp/claude-0/-home-user/65fd6ca3-5fb5-56c1-92df-ef191fdf9c5d/scratchpad/workshop-playtest.png" });
+}
 // broken JSON → error panel
 await page.fill("textarea", "{ not json");
 out.validateBrokenClicked = await click("button", "^(Validate|驗證)");

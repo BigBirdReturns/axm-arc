@@ -5,6 +5,7 @@
 // arc-library.ts's validateArcJson (the same seam importArcFromJson uses).
 
 import type { Arc } from "../../engine/types.js";
+import { aggregateRuns, simulateArcRun, type ArcAggregate } from "../../sim/cartridge-conformance.js";
 
 const DRAFT_KEY = "axm-arc:workshop-draft:v1";
 
@@ -194,4 +195,28 @@ export function summarizeArc(arc: Arc): ArcSummary {
     narrativeEvents: arc.narrativeEvents.length,
     progressionTiers: arc.progressionTiers.length,
   };
+}
+
+// ── Playtest preview (RFC_WORKSHOP PR 062) ──────────────────────────────────
+// A fixed, small, deterministic seed set and a visible maxCycles bound —
+// bounded seeded facts through the one conformance harness (reused
+// read-only), never a certification. maxCycles matches the shipped cartridge
+// conformance tests' REACHABILITY_MAX_CYCLES (tests/cartridges/*.test.ts),
+// the bound those tests use for full-run aggregation via aggregateRuns.
+export const PLAYTEST_SEEDS = [1, 2, 3, 4, 5] as const;
+export const PLAYTEST_MAX_CYCLES = 45;
+
+export interface PlaytestReport {
+  seeds: number;
+  maxCycles: number;
+  aggregate: ArcAggregate;
+}
+
+/** Pure and deterministic: the same arc always yields an identical report.
+ *  Runs are bounded (5 seeds × PLAYTEST_MAX_CYCLES cycles) so this stays
+ *  synchronous-safe for a click handler. */
+export function playtestPreview(arc: Arc): PlaytestReport {
+  const runs = PLAYTEST_SEEDS.map((seed) => simulateArcRun(arc, { seed, maxCycles: PLAYTEST_MAX_CYCLES }));
+  const aggregate = aggregateRuns(arc, runs, PLAYTEST_MAX_CYCLES);
+  return { seeds: PLAYTEST_SEEDS.length, maxCycles: PLAYTEST_MAX_CYCLES, aggregate };
 }

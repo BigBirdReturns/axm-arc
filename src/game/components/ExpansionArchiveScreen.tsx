@@ -13,7 +13,7 @@ import { cartridgeDigest } from "../../engine/cartridge-digest.js";
 import { KarazhanEmblem, isKarazhan } from "../karazhan-theme.js";
 import { TrustLabel } from "../../codex/index.js";
 
-export function ExpansionArchiveScreen({ onBack }: { onBack: () => void }): JSX.Element {
+export function ExpansionArchiveScreen({ onBack, onOpenLibrary }: { onBack: () => void; onOpenLibrary: () => void }): JSX.Element {
   useLocale();
   // Read-only: the Archive loads the library and the ledger once and never
   // mutates either.
@@ -150,6 +150,7 @@ export function ExpansionArchiveScreen({ onBack }: { onBack: () => void }): JSX.
         </div>
         <div className="rn-chips">
           <button className="secondary" onClick={onBack}>{t("archive.back")}</button>
+          <button className="secondary archive-to-library" onClick={onOpenLibrary}>{t("library.heading")}</button>
         </div>
       </header>
 

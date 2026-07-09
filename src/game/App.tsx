@@ -548,7 +548,7 @@ export function App(): JSX.Element {
   }
 
   if (mode === "archive") {
-    return <ExpansionArchiveScreen onBack={() => setMode("title")} />;
+    return <ExpansionArchiveScreen onBack={() => setMode("title")} onOpenLibrary={() => setMode("library")} />;
   }
 
   if (mode === "library") {
@@ -556,6 +556,7 @@ export function App(): JSX.Element {
       <LibraryScreen
         arc={arc}
         onBack={() => setMode("title")}
+        onOpenArchive={() => setMode("archive")}
         onLoadArc={(arcId) => {
           // Loading a different arc means the existing save (keyed to a single
           // global slot) is meaningless. Warn before clobbering progress, then

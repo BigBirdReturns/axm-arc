@@ -160,5 +160,26 @@ await page.reload({ waitUntil: "networkidle" });
 const afterReload = await page.evaluate((k) => localStorage.getItem(k), LEDGER_KEY);
 out.ledgerUnchanged = before === after && after === afterReload;
 
+// ── PR 077 — cross-navigation: read-only links between Library (custody)
+// and Archive (journey), two questions, two rooms, one hallway. The reload
+// just above landed back on the title screen, so re-enter the Library first,
+// then cross into the Archive and back, proving both stable drill anchors land.
+await click("arc library|資料庫");
+await page.waitForTimeout(400);
+
+await page.evaluate(() => {
+  const b = document.querySelector(".library-to-archive");
+  if (b) b.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+});
+await page.waitForTimeout(400);
+out.crossNavToArchive = await has(".expansion-archive");
+
+await page.evaluate(() => {
+  const b = document.querySelector(".archive-to-library");
+  if (b) b.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+});
+await page.waitForTimeout(400);
+out.crossNavBackToLibrary = await has(".library-digest");
+
 console.log(JSON.stringify(out, null, 2));
 await browser.close(); server.close();

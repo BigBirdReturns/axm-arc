@@ -16,6 +16,7 @@ import {
   importPreflight,
   loadArcLibrary,
   removeArc,
+  validateArcJson,
 } from "../lib/arc-library.js";
 import { KarazhanEmblem, isKarazhan } from "../karazhan-theme.js";
 import { t, useLocale } from "../../i18n/index.js";
@@ -35,6 +36,11 @@ export function LibraryScreen({ arc, onBack, onLoadArc }: Props): JSX.Element {
   const [preflight, setPreflight] = useState<Extract<ImportPreflight, { ok: true }> | null>(null);
   const [exportErrors, setExportErrors] = useState<{ arcName: string; errors: string[] } | null>(null);
   const [exportMsg, setExportMsg] = useState<string | null>(null);
+  // Export receipt (RFC_CARTRIDGE_LIBRARY PR 076): the digest of the bytes
+  // that actually left the browser — computed by re-parsing the exported
+  // JSON through the same validateArcJson, never assumed from the
+  // in-memory entry.
+  const [exportReceipt, setExportReceipt] = useState<{ digest: string | null; matches: boolean } | null>(null);
   const [inspectEntry, setInspectEntry] = useState<ArcLibraryEntry | null>(null);
   // Per-card vocabulary profile toggle (RFC_CARTRIDGE_LIBRARY PR 074) — keyed
   // by the same id:source card key as the digest map. Reveals the exact facts
@@ -96,6 +102,7 @@ export function LibraryScreen({ arc, onBack, onLoadArc }: Props): JSX.Element {
   const handleExport = (entry: ArcLibraryEntry) => {
     setExportErrors(null);
     setExportMsg(null);
+    setExportReceipt(null);
     const result = exportArcToJson(entry.arc);
     if (!result.ok) {
       setExportErrors({ arcName: entry.arc.meta.name, errors: result.errors });
@@ -111,6 +118,18 @@ export function LibraryScreen({ arc, onBack, onLoadArc }: Props): JSX.Element {
     anchor.remove();
     URL.revokeObjectURL(url);
     setExportMsg(t("library.exported", { name: entry.arc.meta.name, file: result.payload.filename }));
+
+    // Export receipt (RFC_CARTRIDGE_LIBRARY PR 076): a true round-trip
+    // check. Re-parse the EXPORTED bytes (not the in-memory arc) through
+    // the same validateArcJson — never a second validator — and compare
+    // the resulting digest against the digest already shown on this card
+    // (the 072 digest map). This should always match; if it ever doesn't,
+    // the user must see that honestly, never a false "ok".
+    const reparsed = validateArcJson(result.payload.json);
+    const receiptDigest = reparsed.ok ? cartridgeDigest(reparsed.arc) : null;
+    const cardKey = `${entry.arc.meta.id}:${entry.source}`;
+    const matchesLibrary = receiptDigest !== null && receiptDigest === digests.get(cardKey);
+    setExportReceipt({ digest: receiptDigest, matches: matchesLibrary });
   };
 
   const handleRemove = (entry: ArcLibraryEntry) => {
@@ -265,6 +284,24 @@ export function LibraryScreen({ arc, onBack, onLoadArc }: Props): JSX.Element {
         {exportMsg && (
           <div data-testid="export-success" style={{ marginTop: 12, color: "var(--positive)", fontWeight: 600 }}>
             {exportMsg}
+          </div>
+        )}
+
+        {exportReceipt && (
+          <div
+            className="library-export-receipt agent-meta"
+            style={{ marginTop: 4 }}
+            title={exportReceipt.digest ?? undefined}
+          >
+            <span>{t("archive.digest")}</span>{" "}
+            <span className="rn-num">
+              {exportReceipt.digest ? `${exportReceipt.digest.slice(0, 12)}…` : "—"}
+            </span>{" "}
+            {exportReceipt.matches ? (
+              <span className="badge pass">{t("library.exportMatches")}</span>
+            ) : (
+              <span className="badge">{t("library.exportMismatch")}</span>
+            )}
           </div>
         )}
 

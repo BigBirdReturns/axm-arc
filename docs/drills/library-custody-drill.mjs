@@ -98,6 +98,21 @@ await page.waitForTimeout(200);
 out.profileShown = await has(".library-profile");
 out.profileDigestShown = /prof1_/i.test(await page.evaluate(() => document.body.innerText));
 
+// PR 076 — export receipt: click the first card's Export button and check
+// that a receipt renders with the digest of the EXPORTED bytes (re-parsed
+// from the exported JSON, never assumed from the in-memory entry) plus an
+// honest "matches the library copy" badge. Headless without
+// acceptDownloads simply drops the actual download — harmless; only the
+// on-screen receipt is under test here.
+await page.evaluate(() => {
+  const btn = document.querySelector('[data-testid^="export-arc-"]');
+  if (btn) btn.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+});
+await page.waitForTimeout(300);
+
+out.exportReceiptShown = await has(".library-export-receipt");
+out.exportMatches = /matches the library copy/i.test(await page.evaluate(() => document.body.innerText));
+
 await page.screenshot({ path: "/tmp/claude-0/-home-user/65fd6ca3-5fb5-56c1-92df-ef191fdf9c5d/scratchpad/library-custody.png" });
 
 // ── PR 075 committed-ledger pass ────────────────────────────────────────────

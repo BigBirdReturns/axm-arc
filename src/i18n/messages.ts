@@ -588,6 +588,8 @@ export type MessageId =
   | "library.profileAttributes"
   | "library.profileSlots"
   | "library.profileVocab"
+  | "library.exportMatches"
+  | "library.exportMismatch"
   // ── workshop screen ──
   | "workshop.heading"
   | "workshop.intro"
@@ -1321,6 +1323,8 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "library.profileAttributes": "Attributes",
     "library.profileSlots": "Item slots",
     "library.profileVocab": "Check vocabulary",
+    "library.exportMatches": "Matches the library copy",
+    "library.exportMismatch": "Does not match the library copy — do not distribute",
 
     "workshop.heading": "Cartridge Workshop",
     "workshop.intro": "Author or edit a cartridge as JSON. Validate runs the real schema check used everywhere else; nothing here is saved until you say so.",
@@ -2000,6 +2004,8 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "library.profileAttributes": "屬性",
     "library.profileSlots": "裝備欄位",
     "library.profileVocab": "檢定詞彙",
+    "library.exportMatches": "與資料庫副本一致",
+    "library.exportMismatch": "與資料庫副本不一致——請勿散布",
 
     "workshop.heading": "卡帶工坊",
     "workshop.intro": "以 JSON 撰寫或編輯卡帶。「驗證」執行的是與其他地方相同的真實結構檢查；在你按下儲存之前，這裡的內容不會被寫入。",

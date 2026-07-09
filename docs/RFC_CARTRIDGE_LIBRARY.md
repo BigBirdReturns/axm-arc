@@ -75,7 +75,7 @@ an existing one), rendered in the existing `LibraryScreen`:
 | 076 | **Export receipt**: export success shows filename **and** the exported digest, so the holder can verify the round trip at the other client. | export payload |
 | 077 | **Cross-navigation**: read-only links between Library (custody) and Archive (journey) — two questions, two rooms, one hallway. | — |
 | 078 | **i18n + a11y** for all new chrome (en + zh-Hant, coverage-guarded; landmarks/labels). | — |
-| 079 | **Cohesion pass**: new panels use arc's management vocabulary (stat-strip, badges, audit-section); no one-off styling; dedupe any redundant badges. | — |
+| 079 | **Cohesion pass**: new panels use arc's management vocabulary (stat-strip, badges, audit-section); no one-off styling; dedupe any redundant badges. **Resolved as verified-no-op — see the cohesion verdict below.** | — |
 | 080 | **Custody drill (capstone)**: headless — import → digest + preflight verdict shown → re-import same file → "exact duplicate" surfaced → export → receipt digest equals displayed digest → remove → library storage changes **only** through those explicit custody actions, ledger byte-identical throughout, zero page errors. | drill |
 
 ## Non-goals (guard-enforced)
@@ -91,6 +91,29 @@ an existing one), rendered in the existing `LibraryScreen`:
   see open call #1.
 - **No Workshop, no authored content, no world.** Arc-only; no world pixel-ui; the
   arc/world contract stands.
+
+## Cohesion verdict (PR 079 — reviewed 2026-07-09, verified no-op)
+
+The Archive lane (041–050) needed a mid-course cohesion correction because it
+invented one-off styling before adopting arc's management vocabulary. This lane
+was reviewed against the same bar at every PR, and the provenance map comes back
+clean — **there is nothing to restyle or dedupe**, so 079 ships as this recorded
+verdict rather than manufactured churn:
+
+- **Reused arc primitives (all visual styling):** `card`, `agent-meta`, `badge`
+  (+`pass`), `rn-num`, `secondary` buttons, `title-actions`, `warning`,
+  `trust-chip` (via `TrustLabel`), `karazhan-emblem` (via `KarazhanEmblem`).
+- **New classes — every one an anchor or layout hook, none carrying one-off
+  styling:** `library-digest`, `library-preflight`, `library-profile`,
+  `library-carry`, `library-export-receipt`, `library-to-archive`,
+  `archive-to-library`. Each exists so the custody drill can assert the surface
+  honestly; visual style comes entirely from the reused primitives.
+- **Duplicates found:** none. The one badge-duplication risk (a "source" badge
+  repeating the trust chip) was the Archive lane's lesson (PR 049) and was
+  never introduced here.
+
+Screenshot receipts from every PR's drill run confirm the Library reads as one
+arc management screen end to end.
 
 ## Derivation discipline
 

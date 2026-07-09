@@ -582,6 +582,12 @@ export type MessageId =
   | "library.preflightUpdate"
   | "library.preflightDuplicate"
   | "library.preflightBundledSameId"
+  | "library.profile"
+  | "library.profileDigest"
+  | "library.profileRoles"
+  | "library.profileAttributes"
+  | "library.profileSlots"
+  | "library.profileVocab"
   // ── workshop screen ──
   | "workshop.heading"
   | "workshop.intro"
@@ -1309,6 +1315,12 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "library.preflightUpdate": "Updated your imported copy (replaced)",
     "library.preflightDuplicate": "Already in the library — byte-identical, nothing new recorded",
     "library.preflightBundledSameId": "A bundled cartridge shares this id — the bundled copy is never overwritten",
+    "library.profile": "Profile",
+    "library.profileDigest": "Profile digest",
+    "library.profileRoles": "Roles",
+    "library.profileAttributes": "Attributes",
+    "library.profileSlots": "Item slots",
+    "library.profileVocab": "Check vocabulary",
 
     "workshop.heading": "Cartridge Workshop",
     "workshop.intro": "Author or edit a cartridge as JSON. Validate runs the real schema check used everywhere else; nothing here is saved until you say so.",
@@ -1982,6 +1994,12 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "library.preflightUpdate": "已更新你匯入的副本（已取代）",
     "library.preflightDuplicate": "資料庫中已有——位元組完全相同，未新增任何紀錄",
     "library.preflightBundledSameId": "內建卡帶使用相同 id——內建副本永不被覆寫",
+    "library.profile": "設定檔",
+    "library.profileDigest": "設定檔摘要",
+    "library.profileRoles": "職責",
+    "library.profileAttributes": "屬性",
+    "library.profileSlots": "裝備欄位",
+    "library.profileVocab": "檢定詞彙",
 
     "workshop.heading": "卡帶工坊",
     "workshop.intro": "以 JSON 撰寫或編輯卡帶。「驗證」執行的是與其他地方相同的真實結構檢查；在你按下儲存之前，這裡的內容不會被寫入。",

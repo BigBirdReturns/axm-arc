@@ -66,6 +66,18 @@ out.playtestParamsShown = playtestParamsShown;
 if (playtestShown) {
   await page.screenshot({ path: "/tmp/claude-0/-home-user/65fd6ca3-5fb5-56c1-92df-ef191fdf9c5d/scratchpad/workshop-playtest.png" });
 }
+// export receipt (RFC_WORKSHOP PR 064, parity with the Library's 076 drill
+// above): click the export button (t("workshop.exportArc") = "Export
+// .arc.json" / "匯出 .arc.json") on the still-valid draft and check that a
+// receipt renders with the digest of the EXPORTED bytes (re-parsed, never
+// assumed from in-memory state) plus an honest match badge. Headless
+// without acceptDownloads simply drops the actual download — harmless;
+// only the on-screen receipt is under test here.
+out.exportClicked = await click("button", "export|匯出");
+await page.waitForTimeout(400);
+body = await page.evaluate(() => document.body.innerText);
+out.exportReceiptShown = await page.evaluate(() => !!document.querySelector(".workshop-export-receipt"));
+out.exportMatches = /matches the validated draft/i.test(body);
 // broken JSON → error panel
 await page.fill("textarea", "{ not json");
 out.validateBrokenClicked = await click("button", "^(Validate|驗證)");

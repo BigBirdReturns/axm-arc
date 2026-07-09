@@ -627,6 +627,8 @@ export type MessageId =
   | "workshop.medianTierClear"
   | "workshop.stallReasons"
   | "workshop.firstStalls"
+  | "workshop.exportMatches"
+  | "workshop.exportMismatch"
   // ── codex overlay ──
   | "codex.attributes"
   | "codex.roles"
@@ -1390,6 +1392,14 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "workshop.medianTierClear": "Median clear cycle by tier",
     "workshop.stallReasons": "Stall reasons",
     "workshop.firstStalls": "First stalls",
+    // Export receipt (RFC_WORKSHOP PR 064, parity with the Library's 076
+    // receipt): reusing library.exportMatches/exportMismatch verbatim would
+    // claim "matches the library copy", but the Workshop's export receipt
+    // compares the exported bytes against the digest of the just-validated
+    // draft, not any library entry — often there is no library copy yet.
+    // One honest new key pair says what actually happened here.
+    "workshop.exportMatches": "Matches the validated draft",
+    "workshop.exportMismatch": "Does not match the validated draft — do not distribute",
 
     "codex.attributes": "Attributes",
     "codex.roles": "Roles",
@@ -2063,6 +2073,8 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "workshop.medianTierClear": "各階級通關週期中位數",
     "workshop.stallReasons": "停滯原因",
     "workshop.firstStalls": "首次停滯",
+    "workshop.exportMatches": "與已驗證草稿一致",
+    "workshop.exportMismatch": "與已驗證草稿不一致——請勿散布",
 
     "codex.attributes": "屬性",
     "codex.roles": "職責",

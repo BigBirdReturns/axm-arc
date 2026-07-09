@@ -1,11 +1,29 @@
 # RFC: Cartridge Library custody — the cartridge's identity, made visible
 
-Status: **proposed** (owner-gated for scope). Implementation would land as PR 071–080.
+Status: **accepted** (2026-07-09, under the owner's drive-to-100 delegation — the
+owner authorized the train to run to PR 100 and delegated the open calls; the
+rulings below were made by the orchestrator under the standing stop/ask policy and
+are recorded here for the owner's later audit). Implementation lands as PR 071–080.
 Depends on the arc library (`src/game/lib/arc-library.ts`, shipped), the cartridge
 digest (`src/engine/cartridge-digest.ts`, shipped), and the Expansion Archive
-(RFC_EXPANSION_ARCHIVE, shipped 041–050). The train's 051–060 (world appliance) and
-061–070 (Workshop) lanes are **parked** pending owner direction; this program keeps
-the numbering map intact.
+(RFC_EXPANSION_ARCHIVE, shipped 041–050).
+
+## Delegated rulings (2026-07-09)
+
+1. **Carry signal in the Library (075): include.** "One pure helper, two surfaces"
+   is family law; `carryVerdict` is reused verbatim with zero new logic. The
+   owner's don't-overload-Library ruling was about *journey history*
+   (played/cleared/attendance) — that stays in the Archive. Carry is a
+   present-tense compatibility fact about the cartridge in hand, like trust.
+   Omitted honestly when no guild exists (null-ledger → no badge).
+2. **Preflight shape (073): (a) additive report.** The current one-click
+   "Validate & Save" flow is unchanged; the custody report renders alongside the
+   result. Option (b) — a two-step validate → confirm-save — changes a user flow
+   and therefore sits outside the delegated "additive display" box; it remains an
+   owner call for a future PR.
+3. **Numbering: keep 071–080.** 051–060 (world appliance) and 061–070 (Workshop)
+   keep their slots in the train map and are built in dependency order, each
+   RFC-first.
 
 ## The one rule
 
@@ -90,14 +108,9 @@ actions through the existing seam. If any step turns out to want persistence (e.
 a remembered import history), that is a **separate schema RFC first** — never
 faked.
 
-**Open calls for the owner:**
-1. **Carry signal in the Library (075)** — include it (one helper, two surfaces;
-   custody screen answers "usable by my guild?") or keep it Archive-only (strict
-   custody/journey separation)? Cuttable without harming the rest.
-2. **Preflight shape (073)** — (a) *additive report*: keep the current one-click
-   "Validate & Save" and show the custody report alongside the result (purely
-   additive, zero flow change), or (b) *two-step*: "Validate" shows the preflight
-   report, then an explicit "Save to library" confirms (stronger custody, but it
-   changes the import flow). This RFC assumes **(a)** unless you rule (b).
-3. **Numbering** — 071–080 as mapped here (keeping 051–070 parked for world /
-   Workshop), or renumber to be contiguous?
+**Open calls — resolved by the delegated rulings above (2026-07-09):**
+1. Carry signal (075) → **include**, reusing `carryVerdict` (one helper, two
+   surfaces); journey history still never enters the Library.
+2. Preflight (073) → **(a) additive report**; the two-step flow change stays an
+   owner call.
+3. Numbering → **071–080 kept**; 051–070 built in dependency order, RFC-first.

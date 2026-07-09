@@ -49,6 +49,13 @@ export function WorkshopScreen({ onBack }: Props): JSX.Element {
 
   const [exportErrors, setExportErrors] = useState<string[] | null>(null);
   const [exportMsg, setExportMsg] = useState<string | null>(null);
+  // Export receipt (RFC_WORKSHOP PR 064, parity with the Library's 076
+  // receipt): digest is computed from the EXPORTED bytes (result.payload.json
+  // re-parsed through validateArcJson — never a second validator), never from
+  // in-memory state. matches compares that digest against the digest of the
+  // draft validation that produced this same export (fresh in the handler,
+  // not stale state).
+  const [exportReceipt, setExportReceipt] = useState<{ digest: string | null; matches: boolean } | null>(null);
 
   // Any edit to the draft invalidates whatever the last Validate/Save/Export
   // run reported — stale results next to a changed editor would mislead.
@@ -60,6 +67,7 @@ export function WorkshopScreen({ onBack }: Props): JSX.Element {
     setSaveMsg(null);
     setExportErrors(null);
     setExportMsg(null);
+    setExportReceipt(null);
   };
 
   const setDraft = (next: string): void => {
@@ -134,6 +142,7 @@ export function WorkshopScreen({ onBack }: Props): JSX.Element {
   const handleExport = (): void => {
     setExportErrors(null);
     setExportMsg(null);
+    setExportReceipt(null);
     const validated = validateArcJson(text);
     if (!validated.ok) {
       setExportErrors(validated.errors);
@@ -154,6 +163,20 @@ export function WorkshopScreen({ onBack }: Props): JSX.Element {
     anchor.remove();
     URL.revokeObjectURL(url);
     setExportMsg(t("workshop.exported", { name: validated.arc.meta.name, file: result.payload.filename }));
+
+    // Export receipt (RFC_WORKSHOP PR 064, parity with the Library's 076
+    // receipt): a true round-trip check. Re-parse the EXPORTED bytes (not
+    // the in-memory arc) through the same validateArcJson — never a second
+    // validator — and compare the resulting digest against the digest of
+    // the draft validation that produced this export, computed fresh here
+    // (not read from stale validateResult state, which may lag the current
+    // Export click). This should always match; if it ever doesn't, the
+    // author must see that honestly, never a false "ok".
+    const draftDigest = cartridgeDigest(validated.arc);
+    const reparsed = validateArcJson(result.payload.json);
+    const receiptDigest = reparsed.ok ? cartridgeDigest(reparsed.arc) : null;
+    const matches = receiptDigest !== null && receiptDigest === draftDigest;
+    setExportReceipt({ digest: receiptDigest, matches });
   };
 
   return (
@@ -393,6 +416,25 @@ export function WorkshopScreen({ onBack }: Props): JSX.Element {
         )}
         {exportMsg && (
           <div style={{ marginTop: 12, color: "var(--positive)", fontWeight: 600 }}>{exportMsg}</div>
+        )}
+
+        {exportReceipt && (
+          <div
+            className="workshop-export-receipt agent-meta"
+            role="status"
+            style={{ marginTop: 4 }}
+            title={exportReceipt.digest ?? undefined}
+          >
+            <span>{t("archive.digest")}</span>{" "}
+            <span className="rn-num">
+              {exportReceipt.digest ? `${exportReceipt.digest.slice(0, 12)}…` : "—"}
+            </span>{" "}
+            {exportReceipt.matches ? (
+              <span className="badge pass">{t("workshop.exportMatches")}</span>
+            ) : (
+              <span className="badge">{t("workshop.exportMismatch")}</span>
+            )}
+          </div>
         )}
 
         <div className="title-actions" style={{ marginTop: 32 }}>

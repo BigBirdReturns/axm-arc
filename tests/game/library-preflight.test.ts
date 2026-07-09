@@ -155,6 +155,13 @@ describe("importPreflight", () => {
   });
 });
 
+// This round trip also pins the Workshop's export receipt (RFC_WORKSHOP PR
+// 064): WorkshopScreen.handleExport re-parses result.payload.json through
+// this same validateArcJson seam and compares cartridgeDigest(reparsed.arc)
+// against the validated draft's digest — the identical exportArcToJson →
+// validateArcJson → cartridgeDigest chain exercised below, just with the
+// comparison target being the draft rather than a library entry. No
+// separate test needed; this is the shared seam both screens' receipts rely on.
 describe("export receipt round trip (PR 076)", () => {
   it("the exported bytes carry the same content identity as the source", () => {
     const r = exportArcToJson(FIRST_CHARTER);

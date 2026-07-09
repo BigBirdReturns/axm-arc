@@ -8,8 +8,10 @@ import { CodexOverlay, TrustLabel } from "../../codex/index.js";
 import { cartridgeDigest } from "../../engine/cartridge-digest.js";
 import {
   type ArcLibraryEntry,
+  type ImportPreflight,
   exportArcToJson,
   importArcFromJson,
+  importPreflight,
   loadArcLibrary,
   removeArc,
 } from "../lib/arc-library.js";
@@ -28,6 +30,7 @@ export function LibraryScreen({ arc, onBack, onLoadArc }: Props): JSX.Element {
   const [jsonDraft, setJsonDraft] = useState("");
   const [importErrors, setImportErrors] = useState<string[]>([]);
   const [importMsg, setImportMsg] = useState<string | null>(null);
+  const [preflight, setPreflight] = useState<Extract<ImportPreflight, { ok: true }> | null>(null);
   const [exportErrors, setExportErrors] = useState<{ arcName: string; errors: string[] } | null>(null);
   const [exportMsg, setExportMsg] = useState<string | null>(null);
   const [inspectEntry, setInspectEntry] = useState<ArcLibraryEntry | null>(null);
@@ -54,12 +57,20 @@ export function LibraryScreen({ arc, onBack, onLoadArc }: Props): JSX.Element {
   const handleValidate = () => {
     setImportErrors([]);
     setImportMsg(null);
+    setPreflight(null);
+    // Additive custody report (RFC_CARTRIDGE_LIBRARY PR 073): computed BEFORE
+    // the write, from the library as it stands right now, reusing
+    // validateArcJson verbatim (via importPreflight) — never a second
+    // validator. The write itself below is byte-for-byte unchanged: one
+    // click still validates AND saves.
+    const pre = importPreflight(jsonDraft, entries);
     const result = importArcFromJson(jsonDraft);
     if (!result.ok) {
       setImportErrors(result.errors);
       return;
     }
     setImportMsg(t("library.imported", { name: result.entry.arc.meta.name, version: result.entry.arc.meta.version }));
+    if (pre.ok) setPreflight(pre);
     setJsonDraft("");
     refresh();
   };
@@ -242,6 +253,38 @@ export function LibraryScreen({ arc, onBack, onLoadArc }: Props): JSX.Element {
           {importMsg && (
             <div style={{ marginTop: 12, color: "var(--positive)", fontWeight: 600 }}>
               {importMsg}
+            </div>
+          )}
+
+          {preflight && (
+            <div className="library-preflight agent-meta" style={{ marginTop: 8 }}>
+              <div title={preflight.digest}>
+                <span>{t("archive.digest")}</span>{" "}
+                <span className="rn-num">{preflight.digest.slice(0, 12)}…</span>
+              </div>
+              <div style={{ marginTop: 4 }}>
+                {preflight.action === "new" && (
+                  <span className="badge pass">{t("library.preflightNew")}</span>
+                )}
+                {preflight.action === "update" && preflight.existing && (
+                  <span className="badge pending" title={preflight.existing.digest}>
+                    {t("library.preflightUpdate")} — v{preflight.existing.version} ·{" "}
+                    <span className="rn-num">{preflight.existing.digest.slice(0, 12)}…</span>
+                  </span>
+                )}
+                {preflight.action === "duplicate" && preflight.existing && (
+                  <span className="badge" title={preflight.existing.digest}>
+                    {t("library.preflightDuplicate")}
+                  </span>
+                )}
+              </div>
+              {preflight.sameIdBundled && (
+                <div style={{ marginTop: 4 }}>
+                  <span className="badge">
+                    {t("library.preflightBundledSameId")} — v{preflight.sameIdBundled.version}
+                  </span>
+                </div>
+              )}
             </div>
           )}
         </div>

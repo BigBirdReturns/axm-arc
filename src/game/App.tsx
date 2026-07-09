@@ -536,7 +536,7 @@ export function App(): JSX.Element {
   }
 
   if (mode === "workshop") {
-    return <WorkshopScreen onBack={() => setMode("title")} />;
+    return <WorkshopScreen onBack={() => setMode("title")} onOpenLibrary={() => setMode("library")} />;
   }
 
   if (mode === "raidnight") {
@@ -557,6 +557,7 @@ export function App(): JSX.Element {
         arc={arc}
         onBack={() => setMode("title")}
         onOpenArchive={() => setMode("archive")}
+        onOpenWorkshop={() => setMode("workshop")}
         onLoadArc={(arcId) => {
           // Loading a different arc means the existing save (keyed to a single
           // global slot) is meaningless. Warn before clobbering progress, then

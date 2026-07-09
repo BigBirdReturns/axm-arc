@@ -129,6 +129,31 @@ out.errorCountShown = await page.evaluate(() => {
   return Number.isInteger(n) && n >= 1;
 });
 out.lineHintShown = await page.evaluate(() => !!document.querySelector(".workshop-error-panel li .badge"));
+// ── PR 067 — cross-navigation: read-only links between Workshop (the
+// author's room) and Library (the custody room), mirroring PR-077's
+// Library↔Archive pattern. Still on Workshop from the broken-JSON check
+// above (textarea content is irrelevant to nav buttons) — cross into the
+// Library and back, proving both stable drill anchors land, then leave the
+// screen exactly as it was (on Workshop) so the existing flow below is
+// undisturbed.
+out.crossNavWorkshopToLibraryClicked = await page.evaluate(() => {
+  const b = document.querySelector(".workshop-to-library");
+  if (!b) return false;
+  b.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  return true;
+});
+await page.waitForTimeout(400);
+out.crossNavToLibrary = await page.evaluate(() => !!document.querySelector(".library-digest"));
+out.crossNavLibraryToWorkshopClicked = await page.evaluate(() => {
+  const b = document.querySelector(".library-to-workshop");
+  if (!b) return false;
+  b.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  return true;
+});
+await page.waitForTimeout(400);
+out.crossNavBackToWorkshop = await page.evaluate(() =>
+  !!document.querySelector("textarea") || !!document.querySelector(".workshop-draft-notice")
+);
 // back → library → saved arc listed
 await click("button", "^(Back|返回)");
 await page.waitForTimeout(400);

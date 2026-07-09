@@ -56,6 +56,30 @@ out.digestConsistent = await page.evaluate(() => {
   return shortText.length > 0 && full.startsWith(shortText);
 });
 
+// PR 073 — import preflight honesty: paste a real cartridge, Validate & Save,
+// and check the additive custody report (an honest new-vs-update-vs-duplicate
+// verdict, computed BEFORE the write, off the SAME validator) renders
+// alongside the existing one-click flow — never a second validator, never a
+// changed write path.
+const cartJson = await readFile("/home/user/axm-arc/cartridges/severed-march.arc.json", "utf8");
+
+await page.fill("textarea", cartJson);
+await click("Validate|驗證");
+await page.waitForTimeout(400);
+
+const bodyTextNew = await page.evaluate(() => document.body.innerText);
+out.preflightShown = (await has(".library-preflight")) && /added to the library/i.test(bodyTextNew);
+
+// Re-paste the exact same JSON and click again — the incoming digest is now
+// byte-identical to the copy just imported, so the report must honestly read
+// "exact duplicate", never "new" a second time.
+await page.fill("textarea", cartJson);
+await click("Validate|驗證");
+await page.waitForTimeout(400);
+
+const bodyTextDup = await page.evaluate(() => document.body.innerText);
+out.preflightDuplicate = (await has(".library-preflight")) && /byte-identical/i.test(bodyTextDup);
+
 await page.screenshot({ path: "/tmp/claude-0/-home-user/65fd6ca3-5fb5-56c1-92df-ef191fdf9c5d/scratchpad/library-custody.png" });
 
 console.log(JSON.stringify(out, null, 2));

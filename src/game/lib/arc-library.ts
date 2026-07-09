@@ -13,6 +13,7 @@
 
 import type { Arc, TrustLabel } from "../../engine/types.js";
 import { validateArc } from "../../engine/schema.js";
+import { cartridgeDigest } from "../../engine/cartridge-digest.js";
 
 export type { TrustLabel };
 
@@ -129,6 +130,76 @@ export function importArcFromJson(
   filtered.push(entry);
   saveArcLibrary(filtered);
   return { ok: true, entry };
+}
+
+// Import preflight: an honest custody report computed BEFORE anything
+// persists. It reuses validateArcJson verbatim — no second validator — and
+// never mutates the library entries it reads. It reports what the write WILL
+// do (importArcFromJson's replace-imported-same-id behavior), never a
+// different fact (RFC_CARTRIDGE_LIBRARY PR 073, ruling 2: additive report;
+// the one-click Validate & Save flow itself is unchanged).
+export type ImportPreflight =
+  | { ok: false; errors: string[] }
+  | {
+      ok: true;
+      digest: string; // cartridgeDigest of the incoming arc
+      action: "new" | "update" | "duplicate";
+      existing: { digest: string; version: string; source: "bundled" | "imported" } | null;
+      sameIdBundled: { digest: string; version: string } | null;
+    };
+
+export function importPreflight(json: string, entries: ArcLibraryEntry[]): ImportPreflight {
+  const v = validateArcJson(json);
+  if (!v.ok) return v;
+  const arc = v.arc;
+  const digest = cartridgeDigest(arc);
+
+  // Independent of action: a bundled entry sharing this id is never
+  // overwritten by import — surface that honestly whenever it's true.
+  const sameIdBundledEntry = entries.find(
+    (e) => e.arc.meta.id === arc.meta.id && e.source === "bundled",
+  );
+  const sameIdBundled = sameIdBundledEntry
+    ? { digest: cartridgeDigest(sameIdBundledEntry.arc), version: sameIdBundledEntry.arc.meta.version }
+    : null;
+
+  // Exact duplicate: any held entry (bundled or imported) with the same
+  // content digest — the write would be a byte-identical no-op re-import.
+  const sameDigestEntry = entries.find((e) => cartridgeDigest(e.arc) === digest);
+  if (sameDigestEntry) {
+    return {
+      ok: true,
+      digest,
+      action: "duplicate",
+      existing: {
+        digest: cartridgeDigest(sameDigestEntry.arc),
+        version: sameDigestEntry.arc.meta.version,
+        source: sameDigestEntry.source,
+      },
+      sameIdBundled,
+    };
+  }
+
+  // Update: an IMPORTED entry shares this id with a different digest — this
+  // mirrors importArcFromJson's replace-imported-same-id behavior exactly.
+  const sameIdImported = entries.find(
+    (e) => e.arc.meta.id === arc.meta.id && e.source === "imported",
+  );
+  if (sameIdImported) {
+    return {
+      ok: true,
+      digest,
+      action: "update",
+      existing: {
+        digest: cartridgeDigest(sameIdImported.arc),
+        version: sameIdImported.arc.meta.version,
+        source: sameIdImported.source,
+      },
+      sameIdBundled,
+    };
+  }
+
+  return { ok: true, digest, action: "new", existing: null, sameIdBundled };
 }
 
 export interface ArcExportPayload {

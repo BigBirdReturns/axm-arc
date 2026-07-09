@@ -578,6 +578,10 @@ export type MessageId =
   | "library.validateSave"
   | "library.validationFailed"
   | "library.imported"
+  | "library.preflightNew"
+  | "library.preflightUpdate"
+  | "library.preflightDuplicate"
+  | "library.preflightBundledSameId"
   // ── workshop screen ──
   | "workshop.heading"
   | "workshop.intro"
@@ -1301,6 +1305,10 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "library.validateSave": "Validate & Save",
     "library.validationFailed": "Validation failed:",
     "library.imported": (p) => `Imported "${str(p, "name")}" v${str(p, "version")}.`,
+    "library.preflightNew": "New cartridge — added to the library",
+    "library.preflightUpdate": "Updated your imported copy (replaced)",
+    "library.preflightDuplicate": "Already in the library — byte-identical, nothing new recorded",
+    "library.preflightBundledSameId": "A bundled cartridge shares this id — the bundled copy is never overwritten",
 
     "workshop.heading": "Cartridge Workshop",
     "workshop.intro": "Author or edit a cartridge as JSON. Validate runs the real schema check used everywhere else; nothing here is saved until you say so.",
@@ -1970,6 +1978,10 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "library.validateSave": "驗證並儲存",
     "library.validationFailed": "驗證失敗：",
     "library.imported": (p) => `已匯入「${str(p, "name")}」v${str(p, "version")}。`,
+    "library.preflightNew": "新卡帶——已加入資料庫",
+    "library.preflightUpdate": "已更新你匯入的副本（已取代）",
+    "library.preflightDuplicate": "資料庫中已有——位元組完全相同，未新增任何紀錄",
+    "library.preflightBundledSameId": "內建卡帶使用相同 id——內建副本永不被覆寫",
 
     "workshop.heading": "卡帶工坊",
     "workshop.intro": "以 JSON 撰寫或編輯卡帶。「驗證」執行的是與其他地方相同的真實結構檢查；在你按下儲存之前，這裡的內容不會被寫入。",

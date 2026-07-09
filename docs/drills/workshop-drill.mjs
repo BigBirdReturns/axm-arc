@@ -119,6 +119,16 @@ out.validateBrokenClicked = await click("button", "^(Validate|驗證)");
 await page.waitForTimeout(400);
 body = await page.evaluate(() => document.body.innerText);
 out.brokenShowsError = /parse error|failed|驗證失敗/i.test(body);
+// validation ergonomics (RFC_WORKSHOP PR 066) — a count badge always shows
+// (same errors, same validator, just counted), and a line/column hint shows
+// IFF this Chromium's V8 JSON.parse message actually carries one (modern
+// "(line N column M)" wording) — never forced, always reported honestly.
+out.errorCountShown = await page.evaluate(() => {
+  const el = document.querySelector(".workshop-error-panel .badge");
+  const n = parseInt((el?.textContent || "").trim(), 10);
+  return Number.isInteger(n) && n >= 1;
+});
+out.lineHintShown = await page.evaluate(() => !!document.querySelector(".workshop-error-panel li .badge"));
 // back → library → saved arc listed
 await click("button", "^(Back|返回)");
 await page.waitForTimeout(400);

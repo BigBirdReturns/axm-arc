@@ -607,6 +607,7 @@ export type MessageId =
   | "workshop.validOk"
   | "workshop.digest"
   | "workshop.validationFailed"
+  | "workshop.lineCol"
   | "workshop.countChallenges"
   | "workshop.countRoles"
   | "workshop.countItems"
@@ -1356,6 +1357,7 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "workshop.validOk": "Valid.",
     "workshop.digest": (p) => `Digest ${str(p, "digest")}`,
     "workshop.validationFailed": "Validation failed:",
+    "workshop.lineCol": (p) => `line ${num(p, "line")}, column ${num(p, "col")}`,
     "workshop.countChallenges": (p) => {
       const n = num(p, "n");
       return `${n} challenge${n === 1 ? "" : "s"}`;
@@ -2059,6 +2061,7 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "workshop.validOk": "有效。",
     "workshop.digest": (p) => `指紋 ${str(p, "digest")}`,
     "workshop.validationFailed": "驗證失敗：",
+    "workshop.lineCol": (p) => `第 ${num(p, "line")} 行，第 ${num(p, "col")} 欄`,
     "workshop.countChallenges": (p) => `${num(p, "n")} 個挑戰`,
     "workshop.countRoles": (p) => `${num(p, "n")} 個職責`,
     "workshop.countItems": (p) => `${num(p, "n")} 件物品`,

@@ -7,6 +7,7 @@
 import { useState } from "react";
 import type { Arc } from "../../engine/types.js";
 import { cartridgeDigest } from "../../engine/cartridge-digest.js";
+import { compatibilityProfile } from "../lib/ledger.js";
 import {
   type ArcLibraryEntry,
   exportArcToJson,
@@ -36,7 +37,10 @@ export function WorkshopScreen({ onBack }: Props): JSX.Element {
   const [duplicateId, setDuplicateId] = useState("");
 
   const [validateErrors, setValidateErrors] = useState<string[]>([]);
-  const [validateResult, setValidateResult] = useState<{ digest: string; summary: ArcSummary } | null>(null);
+  // arc is kept alongside digest+summary so the vocabulary profile section
+  // (RFC_WORKSHOP PR 063) can call compatibilityProfile(validated.arc)
+  // without a second parse — one validate, every downstream fact reuses it.
+  const [validateResult, setValidateResult] = useState<{ digest: string; summary: ArcSummary; arc: Arc } | null>(null);
 
   const [playtestReport, setPlaytestReport] = useState<PlaytestReport | null>(null);
 
@@ -96,7 +100,7 @@ export function WorkshopScreen({ onBack }: Props): JSX.Element {
       return;
     }
     setValidateErrors([]);
-    setValidateResult({ digest: cartridgeDigest(result.arc), summary: summarizeArc(result.arc) });
+    setValidateResult({ digest: cartridgeDigest(result.arc), summary: summarizeArc(result.arc), arc: result.arc });
   };
 
   const handlePlaytest = (): void => {
@@ -112,7 +116,7 @@ export function WorkshopScreen({ onBack }: Props): JSX.Element {
       return;
     }
     setValidateErrors([]);
-    setValidateResult({ digest: cartridgeDigest(result.arc), summary: summarizeArc(result.arc) });
+    setValidateResult({ digest: cartridgeDigest(result.arc), summary: summarizeArc(result.arc), arc: result.arc });
     setPlaytestReport(playtestPreview(result.arc));
   };
 
@@ -251,6 +255,42 @@ export function WorkshopScreen({ onBack }: Props): JSX.Element {
               {" · "}
               {t("workshop.countProgressionTiers", { n: validateResult.summary.progressionTiers })}
             </div>
+
+            {(() => {
+              // Author vocabulary profile (RFC_WORKSHOP PR 063) — pure reuse
+              // of compatibilityProfile, the same derivation the Library's
+              // per-card profile panel (074) renders, zero reimplementation.
+              // Shape pinned by tests/game/library-profile.test.ts; no new
+              // test added here. Always-on (not toggled): the author is
+              // exactly the person who needs "what would a guild need to
+              // carry in" visible the moment the draft validates, and this
+              // is cheap to compute.
+              const p = compatibilityProfile(validateResult.arc);
+              const rows: [string, string[]][] = [
+                [t("library.profileRoles"), p.roleIds],
+                [t("library.profileAttributes"), p.attributeIds],
+                [t("guildhall.tiers"), p.tierIds],
+                [t("library.profileSlots"), p.itemSlots],
+                [t("library.profileVocab"), p.checkVocab],
+              ];
+              return (
+                <div className="workshop-profile agent-meta" style={{ marginTop: 8 }}>
+                  <div title={p.profileDigest}>
+                    <span>{t("library.profileDigest")}</span>{" "}
+                    <span className="rn-num">{p.profileDigest.slice(0, 14)}…</span>
+                  </div>
+                  {rows.map(([label, values]) => (
+                    <div key={label} style={{ marginTop: 4 }}>
+                      <span>{label}</span> <span className="badge">{values.length}</span>{" "}
+                      <span className="rn-num" style={{ wordBreak: "break-word" }}>
+                        {values.join(" · ")}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+
             <div style={{ marginTop: 8 }}>
               <button className="secondary" onClick={handlePlaytest}>
                 {t("workshop.playtest")}

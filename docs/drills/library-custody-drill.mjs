@@ -4,13 +4,16 @@
 // demands matching digests in both clients). Fresh install → open the Library
 // → the bundled arcs render with a visible short digest AND a full digest in
 // the card's title attribute, honestly consistent with each other, zero page
-// errors.
+// errors. PR 075 extends this with the carry-forward signal: honestly hidden
+// with no guild (null-ledger), shown on every card once a guild is committed,
+// and proven read-only (the Library never writes the ledger it reads).
 import { chromium } from "playwright-core";
 import { createServer } from "http";
 import { readFile } from "fs/promises";
 import { extname, join } from "path";
 
 const ROOT = "/home/user/axm-arc/docs/game", BASE = "/axm-arc/game/";
+const LEDGER_KEY = "axm-arc:campaign-ledger:v1";
 const TYPES = { ".html":"text/html",".js":"text/javascript",".css":"text/css",".webmanifest":"application/manifest+json",".png":"image/png",".woff2":"font/woff2" };
 const server = createServer(async (req, res) => {
   let p = decodeURIComponent(req.url.split("?")[0]);
@@ -44,6 +47,12 @@ const out = {
   digestCount: await page.evaluate(() => document.querySelectorAll(".library-digest").length),
   entryCount: await page.evaluate(() => document.querySelectorAll(".card").length),
 };
+
+// PR 075 — carry-forward signal, null-ledger honesty: with localStorage
+// cleared (no ledger — no guild yet) and BEFORE any import, the concept of
+// "can my guild carry into this?" does not apply, so the badge must render
+// on NO card — never a misleading verdict.
+out.carryHiddenWhenNoGuild = !(await has(".library-carry"));
 
 // Honesty check: the visible short digest is a true prefix of the full
 // digest carried in the card's `title` attribute — no invented display value.
@@ -90,6 +99,51 @@ out.profileShown = await has(".library-profile");
 out.profileDigestShown = /prof1_/i.test(await page.evaluate(() => document.body.innerText));
 
 await page.screenshot({ path: "/tmp/claude-0/-home-user/65fd6ca3-5fb5-56c1-92df-ef191fdf9c5d/scratchpad/library-custody.png" });
+
+// ── PR 075 committed-ledger pass ────────────────────────────────────────────
+// A guild now needs to exist so the carry signal has something to say.
+// Return to the title, then run the real raid-night commit walk (mirrors
+// expansion-archive-drill.mjs verbatim): raid night → pull/apply-fix loop
+// until CLEARED → Commit to Guild Record.
+const body = () => page.evaluate(() => document.body.innerText);
+
+await click("^Back$|^返回$");
+await page.waitForTimeout(200);
+
+await click("raid night|團本之夜");
+await page.waitForTimeout(400);
+let cleared = false;
+for (let i = 0; i < 24 && !cleared; i++) {
+  await click("Pull the Boss|Pull Again|開怪|再次開怪");
+  await page.waitForTimeout(220);
+  if (/CLEARED|已通關/i.test(await body())) { cleared = true; break; }
+  await click("^Apply$|^採用$");
+  await page.waitForTimeout(120);
+}
+out.raidCleared = cleared;
+out.raidCommitted = await click("Commit to Guild Record|寫入公會記錄");
+await page.waitForTimeout(250);
+out.raidCommitted = out.raidCommitted && (await page.evaluate((k) => !!localStorage.getItem(k), LEDGER_KEY));
+
+const before = await page.evaluate((k) => localStorage.getItem(k), LEDGER_KEY);
+
+// Back to the title, then reopen the Library — a guild now exists, so the
+// carry verdict must render on every card.
+await click("^Back$|^返回$");
+await page.waitForTimeout(200);
+await click("arc library|資料庫");
+await page.waitForTimeout(400);
+
+out.carryShown = await has(".library-carry");
+
+await page.screenshot({ path: "/tmp/claude-0/-home-user/65fd6ca3-5fb5-56c1-92df-ef191fdf9c5d/scratchpad/library-carry.png" });
+
+// Prove no write: the Library reads the ledger once and never mutates it —
+// same read-only discipline as the Archive.
+const after = await page.evaluate((k) => localStorage.getItem(k), LEDGER_KEY);
+await page.reload({ waitUntil: "networkidle" });
+const afterReload = await page.evaluate((k) => localStorage.getItem(k), LEDGER_KEY);
+out.ledgerUnchanged = before === after && after === afterReload;
 
 console.log(JSON.stringify(out, null, 2));
 await browser.close(); server.close();

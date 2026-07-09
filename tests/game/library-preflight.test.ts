@@ -14,6 +14,8 @@ import {
   importArcFromJson,
   loadArcLibrary,
   ensureBundledArc,
+  exportArcToJson,
+  validateArcJson,
   type ArcLibraryEntry,
 } from "../../src/game/lib/arc-library.js";
 import { cartridgeDigest } from "../../src/engine/cartridge-digest.js";
@@ -150,5 +152,19 @@ describe("importPreflight", () => {
     importPreflight("garbage", entries);
 
     expect(JSON.stringify(entries)).toBe(snapshot);
+  });
+});
+
+describe("export receipt round trip (PR 076)", () => {
+  it("the exported bytes carry the same content identity as the source", () => {
+    const r = exportArcToJson(FIRST_CHARTER);
+    expect(r.ok).toBe(true);
+    if (!r.ok) throw new Error("unreachable");
+
+    const reparsed = validateArcJson(r.payload.json);
+    expect(reparsed.ok).toBe(true);
+    if (!reparsed.ok) throw new Error("unreachable");
+
+    expect(cartridgeDigest(reparsed.arc)).toBe(cartridgeDigest(FIRST_CHARTER));
   });
 });

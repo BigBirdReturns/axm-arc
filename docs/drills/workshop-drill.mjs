@@ -36,6 +36,19 @@ out.openedWorkshop = await click("button", "workshop|工坊|工作坊");
 await page.waitForTimeout(400);
 const editor = await page.evaluate(() => document.querySelector("textarea")?.value ?? "");
 out.editorHasSkeleton = editor.includes("my-first-cartridge");
+// Draft custody honesty (RFC_WORKSHOP PR 065) — fresh session, cleared
+// storage: the persistence notice is always shown, but the restored
+// indicator must NOT appear — there is nothing to restore yet, and
+// claiming restoration would be a lie.
+out.draftNoticeShown = await page.evaluate(() => !!document.querySelector(".workshop-draft-notice"));
+out.draftRestoredHiddenOnFresh = !(await page.evaluate(() => !!document.querySelector(".workshop-draft-restored")));
+// The editor already shows the skeleton (the fallback when storage is
+// empty), but nothing has actually been written to storage yet — only
+// setDraft() (edits, New-from-Skeleton, duplicate-load, file-import)
+// autosaves. Click New from Skeleton to trigger a real autosave of known,
+// distinctive content before the later restore check.
+out.newFromSkeletonClicked = await click("button", "New from Skeleton|從骨架新建");
+await page.waitForTimeout(200);
 out.validateClicked = await click("button", "^(Validate|驗證)");
 await page.waitForTimeout(600);
 let body = await page.evaluate(() => document.body.innerText);
@@ -50,6 +63,28 @@ out.savedClicked = await click("button", "Save to Library|存入");
 await page.waitForTimeout(500);
 body = await page.evaluate(() => document.body.innerText);
 out.savedMsg = /saved|已存/i.test(body);
+// Draft custody honesty (RFC_WORKSHOP PR 065), continued: storage still
+// holds the skeleton draft autosaved by the New-from-Skeleton click above
+// (Validate/Save never touch the draft or its storage). Leave the Workshop
+// and come back before the playtest/export/broken-JSON steps below, which
+// DO mutate the draft further — this is the one point in the flow where a
+// reopen proves both "restored" and "content survived" honestly against
+// content we know is still the skeleton.
+await click("button", "^(Back|返回)");
+await page.waitForTimeout(300);
+out.reopenedWorkshop = await click("button", "workshop|工坊|工作坊");
+await page.waitForTimeout(400);
+out.draftRestoredShown = await page.evaluate(() => !!document.querySelector(".workshop-draft-restored"));
+out.draftContentSurvived = await page.evaluate(() =>
+  (document.querySelector("textarea")?.value ?? "").includes("my-first-cartridge")
+);
+// The reopen mounted a fresh WorkshopScreen instance — validateResult (and
+// the Playtest button it gates) resets with it, same as any real navigation
+// away and back. Re-run Validate so the rest of the flow below (playtest,
+// export) continues against a validated draft, exactly as an author
+// returning to a restored draft would need to.
+out.revalidatedAfterReopen = await click("button", "^(Validate|驗證)");
+await page.waitForTimeout(400);
 // playtest preview — bounded seeded runs through the shared conformance harness
 out.playtestClicked = await click("button", "^playtest$|^試玩$");
 let playtestShown = false, playtestParamsShown = false;

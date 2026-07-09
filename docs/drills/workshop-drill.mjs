@@ -42,6 +42,10 @@ let body = await page.evaluate(() => document.body.innerText);
 out.validOkShown = /valid|通過|有效/i.test(body) && /cart1_[0-9a-f]{8}/.test(body);
 out.digest = (body.match(/cart1_[0-9a-f]{12}/) || [null])[0];
 out.summaryCounts = /challenge/i.test(body) && /role/i.test(body);
+// author vocabulary profile (RFC_WORKSHOP PR 063) — always-on under the
+// summary counts on a valid draft, pure reuse of compatibilityProfile.
+out.profileShown = await page.evaluate(() => !!document.querySelector(".workshop-profile"));
+out.profileDigestShown = /prof1_/i.test(body);
 out.savedClicked = await click("button", "Save to Library|存入");
 await page.waitForTimeout(500);
 body = await page.evaluate(() => document.body.innerText);

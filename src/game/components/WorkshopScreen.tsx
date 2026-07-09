@@ -16,6 +16,7 @@ import {
   validateArcJson,
 } from "../lib/arc-library.js";
 import {
+  describeValidationErrors,
   loadWorkshopDraft,
   playtestPreview,
   saveWorkshopDraft,
@@ -267,16 +268,28 @@ export function WorkshopScreen({ onBack }: Props): JSX.Element {
           </button>
         </div>
 
-        {validateErrors.length > 0 && (
-          <div className="warning" style={{ marginTop: 12, whiteSpace: "pre-wrap" }}>
-            <strong>{t("workshop.validationFailed")}</strong>
-            <ul style={{ marginTop: 4, paddingLeft: 20 }}>
-              {validateErrors.map((err, i) => (
-                <li key={i} style={{ fontFamily: "var(--mono)", fontSize: 12 }}>{err}</li>
-              ))}
-            </ul>
-          </div>
-        )}
+        {validateErrors.length > 0 && (() => {
+          const view = describeValidationErrors(validateErrors, text);
+          return (
+            <div className="warning workshop-error-panel" style={{ marginTop: 12, whiteSpace: "pre-wrap" }}>
+              <strong>
+                {t("workshop.validationFailed")} <span className="badge rn-num">{view.count}</span>
+              </strong>
+              <ul style={{ marginTop: 4, paddingLeft: 20 }}>
+                {view.items.map((item, i) => (
+                  <li key={i} style={{ fontFamily: "var(--mono)", fontSize: 12 }}>
+                    {item.line !== null && (
+                      <span className="badge" style={{ marginRight: 6 }}>
+                        {t("workshop.lineCol", { line: item.line, col: item.column ?? 0 })}
+                      </span>
+                    )}
+                    {item.raw}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          );
+        })()}
 
         {validateResult && (
           <div style={{ marginTop: 12, color: "var(--positive)" }}>

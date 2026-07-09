@@ -220,3 +220,49 @@ export function playtestPreview(arc: Arc): PlaytestReport {
   const aggregate = aggregateRuns(arc, runs, PLAYTEST_MAX_CYCLES);
   return { seeds: PLAYTEST_SEEDS.length, maxCycles: PLAYTEST_MAX_CYCLES, aggregate };
 }
+
+// ── Validation ergonomics (RFC_WORKSHOP PR 066) ─────────────────────────────
+// A pure display derivation over validateArcJson's error strings — never a
+// second validator, never a rewrite of the message. Some errors carry a
+// position the author can jump to (modern V8 JSON.parse messages end in
+// "(line N column M)"; older V8 says "at position N" with no line/column,
+// which we recover ourselves from the draft text); schema errors carry
+// neither, and get no hint rather than a guessed one.
+const LINE_COL_RE = /\(line (\d+) column (\d+)\)/;
+const POSITION_RE = /at position (\d+)/;
+
+export interface ValidationErrorView {
+  raw: string;
+  line: number | null;
+  column: number | null;
+}
+
+function locateInDraft(draft: string, pos: number): { line: number; column: number } {
+  const upToPos = draft.slice(0, pos);
+  const lastNewline = upToPos.lastIndexOf("\n");
+  const line = (upToPos.match(/\n/g) ?? []).length + 1;
+  const column = pos - (lastNewline + 1) + 1;
+  return { line, column };
+}
+
+/** Pure: never mutates `errors` or `draft`, never re-validates. Each error
+ *  string is inspected only for a position it already carries — the SAME
+ *  strings validateArcJson produced, displayed with an extracted hint. */
+export function describeValidationErrors(
+  errors: string[],
+  draft: string,
+): { count: number; items: ValidationErrorView[] } {
+  const items = errors.map((raw): ValidationErrorView => {
+    const lineColMatch = raw.match(LINE_COL_RE);
+    if (lineColMatch) {
+      return { raw, line: Number(lineColMatch[1]), column: Number(lineColMatch[2]) };
+    }
+    const positionMatch = raw.match(POSITION_RE);
+    if (positionMatch) {
+      const { line, column } = locateInDraft(draft, Number(positionMatch[1]));
+      return { raw, line, column };
+    }
+    return { raw, line: null, column: null };
+  });
+  return { count: errors.length, items };
+}

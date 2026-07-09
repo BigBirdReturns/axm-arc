@@ -149,7 +149,7 @@ export function LibraryScreen({ arc, onBack, onLoadArc, onOpenArchive }: Props):
   };
 
   return (
-    <div className="title-screen">
+    <div className="title-screen" role="region" aria-label={t("library.heading")}>
       <div className="title-content" style={{ maxWidth: 800 }}>
         <div className="title-imprint">AXM</div>
         <div className="title-rule" />
@@ -202,7 +202,11 @@ export function LibraryScreen({ arc, onBack, onLoadArc, onOpenArchive }: Props):
                     {(() => {
                       const digest = digests.get(cardKey)!;
                       return (
-                        <div className="agent-meta library-digest" title={digest}>
+                        <div
+                          className="agent-meta library-digest"
+                          title={digest}
+                          aria-label={`${t("archive.digest")} ${digest}`}
+                        >
                           <span>{t("archive.digest")}</span> <span className="rn-num">{digest.slice(0, 12)}…</span>
                         </div>
                       );
@@ -214,6 +218,8 @@ export function LibraryScreen({ arc, onBack, onLoadArc, onOpenArchive }: Props):
                     </button>
                     <button
                       className="secondary"
+                      aria-expanded={profileOpen}
+                      aria-controls={`library-profile-${cardKey}`}
                       onClick={() => setProfileFor(profileOpen ? null : cardKey)}
                     >
                       {t("library.profile")}
@@ -248,7 +254,11 @@ export function LibraryScreen({ arc, onBack, onLoadArc, onOpenArchive }: Props):
                     [t("library.profileVocab"), p.checkVocab],
                   ];
                   return (
-                    <div className="library-profile agent-meta" style={{ marginTop: 8 }}>
+                    <div
+                      className="library-profile agent-meta"
+                      id={`library-profile-${cardKey}`}
+                      style={{ marginTop: 8 }}
+                    >
                       <div title={p.profileDigest}>
                         <span>{t("library.profileDigest")}</span>{" "}
                         <span className="rn-num">{p.profileDigest.slice(0, 14)}…</span>
@@ -270,7 +280,7 @@ export function LibraryScreen({ arc, onBack, onLoadArc, onOpenArchive }: Props):
         </div>
 
         {exportErrors && (
-          <div className="warning" data-testid="export-errors" style={{ marginTop: 12, whiteSpace: "pre-wrap" }}>
+          <div className="warning" data-testid="export-errors" role="alert" style={{ marginTop: 12, whiteSpace: "pre-wrap" }}>
             <strong>{t("library.exportBlocked", { name: exportErrors.arcName })}</strong>
             <ul style={{ marginTop: 4, paddingLeft: 20 }}>
               {exportErrors.errors.map((err, i) => (
@@ -283,7 +293,7 @@ export function LibraryScreen({ arc, onBack, onLoadArc, onOpenArchive }: Props):
         )}
 
         {exportMsg && (
-          <div data-testid="export-success" style={{ marginTop: 12, color: "var(--positive)", fontWeight: 600 }}>
+          <div data-testid="export-success" role="status" style={{ marginTop: 12, color: "var(--positive)", fontWeight: 600 }}>
             {exportMsg}
           </div>
         )}
@@ -291,6 +301,7 @@ export function LibraryScreen({ arc, onBack, onLoadArc, onOpenArchive }: Props):
         {exportReceipt && (
           <div
             className="library-export-receipt agent-meta"
+            role="status"
             style={{ marginTop: 4 }}
             title={exportReceipt.digest ?? undefined}
           >
@@ -341,7 +352,7 @@ export function LibraryScreen({ arc, onBack, onLoadArc, onOpenArchive }: Props):
           </div>
 
           {importErrors.length > 0 && (
-            <div className="warning" style={{ marginTop: 12, whiteSpace: "pre-wrap" }}>
+            <div className="warning" role="alert" style={{ marginTop: 12, whiteSpace: "pre-wrap" }}>
               <strong>{t("library.validationFailed")}</strong>
               <ul style={{ marginTop: 4, paddingLeft: 20 }}>
                 {importErrors.map((err, i) => (
@@ -354,13 +365,13 @@ export function LibraryScreen({ arc, onBack, onLoadArc, onOpenArchive }: Props):
           )}
 
           {importMsg && (
-            <div style={{ marginTop: 12, color: "var(--positive)", fontWeight: 600 }}>
+            <div role="status" style={{ marginTop: 12, color: "var(--positive)", fontWeight: 600 }}>
               {importMsg}
             </div>
           )}
 
           {preflight && (
-            <div className="library-preflight agent-meta" style={{ marginTop: 8 }}>
+            <div className="library-preflight agent-meta" role="status" style={{ marginTop: 8 }}>
               <div title={preflight.digest}>
                 <span>{t("archive.digest")}</span>{" "}
                 <span className="rn-num">{preflight.digest.slice(0, 12)}…</span>

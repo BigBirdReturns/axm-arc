@@ -43,6 +43,7 @@ await page.waitForTimeout(400);
 const out = {
   errs,
   libraryRendered: (await has(".card")) || (await has("h1")),
+  a11yRegion: await page.evaluate(() => !!document.querySelector('[role="region"][aria-label]')),
   digestShown: await has(".library-digest"),
   digestCount: await page.evaluate(() => document.querySelectorAll(".library-digest").length),
   entryCount: await page.evaluate(() => document.querySelectorAll(".card").length),
@@ -97,6 +98,7 @@ await page.waitForTimeout(200);
 
 out.profileShown = await has(".library-profile");
 out.profileDigestShown = /prof1_/i.test(await page.evaluate(() => document.body.innerText));
+out.a11yProfileExpanded = await page.evaluate(() => !!document.querySelector('button[aria-expanded="true"]'));
 
 // PR 076 — export receipt: click the first card's Export button and check
 // that a receipt renders with the digest of the EXPORTED bytes (re-parsed

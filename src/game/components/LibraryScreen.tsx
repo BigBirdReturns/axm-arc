@@ -6,7 +6,8 @@ import { useMemo, useState } from "react";
 import type { Arc } from "../../engine/types.js";
 import { CodexOverlay, TrustLabel } from "../../codex/index.js";
 import { cartridgeDigest } from "../../engine/cartridge-digest.js";
-import { compatibilityProfile } from "../lib/ledger.js";
+import { compatibilityProfile, loadLedger } from "../lib/ledger.js";
+import { carryVerdict } from "../lib/expansion-archive.js";
 import {
   type ArcLibraryEntry,
   type ImportPreflight,
@@ -47,6 +48,15 @@ export function LibraryScreen({ arc, onBack, onLoadArc }: Props): JSX.Element {
     () => new Map(entries.map((e) => [e.arc.meta.id + ":" + e.source, cartridgeDigest(e.arc)])),
     [entries],
   );
+
+  // Carry-forward signal (RFC_CARTRIDGE_LIBRARY PR 075): "can my guild carry
+  // into this cartridge?" — read once, reused verbatim from the Archive's
+  // carryVerdict (one helper, two surfaces). The Library never writes the
+  // ledger; it only reads it here, same read-only discipline as the Archive.
+  // carryVerdict is faithful-wrapper-tested against checkCompatibility in
+  // tests/game/expansion-archive.test.ts (PR 047 suite) — no duplicate test
+  // added here.
+  const ledger = useMemo(() => loadLedger(), []);
 
   const refresh = () => setEntries(loadArcLibrary());
 
@@ -152,6 +162,19 @@ export function LibraryScreen({ arc, onBack, onLoadArc }: Props): JSX.Element {
                       <strong style={{ fontSize: 16 }}>{entry.arc.meta.name}</strong>
                       <TrustLabel trust={entry.trust} />
                       {isActive && <span className="badge pass">{t("library.active")}</span>}
+                      {(() => {
+                        // Honest-degrade, mirroring ExpansionArchiveScreen's
+                        // renderCarryBadge exactly: null-ledger renders
+                        // nothing (no guild yet — the concept doesn't
+                        // apply), never a misleading badge.
+                        const carry = carryVerdict(entry.arc, ledger);
+                        if (carry === "null-ledger") return null;
+                        return carry === "compatible" ? (
+                          <span className="badge pass library-carry">{t("archive.carryReady")}</span>
+                        ) : (
+                          <span className="badge library-carry">{t("archive.carryIncompatible")}</span>
+                        );
+                      })()}
                     </div>
                     <div className="agent-meta" style={{ marginTop: 4 }}>
                       v{entry.arc.meta.version} · {entry.arc.meta.domain} · {entry.arc.meta.author} · {entry.source}

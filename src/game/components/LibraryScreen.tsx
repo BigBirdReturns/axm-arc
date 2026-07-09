@@ -2,9 +2,10 @@
 // user import new ones, inspect their data, and load a different one as the
 // active arc. Arc-agnostic: no hardcoded ids.
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { Arc } from "../../engine/types.js";
 import { CodexOverlay, TrustLabel } from "../../codex/index.js";
+import { cartridgeDigest } from "../../engine/cartridge-digest.js";
 import {
   type ArcLibraryEntry,
   exportArcToJson,
@@ -30,6 +31,14 @@ export function LibraryScreen({ arc, onBack, onLoadArc }: Props): JSX.Element {
   const [exportErrors, setExportErrors] = useState<{ arcName: string; errors: string[] } | null>(null);
   const [exportMsg, setExportMsg] = useState<string | null>(null);
   const [inspectEntry, setInspectEntry] = useState<ArcLibraryEntry | null>(null);
+
+  // Content-identity anchor per entry, computed once per entries change — the
+  // same fact the Archive joins by and world's boot-import verifies against
+  // (RFC_CARTRIDGE_LIBRARY PR 072). Keyed by id+source to match the card key.
+  const digests = useMemo(
+    () => new Map(entries.map((e) => [e.arc.meta.id + ":" + e.source, cartridgeDigest(e.arc)])),
+    [entries],
+  );
 
   const refresh = () => setEntries(loadArcLibrary());
 
@@ -129,6 +138,14 @@ export function LibraryScreen({ arc, onBack, onLoadArc }: Props): JSX.Element {
                     <div className="agent-meta" style={{ marginTop: 4 }}>
                       v{entry.arc.meta.version} · {entry.arc.meta.domain} · {entry.arc.meta.author} · {entry.source}
                     </div>
+                    {(() => {
+                      const digest = digests.get(entry.arc.meta.id + ":" + entry.source)!;
+                      return (
+                        <div className="agent-meta library-digest" title={digest}>
+                          <span>{t("archive.digest")}</span> <span className="rn-num">{digest.slice(0, 12)}…</span>
+                        </div>
+                      );
+                    })()}
                   </div>
                   <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
                     <button className="secondary" onClick={() => setInspectEntry(entry)}>

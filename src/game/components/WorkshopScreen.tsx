@@ -426,7 +426,7 @@ export function WorkshopScreen({ onBack, onOpenLibrary }: Props): JSX.Element {
         )}
 
         {saveErrors && (
-          <div className="warning" style={{ marginTop: 12, whiteSpace: "pre-wrap" }}>
+          <div className="warning" role="alert" style={{ marginTop: 12, whiteSpace: "pre-wrap" }}>
             <strong>{t("workshop.saveBlocked")}</strong>
             <ul style={{ marginTop: 4, paddingLeft: 20 }}>
               {saveErrors.map((err, i) => (
@@ -440,7 +440,7 @@ export function WorkshopScreen({ onBack, onOpenLibrary }: Props): JSX.Element {
         )}
 
         {exportErrors && (
-          <div className="warning" style={{ marginTop: 12, whiteSpace: "pre-wrap" }}>
+          <div className="warning" role="alert" style={{ marginTop: 12, whiteSpace: "pre-wrap" }}>
             <strong>{t("workshop.exportBlocked")}</strong>
             <ul style={{ marginTop: 4, paddingLeft: 20 }}>
               {exportErrors.map((err, i) => (

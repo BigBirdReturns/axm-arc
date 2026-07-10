@@ -10,7 +10,7 @@ seam; it protects every future cartridge.
 |---|---|
 | `lifecycle-drill.mjs` | The whole chain: Workshop-author → validate (digest) → save → play in arc → export → import the *exported file* into world → digest identical both ends |
 | `batch-import-drill.mjs` | Every cartridge in a list imports and plays in BOTH clients (arc Library paste, world boot file input), vocabulary rendering verbatim |
-| `workshop-drill.mjs` | Workshop flow incl. broken-JSON error panel, en + zh-Hant |
+| `workshop-drill.mjs` | The author round trip (Article 4): skeleton → validate (digest + profile) → playtest preview (bounded facts, persisted nothing) → save → export (receipt matches the validated draft) → the Library holds the same digest the author saw — plus draft custody, error ergonomics, cross-nav, and zh-Hant chrome |
 | `offline-drill.mjs` | PWA: service worker takes control → network killed → reload boots, zero external requests |
 | `installability.mjs` | CDP `getInstallabilityErrors` on the manifest/SW |
 | `guildhall-playtest-drill.mjs` | The Guild Hall renders a committed ledger — every panel populated, zero page errors, and the Hall never writes the ledger it reads |

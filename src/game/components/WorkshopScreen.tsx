@@ -191,7 +191,7 @@ export function WorkshopScreen({ onBack, onOpenLibrary }: Props): JSX.Element {
   };
 
   return (
-    <div className="title-screen">
+    <div className="title-screen" role="region" aria-label={t("workshop.heading")}>
       <div className="title-content" style={{ maxWidth: 900 }}>
         <div className="title-imprint">AXM</div>
         <div className="title-rule" />
@@ -272,7 +272,7 @@ export function WorkshopScreen({ onBack, onOpenLibrary }: Props): JSX.Element {
         {validateErrors.length > 0 && (() => {
           const view = describeValidationErrors(validateErrors, text);
           return (
-            <div className="warning workshop-error-panel" style={{ marginTop: 12, whiteSpace: "pre-wrap" }}>
+            <div className="warning workshop-error-panel" role="alert" style={{ marginTop: 12, whiteSpace: "pre-wrap" }}>
               <strong>
                 {t("workshop.validationFailed")} <span className="badge rn-num">{view.count}</span>
               </strong>
@@ -293,8 +293,11 @@ export function WorkshopScreen({ onBack, onOpenLibrary }: Props): JSX.Element {
         })()}
 
         {validateResult && (
-          <div style={{ marginTop: 12, color: "var(--positive)" }}>
-            <div style={{ fontWeight: 600 }}>
+          <div role="status" style={{ marginTop: 12, color: "var(--positive)" }}>
+            <div
+              style={{ fontWeight: 600 }}
+              aria-label={`${t("workshop.validOk")} ${t("workshop.digest", { digest: validateResult.digest })}`}
+            >
               {t("workshop.validOk")} {t("workshop.digest", { digest: validateResult.digest })}
             </div>
             <div className="agent-meta" style={{ marginTop: 4 }}>
@@ -355,7 +358,7 @@ export function WorkshopScreen({ onBack, onOpenLibrary }: Props): JSX.Element {
         )}
 
         {playtestReport && (
-          <div className="workshop-playtest" style={{ marginTop: 12 }}>
+          <div className="workshop-playtest" role="status" style={{ marginTop: 12 }}>
             <div className="agent-meta">
               {t("workshop.playtestParams", { runs: playtestReport.seeds, cycles: playtestReport.maxCycles })}
             </div>
@@ -433,7 +436,7 @@ export function WorkshopScreen({ onBack, onOpenLibrary }: Props): JSX.Element {
           </div>
         )}
         {saveMsg && (
-          <div style={{ marginTop: 12, color: "var(--positive)", fontWeight: 600 }}>{saveMsg}</div>
+          <div role="status" style={{ marginTop: 12, color: "var(--positive)", fontWeight: 600 }}>{saveMsg}</div>
         )}
 
         {exportErrors && (
@@ -447,7 +450,7 @@ export function WorkshopScreen({ onBack, onOpenLibrary }: Props): JSX.Element {
           </div>
         )}
         {exportMsg && (
-          <div style={{ marginTop: 12, color: "var(--positive)", fontWeight: 600 }}>{exportMsg}</div>
+          <div role="status" style={{ marginTop: 12, color: "var(--positive)", fontWeight: 600 }}>{exportMsg}</div>
         )}
 
         {exportReceipt && (
@@ -456,6 +459,7 @@ export function WorkshopScreen({ onBack, onOpenLibrary }: Props): JSX.Element {
             role="status"
             style={{ marginTop: 4 }}
             title={exportReceipt.digest ?? undefined}
+            aria-label={exportReceipt.digest ? `${t("archive.digest")} ${exportReceipt.digest}` : undefined}
           >
             <span>{t("archive.digest")}</span>{" "}
             <span className="rn-num">

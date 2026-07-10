@@ -34,6 +34,9 @@ await page.reload({ waitUntil: "networkidle" });
 const out = { errs };
 out.openedWorkshop = await click("button", "workshop|工坊|工作坊");
 await page.waitForTimeout(400);
+// a11y pass (RFC_WORKSHOP PR 068, parity with the Library's 078 a11y pass):
+// the outermost screen div is a named landmark region.
+out.a11yRegion = await page.evaluate(() => !!document.querySelector('[role="region"][aria-label]'));
 const editor = await page.evaluate(() => document.querySelector("textarea")?.value ?? "");
 out.editorHasSkeleton = editor.includes("my-first-cartridge");
 // Draft custody honesty (RFC_WORKSHOP PR 065) — fresh session, cleared
@@ -119,6 +122,10 @@ out.validateBrokenClicked = await click("button", "^(Validate|驗證)");
 await page.waitForTimeout(400);
 body = await page.evaluate(() => document.body.innerText);
 out.brokenShowsError = /parse error|failed|驗證失敗/i.test(body);
+// a11y pass (RFC_WORKSHOP PR 068): the validation-error panel is an alert
+// live region — announced immediately, unlike the polite role="status"
+// regions used for success/report messages elsewhere in this screen.
+out.a11yAlert = await page.evaluate(() => !!document.querySelector('.workshop-error-panel[role="alert"]'));
 // validation ergonomics (RFC_WORKSHOP PR 066) — a count badge always shows
 // (same errors, same validator, just counted), and a line/column hint shows
 // IFF this Chromium's V8 JSON.parse message actually carries one (modern

@@ -198,8 +198,9 @@ names, drama text, resource vocabulary, and variant labels are never
 catalogued, so an imported arc's own vocabulary always wins. Engine-emitted
 strings are data too; the deterministic engine must stay locale-independent
 (codepoint ordering, no `localeCompare`). Guard test:
-`tests/i18n/locale.test.ts`. Family doctrine:
-[axm-genesis `docs/LOCALIZATION.md`](https://github.com/BigBirdReturns/axm-genesis/blob/main/docs/LOCALIZATION.md).
+`tests/i18n/locale.test.ts`. Family doctrine: proposed in
+[axm-genesis PR #23](https://github.com/BigBirdReturns/axm-genesis/pull/23)
+(LOCALIZATION doctrine, pending owner review).
 
 ## Cartridge lifecycle
 
@@ -208,7 +209,8 @@ in-app Workshop (or any text editor), validated through the one shared
 seam (`validateArcJson`), content-addressed by `cartridgeDigest`
 (`cart1_…`), shipped with its conformance test, playable here and in
 [axm-world](https://github.com/BigBirdReturns/axm-world)'s boot importer,
-and ported per the atlas. Family doctrine:
-[axm-genesis `docs/CARTRIDGE_LIFECYCLE.md`](https://github.com/BigBirdReturns/axm-genesis/blob/main/docs/CARTRIDGE_LIFECYCLE.md).
+and ported per the atlas. Family doctrine: proposed in
+[axm-genesis PR #23](https://github.com/BigBirdReturns/axm-genesis/pull/23)
+(CARTRIDGE_LIFECYCLE doctrine, pending owner review).
 This repo's implementations: `docs/COMPATIBILITY_ATLAS.md` (what can be a
 cartridge, at what cost) and `docs/CLONE_PORTING.md` (how a port happens).

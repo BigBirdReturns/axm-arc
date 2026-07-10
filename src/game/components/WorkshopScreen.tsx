@@ -29,9 +29,10 @@ import { t, useLocale } from "../../i18n/index.js";
 
 interface Props {
   onBack: () => void;
+  onOpenLibrary: () => void;
 }
 
-export function WorkshopScreen({ onBack }: Props): JSX.Element {
+export function WorkshopScreen({ onBack, onOpenLibrary }: Props): JSX.Element {
   useLocale(); // this screen renders outside App's play shell — subscribe directly
   const [text, setText] = useState<string>(() => loadWorkshopDraft() ?? workshopSkeleton());
   // Draft custody honesty (RFC_WORKSHOP PR 065): whether THIS session's
@@ -471,6 +472,9 @@ export function WorkshopScreen({ onBack }: Props): JSX.Element {
         <div className="title-actions" style={{ marginTop: 32 }}>
           <button className="secondary" onClick={onBack}>
             {t("common.back")}
+          </button>
+          <button className="secondary workshop-to-library" onClick={onOpenLibrary}>
+            {t("library.heading")}
           </button>
         </div>
       </div>

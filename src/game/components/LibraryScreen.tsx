@@ -26,9 +26,10 @@ interface Props {
   onBack: () => void;
   onLoadArc: (arcId: string) => void;
   onOpenArchive: () => void;
+  onOpenWorkshop: () => void;
 }
 
-export function LibraryScreen({ arc, onBack, onLoadArc, onOpenArchive }: Props): JSX.Element {
+export function LibraryScreen({ arc, onBack, onLoadArc, onOpenArchive, onOpenWorkshop }: Props): JSX.Element {
   useLocale(); // this screen renders outside App's play shell — subscribe directly
   const [entries, setEntries] = useState<ArcLibraryEntry[]>(() => loadArcLibrary());
   const [jsonDraft, setJsonDraft] = useState("");
@@ -409,6 +410,9 @@ export function LibraryScreen({ arc, onBack, onLoadArc, onOpenArchive }: Props):
           </button>
           <button className="secondary library-to-archive" onClick={onOpenArchive}>
             {t("archive.title")}
+          </button>
+          <button className="secondary library-to-workshop" onClick={onOpenWorkshop}>
+            {t("workshop.heading")}
           </button>
         </div>
       </div>

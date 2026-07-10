@@ -1,5 +1,9 @@
-// Workshop drill: title → Workshop → skeleton → Validate → Save to Library →
-// back → Library shows the saved arc. Then a zh-Hant chrome check.
+// Workshop drill (RFC_WORKSHOP capstone, PR 070): the author round trip —
+// title → Workshop → skeleton → Validate (digest + profile) → playtest
+// preview (bounded facts, persists nothing) → Save to Library → export
+// (receipt matches) → back → Library holds the SAME digest the author saw.
+// Plus draft custody, validation ergonomics, cross-nav, and a zh-Hant
+// chrome check.
 import { chromium } from "playwright-core";
 import { createServer } from "http";
 import { readFile } from "fs/promises";
@@ -57,6 +61,13 @@ await page.waitForTimeout(600);
 let body = await page.evaluate(() => document.body.innerText);
 out.validOkShown = /valid|通過|有效/i.test(body) && /cart1_[0-9a-f]{8}/.test(body);
 out.digest = (body.match(/cart1_[0-9a-f]{12}/) || [null])[0];
+// Digest identity across rooms (RFC_WORKSHOP 070 capstone) — capture the FULL
+// digest the author saw here, at Validate time, before Save. workshop.digest
+// (WorkshopScreen.tsx's validate-success line) renders validateResult.digest
+// UNSLICED — unlike the Library card's visible span, which truncates to 12
+// hex chars — so the full 64-hex-char cart1_ identity is honestly readable
+// straight out of innerText, no fabricated prefix match.
+out.authorDigestFull = (body.match(/cart1_[0-9a-f]{64}/) || [null])[0];
 out.summaryCounts = /challenge/i.test(body) && /role/i.test(body);
 // author vocabulary profile (RFC_WORKSHOP PR 063) — always-on under the
 // summary counts on a valid draft, pure reuse of compatibilityProfile.
@@ -89,6 +100,15 @@ out.draftContentSurvived = await page.evaluate(() =>
 out.revalidatedAfterReopen = await click("button", "^(Validate|驗證)");
 await page.waitForTimeout(400);
 // playtest preview — bounded seeded runs through the shared conformance harness
+// Previews persist nothing (RFC_WORKSHOP 070 capstone, non-goal "no new
+// persistence"): snapshot ALL of localStorage immediately before this click,
+// then again once the report is shown, and assert byte-identical storage.
+// playtestPreview (src/game/lib/workshop.ts) runs read-only through the
+// shared conformance harness; only setDraft()/Save/import ever write
+// storage, and neither runs between these two snapshots.
+const storageBefore = await page.evaluate(() =>
+  JSON.stringify(Object.fromEntries(Object.entries(localStorage).sort()))
+);
 out.playtestClicked = await click("button", "^playtest$|^試玩$");
 let playtestShown = false, playtestParamsShown = false;
 for (let i = 0; i < 10 && !playtestShown; i++) {
@@ -101,6 +121,10 @@ if (playtestShown) {
 }
 out.playtestShown = playtestShown;
 out.playtestParamsShown = playtestParamsShown;
+const storageAfter = await page.evaluate(() =>
+  JSON.stringify(Object.fromEntries(Object.entries(localStorage).sort()))
+);
+out.playtestPersistedNothing = storageBefore === storageAfter;
 if (playtestShown) {
   await page.screenshot({ path: "/tmp/claude-0/-home-user/65fd6ca3-5fb5-56c1-92df-ef191fdf9c5d/scratchpad/workshop-playtest.png" });
 }
@@ -168,6 +192,21 @@ await click("button", "library|資料庫|藏庫");
 await page.waitForTimeout(500);
 body = await page.evaluate(() => document.body.innerText);
 out.libraryListsSkeleton = /my-first-cartridge|My First Cartridge/i.test(body);
+// Digest identity across rooms (RFC_WORKSHOP 070 capstone) — the Library
+// card's visible span truncates to 12 hex chars (LibraryScreen.tsx), but its
+// `title` attribute carries the digest UNSLICED, same as the Workshop's
+// validate-success line above. Read that full form, never the sliced text,
+// so this is an honest full-string comparison of the SAME cartridgeDigest()
+// value — not a fabricated prefix match.
+out.libraryDigestFull = await page.evaluate(() => {
+  const card = [...document.querySelectorAll(".card")]
+    .find((c) => /my-first-cartridge|My First Cartridge/i.test(c.textContent || ""));
+  return card?.querySelector(".library-digest")?.getAttribute("title") ?? null;
+});
+out.digestMatchesAcrossRooms =
+  out.authorDigestFull !== undefined &&
+  out.authorDigestFull !== null &&
+  out.authorDigestFull === out.libraryDigestFull;
 // zh-Hant chrome check back on workshop
 await page.evaluate(() => { [...document.querySelectorAll("button")]
   .find(b => /^中文$/.test(b.textContent?.trim() || ""))?.dispatchEvent(new MouseEvent("click", { bubbles: true })); });

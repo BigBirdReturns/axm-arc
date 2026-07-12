@@ -20,6 +20,7 @@ import type {
   Arc,
   Challenge,
   CheckDiagnostic,
+  Item,
   MechanicCheck,
   Organization,
   RunReport,
@@ -137,6 +138,22 @@ function gearBonusFor(agent: Agent, attrId: string | undefined, arc: Arc): numbe
   return g;
 }
 
+/** The NET change to `attrId` from equipping `candidate`, after DISPLACING
+ *  whatever currently occupies its slot. `equippedItems` is keyed by slot, so
+ *  equipping evicts the slot's current occupant — the real gain is the
+ *  candidate's bonus minus the displaced item's, not the candidate's alone. Can
+ *  be zero or negative when the occupant is as good or better. (issue #112) */
+export function netGearGain(
+  equippedItems: Record<string, string>,
+  candidate: Item,
+  attrId: string,
+  arc: Arc,
+): number {
+  const displacedId = equippedItems[candidate.slot];
+  const displaced = displacedId ? arc.items.find((it) => it.id === displacedId) : undefined;
+  return (candidate.statBonuses[attrId] ?? 0) - (displaced?.statBonuses[attrId] ?? 0);
+}
+
 /** The deterministic mean of an agent's score on a check — raw attribute pull +
  *  equipped gear + morale offset, with no roll. Used ONLY to rank candidate
  *  swaps/reassigns; the actual attempt's numbers come from the resolver. */
@@ -246,31 +263,37 @@ function generateFixes(
     });
   }
 
-  // 2. Gear — an item boosting this check's attribute the culprit could equip.
+  // 2. Gear — an item whose NET boost to this check's attribute (after
+  //    displacing the culprit's current item in that slot) actually helps.
   if (attr) {
     const tierIdx = arc.tiers.findIndex((t) => t.id === culprit.tier);
     const equipped = new Set(Object.values(culprit.equippedItems));
     const gearCandidate = arc.items
-      .filter((it) => !equipped.has(it.id) && (it.statBonuses[attr] ?? 0) > 0)
+      // equippedItems is keyed by SLOT, so equipping a candidate evicts the
+      // slot's occupant. Rank by the NET attr gain (candidate − displaced), not
+      // the candidate's raw stat sheet, and keep only a real positive gain — a
+      // side-grade or downgrade is not a fix. (issue #112)
+      .filter((it) => !equipped.has(it.id))
       .filter((it) => arc.tiers.findIndex((t) => t.id === it.tierRequirement) <= tierIdx)
-      .sort((a, b) => (b.statBonuses[attr] ?? 0) - (a.statBonuses[attr] ?? 0))[0];
+      .map((it) => ({ it, net: netGearGain(culprit.equippedItems, it, attr, arc) }))
+      .filter((c) => c.net > 0)
+      .sort((a, b) => b.net - a.net)[0];
     if (gearCandidate) {
-      const statBonus = gearCandidate.statBonuses[attr] ?? 0;
+      const netStat = gearCandidate.net;
       // The resolver applies gear at HALF weight to a check contribution
-      // (resolver.ts: `gear * 0.5`), so an item's +statBonus to the stat sheet
+      // (resolver.ts: `gear * 0.5`), so a +netStat swing to the stat sheet
       // closes only half that much of the check shortfall. Report the realized
       // check effect as `impact` (which also ranks this fix against the other
-      // levers — previously it was over-ranked 2×) and name both truths in the
-      // description. (issue #109)
-      const checkEffect = statBonus * 0.5;
+      // levers) and name both truths in the description. (issues #109, #112)
+      const checkEffect = netStat * 0.5;
       fixes.push({
         lever: "gear",
-        description: `Equip ${gearCandidate.name} on ${culprit.name} (+${statBonus} ${attr}, ~+${round(checkEffect)} on the check)`,
-        target: gearCandidate.name,
+        description: `Equip ${gearCandidate.it.name} on ${culprit.name} (+${netStat} ${attr} net, ~+${round(checkEffect)} on the check)`,
+        target: gearCandidate.it.name,
         cost: "spend a drop / bank stock; someone else waits on that item",
         impact: checkEffect,
         agentId: culprit.id,
-        itemId: gearCandidate.id,
+        itemId: gearCandidate.it.id,
         attrId: attr,
         checkId,
         projectedEffect: closes(checkEffect),

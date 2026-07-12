@@ -10,6 +10,12 @@ import type { Agent, Arc, Organization, Precedent } from "../../engine/types.js"
 import { cartridgeDigest, sha256Hex } from "../../engine/cartridge-digest.js";
 import { hashSeed } from "../../engine/prng.js";
 import { buildStartingOrg } from "../../sim/cartridge-conformance.js";
+import {
+  serializationFailure,
+  writeStorageTransaction,
+  type SaveResult,
+  type StorageWriter,
+} from "./persistence.js";
 
 const LEDGER_KEY = "axm-arc:campaign-ledger:v1";
 const SCHEMA_VERSION = "ledger/1.0";
@@ -183,8 +189,17 @@ export function loadLedger(): CampaignLedger | null {
     return null;
   }
 }
-export function saveLedger(ledger: CampaignLedger): void {
-  try { localStorage.setItem(LEDGER_KEY, JSON.stringify(ledger)); } catch { /* headless / quota */ }
+export function saveLedger(
+  ledger: CampaignLedger,
+  storage?: StorageWriter | null,
+): SaveResult {
+  let json: string;
+  try {
+    json = JSON.stringify(ledger);
+  } catch {
+    return serializationFailure();
+  }
+  return writeStorageTransaction(LEDGER_KEY, json, storage);
 }
 export function clearLedger(): void {
   try { localStorage.removeItem(LEDGER_KEY); } catch { /* headless */ }

@@ -20,9 +20,11 @@ import { t, useLocale } from "../../i18n/index.js";
 import { ThresholdBar } from "./ThresholdBar.js";
 import {
   RAID_ARC_T2, newRaidNight, newRaidNightFrom, pull, applyFix, toggleFielded, partyLegal,
-  nightConsequences, commitNightVictory, commitNightFailed,
-  type RaidNightState,
+  nightConsequences, commitNightVictoryWithResult, commitNightFailedWithResult,
+  type LedgerCommitResult, type RaidNightState,
 } from "../lib/raid-night.js";
+import { exportLedger, saveLedger } from "../lib/ledger.js";
+import { downloadJsonArtifact } from "../lib/download.js";
 import { validateArc } from "../../engine/schema.js";
 import severedMarch from "../../../cartridges/severed-march.arc.json";
 import type { Agent, Arc } from "../../engine/types.js";
@@ -40,10 +42,30 @@ function bossOf(arc: Arc) {
 export function RaidNightScreen({ onBack }: Props): JSX.Element {
   useLocale();
   const [state, setState] = useState<RaidNightState>(() => newRaidNight(1));
-  const [committed, setCommitted] = useState<import("../lib/ledger.js").CampaignLedger | null>(null);
+  const [commitAttempt, setCommitAttempt] = useState<LedgerCommitResult | null>(null);
+  const [recoveryExported, setRecoveryExported] = useState(false);
+  const committed = commitAttempt?.save.ok ? commitAttempt.ledger : null;
+  const commitFailure = commitAttempt && !commitAttempt.save.ok ? commitAttempt.save : null;
   const boss = bossOf(state.arc);
   const roleName = (id: string | null) => state.arc.roles.find((r) => r.id === id)?.name ?? id ?? "—";
   const legal = partyLegal(state);
+
+  const recordCommit = (result: LedgerCommitResult) => {
+    setCommitAttempt(result);
+    setRecoveryExported(false);
+  };
+
+  const retryCommit = () => {
+    if (!commitAttempt) return;
+    setCommitAttempt({ ...commitAttempt, save: saveLedger(commitAttempt.ledger) });
+    setRecoveryExported(false);
+  };
+
+  const exportCommitRecovery = () => {
+    if (!commitAttempt || !commitFailure?.recoverable) return;
+    downloadJsonArtifact(exportLedger(commitAttempt.ledger));
+    setRecoveryExported(true);
+  };
 
   const party = state.partyIds.map((id) => state.org.agents[id]).filter(Boolean) as Agent[];
   const bench = Object.values(state.org.agents)
@@ -136,10 +158,31 @@ export function RaidNightScreen({ onBack }: Props): JSX.Element {
             <span className="badge rn-chip rn-num rn-closest">{t("raidnight.closestYet", { n: Math.round(state.bestShortfall) })}</span>
           )}
           <span className={`badge rn-chip ${committed ? "pass" : "pending"}`}>
-            {committed ? t("raidnight.committed") : t("raidnight.ledgerNone")}
+            {committed ? t("raidnight.committed") : commitFailure ? t("persistence.unsaved") : t("raidnight.ledgerNone")}
           </span>
         </div>
       </header>
+
+      {commitFailure && (
+        <div
+          className="card danger persistence-alert"
+          data-testid="ledger-save-failure"
+          role="alert"
+          style={{ margin: "12px 16px", padding: 14 }}
+        >
+          <strong>{t("persistence.unsaved")}</strong>
+          <div>{commitFailure.reason === "serialization"
+            ? t("persistence.serializationFailure")
+            : t("persistence.failure", { reason: commitFailure.reason })}</div>
+          <div className="row" style={{ marginTop: 10, gap: 8 }}>
+            <button className="secondary" onClick={retryCommit}>{t("persistence.retry")}</button>
+            {commitFailure.recoverable && (
+              <button className="secondary" onClick={exportCommitRecovery}>{t("persistence.exportRecovery")}</button>
+            )}
+          </div>
+          {recoveryExported && <div role="status">{t("persistence.recoveryExported")}</div>}
+        </div>
+      )}
 
       {state.blocked ? (
         <div className="rn-body rn-body-single">
@@ -186,7 +229,7 @@ export function RaidNightScreen({ onBack }: Props): JSX.Element {
                 {state.pull === 0 ? t("raidnight.pull") : t("raidnight.pullAgain")}
               </button>
               {state.diagnosis && !state.cleared && (
-                <button className="secondary" onClick={() => { commitNightFailed(state); setCommitted(state.ledger); }}>
+                <button className="secondary" onClick={() => recordCommit(commitNightFailedWithResult(state))}>
                   {t("raidnight.callItNight")}
                 </button>
               )}
@@ -255,9 +298,9 @@ export function RaidNightScreen({ onBack }: Props): JSX.Element {
             )}
 
             {state.cleared && <Consequence state={state} committed={committed}
-              onCommit={() => setCommitted(commitNightVictory(state))}
-              onNextTier={() => { setState(newRaidNightFrom(RAID_ARC_T2, committed, 1)); setCommitted(null); }}
-              onTryIncompatible={() => { setState(newRaidNightFrom(INCOMPATIBLE, committed, 1)); setCommitted(null); }}
+              onCommit={() => recordCommit(commitNightVictoryWithResult(state))}
+              onNextTier={() => { setState(newRaidNightFrom(RAID_ARC_T2, committed, 1)); setCommitAttempt(null); }}
+              onTryIncompatible={() => { setState(newRaidNightFrom(INCOMPATIBLE, committed, 1)); setCommitAttempt(null); }}
               nextBoss={bossOf(RAID_ARC_T2).name} />}
 
             {!state.cleared && !state.diagnosis && (
@@ -271,7 +314,7 @@ export function RaidNightScreen({ onBack }: Props): JSX.Element {
       <footer className="rn-bottom">
         <span className="rn-bottom-ledger">{committed ? t("raidnight.consequencesRemain") : guildChip}</span>
         <div className="rn-bottom-actions">
-          <button className="secondary" onClick={() => { setState(newRaidNight(1)); setCommitted(null); }}>{t("raidnight.reset")}</button>
+          <button className="secondary" onClick={() => { setState(newRaidNight(1)); setCommitAttempt(null); setRecoveryExported(false); }}>{t("raidnight.reset")}</button>
           <button className="secondary" onClick={onBack}>{t("raidnight.back")}</button>
         </div>
       </footer>

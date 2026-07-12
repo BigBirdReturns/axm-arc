@@ -9,7 +9,9 @@ import {
   KARAZHAN,
   KARAZHAN_STARTING_ROSTER,
 } from "../arcs/index.js";
-import { loadSave, saveSave, clearSave } from "./lib/storage.js";
+import { loadSave, saveSave, clearSave, exportSaveRecovery } from "./lib/storage.js";
+import { downloadJsonArtifact } from "./lib/download.js";
+import type { SaveResult } from "./lib/persistence.js";
 import {
   ensureBundledArc,
   loadActiveArcId,
@@ -47,6 +49,7 @@ declare const __BUILD_SHA__: string;
 const BUILD_SHA = typeof __BUILD_SHA__ === "string" ? __BUILD_SHA__ : "dev";
 
 type Tab = "Roster" | "Assign" | "Drama" | "Base" | "Reports";
+type SaveFailure = Extract<SaveResult, { ok: false }>;
 
 // Chrome-only: maps the internal Tab id to its localized nav label. The Tab ids
 // themselves stay in English as engine-facing state keys.
@@ -231,6 +234,8 @@ export function App(): JSX.Element {
   const [cycleTransition, setCycleTransition] = useState<{ fromCycle: number; toCycle: number } | null>(null);
   const [codexOpen, setCodexOpen] = useState(false);
   const [whatsNewOpen, setWhatsNewOpen] = useState(false);
+  const [saveFailure, setSaveFailure] = useState<SaveFailure | null>(null);
+  const [recoveryExported, setRecoveryExported] = useState(false);
 
   // Intent — player-authored pull-quote, persisted separately from game state
   const [intent, setIntent] = useState<string>(() => {
@@ -246,9 +251,29 @@ export function App(): JSX.Element {
     try { localStorage.setItem(THEME_KEY, theme); } catch { /* noop */ }
   }, [theme]);
 
+  const recordSaveResult = (result: SaveResult) => {
+    if (result.ok) {
+      setSaveFailure(null);
+      setRecoveryExported(false);
+    } else {
+      setSaveFailure(result);
+    }
+  };
+
+  const persistCurrentSave = () => recordSaveResult(saveSave(org, arc));
+
+  const exportCurrentRecovery = () => {
+    try {
+      downloadJsonArtifact(exportSaveRecovery(org, arc));
+      setRecoveryExported(true);
+    } catch {
+      setSaveFailure({ ok: false, reason: "serialization", recoverable: false });
+    }
+  };
+
   useEffect(() => {
-    saveSave(org, arc);
-  }, [org]);
+    recordSaveResult(saveSave(org, arc));
+  }, [org, arc]);
 
   useEffect(() => {
     try { localStorage.setItem(INTENT_KEY, intent); } catch { /* noop */ }
@@ -675,7 +700,7 @@ export function App(): JSX.Element {
           ))}
         </div>
         <div className="desktop-actions" style={{ display: "none" }}>
-          <button className="secondary" onClick={() => saveSave(org, arc)}>{t("common.save")}</button>
+          <button className="secondary" onClick={persistCurrentSave}>{t("common.save")}</button>
           <button
             className={`primary${!blocked ? " accent" : ""}`}
             disabled={!canAdvanceCycle}
@@ -686,6 +711,27 @@ export function App(): JSX.Element {
           </button>
         </div>
       </header>
+
+      {saveFailure && (
+        <div
+          className="card danger persistence-alert"
+          data-testid="save-failure"
+          role="alert"
+          style={{ margin: "12px 16px", padding: 14 }}
+        >
+          <strong>{t("persistence.unsaved")}</strong>
+          <div>{saveFailure.reason === "serialization"
+            ? t("persistence.serializationFailure")
+            : t("persistence.failure", { reason: saveFailure.reason })}</div>
+          <div className="row" style={{ marginTop: 10, gap: 8 }}>
+            <button className="secondary" onClick={persistCurrentSave}>{t("persistence.retry")}</button>
+            {saveFailure.recoverable && (
+              <button className="secondary" onClick={exportCurrentRecovery}>{t("persistence.exportRecovery")}</button>
+            )}
+          </div>
+          {recoveryExported && <div role="status">{t("persistence.recoveryExported")}</div>}
+        </div>
+      )}
 
       {/* ── MOBILE ── */}
       <div className="mobile-only">

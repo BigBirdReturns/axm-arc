@@ -40,8 +40,7 @@ export function projectMechanics(opts: {
   for (const check of challenge.mechanicChecks) {
     if (check.scope === "team_aggregate") {
       const teamScore = assignedAgents.reduce(
-        (sum, agent) =>
-          sum + estimateScore(agent, check, assignedAgents, org, arc),
+        (s, a) => s + estimateScore(a, check, assignedAgents, org, arc),
         0,
       );
       const threshold = effectiveCheckThreshold(check, assignedAgents.length);
@@ -78,8 +77,8 @@ export function projectMechanics(opts: {
     } else if (check.scope === "role_specific") {
       const roleIds = check.roleIds && check.roleIds.length > 0
         ? check.roleIds
-        : challenge.rosterRequirements.roleRequirements.map((requirement) => requirement.roleId);
-      const roleAgents = assignedAgents.filter((agent) => roleIds.includes(agent.role ?? ""));
+        : challenge.rosterRequirements.roleRequirements.map((r) => r.roleId);
+      const roleAgents = assignedAgents.filter((a) => roleIds.includes(a.role ?? ""));
       const target = roleAgents[0] ?? assignedAgents[0];
       if (!target) continue;
       const score = estimateScore(target, check, assignedAgents, org, arc);
@@ -102,19 +101,19 @@ export function projectMechanics(opts: {
         targetSummary: `${target.name} is the checked role agent for this mechanic (${Math.round(score)} / ${check.difficultyThreshold}).`,
         improvementHint:
           margin < 0
-            ? `Pick or improve a ${arc.roles.find((role) => role.id === target.role)?.name ?? "required-role"} with stronger ${primaryAttributeName(check, arc)}.`
+            ? `Pick or improve a ${arc.roles.find((r) => r.id === target.role)?.name ?? "required-role"} with stronger ${primaryAttributeName(check, arc)}.`
             : `${target.name.split(" ")[0]} has enough ${primaryAttributeName(check, arc)} for this role check.`,
       });
     } else {
       // per_agent: show the weakest agent as representative
       let worstMargin = Infinity;
       let worstAgent = assignedAgents[0]!;
-      for (const agent of assignedAgents) {
-        const score = estimateScore(agent, check, assignedAgents, org, arc);
-        const candidateMargin = score - check.difficultyThreshold;
-        if (candidateMargin < worstMargin) {
-          worstMargin = candidateMargin;
-          worstAgent = agent;
+      for (const a of assignedAgents) {
+        const score = estimateScore(a, check, assignedAgents, org, arc);
+        const m = score - check.difficultyThreshold;
+        if (m < worstMargin) {
+          worstMargin = m;
+          worstAgent = a;
         }
       }
       const score = estimateScore(worstAgent, check, assignedAgents, org, arc);
@@ -122,7 +121,7 @@ export function projectMechanics(opts: {
         mechanicId: check.id,
         mechanicName: check.name,
         agentId: worstAgent.id,
-        agentName: `${worstAgent.name} · ${arc.roles.find((role) => role.id === worstAgent.role)?.name ?? "Flex"}`,
+        agentName: `${worstAgent.name} · ${arc.roles.find((r) => r.id === worstAgent.role)?.name ?? "Flex"}`,
         scope: check.scope,
         projectedScore: Math.round(score),
         threshold: check.difficultyThreshold,
@@ -150,31 +149,31 @@ export function projectMechanics(opts: {
 
 function describeAttributeWeights(check: MechanicCheck, arc: Arc): string {
   return check.attributeWeights
-    .map((weight) => {
-      const attribute = arc.attributes.find((candidate) => candidate.id === weight.attributeId);
-      return `${attribute?.name ?? weight.attributeId} ${Math.round(weight.weight * 100)}%`;
+    .map((aw) => {
+      const attr = arc.attributes.find((a) => a.id === aw.attributeId);
+      return `${attr?.name ?? aw.attributeId} ${Math.round(aw.weight * 100)}%`;
     })
     .join(" · ");
 }
 
 function primaryAttributeName(check: MechanicCheck, arc: Arc): string {
   const primary = check.attributeWeights.reduce(
-    (best, weight) => (weight.weight > best.weight ? weight : best),
+    (best, aw) => (aw.weight > best.weight ? aw : best),
     check.attributeWeights[0]!,
   );
   return (
-    arc.attributes.find((attribute) => attribute.id === primary.attributeId)?.name ??
+    arc.attributes.find((a) => a.id === primary.attributeId)?.name ??
     primary.attributeId
   );
 }
 
 function primaryAttributeDescription(check: MechanicCheck, arc: Arc): string {
   const primary = check.attributeWeights.reduce(
-    (best, weight) => (weight.weight > best.weight ? weight : best),
+    (best, aw) => (aw.weight > best.weight ? aw : best),
     check.attributeWeights[0]!,
   );
   return (
-    arc.attributes.find((attribute) => attribute.id === primary.attributeId)?.description ??
+    arc.attributes.find((a) => a.id === primary.attributeId)?.description ??
     "Primary check attribute."
   );
 }
@@ -185,9 +184,8 @@ function describeScope(check: MechanicCheck): string {
       ? "Team average check — adding a weak agent can lower the projection."
       : "Fixed team-total check — every positive contribution adds to the same authored bar.";
   }
-  if (check.scope === "role_specific") {
+  if (check.scope === "role_specific")
     return "Role check — the required role carrier is the make-or-break agent.";
-  }
   return "Every-agent check — one weak member can fail the whole mechanic.";
 }
 
@@ -211,18 +209,18 @@ export function predictImminentEvents(org: Organization, arc: Arc): string[] {
     }
     const assignments = agent.assignmentHistory.length;
     const traitThresholds = [5, 12];
-    for (const threshold of traitThresholds) {
-      if (assignments < threshold && assignments >= threshold - 3) {
+    for (const t of traitThresholds) {
+      if (assignments < t && assignments >= t - 3) {
         events.push(
-          `${agent.name} trait reveal in ${threshold - assignments} job${threshold - assignments === 1 ? "" : "s"}`,
+          `${agent.name} trait reveal in ${t - assignments} job${t - assignments === 1 ? "" : "s"}`,
         );
         break;
       }
     }
   }
-  const recreationLevel = org.infrastructure["Recreation"]?.level ?? 0;
-  if (recreationLevel < 3) {
-    events.push(`Recreation L${recreationLevel + 1} → +1 token/cycle`);
+  const recLevel = org.infrastructure["Recreation"]?.level ?? 0;
+  if (recLevel < 3) {
+    events.push(`Recreation L${recLevel + 1} → +1 token/cycle`);
   }
   return events;
 }

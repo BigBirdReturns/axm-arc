@@ -194,6 +194,38 @@ describe("wipe diagnosis", () => {
     expect(new Set(d.fixes.map((f) => f.lever)).size).toBe(d.fixes.length);
   });
 
+  it("a gear fix projects the resolver's HALVED gear effect, not the raw stat bonus (issue #109)", () => {
+    const arc = loadArc();
+    // Strip everyone's equipped gear so the gear lever always has an
+    // equippable, attribute-boosting item to recommend — this guarantees gear
+    // fixes surface across the wipe seeds rather than depending on loot RNG.
+    const strip = (org: Organization) => {
+      for (const a of Object.values(org.agents)) a.equippedItems = {};
+    };
+    const itemBonus = (itemId: string, attrId: string) =>
+      arc.items.find((it) => it.id === itemId)!.statBonuses[attrId] ?? 0;
+
+    let asserted = 0;
+    for (let s = 1; s <= 40; s++) {
+      const at = attempt(arc, s, CHOIR, strip);
+      if (at.report.outcome !== "failure") continue;
+      const d = diagnoseWipe(at.report, at.challenge, at.org, arc);
+      for (const f of d.fixes) {
+        if (f.lever !== "gear" || !f.itemId || !f.attrId) continue;
+        const raw = itemBonus(f.itemId, f.attrId);
+        // The resolver halves gear in a check contribution; the projected
+        // impact must be that halved value, never the raw stat sheet number.
+        expect(f.impact).toBeCloseTo(raw * 0.5, 10);
+        expect(f.impact).not.toBe(raw); // the exact defect: raw would be double
+        // the readout names the halved check effect, not the raw bonus alone
+        expect(f.projectedEffect).toContain(`+${Math.round(raw * 0.5 * 10) / 10}`);
+        asserted++;
+      }
+    }
+    // Non-vacuous: the sweep must actually exercise at least one gear fix.
+    expect(asserted).toBeGreaterThan(0);
+  });
+
   it("the render is a real readout, not 'you failed'", () => {
     const arc = loadArc();
     const seed = firstWipeSeed(arc, CHOIR);

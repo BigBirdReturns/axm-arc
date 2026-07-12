@@ -255,18 +255,25 @@ function generateFixes(
       .filter((it) => arc.tiers.findIndex((t) => t.id === it.tierRequirement) <= tierIdx)
       .sort((a, b) => (b.statBonuses[attr] ?? 0) - (a.statBonuses[attr] ?? 0))[0];
     if (gearCandidate) {
-      const bonus = gearCandidate.statBonuses[attr] ?? 0;
+      const statBonus = gearCandidate.statBonuses[attr] ?? 0;
+      // The resolver applies gear at HALF weight to a check contribution
+      // (resolver.ts: `gear * 0.5`), so an item's +statBonus to the stat sheet
+      // closes only half that much of the check shortfall. Report the realized
+      // check effect as `impact` (which also ranks this fix against the other
+      // levers — previously it was over-ranked 2×) and name both truths in the
+      // description. (issue #109)
+      const checkEffect = statBonus * 0.5;
       fixes.push({
         lever: "gear",
-        description: `Equip ${gearCandidate.name} on ${culprit.name} (+${bonus} ${attr})`,
+        description: `Equip ${gearCandidate.name} on ${culprit.name} (+${statBonus} ${attr}, ~+${round(checkEffect)} on the check)`,
         target: gearCandidate.name,
         cost: "spend a drop / bank stock; someone else waits on that item",
-        impact: bonus,
+        impact: checkEffect,
         agentId: culprit.id,
         itemId: gearCandidate.id,
         attrId: attr,
         checkId,
-        projectedEffect: closes(bonus),
+        projectedEffect: closes(checkEffect),
       });
     }
   }

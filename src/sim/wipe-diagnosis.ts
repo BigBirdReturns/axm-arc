@@ -413,15 +413,36 @@ export function diagnoseWipe(
         ? cd.threshold - (cd.teamScore ?? 0)
         : Math.max(...failing.map((c) => cd.threshold - c.score), 0);
 
+    // A per-agent / role_specific check tests each agent against the threshold
+    // directly, so an individual's bar IS the threshold and their shortfall is
+    // `threshold - score`. A team_aggregate check tests the SUM of the party
+    // against the threshold — no individual is measured against the whole-team
+    // bar — so a culprit's honest bar is their per-capita share of it
+    // (threshold / party size), and their shortfall is how far they fell below
+    // carrying that share. Measuring a team culprit against the whole-team
+    // threshold inflated both the displayed `score vs threshold` line and, via
+    // computeBottlenecks (which sums culprit shortfall into bottleneck
+    // magnitude), the ranking of who to fix. (issue #110)
+    const perCapita =
+      cd.scope === "team_aggregate" && contributions.length > 0
+        ? cd.threshold / contributions.length
+        : cd.threshold;
+
     const culprits: Culprit[] = failing.map((c) => {
       const agent = org.agents[c.agentId];
+      const score = round(c.score);
+      const bar = cd.scope === "team_aggregate" ? round(perCapita) : round(cd.threshold);
+      const shortfall =
+        cd.scope === "team_aggregate"
+          ? Math.max(0, round(bar - score))
+          : round(cd.threshold - c.score);
       return {
         agentId: c.agentId,
         name: agent?.name ?? c.agentId,
         role: agent?.role ?? null,
-        score: round(c.score),
-        threshold: round(cd.threshold),
-        shortfall: round(cd.threshold - c.score),
+        score,
+        threshold: bar,
+        shortfall,
         stress: agent?.stress ?? 0,
         morale: agent?.morale ?? 0,
         factors: agent ? factorsFor(agent, c.breakdown, check, challenge, arc) : [],

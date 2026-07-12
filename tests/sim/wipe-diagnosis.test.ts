@@ -147,6 +147,31 @@ describe("wipe diagnosis", () => {
     expect([...scores].sort((a, b) => a - b)).toEqual(scores);
   });
 
+  it("a team_aggregate culprit is measured against its per-capita share, not the whole-team bar (issue #110)", () => {
+    const arc = loadArc();
+    let checked = 0;
+    for (let s = 1; s <= 40 && checked < 1; s++) {
+      const at = attempt(arc, s, CHOIR);
+      if (at.report.outcome !== "failure") continue;
+      const d = diagnoseWipe(at.report, at.challenge, at.org, arc);
+      const team = d.failedChecks.find((f) => f.scope === "team_aggregate" && f.culprits.length > 0);
+      if (!team) continue;
+      for (const c of team.culprits) {
+        // The culprit's bar is a per-capita share — real and strictly below the
+        // whole-team threshold (a party of many can't each owe the team's bar).
+        expect(c.threshold).toBeGreaterThan(0);
+        expect(c.threshold).toBeLessThan(team.threshold);
+        // Shortfall is measured against THAT bar, internally consistent…
+        expect(c.shortfall).toBe(Math.max(0, Math.round((c.threshold - c.score) * 10) / 10));
+        // …and strictly smaller than the old defect (threshold - score against
+        // the whole-team bar), which is what inflated bottleneck magnitude.
+        expect(c.shortfall).toBeLessThan(team.threshold - c.score);
+      }
+      checked++;
+    }
+    expect(checked).toBeGreaterThan(0); // non-vacuous: a team check with culprits was exercised
+  });
+
   // ── modifiers surface when they matter ──────────────────────────────────────
   it("gear/morale modifiers appear in the diagnosis when they affect the result", () => {
     const arc = loadArc();

@@ -134,11 +134,16 @@ describe("deterministic scoring contract", () => {
     expect(expected.traitBonus).toBe(3);
   });
 
-  it.each([
+  const thresholdCases: Array<[
+    "fixed" | "perAssignedAgent" | undefined,
+    number,
+  ]> = [
     [undefined, 12],
-    ["fixed" as const, 12],
-    ["perAssignedAgent" as const, 24],
-  ])(
+    ["fixed", 12],
+    ["perAssignedAgent", 24],
+  ];
+
+  it.each(thresholdCases)(
     "keeps resolver and projections on the same %s team threshold mode",
     (thresholdMode, expectedThreshold) => {
       const arc = structuredClone(MINI_ARC);

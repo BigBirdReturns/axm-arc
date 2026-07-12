@@ -5,6 +5,7 @@ import type {
   Relationship,
 } from "../../src/engine/types.js";
 import {
+  deterministicAgentScore,
   deterministicScoreBreakdown,
   effectiveCheckThreshold,
 } from "../../src/engine/scoring.js";
@@ -317,6 +318,81 @@ describe("wipe diagnosis candidate ranking", () => {
 
     expect(swap).toBeDefined();
     expect(swap!.swapAgentId).toBe(neutralRealWinner.id);
+  });
+
+  it("prices the whole post-swap party when a candidate changes another member's check", () => {
+    const arc = structuredClone(MINI_ARC);
+    const challenge = arc.challenges[0]!;
+    const check = {
+      ...challenge.mechanicChecks.find((candidate) => candidate.id === "check-power")!,
+      difficultyThreshold: 8,
+    };
+    challenge.mechanicChecks = [check];
+    challenge.timePressure = null;
+
+    const culprit = stableAgent(24, {
+      id: "party-context-culprit",
+      name: "Party Context Culprit",
+      attributes: { power: 1, focus: 20, reflex: 1 },
+    });
+    const ally = stableAgent(25, {
+      id: "threshold-ally",
+      name: "Threshold Ally",
+      attributes: { power: 10, focus: 10, reflex: 10 },
+    });
+    const hostileCandidate = stableAgent(26, {
+      id: "self-strong-party-weak",
+      name: "Self Strong Party Weak",
+      attributes: { power: 12.5, focus: 12.5, reflex: 12.5 },
+    });
+    const neutralCandidate = stableAgent(27, {
+      id: "self-weaker-party-clears",
+      name: "Self Weaker Party Clears",
+      attributes: { power: 9, focus: 9, reflex: 9 },
+    });
+    const relationships: Relationship[] = [
+      {
+        agentIds: [hostileCandidate.id, ally.id],
+        state: "Hostile",
+        affinity: -10,
+      },
+    ];
+    const org = makeOrg(
+      [culprit, ally, hostileCandidate, neutralCandidate],
+      relationships,
+    );
+
+    const hostileParty = [hostileCandidate, ally];
+    const neutralParty = [neutralCandidate, ally];
+    expect(
+      Math.min(
+        ...hostileParty.map((agent) =>
+          deterministicAgentScore(agent, check, hostileParty, org, arc),
+        ),
+      ),
+    ).toBeLessThan(check.difficultyThreshold);
+    expect(
+      Math.min(
+        ...neutralParty.map((agent) =>
+          deterministicAgentScore(agent, check, neutralParty, org, arc),
+        ),
+      ),
+    ).toBeGreaterThanOrEqual(check.difficultyThreshold);
+
+    const report = resolveChallenge({
+      challenge,
+      assignedAgents: [culprit, ally],
+      org,
+      arc,
+      rng: new Rng(0),
+      cycle: 1,
+      collectDiagnostics: true,
+    });
+    const diagnosis = diagnoseWipe(report, challenge, org, arc);
+    const swap = diagnosis.fixes.find((fix) => fix.lever === "bench_swap");
+
+    expect(swap).toBeDefined();
+    expect(swap!.swapAgentId).toBe(neutralCandidate.id);
   });
 
   it("does not manufacture a positive composition tradeoff for a worse role candidate", () => {

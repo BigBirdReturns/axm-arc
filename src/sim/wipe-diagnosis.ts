@@ -5,9 +5,9 @@
 // resolveChallenge's `collectDiagnostics`). It never re-scores the attempt: the
 // numbers here are the exact terms the resolver summed, so a diagnosis can
 // never disagree with the run it explains. The only recomputed quantity is a
-// roll-free EXPECTED contribution used to rank candidate swaps — it is labelled
-// "expected" everywhere it appears, because a bench agent who never took the
-// pull has no actual roll to report.
+// roll-free EXPECTED whole-check margin used to rank candidate swaps — it is
+// labelled "expected" everywhere it appears, because a bench agent who never
+// took the pull has no actual roll to report.
 //
 // The output answers the acceptance question the flagship is tuned against:
 // after a wipe, does the player blame the sim, or know their next move? It names
@@ -26,7 +26,10 @@ import type {
   RunReport,
   ScoreBreakdown,
 } from "../engine/types";
-import { deterministicAgentScore } from "../engine/scoring.js";
+import {
+  deterministicAgentScore,
+  effectiveCheckThreshold,
+} from "../engine/scoring.js";
 
 export interface FactorNote {
   label: string;
@@ -38,8 +41,16 @@ export interface Culprit {
   agentId: string;
   name: string;
   role: string | null;
+  /** This culprit's own contribution to the check (a real, resolver-produced number). */
   score: number;
+  /** The authored check threshold. For per_agent/role_specific this is the
+   *  agent's own pass line; for team_aggregate it is the team bar (the party's
+   *  SUM is tested against it — an individual is never measured against it). */
   threshold: number;
+  /** For per_agent/role_specific: `threshold - score`, this agent's own gap.
+   *  For team_aggregate: an equal ATTRIBUTED share of the actual team gap
+   *  (threshold - teamScore) — not an individual gap, since the engine defines
+   *  no individual pass line at team scope (issue #110). */
   shortfall: number;
   stress: number;
   morale: number;
@@ -145,19 +156,6 @@ export function netGearGain(
   return (candidate.statBonuses[attrId] ?? 0) - (displaced?.statBonuses[attrId] ?? 0);
 }
 
-/** The resolver-parity deterministic mean of an agent's score on a check.
- *  The supplied party is the composition being priced, so candidate swaps use
- *  their post-swap relationship context rather than the current party's. */
-function expectedContribution(
-  agent: Agent,
-  check: MechanicCheck,
-  party: Agent[],
-  org: Organization,
-  arc: Arc,
-): number {
-  return deterministicAgentScore(agent, check, party, org, arc);
-}
-
 function inScope(agent: Agent, check: MechanicCheck, challenge: Challenge): boolean {
   if (check.scope !== "role_specific") return true;
   const roleReqs =
@@ -165,6 +163,41 @@ function inScope(agent: Agent, check: MechanicCheck, challenge: Challenge): bool
       ? check.roleIds
       : challenge.rosterRequirements.roleRequirements.map((r) => r.roleId);
   return roleReqs.includes(agent.role ?? "");
+}
+
+/** Resolver-parity deterministic margin for the check as a whole.
+ *
+ * A swap can change every remaining agent's relationship modifier, so pricing
+ * only the incoming candidate against the outgoing culprit is not sufficient.
+ * Team checks use the party total against the effective team threshold. Checks
+ * that each relevant agent must clear use the weakest in-scope margin, matching
+ * the resolver's all-in-scope-must-pass semantics. */
+function expectedCheckMargin(
+  check: MechanicCheck,
+  challenge: Challenge,
+  party: Agent[],
+  org: Organization,
+  arc: Arc,
+): number {
+  const threshold = effectiveCheckThreshold(check, party.length);
+
+  if (check.scope === "team_aggregate") {
+    const total = party.reduce(
+      (sum, agent) =>
+        sum + deterministicAgentScore(agent, check, party, org, arc),
+      0,
+    );
+    return total - threshold;
+  }
+
+  const scopedParty = party.filter((agent) => inScope(agent, check, challenge));
+  if (scopedParty.length === 0) return -threshold;
+  return Math.min(
+    ...scopedParty.map(
+      (agent) =>
+        deterministicAgentScore(agent, check, party, org, arc) - threshold,
+    ),
+  );
 }
 
 // ── factor analysis ───────────────────────────────────────────────────────────
@@ -236,17 +269,22 @@ function generateFixes(
     ),
     candidate,
   ];
-  const culpritExpected = expectedContribution(
-    culprit,
+  const currentMargin = expectedCheckMargin(
     check,
+    challenge,
     assignedParty,
     org,
     arc,
   );
   const bench = Object.values(org.agents).filter((a) => !assignedIds.has(a.id));
   const candidateGain = (candidate: Agent): number =>
-    expectedContribution(candidate, check, partyAfterSwap(candidate), org, arc) -
-    culpritExpected;
+    expectedCheckMargin(
+      check,
+      challenge,
+      partyAfterSwap(candidate),
+      org,
+      arc,
+    ) - currentMargin;
   const checkId = primary.mechanicId;
   const S = round(primary.shortfall);
   // Projected remaining shortfall after a gain of `g` closes part of S.
@@ -455,7 +493,27 @@ export function diagnoseWipe(
         ? cd.threshold - (cd.teamScore ?? 0)
         : Math.max(...failing.map((c) => cd.threshold - c.score), 0);
 
-    const culprits: Culprit[] = failing.map((c) => {
+    // Per-culprit attribution (issue #110). A per_agent / role_specific check
+    // tests each agent against the threshold directly, so an individual's bar
+    // IS the threshold and their shortfall is `threshold - score`. A
+    // team_aggregate check tests the party's SUM against the threshold — no
+    // individual is measured against it, and the engine defines no individual
+    // pass line — so we do NOT invent one. The authored threshold and the real
+    // gap stay at check scope (`shortfall` above = threshold - teamScore). Each
+    // named culprit is instead ATTRIBUTED an equal share of that actual team
+    // gap, so the per-culprit magnitudes sum to the gap (bounded and honest)
+    // and feed computeBottlenecks without inflation. A team culprit's stored
+    // `threshold` is the authored team bar (a real fact, not a per-agent line);
+    // the renderer presents it as "contributed X / attributed Y of the gap",
+    // never as "X vs an individual threshold".
+    const teamGap = Math.max(0, cd.threshold - (cd.teamScore ?? 0));
+    // Distribute the ACTUAL team gap across the named culprits so the stored
+    // shares sum EXACTLY to the stored check-level gap (round(shortfall)). A
+    // single rounded quotient copied to every culprit re-inflates the ledger
+    // (0.1 gap over 2 → 0.1 each → 0.2); distributeGap does not. (issue #110)
+    const gapShares = distributeGap(teamGap, failing.length);
+
+    const culprits: Culprit[] = failing.map((c, i) => {
       const agent = org.agents[c.agentId];
       return {
         agentId: c.agentId,
@@ -463,7 +521,8 @@ export function diagnoseWipe(
         role: agent?.role ?? null,
         score: round(c.score),
         threshold: round(cd.threshold),
-        shortfall: round(cd.threshold - c.score),
+        shortfall:
+          cd.scope === "team_aggregate" ? gapShares[i]! : round(cd.threshold - c.score),
         stress: agent?.stress ?? 0,
         morale: agent?.morale ?? 0,
         factors: agent ? factorsFor(agent, c.breakdown, check, challenge, arc) : [],
@@ -577,6 +636,19 @@ function round(n: number): number {
   return Math.round(n * 10) / 10;
 }
 
+/** Split a gap into `parts` shares at 0.1 precision whose sum is EXACTLY
+ *  round(gap). The residual tenth(s) go to the earliest parts, so attribution
+ *  is deterministic and reconciles with the stored check-level gap. Rounding
+ *  the quotient once and copying it to every part re-inflates the total
+ *  (a 0.1 gap over 2 parts → 0.1 each → 0.2); this does not. (issue #110) */
+export function distributeGap(gap: number, parts: number): number[] {
+  if (parts <= 0) return [];
+  const totalTenths = Math.round(Math.max(0, gap) * 10);
+  const base = Math.floor(totalTenths / parts);
+  const extra = totalTenths - base * parts; // 0..parts-1, handed to the earliest parts
+  return Array.from({ length: parts }, (_, i) => (base + (i < extra ? 1 : 0)) / 10);
+}
+
 // ── readable console render (the "not pretty yet" first pass) ─────────────────
 
 export function renderDiagnosis(d: WipeDiagnosis): string {
@@ -595,7 +667,11 @@ export function renderDiagnosis(d: WipeDiagnosis): string {
         : `  • "${fc.mechanicName}" [${fc.scope === "role_specific" ? "role" : "each"}] — needed ${fc.threshold}, ${fc.culprits.length} fell short (worst by ${fc.shortfall})`;
     L.push(head);
     for (const c of fc.culprits.slice(0, 3)) {
-      L.push(`      ${c.name} (${c.role ?? "—"}): ${c.score} vs ${c.threshold}  [stress ${c.stress}, morale ${c.morale}]`);
+      const body =
+        fc.scope === "team_aggregate"
+          ? `contributed ${c.score}, ~${c.shortfall} of the team gap`
+          : `${c.score} vs ${c.threshold}`;
+      L.push(`      ${c.name} (${c.role ?? "—"}): ${body}  [stress ${c.stress}, morale ${c.morale}]`);
       for (const f of c.factors) L.push(`        └ ${f.note}`);
     }
   }

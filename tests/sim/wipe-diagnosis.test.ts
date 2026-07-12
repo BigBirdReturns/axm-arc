@@ -16,7 +16,12 @@ import { importArcFromJson } from "../../src/game/lib/arc-library.js";
 import { resolveChallenge } from "../../src/engine/resolver.js";
 import { Rng } from "../../src/engine/prng.js";
 import { buildStartingOrg } from "../../src/sim/cartridge-conformance.js";
-import { diagnoseWipe, renderDiagnosis, netGearGain } from "../../src/sim/wipe-diagnosis.js";
+import {
+  diagnoseWipe,
+  distributeGap,
+  netGearGain,
+  renderDiagnosis,
+} from "../../src/sim/wipe-diagnosis.js";
 import type { Agent, Arc, Challenge, Organization, RunReport } from "../../src/engine/types.js";
 
 const CHOIR = "the-hollow-choir"; // the wall (survival_check; wipes ~47%)
@@ -147,6 +152,41 @@ describe("wipe diagnosis", () => {
     expect([...scores].sort((a, b) => a - b)).toEqual(scores);
   });
 
+  it("a team_aggregate culprit is attributed a share of the real team gap, not measured against an invented bar (issue #110)", () => {
+    const arc = loadArc();
+    let checked = 0;
+    for (let s = 1; s <= 40 && checked < 1; s++) {
+      const at = attempt(arc, s, CHOIR);
+      if (at.report.outcome !== "failure") continue;
+      const d = diagnoseWipe(at.report, at.challenge, at.org, arc);
+      const team = d.failedChecks.find((f) => f.scope === "team_aggregate" && f.culprits.length > 0);
+      if (!team) continue;
+
+      // The check keeps the authored team threshold and the REAL gap.
+      expect(team.teamScore).toBeDefined();
+      const teamGap = Math.round((team.threshold - (team.teamScore as number)) * 10) / 10;
+      expect(Math.abs(team.shortfall - teamGap)).toBeLessThanOrEqual(0.1);
+
+      for (const c of team.culprits) {
+        // No invented per-agent bar: the culprit carries the authored team
+        // threshold, not `threshold / partySize` and not a score-relative line.
+        expect(c.threshold).toBe(team.threshold);
+        // The magnitude is an attributed share of the gap — bounded by it, and
+        // NOT the old defect (threshold - score against the whole-team bar).
+        expect(c.shortfall).toBeGreaterThanOrEqual(0);
+        expect(c.shortfall).toBeLessThanOrEqual(teamGap + 0.1);
+        expect(c.shortfall).toBeLessThan(team.threshold - c.score);
+      }
+      // Attributed shares reconcile EXACTLY with the stored check-level gap at
+      // 0.1 precision — not merely within a culprit-count-scaled tolerance.
+      const summed = team.culprits.reduce((s, c) => s + c.shortfall, 0);
+      expect(Math.round(summed * 10)).toBe(Math.round(team.shortfall * 10));
+
+      checked++;
+    }
+    expect(checked).toBeGreaterThan(0); // non-vacuous: a real team-check wipe was exercised
+  });
+
   // ── modifiers surface when they matter ──────────────────────────────────────
   it("gear/morale modifiers appear in the diagnosis when they affect the result", () => {
     const arc = loadArc();
@@ -253,6 +293,36 @@ describe("wipe diagnosis", () => {
   });
 });
 
+describe("distributeGap — exact team-gap attribution (issue #110)", () => {
+  const sumTenths = (xs: number[]) => Math.round(xs.reduce((a, b) => a + b, 0) * 10);
+
+  it("splits a 0.1 gap over two culprits WITHOUT inflating the ledger", () => {
+    // The regression this repair targets: a single rounded quotient gave
+    // [0.1, 0.1] (sum 0.2) against a 0.1 gap. Exact attribution gives [0.1, 0].
+    const shares = distributeGap(0.1, 2);
+    expect(shares).toEqual([0.1, 0]);
+    expect(sumTenths(shares)).toBe(1); // sums to EXACTLY the 0.1 gap
+  });
+
+  it("shares always sum to exactly round(gap) at 0.1 precision", () => {
+    const cases: Array<[number, number]> = [
+      [0.1, 2], [0.3, 2], [0.5, 2], [0.7, 3], [1.0, 3], [2.0, 4], [3.7, 2],
+    ];
+    for (const [gap, parts] of cases) {
+      expect(sumTenths(distributeGap(gap, parts))).toBe(Math.round(gap * 10));
+    }
+  });
+
+  it("is deterministic and hands the residual tenth(s) to the earliest parts", () => {
+    expect(distributeGap(0.3, 2)).toEqual([0.2, 0.1]);
+    expect(distributeGap(0.7, 3)).toEqual([0.3, 0.2, 0.2]);
+  });
+
+  it("handles the degenerate zero / no-parts cases", () => {
+    expect(distributeGap(5, 0)).toEqual([]);
+    expect(distributeGap(0, 2)).toEqual([0, 0]);
+  });
+});
 describe("netGearGain — a gear fix accounts for slot displacement (issue #112)", () => {
   // Two first-lockout items that share the "trinket" slot with different
   // restoration bonuses, so equipping one displaces the other.

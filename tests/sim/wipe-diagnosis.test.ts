@@ -16,7 +16,7 @@ import { importArcFromJson } from "../../src/game/lib/arc-library.js";
 import { resolveChallenge } from "../../src/engine/resolver.js";
 import { Rng } from "../../src/engine/prng.js";
 import { buildStartingOrg } from "../../src/sim/cartridge-conformance.js";
-import { diagnoseWipe, renderDiagnosis } from "../../src/sim/wipe-diagnosis.js";
+import { diagnoseWipe, renderDiagnosis, distributeGap } from "../../src/sim/wipe-diagnosis.js";
 import type { Agent, Arc, Challenge, Organization, RunReport } from "../../src/engine/types.js";
 
 const CHOIR = "the-hollow-choir"; // the wall (survival_check; wipes ~47%)
@@ -172,9 +172,10 @@ describe("wipe diagnosis", () => {
         expect(c.shortfall).toBeLessThanOrEqual(teamGap + 0.1);
         expect(c.shortfall).toBeLessThan(team.threshold - c.score);
       }
-      // Attributed shares reconcile with the actual team gap (within rounding).
+      // Attributed shares reconcile EXACTLY with the stored check-level gap at
+      // 0.1 precision — not merely within a culprit-count-scaled tolerance.
       const summed = team.culprits.reduce((s, c) => s + c.shortfall, 0);
-      expect(Math.abs(summed - teamGap)).toBeLessThanOrEqual(0.1 * team.culprits.length);
+      expect(Math.round(summed * 10)).toBe(Math.round(team.shortfall * 10));
 
       checked++;
     }
@@ -250,5 +251,36 @@ describe("wipe diagnosis", () => {
     const b = attempt(arc, seed, CHOIR);
     expect(diagnoseWipe(a.report, a.challenge, a.org, arc))
       .toEqual(diagnoseWipe(b.report, b.challenge, b.org, arc));
+  });
+});
+
+describe("distributeGap — exact team-gap attribution (issue #110)", () => {
+  const sumTenths = (xs: number[]) => Math.round(xs.reduce((a, b) => a + b, 0) * 10);
+
+  it("splits a 0.1 gap over two culprits WITHOUT inflating the ledger", () => {
+    // The regression this repair targets: a single rounded quotient gave
+    // [0.1, 0.1] (sum 0.2) against a 0.1 gap. Exact attribution gives [0.1, 0].
+    const shares = distributeGap(0.1, 2);
+    expect(shares).toEqual([0.1, 0]);
+    expect(sumTenths(shares)).toBe(1); // sums to EXACTLY the 0.1 gap
+  });
+
+  it("shares always sum to exactly round(gap) at 0.1 precision", () => {
+    const cases: Array<[number, number]> = [
+      [0.1, 2], [0.3, 2], [0.5, 2], [0.7, 3], [1.0, 3], [2.0, 4], [3.7, 2],
+    ];
+    for (const [gap, parts] of cases) {
+      expect(sumTenths(distributeGap(gap, parts))).toBe(Math.round(gap * 10));
+    }
+  });
+
+  it("is deterministic and hands the residual tenth(s) to the earliest parts", () => {
+    expect(distributeGap(0.3, 2)).toEqual([0.2, 0.1]);
+    expect(distributeGap(0.7, 3)).toEqual([0.3, 0.2, 0.2]);
+  });
+
+  it("handles the degenerate zero / no-parts cases", () => {
+    expect(distributeGap(5, 0)).toEqual([]);
+    expect(distributeGap(0, 2)).toEqual([0, 0]);
   });
 });

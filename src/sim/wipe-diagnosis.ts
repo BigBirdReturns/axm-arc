@@ -435,9 +435,13 @@ export function diagnoseWipe(
     // the renderer presents it as "contributed X / attributed Y of the gap",
     // never as "X vs an individual threshold".
     const teamGap = Math.max(0, cd.threshold - (cd.teamScore ?? 0));
-    const attributedShare = failing.length > 0 ? round(teamGap / failing.length) : 0;
+    // Distribute the ACTUAL team gap across the named culprits so the stored
+    // shares sum EXACTLY to the stored check-level gap (round(shortfall)). A
+    // single rounded quotient copied to every culprit re-inflates the ledger
+    // (0.1 gap over 2 → 0.1 each → 0.2); distributeGap does not. (issue #110)
+    const gapShares = distributeGap(teamGap, failing.length);
 
-    const culprits: Culprit[] = failing.map((c) => {
+    const culprits: Culprit[] = failing.map((c, i) => {
       const agent = org.agents[c.agentId];
       return {
         agentId: c.agentId,
@@ -446,7 +450,7 @@ export function diagnoseWipe(
         score: round(c.score),
         threshold: round(cd.threshold),
         shortfall:
-          cd.scope === "team_aggregate" ? attributedShare : round(cd.threshold - c.score),
+          cd.scope === "team_aggregate" ? gapShares[i]! : round(cd.threshold - c.score),
         stress: agent?.stress ?? 0,
         morale: agent?.morale ?? 0,
         factors: agent ? factorsFor(agent, c.breakdown, check, challenge, arc) : [],
@@ -558,6 +562,19 @@ function computeBottlenecks(failed: FailedCheckReport[]): Bottleneck[] {
 
 function round(n: number): number {
   return Math.round(n * 10) / 10;
+}
+
+/** Split a gap into `parts` shares at 0.1 precision whose sum is EXACTLY
+ *  round(gap). The residual tenth(s) go to the earliest parts, so attribution
+ *  is deterministic and reconciles with the stored check-level gap. Rounding
+ *  the quotient once and copying it to every part re-inflates the total
+ *  (a 0.1 gap over 2 parts → 0.1 each → 0.2); this does not. (issue #110) */
+export function distributeGap(gap: number, parts: number): number[] {
+  if (parts <= 0) return [];
+  const totalTenths = Math.round(Math.max(0, gap) * 10);
+  const base = Math.floor(totalTenths / parts);
+  const extra = totalTenths - base * parts; // 0..parts-1, handed to the earliest parts
+  return Array.from({ length: parts }, (_, i) => (base + (i < extra ? 1 : 0)) / 10);
 }
 
 // ── readable console render (the "not pretty yet" first pass) ──────────────────

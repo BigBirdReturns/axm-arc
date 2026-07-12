@@ -147,7 +147,7 @@ describe("wipe diagnosis", () => {
     expect([...scores].sort((a, b) => a - b)).toEqual(scores);
   });
 
-  it("a team_aggregate culprit is measured against its per-capita share, not the whole-team bar (issue #110)", () => {
+  it("a team_aggregate culprit is attributed a share of the real team gap, not measured against an invented bar (issue #110)", () => {
     const arc = loadArc();
     let checked = 0;
     for (let s = 1; s <= 40 && checked < 1; s++) {
@@ -156,20 +156,29 @@ describe("wipe diagnosis", () => {
       const d = diagnoseWipe(at.report, at.challenge, at.org, arc);
       const team = d.failedChecks.find((f) => f.scope === "team_aggregate" && f.culprits.length > 0);
       if (!team) continue;
+
+      // The check keeps the authored team threshold and the REAL gap.
+      expect(team.teamScore).toBeDefined();
+      const teamGap = Math.round((team.threshold - (team.teamScore as number)) * 10) / 10;
+      expect(Math.abs(team.shortfall - teamGap)).toBeLessThanOrEqual(0.1);
+
       for (const c of team.culprits) {
-        // The culprit's bar is a per-capita share — real and strictly below the
-        // whole-team threshold (a party of many can't each owe the team's bar).
-        expect(c.threshold).toBeGreaterThan(0);
-        expect(c.threshold).toBeLessThan(team.threshold);
-        // Shortfall is measured against THAT bar, internally consistent…
-        expect(c.shortfall).toBe(Math.max(0, Math.round((c.threshold - c.score) * 10) / 10));
-        // …and strictly smaller than the old defect (threshold - score against
-        // the whole-team bar), which is what inflated bottleneck magnitude.
+        // No invented per-agent bar: the culprit carries the authored team
+        // threshold, not `threshold / partySize` and not a score-relative line.
+        expect(c.threshold).toBe(team.threshold);
+        // The magnitude is an attributed share of the gap — bounded by it, and
+        // NOT the old defect (threshold - score against the whole-team bar).
+        expect(c.shortfall).toBeGreaterThanOrEqual(0);
+        expect(c.shortfall).toBeLessThanOrEqual(teamGap + 0.1);
         expect(c.shortfall).toBeLessThan(team.threshold - c.score);
       }
+      // Attributed shares reconcile with the actual team gap (within rounding).
+      const summed = team.culprits.reduce((s, c) => s + c.shortfall, 0);
+      expect(Math.abs(summed - teamGap)).toBeLessThanOrEqual(0.1 * team.culprits.length);
+
       checked++;
     }
-    expect(checked).toBeGreaterThan(0); // non-vacuous: a team check with culprits was exercised
+    expect(checked).toBeGreaterThan(0); // non-vacuous: a real team-check wipe was exercised
   });
 
   // ── modifiers surface when they matter ──────────────────────────────────────

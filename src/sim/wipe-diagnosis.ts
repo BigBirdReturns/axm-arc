@@ -36,8 +36,16 @@ export interface Culprit {
   agentId: string;
   name: string;
   role: string | null;
+  /** This culprit's own contribution to the check (a real, resolver-produced number). */
   score: number;
+  /** The authored check threshold. For per_agent/role_specific this is the
+   *  agent's own pass line; for team_aggregate it is the team bar (the party's
+   *  SUM is tested against it — an individual is never measured against it). */
   threshold: number;
+  /** For per_agent/role_specific: `threshold - score`, this agent's own gap.
+   *  For team_aggregate: an equal ATTRIBUTED share of the actual team gap
+   *  (threshold - teamScore) — not an individual gap, since the engine defines
+   *  no individual pass line at team scope (issue #110). */
   shortfall: number;
   stress: number;
   morale: number;
@@ -413,36 +421,32 @@ export function diagnoseWipe(
         ? cd.threshold - (cd.teamScore ?? 0)
         : Math.max(...failing.map((c) => cd.threshold - c.score), 0);
 
-    // A per-agent / role_specific check tests each agent against the threshold
-    // directly, so an individual's bar IS the threshold and their shortfall is
-    // `threshold - score`. A team_aggregate check tests the SUM of the party
-    // against the threshold — no individual is measured against the whole-team
-    // bar — so a culprit's honest bar is their per-capita share of it
-    // (threshold / party size), and their shortfall is how far they fell below
-    // carrying that share. Measuring a team culprit against the whole-team
-    // threshold inflated both the displayed `score vs threshold` line and, via
-    // computeBottlenecks (which sums culprit shortfall into bottleneck
-    // magnitude), the ranking of who to fix. (issue #110)
-    const perCapita =
-      cd.scope === "team_aggregate" && contributions.length > 0
-        ? cd.threshold / contributions.length
-        : cd.threshold;
+    // Per-culprit attribution (issue #110). A per_agent / role_specific check
+    // tests each agent against the threshold directly, so an individual's bar
+    // IS the threshold and their shortfall is `threshold - score`. A
+    // team_aggregate check tests the party's SUM against the threshold — no
+    // individual is measured against it, and the engine defines no individual
+    // pass line — so we do NOT invent one. The authored threshold and the real
+    // gap stay at check scope (`shortfall` above = threshold - teamScore). Each
+    // named culprit is instead ATTRIBUTED an equal share of that actual team
+    // gap, so the per-culprit magnitudes sum to the gap (bounded and honest)
+    // and feed computeBottlenecks without inflation. A team culprit's stored
+    // `threshold` is the authored team bar (a real fact, not a per-agent line);
+    // the renderer presents it as "contributed X / attributed Y of the gap",
+    // never as "X vs an individual threshold".
+    const teamGap = Math.max(0, cd.threshold - (cd.teamScore ?? 0));
+    const attributedShare = failing.length > 0 ? round(teamGap / failing.length) : 0;
 
     const culprits: Culprit[] = failing.map((c) => {
       const agent = org.agents[c.agentId];
-      const score = round(c.score);
-      const bar = cd.scope === "team_aggregate" ? round(perCapita) : round(cd.threshold);
-      const shortfall =
-        cd.scope === "team_aggregate"
-          ? Math.max(0, round(bar - score))
-          : round(cd.threshold - c.score);
       return {
         agentId: c.agentId,
         name: agent?.name ?? c.agentId,
         role: agent?.role ?? null,
-        score,
-        threshold: bar,
-        shortfall,
+        score: round(c.score),
+        threshold: round(cd.threshold),
+        shortfall:
+          cd.scope === "team_aggregate" ? attributedShare : round(cd.threshold - c.score),
         stress: agent?.stress ?? 0,
         morale: agent?.morale ?? 0,
         factors: agent ? factorsFor(agent, c.breakdown, check, challenge, arc) : [],
@@ -574,7 +578,11 @@ export function renderDiagnosis(d: WipeDiagnosis): string {
         : `  • "${fc.mechanicName}" [${fc.scope === "role_specific" ? "role" : "each"}] — needed ${fc.threshold}, ${fc.culprits.length} fell short (worst by ${fc.shortfall})`;
     L.push(head);
     for (const c of fc.culprits.slice(0, 3)) {
-      L.push(`      ${c.name} (${c.role ?? "—"}): ${c.score} vs ${c.threshold}  [stress ${c.stress}, morale ${c.morale}]`);
+      const body =
+        fc.scope === "team_aggregate"
+          ? `contributed ${c.score}, ~${c.shortfall} of the team gap`
+          : `${c.score} vs ${c.threshold}`;
+      L.push(`      ${c.name} (${c.role ?? "—"}): ${body}  [stress ${c.stress}, morale ${c.morale}]`);
       for (const f of c.factors) L.push(`        └ ${f.note}`);
     }
   }

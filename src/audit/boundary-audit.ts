@@ -18,6 +18,7 @@ export interface BoundaryAudit {
   cycle: { totalStages: number; mandatoryGameStages: number; mandatoryGameRatio: number; stages: typeof CYCLE_STAGES };
   dependencies: { totalEdges: number; edges: DependencyEdge[]; kernelViolations: DependencyEdge[] };
   modules: { total: number; loc: number; inventory: Array<{ module: string; category: BoundaryCategory; loc: number }>; byCategory: Record<string, { modules: number; loc: number; locRatio: number }> };
+  headlessTarget: { modules: string[]; loc: number; forbiddenDependencies: string[]; forbiddenGlobals: string[] };
   minimumCoreFilesToEdit: number;
   headlessKernelViolations: string[];
   disposition: "keep" | "modularize-or-split";
@@ -202,6 +203,20 @@ export function generateBoundaryAudit(): BoundaryAudit {
   ]);
 
   const keepDisqualified = enterprisePlaceholderPaths.length > 0 || mandatoryGameStages > 0 || kernelViolations.length > 0;
+  const kernelDir = path.join(ROOT, "src", "kernel");
+  const kernelFiles = fs.readdirSync(kernelDir).filter((file) => file.endsWith(".ts")).sort();
+  let kernelLoc = 0;
+  const forbiddenDependencies: string[] = [];
+  const forbiddenGlobals: string[] = [];
+  for (const file of kernelFiles) {
+    const source = fs.readFileSync(path.join(kernelDir, file), "utf8");
+    kernelLoc += lines(source);
+    for (const match of source.matchAll(/(?:import|export)\s+(?:type\s+)?(?:[^"']+?\s+from\s+)?["']([^"']+)["']/g)) {
+      const specifier = match[1]!;
+      if (/react|game|engine|enterprise|audit/.test(specifier)) forbiddenDependencies.push(`${file} -> ${specifier}`);
+    }
+    if (/\b(localStorage|document|window)\b/.test(source)) forbiddenGlobals.push(file);
+  }
   return {
     generatedFrom: "src/engine + cartridges/first-lockout.arc.json",
     completeness: { unclassifiedModules, unclassifiedCycleStages },
@@ -210,6 +225,7 @@ export function generateBoundaryAudit(): BoundaryAudit {
     cycle: { totalStages: CYCLE_STAGES.length, mandatoryGameStages, mandatoryGameRatio: mandatoryGameStages / CYCLE_STAGES.length, stages: CYCLE_STAGES },
     dependencies: { totalEdges: edges.length, edges, kernelViolations },
     modules: { total: files.length, loc: totalLoc, inventory: moduleInventory, byCategory: moduleStats },
+    headlessTarget: { modules: kernelFiles, loc: kernelLoc, forbiddenDependencies, forbiddenGlobals },
     minimumCoreFilesToEdit: filesToEdit.size,
     headlessKernelViolations,
     disposition: keepDisqualified ? "modularize-or-split" : "keep",
@@ -227,6 +243,7 @@ export function renderBoundaryAudit(audit: BoundaryAudit): string {
     `- Proposed-kernel dependency violations: **${audit.dependencies.kernelViolations.length}**\n` +
     `- Minimum existing engine files requiring edits: **${audit.minimumCoreFilesToEdit}**\n` +
     `- Engine source: **${audit.modules.loc} LOC across ${audit.modules.total} modules**\n\n` +
+    `- Headless target: **${audit.headlessTarget.loc} LOC across ${audit.headlessTarget.modules.length} modules; ${audit.headlessTarget.forbiddenDependencies.length + audit.headlessTarget.forbiddenGlobals.length} forbidden edges/globals**\n\n` +
     `## Kernel dependency violations\n\n` +
     (audit.dependencies.kernelViolations.map((edge) => `- \`${edge.from}\` → \`${edge.to}\``).join("\n") || "- None") +
     `\n\n## Mandatory game-shaped placeholder paths\n\n` +

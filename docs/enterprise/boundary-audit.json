@@ -2363,6 +2363,15 @@
       }
     }
   },
+  "headlessTarget": {
+    "modules": [
+      "decision.ts",
+      "types.ts"
+    ],
+    "loc": 305,
+    "forbiddenDependencies": [],
+    "forbiddenGlobals": []
+  },
   "minimumCoreFilesToEdit": 11,
   "headlessKernelViolations": [],
   "disposition": "modularize-or-split"

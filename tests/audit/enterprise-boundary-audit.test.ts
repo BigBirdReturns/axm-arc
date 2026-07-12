@@ -38,4 +38,11 @@ describe("enterprise bare-metal boundary inventory", () => {
     expect(audit.minimumCoreFilesToEdit).toBeGreaterThan(0);
     expect(audit.disposition).toBe("modularize-or-split");
   });
+
+  it("recognizes the extracted headless target without game, browser, or presentation dependencies", () => {
+    expect(audit.headlessTarget.modules).toEqual(["decision.ts", "types.ts"]);
+    expect(audit.headlessTarget.loc).toBeGreaterThan(0);
+    expect(audit.headlessTarget.forbiddenDependencies).toEqual([]);
+    expect(audit.headlessTarget.forbiddenGlobals).toEqual([]);
+  });
 });

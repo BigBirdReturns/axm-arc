@@ -81,7 +81,7 @@ describe("projectMechanics UX metadata", () => {
     expect(aggregate.targetSummary).toContain("fixed required 12");
     expect(aggregate.targetSummary).not.toContain("required 12 each");
     expect(aggregate.scopeHint).toContain("Fixed team-total check");
-    expect(aggregate.improvementHint).toMatch(/total Focus|positive contribution/);
+    expect(aggregate.improvementHint).toContain("positive contributors");
   });
 
   it("scales only a team check that explicitly declares perAssignedAgent", () => {

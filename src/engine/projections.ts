@@ -6,10 +6,9 @@ import type {
   Organization,
 } from "./types.js";
 import {
-  AFFLICTION_PENALTIES,
-  RELATIONSHIP_MODS,
-  DEFAULT_TRAIT_POOL,
-} from "./constants.js";
+  deterministicAgentScore,
+  effectiveCheckThreshold,
+} from "./scoring.js";
 
 export interface MechanicProjection {
   mechanicId: string;
@@ -41,13 +40,15 @@ export function projectMechanics(opts: {
   for (const check of challenge.mechanicChecks) {
     if (check.scope === "team_aggregate") {
       const teamScore = assignedAgents.reduce(
-        (s, a) => s + estimateScore(a, check, assignedAgents, org, arc),
+        (sum, agent) =>
+          sum + estimateScore(agent, check, assignedAgents, org, arc),
         0,
       );
-      const threshold = check.difficultyThreshold * assignedAgents.length;
+      const threshold = effectiveCheckThreshold(check, assignedAgents.length);
       const margin = teamScore - threshold;
       const averageScore =
         assignedAgents.length > 0 ? teamScore / assignedAgents.length : 0;
+      const perAgentThreshold = check.thresholdMode === "perAssignedAgent";
       results.push({
         mechanicId: check.id,
         mechanicName: check.name,
@@ -62,18 +63,23 @@ export function projectMechanics(opts: {
         attributeSummary: describeAttributeWeights(check, arc),
         primaryAttributeName: primaryAttributeName(check, arc),
         primaryAttributeDescription: primaryAttributeDescription(check, arc),
-        scopeHint: describeScope(check.scope),
-        targetSummary: `Team average ${Math.round(averageScore)} vs required ${check.difficultyThreshold} each (${Math.round(teamScore)} / ${threshold} total).`,
-        improvementHint:
-          margin < 0
+        scopeHint: describeScope(check),
+        targetSummary: perAgentThreshold
+          ? `Team average ${Math.round(averageScore)} vs required ${check.difficultyThreshold} each (${Math.round(teamScore)} / ${threshold} total).`
+          : `Team total ${Math.round(teamScore)} vs fixed required ${threshold} (average ${Math.round(averageScore)}).`,
+        improvementHint: perAgentThreshold
+          ? margin < 0
             ? `Raise average ${primaryAttributeName(check, arc)}: train, gear, or recruit stronger agents. More bodies only help if they beat the required average.`
-            : `Keep average ${primaryAttributeName(check, arc)} above ${check.difficultyThreshold}; extra low-score agents can drag this check down.`,
+            : `Keep average ${primaryAttributeName(check, arc)} above ${check.difficultyThreshold}; extra low-score agents can drag this check down.`
+          : margin < 0
+            ? `Raise total ${primaryAttributeName(check, arc)}: every positive contribution closes the fixed team gap.`
+            : `The party clears the fixed ${primaryAttributeName(check, arc)} total; additional positive contributors widen the margin.`,
       });
     } else if (check.scope === "role_specific") {
       const roleIds = check.roleIds && check.roleIds.length > 0
         ? check.roleIds
-        : challenge.rosterRequirements.roleRequirements.map((r) => r.roleId);
-      const roleAgents = assignedAgents.filter((a) => roleIds.includes(a.role ?? ""));
+        : challenge.rosterRequirements.roleRequirements.map((requirement) => requirement.roleId);
+      const roleAgents = assignedAgents.filter((agent) => roleIds.includes(agent.role ?? ""));
       const target = roleAgents[0] ?? assignedAgents[0];
       if (!target) continue;
       const score = estimateScore(target, check, assignedAgents, org, arc);
@@ -92,23 +98,23 @@ export function projectMechanics(opts: {
         attributeSummary: describeAttributeWeights(check, arc),
         primaryAttributeName: primaryAttributeName(check, arc),
         primaryAttributeDescription: primaryAttributeDescription(check, arc),
-        scopeHint: describeScope(check.scope),
+        scopeHint: describeScope(check),
         targetSummary: `${target.name} is the checked role agent for this mechanic (${Math.round(score)} / ${check.difficultyThreshold}).`,
         improvementHint:
           margin < 0
-            ? `Pick or improve a ${arc.roles.find((r) => r.id === target.role)?.name ?? "required-role"} with stronger ${primaryAttributeName(check, arc)}.`
+            ? `Pick or improve a ${arc.roles.find((role) => role.id === target.role)?.name ?? "required-role"} with stronger ${primaryAttributeName(check, arc)}.`
             : `${target.name.split(" ")[0]} has enough ${primaryAttributeName(check, arc)} for this role check.`,
       });
     } else {
       // per_agent: show the weakest agent as representative
       let worstMargin = Infinity;
       let worstAgent = assignedAgents[0]!;
-      for (const a of assignedAgents) {
-        const score = estimateScore(a, check, assignedAgents, org, arc);
-        const m = score - check.difficultyThreshold;
-        if (m < worstMargin) {
-          worstMargin = m;
-          worstAgent = a;
+      for (const agent of assignedAgents) {
+        const score = estimateScore(agent, check, assignedAgents, org, arc);
+        const candidateMargin = score - check.difficultyThreshold;
+        if (candidateMargin < worstMargin) {
+          worstMargin = candidateMargin;
+          worstAgent = agent;
         }
       }
       const score = estimateScore(worstAgent, check, assignedAgents, org, arc);
@@ -116,7 +122,7 @@ export function projectMechanics(opts: {
         mechanicId: check.id,
         mechanicName: check.name,
         agentId: worstAgent.id,
-        agentName: `${worstAgent.name} · ${arc.roles.find((r) => r.id === worstAgent.role)?.name ?? "Flex"}`,
+        agentName: `${worstAgent.name} · ${arc.roles.find((role) => role.id === worstAgent.role)?.name ?? "Flex"}`,
         scope: check.scope,
         projectedScore: Math.round(score),
         threshold: check.difficultyThreshold,
@@ -130,7 +136,7 @@ export function projectMechanics(opts: {
         attributeSummary: describeAttributeWeights(check, arc),
         primaryAttributeName: primaryAttributeName(check, arc),
         primaryAttributeDescription: primaryAttributeDescription(check, arc),
-        scopeHint: describeScope(check.scope),
+        scopeHint: describeScope(check),
         targetSummary: `Weakest projected agent: ${worstAgent.name} (${Math.round(score)} / ${check.difficultyThreshold}).`,
         improvementHint:
           worstMargin < 0
@@ -144,40 +150,44 @@ export function projectMechanics(opts: {
 
 function describeAttributeWeights(check: MechanicCheck, arc: Arc): string {
   return check.attributeWeights
-    .map((aw) => {
-      const attr = arc.attributes.find((a) => a.id === aw.attributeId);
-      return `${attr?.name ?? aw.attributeId} ${Math.round(aw.weight * 100)}%`;
+    .map((weight) => {
+      const attribute = arc.attributes.find((candidate) => candidate.id === weight.attributeId);
+      return `${attribute?.name ?? weight.attributeId} ${Math.round(weight.weight * 100)}%`;
     })
     .join(" · ");
 }
 
 function primaryAttributeName(check: MechanicCheck, arc: Arc): string {
   const primary = check.attributeWeights.reduce(
-    (best, aw) => (aw.weight > best.weight ? aw : best),
+    (best, weight) => (weight.weight > best.weight ? weight : best),
     check.attributeWeights[0]!,
   );
   return (
-    arc.attributes.find((a) => a.id === primary.attributeId)?.name ??
+    arc.attributes.find((attribute) => attribute.id === primary.attributeId)?.name ??
     primary.attributeId
   );
 }
 
 function primaryAttributeDescription(check: MechanicCheck, arc: Arc): string {
   const primary = check.attributeWeights.reduce(
-    (best, aw) => (aw.weight > best.weight ? aw : best),
+    (best, weight) => (weight.weight > best.weight ? weight : best),
     check.attributeWeights[0]!,
   );
   return (
-    arc.attributes.find((a) => a.id === primary.attributeId)?.description ??
+    arc.attributes.find((attribute) => attribute.id === primary.attributeId)?.description ??
     "Primary check attribute."
   );
 }
 
-function describeScope(scope: MechanicCheck["scope"]): string {
-  if (scope === "team_aggregate")
-    return "Team average check — adding a weak agent can lower the projection.";
-  if (scope === "role_specific")
+function describeScope(check: MechanicCheck): string {
+  if (check.scope === "team_aggregate") {
+    return check.thresholdMode === "perAssignedAgent"
+      ? "Team average check — adding a weak agent can lower the projection."
+      : "Fixed team-total check — every positive contribution adds to the same authored bar.";
+  }
+  if (check.scope === "role_specific") {
     return "Role check — the required role carrier is the make-or-break agent.";
+  }
   return "Every-agent check — one weak member can fail the whole mechanic.";
 }
 
@@ -188,60 +198,7 @@ function estimateScore(
   org: Organization,
   arc: Arc,
 ): number {
-  const rawScore = check.attributeWeights.reduce(
-    (s, aw) => s + (agent.attributes[aw.attributeId] ?? 0) * aw.weight,
-    0,
-  );
-
-  let gearBonus = 0;
-  let best = check.attributeWeights[0]!;
-  for (const aw of check.attributeWeights) {
-    if (aw.weight > best.weight) best = aw;
-  }
-  for (const [, itemId] of Object.entries(agent.equippedItems)) {
-    const item = arc.items.find((it) => it.id === itemId);
-    if (item) gearBonus += item.statBonuses[best.attributeId] ?? 0;
-  }
-  gearBonus *= 0.5;
-
-  const others = allAgents.filter((a) => a.id !== agent.id);
-  let relMod = 0;
-  if (others.length > 0) {
-    for (const other of others) {
-      const rel = org.relationships.find(
-        (r) =>
-          (r.agentIds[0] === agent.id && r.agentIds[1] === other.id) ||
-          (r.agentIds[0] === other.id && r.agentIds[1] === agent.id),
-      );
-      relMod += RELATIONSHIP_MODS[rel?.state ?? "Neutral"];
-    }
-    relMod /= others.length;
-  }
-
-  const moraleMod = (agent.morale - 50) / 10;
-  const afflictionMod =
-    agent.afflictionState.kind !== "none"
-      ? AFFLICTION_PENALTIES[agent.afflictionState.kind].scoreMod
-      : 0;
-
-  let traitBonus = 0;
-  for (const tid of agent.traits) {
-    const t =
-      arc.customTraits.find((c) => c.id === tid) ??
-      DEFAULT_TRAIT_POOL.find((d) => d.id === tid);
-    if (!t) continue;
-    for (const fx of t.effects) {
-      if (
-        fx.kind === "attributeCheckBonus" &&
-        check.attributeWeights.some((aw) => aw.attributeId === fx.attributeId)
-      ) {
-        traitBonus += fx.bonus;
-      }
-    }
-  }
-
-  // No rng variance — this is the expected score, not the actual roll
-  return rawScore + gearBonus + relMod + moraleMod + afflictionMod + traitBonus;
+  return deterministicAgentScore(agent, check, allAgents, org, arc);
 }
 
 export function predictImminentEvents(org: Organization, arc: Arc): string[] {
@@ -254,18 +211,18 @@ export function predictImminentEvents(org: Organization, arc: Arc): string[] {
     }
     const assignments = agent.assignmentHistory.length;
     const traitThresholds = [5, 12];
-    for (const t of traitThresholds) {
-      if (assignments < t && assignments >= t - 3) {
+    for (const threshold of traitThresholds) {
+      if (assignments < threshold && assignments >= threshold - 3) {
         events.push(
-          `${agent.name} trait reveal in ${t - assignments} job${t - assignments === 1 ? "" : "s"}`,
+          `${agent.name} trait reveal in ${threshold - assignments} job${threshold - assignments === 1 ? "" : "s"}`,
         );
         break;
       }
     }
   }
-  const recLevel = org.infrastructure["Recreation"]?.level ?? 0;
-  if (recLevel < 3) {
-    events.push(`Recreation L${recLevel + 1} → +1 token/cycle`);
+  const recreationLevel = org.infrastructure["Recreation"]?.level ?? 0;
+  if (recreationLevel < 3) {
+    events.push(`Recreation L${recreationLevel + 1} → +1 token/cycle`);
   }
   return events;
 }

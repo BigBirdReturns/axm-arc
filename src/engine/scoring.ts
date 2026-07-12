@@ -79,16 +79,13 @@ function afflictionModifier(agent: Agent): number {
 
 function traitCheckBonus(agent: Agent, check: MechanicCheck, arc: Arc): number {
   let bonus = 0;
-  const traits = agent.traits
-    .map(
-      (traitId) =>
-        arc.customTraits.find((trait) => trait.id === traitId) ??
-        DEFAULT_TRAIT_POOL.find((trait) => trait.id === traitId) ??
-        null,
-    )
-    .filter((trait) => trait !== null);
 
-  for (const trait of traits) {
+  for (const traitId of agent.traits) {
+    const trait =
+      arc.customTraits.find((candidate) => candidate.id === traitId) ??
+      DEFAULT_TRAIT_POOL.find((candidate) => candidate.id === traitId);
+    if (!trait) continue;
+
     for (const effect of trait.effects) {
       if (effect.kind === "attributeCheckBonus") {
         const matchesId = check.attributeWeights.some(

@@ -1,11 +1,5 @@
-# The CI floor (train PR 092, RFC_TRAIN_RELEASE): typecheck + unit suite on
-# every push/PR. This is the mechanical minimum, not the whole verification
-# bar — headless drills stay receipts-not-CI per this repo's own doctrine
-# (docs/drills/README.md), run by whoever ships.
-#
-# No stale-emit purge needed here: the purge exists because local `tsc -b`
-# emits .js beside sources that shadow .ts under vitest; a fresh CI checkout
-# has no emits to purge.
+# TEMPORARY diagnostic variant for PR #116. This file is restored after the
+# compiler output is captured; it is not part of the proposed scoring change.
 name: test
 
 on:
@@ -23,5 +17,23 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npx tsc --noEmit
+      - name: Capture TypeScript diagnostics
+        id: typecheck
+        shell: bash
+        run: |
+          set +e
+          npx tsc --noEmit 2>&1 | tee tsc-errors.txt
+          status=${PIPESTATUS[0]}
+          echo "exit_code=$status" >> "$GITHUB_OUTPUT"
+          exit 0
+      - name: Upload TypeScript diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-116-tsc-errors
+          path: tsc-errors.txt
+          if-no-files-found: error
+      - name: Enforce TypeScript result
+        if: steps.typecheck.outputs.exit_code != '0'
+        run: exit 1
       - run: npx vitest run

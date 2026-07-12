@@ -299,8 +299,8 @@ describe("wipe diagnosis candidate ranking", () => {
 
     // Raw attributes favor the hostile candidate, but the party that would
     // actually be fielded makes the neutral candidate the stronger swap.
-    expect(hostileRawWinner.attributes.power).toBeGreaterThan(
-      neutralRealWinner.attributes.power,
+    expect(hostileRawWinner.attributes.power ?? 0).toBeGreaterThan(
+      neutralRealWinner.attributes.power ?? 0,
     );
 
     const report = resolveChallenge({

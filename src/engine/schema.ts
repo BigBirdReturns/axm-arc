@@ -282,6 +282,7 @@ type ArcBase = z.infer<typeof ArcBaseSchema>;
 
 export const ArcSchema = ArcBaseSchema.superRefine((arc: ArcBase, ctx: z.RefinementCtx) => {
   const attrIds = new Set(arc.attributes.map((a: { id: string }) => a.id));
+  const roleIds = new Set(arc.roles.map((r: { id: string }) => r.id));
 
   for (const challenge of arc.challenges) {
     for (const check of challenge.mechanicChecks) {
@@ -293,6 +294,44 @@ export const ArcSchema = ArcBaseSchema.superRefine((arc: ArcBase, ctx: z.Refinem
           });
         }
       }
+    }
+
+    // Roster requirements must describe a composition some legal party can
+    // actually field. The field schema only guarantees positive integers; these
+    // cross-checks reject a challenge that is impossible by construction — a
+    // roster no client could ever seat — so it fails loudly at validation
+    // rather than being discovered at boot (a runtime that can't prove a
+    // cartridge is fieldable must not claim it is). (roster-requirement validation)
+    const rr = challenge.rosterRequirements;
+    if (rr.minAgents > rr.maxAgents) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Challenge "${challenge.id}": rosterRequirements.minAgents (${rr.minAgents}) exceeds maxAgents (${rr.maxAgents}).`,
+      });
+    }
+    const seenRoles = new Set<string>();
+    let demanded = 0;
+    for (const req of rr.roleRequirements) {
+      demanded += req.count;
+      if (!roleIds.has(req.roleId)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Challenge "${challenge.id}": rosterRequirements references unknown roleId "${req.roleId}". Valid: ${[...roleIds].join(", ")}`,
+        });
+      }
+      if (seenRoles.has(req.roleId)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Challenge "${challenge.id}": duplicate rosterRequirements entry for roleId "${req.roleId}".`,
+        });
+      }
+      seenRoles.add(req.roleId);
+    }
+    if (demanded > rr.maxAgents) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Challenge "${challenge.id}": rosterRequirements demand ${demanded} agents across roles but maxAgents is ${rr.maxAgents}.`,
+      });
     }
   }
 });

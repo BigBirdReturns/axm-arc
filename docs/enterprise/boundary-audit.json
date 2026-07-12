@@ -1,0 +1,2369 @@
+{
+  "generatedFrom": "src/engine + cartridges/first-lockout.arc.json",
+  "completeness": {
+    "unclassifiedModules": [],
+    "unclassifiedCycleStages": []
+  },
+  "publicSurface": {
+    "total": 194,
+    "gameOnly": 93,
+    "gameOnlyRatio": 0.4793814432989691,
+    "byCategory": {
+      "game_only_policy": 93,
+      "cartridge_data": 10,
+      "optional_org_policy": 62,
+      "decision_kernel": 21,
+      "presentation_shell": 2,
+      "browser_custody": 6
+    },
+    "symbols": [
+      {
+        "symbol": "access.ts#AttunementGate",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "access.ts#challengeAccess",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "access.ts#ChallengeAccess",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "access.ts#clearedChallenges",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "access.ts#completedAttunementChains",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "access.ts#milestoneSatisfied",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "access.ts#missingOrgMilestones",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "access.ts#requiredAttunementChains",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "access.ts#stampNewAttunements",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "access.ts#unlockedProgressionTierIds",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "cartridge-digest.ts#canonicalizeArc",
+        "category": "cartridge_data"
+      },
+      {
+        "symbol": "cartridge-digest.ts#cartridgeDigest",
+        "category": "cartridge_data"
+      },
+      {
+        "symbol": "cartridge-digest.ts#RESERVED_ENVELOPE_KEYS",
+        "category": "cartridge_data"
+      },
+      {
+        "symbol": "cartridge-digest.ts#sha256Hex",
+        "category": "cartridge_data"
+      },
+      {
+        "symbol": "character.ts#computeBaseEfficiency",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "character.ts#generateAgent",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "character.ts#GenerateAgentOpts",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "constants.ts#AFFLICTION_CHANCE",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "constants.ts#AFFLICTION_PENALTIES",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "constants.ts#DEFAULT_NAME_POOL",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "constants.ts#DEFAULT_TRAIT_POOL",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "constants.ts#HIDDEN_ATTR_REVEAL_THRESHOLDS",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "constants.ts#MAX_DRAMA_CARDS_PER_CYCLE",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "constants.ts#PRECEDENT_LOOKBACK",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "constants.ts#RELATIONSHIP_MODS",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "constants.ts#STRESS_THRESHOLD",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "constants.ts#TRAIT_REVEAL_THRESHOLDS",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "cycle.ts#ChallengeAssignment",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "cycle.ts#CycleEvent",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "cycle.ts#CycleResult",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "cycle.ts#PendingRewardChoice",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "cycle.ts#RewardDecision",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "cycle.ts#runCycle",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "difficulty.ts#applyDifficultyMode",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "drama-triage.ts#AmbientGroup",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "drama-triage.ts#DramaLane",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "drama-triage.ts#LANE_BY_TRIGGER",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "drama-triage.ts#TriagedDrama",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "drama-triage.ts#triageDrama",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "drama-triage.ts#TriageOptions",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "drama.ts#DramaTriggerInput",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "drama.ts#enqueueDramaCards",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "drama.ts#generateDramaCards",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "drama.ts#Precedent",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "drama.ts#resolveDramaCard",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "economy.ts#accrueChallengeRewards",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "economy.ts#AccruedRewards",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "economy.ts#chargeUpkeep",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "economy.ts#CycleEvent",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "economy.ts#OrgWithBalance",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "economy.ts#regenerateTokens",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "economy.ts#REPEAT_CLEAR_REWARD_FACTOR",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "economy.ts#spendTokens",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "infrastructure.ts#tickInfrastructure",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "precedents.ts#consistencyScore",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "precedents.ts#detectPrecedentViolation",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "precedents.ts#logPrecedent",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "precedents.ts#scanPrecedents",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "prng.ts#hashSeed",
+        "category": "decision_kernel"
+      },
+      {
+        "symbol": "prng.ts#Rng",
+        "category": "decision_kernel"
+      },
+      {
+        "symbol": "projections.ts#MechanicProjection",
+        "category": "decision_kernel"
+      },
+      {
+        "symbol": "projections.ts#predictImminentEvents",
+        "category": "decision_kernel"
+      },
+      {
+        "symbol": "projections.ts#projectMechanics",
+        "category": "decision_kernel"
+      },
+      {
+        "symbol": "recruitment.ts#hireAgent",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "recruitment.ts#OrgWithPool",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "recruitment.ts#refreshOpenPool",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "relationships.ts#applyRelationshipDelta",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "relationships.ts#evaluateMentorshipPairs",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "relationships.ts#getRelationship",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "relationships.ts#processChallengeRelationshipEffects",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "relationships.ts#RelationshipTransition",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "report.ts#DEFAULT_TEMPLATES",
+        "category": "presentation_shell"
+      },
+      {
+        "symbol": "report.ts#renderReport",
+        "category": "presentation_shell"
+      },
+      {
+        "symbol": "resolver.ts#resolveChallenge",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "resolver.ts#ResolveChallengeOpts",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "rewards.ts#applyRewardDecision",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "rewards.ts#awardItem",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "rewards.ts#computeRewardDisappointment",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "rewards.ts#evaluateLootEligibility",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "save.ts#arrayToMap",
+        "category": "browser_custody"
+      },
+      {
+        "symbol": "save.ts#deserializeGame",
+        "category": "browser_custody"
+      },
+      {
+        "symbol": "save.ts#mapToArray",
+        "category": "browser_custody"
+      },
+      {
+        "symbol": "save.ts#MIGRATIONS",
+        "category": "browser_custody"
+      },
+      {
+        "symbol": "save.ts#SAVE_VERSION",
+        "category": "browser_custody"
+      },
+      {
+        "symbol": "save.ts#serializeGame",
+        "category": "browser_custody"
+      },
+      {
+        "symbol": "schema.ts#ArcSchema",
+        "category": "cartridge_data"
+      },
+      {
+        "symbol": "schema.ts#validateArc",
+        "category": "cartridge_data"
+      },
+      {
+        "symbol": "scoring.ts#deterministicAgentScore",
+        "category": "decision_kernel"
+      },
+      {
+        "symbol": "scoring.ts#deterministicScoreBreakdown",
+        "category": "decision_kernel"
+      },
+      {
+        "symbol": "scoring.ts#DeterministicScoreBreakdown",
+        "category": "decision_kernel"
+      },
+      {
+        "symbol": "scoring.ts#effectiveCheckThreshold",
+        "category": "decision_kernel"
+      },
+      {
+        "symbol": "scoring.ts#primaryAttributeId",
+        "category": "decision_kernel"
+      },
+      {
+        "symbol": "strategy-board/program-of-record-mini.ts#loadProgramOfRecordMini",
+        "category": "cartridge_data"
+      },
+      {
+        "symbol": "strategy-board/program-of-record-mini.ts#PROGRAM_OF_RECORD_MINI",
+        "category": "cartridge_data"
+      },
+      {
+        "symbol": "strategy-board/schema.ts#StrategyBoardSchema",
+        "category": "cartridge_data"
+      },
+      {
+        "symbol": "strategy-board/schema.ts#validateStrategyBoard",
+        "category": "cartridge_data"
+      },
+      {
+        "symbol": "strategy-board/turn.ts#CHOICE_PHASES",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "strategy-board/turn.ts#initialStrategyState",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "strategy-board/turn.ts#isActionLegal",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "strategy-board/turn.ts#LegalAction",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "strategy-board/turn.ts#LegalActionKind",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "strategy-board/turn.ts#listLegalActions",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "strategy-board/turn.ts#PHASE_ORDER",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "strategy-board/turn.ts#SeatState",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "strategy-board/turn.ts#TurnState",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "strategy-board/types.ts#AssetEffectScope",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "strategy-board/types.ts#AuctionFormat",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "strategy-board/types.ts#AuctionSpec",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "strategy-board/types.ts#BoardSpace",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "strategy-board/types.ts#BoardSpaceType",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "strategy-board/types.ts#ControlAsset",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "strategy-board/types.ts#EndingConditionType",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "strategy-board/types.ts#EndingSpec",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "strategy-board/types.ts#InterferenceSpec",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "strategy-board/types.ts#MilestoneSpec",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "strategy-board/types.ts#ObligationSpec",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "strategy-board/types.ts#OwnershipModel",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "strategy-board/types.ts#OwnershipState",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "strategy-board/types.ts#PlayerDoctrine",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "strategy-board/types.ts#ProgramAction",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "strategy-board/types.ts#ProgramActionTarget",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "strategy-board/types.ts#ResourceLedgerMutation",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "strategy-board/types.ts#StrategyBoardDefinition",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "strategy-board/types.ts#StrategyLedgerEvent",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "strategy-board/types.ts#StrategyLedgerEventKind",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "strategy-board/types.ts#StrategyPhase",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "strategy-board/types.ts#StrategyResource",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "strategy-board/types.ts#TollSpec",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "stress.ts#AfflictionEvent",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "stress.ts#applyAfflictionBarks",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "stress.ts#applyHostileProximityStress",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "stress.ts#applyStressGains",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "stress.ts#BarkEvent",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "stress.ts#driftMorale",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "stress.ts#processAfflictionThreshold",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "stress.ts#ResolveEvent",
+        "category": "optional_org_policy"
+      },
+      {
+        "symbol": "types.ts#AccessRequirements",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "types.ts#Affliction",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "types.ts#AfflictionState",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "types.ts#Agent",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "types.ts#AgentContribution",
+        "category": "decision_kernel"
+      },
+      {
+        "symbol": "types.ts#AgentRunResult",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "types.ts#Arc",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "types.ts#ArcAttribute",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "types.ts#ArcMeta",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "types.ts#ArcRole",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "types.ts#ArcScaling",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "types.ts#ArcTier",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "types.ts#AssignmentRecord",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "types.ts#AttributeWeight",
+        "category": "decision_kernel"
+      },
+      {
+        "symbol": "types.ts#AttunementChain",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "types.ts#AttunementStep",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "types.ts#Challenge",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "types.ts#CheckDiagnostic",
+        "category": "decision_kernel"
+      },
+      {
+        "symbol": "types.ts#CompletionCriteria",
+        "category": "decision_kernel"
+      },
+      {
+        "symbol": "types.ts#CompletionCriteriaType",
+        "category": "decision_kernel"
+      },
+      {
+        "symbol": "types.ts#DifficultyMode",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "types.ts#DramaCard",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "types.ts#DramaCardEffect",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "types.ts#DramaCardOption",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "types.ts#DramaTrigger",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "types.ts#Facility",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "types.ts#FailureConsequence",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "types.ts#InfrastructureFacility",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "types.ts#Item",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "types.ts#LootDrop",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "types.ts#MechanicCheck",
+        "category": "decision_kernel"
+      },
+      {
+        "symbol": "types.ts#MechanicResult",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "types.ts#MoraleState",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "types.ts#NarrativeEvent",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "types.ts#NarrativeTemplate",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "types.ts#Organization",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "types.ts#Outcome",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "types.ts#Precedent",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "types.ts#ProgressionTier",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "types.ts#Relationship",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "types.ts#RelationshipState",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "types.ts#ResourceSpendLever",
+        "category": "decision_kernel"
+      },
+      {
+        "symbol": "types.ts#RewardDistributionPolicy",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "types.ts#RewardRecord",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "types.ts#RewardTableEntry",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "types.ts#Role",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "types.ts#RosterRequirements",
+        "category": "decision_kernel"
+      },
+      {
+        "symbol": "types.ts#RunDiagnostics",
+        "category": "decision_kernel"
+      },
+      {
+        "symbol": "types.ts#RunReport",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "types.ts#ScalingMode",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "types.ts#ScoreBreakdown",
+        "category": "decision_kernel"
+      },
+      {
+        "symbol": "types.ts#ThresholdMode",
+        "category": "decision_kernel"
+      },
+      {
+        "symbol": "types.ts#Tier",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "types.ts#TimePressure",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "types.ts#Tone",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "types.ts#Trait",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "types.ts#TraitEffect",
+        "category": "game_only_policy"
+      },
+      {
+        "symbol": "types.ts#TrustLabel",
+        "category": "game_only_policy"
+      }
+    ]
+  },
+  "schema": {
+    "mandatoryPaths": [
+      "attributes",
+      "attributes[].description",
+      "attributes[].id",
+      "attributes[].name",
+      "attunementChains",
+      "attunementChains[].grantsAccessTo",
+      "attunementChains[].id",
+      "attunementChains[].name",
+      "attunementChains[].steps",
+      "attunementChains[].steps[].target",
+      "attunementChains[].steps[].type",
+      "challenges",
+      "challenges[].accessRequirements",
+      "challenges[].accessRequirements.agentAttunements",
+      "challenges[].accessRequirements.attunementThreshold",
+      "challenges[].accessRequirements.orgMilestones",
+      "challenges[].completionCriteria",
+      "challenges[].completionCriteria.parameters",
+      "challenges[].completionCriteria.type",
+      "challenges[].description",
+      "challenges[].difficultyRating",
+      "challenges[].id",
+      "challenges[].mechanicChecks",
+      "challenges[].mechanicChecks[].attributeWeights",
+      "challenges[].mechanicChecks[].attributeWeights[].attributeId",
+      "challenges[].mechanicChecks[].attributeWeights[].weight",
+      "challenges[].mechanicChecks[].description",
+      "challenges[].mechanicChecks[].difficultyThreshold",
+      "challenges[].mechanicChecks[].failureConsequence",
+      "challenges[].mechanicChecks[].failureConsequence.severity",
+      "challenges[].mechanicChecks[].failureConsequence.type",
+      "challenges[].mechanicChecks[].id",
+      "challenges[].mechanicChecks[].name",
+      "challenges[].mechanicChecks[].scope",
+      "challenges[].name",
+      "challenges[].outcomes",
+      "challenges[].outcomes.failure",
+      "challenges[].outcomes.failure.narrative",
+      "challenges[].outcomes.failure.rewardTable",
+      "challenges[].outcomes.partial",
+      "challenges[].outcomes.partial.narrative",
+      "challenges[].outcomes.partial.rewardTable",
+      "challenges[].outcomes.success",
+      "challenges[].outcomes.success.narrative",
+      "challenges[].outcomes.success.rewardTable",
+      "challenges[].outcomes.success.rewardTable[].dropRate",
+      "challenges[].outcomes.success.rewardTable[].itemId",
+      "challenges[].rosterRequirements",
+      "challenges[].rosterRequirements.maxAgents",
+      "challenges[].rosterRequirements.minAgents",
+      "challenges[].rosterRequirements.roleRequirements",
+      "challenges[].rosterRequirements.roleRequirements[].count",
+      "challenges[].rosterRequirements.roleRequirements[].roleId",
+      "challenges[].timePressure",
+      "currencyName",
+      "customTraits",
+      "customTraits[].description",
+      "customTraits[].effects",
+      "customTraits[].effects[].attributeId",
+      "customTraits[].effects[].bonus",
+      "customTraits[].effects[].kind",
+      "customTraits[].id",
+      "customTraits[].name",
+      "difficultyModes",
+      "infrastructureTokenBonus",
+      "items",
+      "items[].flavorText",
+      "items[].id",
+      "items[].name",
+      "items[].slot",
+      "items[].statBonuses",
+      "items[].tierRequirement",
+      "materialName",
+      "maxTokens",
+      "meta",
+      "meta.author",
+      "meta.description",
+      "meta.domain",
+      "meta.engineVersion",
+      "meta.estimatedCycles",
+      "meta.id",
+      "meta.name",
+      "meta.version",
+      "namePool",
+      "namePool.firstNames",
+      "namePool.lastNames",
+      "narrativeEvents",
+      "narrativeEvents[].agentUnlock",
+      "narrativeEvents[].rewards",
+      "narrativeEvents[].text",
+      "narrativeEvents[].title",
+      "narrativeEvents[].trigger",
+      "narrativeEvents[].trigger.target",
+      "narrativeEvents[].trigger.type",
+      "progressionTiers",
+      "progressionTiers[].challenges",
+      "progressionTiers[].flavorText",
+      "progressionTiers[].id",
+      "progressionTiers[].name",
+      "progressionTiers[].optionalChallenges",
+      "progressionTiers[].requiredChallenges",
+      "progressionTiers[].unlockConditions",
+      "progressionTiers[].unlockConditions.orgMilestones",
+      "progressionTiers[].unlockConditions.reputationMinimum",
+      "reputationName",
+      "roles",
+      "roles[].attributeWeights",
+      "roles[].id",
+      "roles[].name",
+      "scaling",
+      "scaling.scalingRules",
+      "scaling.type",
+      "tiers",
+      "tiers[].baseEfficiencyModifier",
+      "tiers[].id",
+      "tiers[].name",
+      "tiers[].statBudgetMax",
+      "tiers[].statBudgetMin",
+      "tiers[].upkeepCost",
+      "tokenName",
+      "tokensPerCycle"
+    ],
+    "fields": [
+      {
+        "path": "attributes",
+        "category": "decision_kernel",
+        "enterprisePlaceholder": false
+      },
+      {
+        "path": "attributes[].description",
+        "category": "decision_kernel",
+        "enterprisePlaceholder": false
+      },
+      {
+        "path": "attributes[].id",
+        "category": "decision_kernel",
+        "enterprisePlaceholder": false
+      },
+      {
+        "path": "attributes[].name",
+        "category": "decision_kernel",
+        "enterprisePlaceholder": false
+      },
+      {
+        "path": "attunementChains",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "attunementChains[].grantsAccessTo",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "attunementChains[].id",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "attunementChains[].name",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "attunementChains[].steps",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "attunementChains[].steps[].target",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "attunementChains[].steps[].type",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "challenges",
+        "category": "cartridge_data",
+        "enterprisePlaceholder": false
+      },
+      {
+        "path": "challenges[].accessRequirements",
+        "category": "cartridge_data",
+        "enterprisePlaceholder": false
+      },
+      {
+        "path": "challenges[].accessRequirements.agentAttunements",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "challenges[].accessRequirements.attunementThreshold",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "challenges[].accessRequirements.orgMilestones",
+        "category": "cartridge_data",
+        "enterprisePlaceholder": false
+      },
+      {
+        "path": "challenges[].completionCriteria",
+        "category": "cartridge_data",
+        "enterprisePlaceholder": false
+      },
+      {
+        "path": "challenges[].completionCriteria.parameters",
+        "category": "cartridge_data",
+        "enterprisePlaceholder": false
+      },
+      {
+        "path": "challenges[].completionCriteria.type",
+        "category": "cartridge_data",
+        "enterprisePlaceholder": false
+      },
+      {
+        "path": "challenges[].description",
+        "category": "cartridge_data",
+        "enterprisePlaceholder": false
+      },
+      {
+        "path": "challenges[].difficultyRating",
+        "category": "cartridge_data",
+        "enterprisePlaceholder": false
+      },
+      {
+        "path": "challenges[].id",
+        "category": "cartridge_data",
+        "enterprisePlaceholder": false
+      },
+      {
+        "path": "challenges[].mechanicChecks",
+        "category": "decision_kernel",
+        "enterprisePlaceholder": false
+      },
+      {
+        "path": "challenges[].mechanicChecks[].attributeWeights",
+        "category": "decision_kernel",
+        "enterprisePlaceholder": false
+      },
+      {
+        "path": "challenges[].mechanicChecks[].attributeWeights[].attributeId",
+        "category": "decision_kernel",
+        "enterprisePlaceholder": false
+      },
+      {
+        "path": "challenges[].mechanicChecks[].attributeWeights[].weight",
+        "category": "decision_kernel",
+        "enterprisePlaceholder": false
+      },
+      {
+        "path": "challenges[].mechanicChecks[].description",
+        "category": "decision_kernel",
+        "enterprisePlaceholder": false
+      },
+      {
+        "path": "challenges[].mechanicChecks[].difficultyThreshold",
+        "category": "decision_kernel",
+        "enterprisePlaceholder": false
+      },
+      {
+        "path": "challenges[].mechanicChecks[].failureConsequence",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "challenges[].mechanicChecks[].failureConsequence.severity",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "challenges[].mechanicChecks[].failureConsequence.type",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "challenges[].mechanicChecks[].id",
+        "category": "decision_kernel",
+        "enterprisePlaceholder": false
+      },
+      {
+        "path": "challenges[].mechanicChecks[].name",
+        "category": "decision_kernel",
+        "enterprisePlaceholder": false
+      },
+      {
+        "path": "challenges[].mechanicChecks[].scope",
+        "category": "decision_kernel",
+        "enterprisePlaceholder": false
+      },
+      {
+        "path": "challenges[].name",
+        "category": "cartridge_data",
+        "enterprisePlaceholder": false
+      },
+      {
+        "path": "challenges[].outcomes",
+        "category": "cartridge_data",
+        "enterprisePlaceholder": false
+      },
+      {
+        "path": "challenges[].outcomes.failure",
+        "category": "cartridge_data",
+        "enterprisePlaceholder": false
+      },
+      {
+        "path": "challenges[].outcomes.failure.narrative",
+        "category": "cartridge_data",
+        "enterprisePlaceholder": false
+      },
+      {
+        "path": "challenges[].outcomes.failure.rewardTable",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "challenges[].outcomes.partial",
+        "category": "cartridge_data",
+        "enterprisePlaceholder": false
+      },
+      {
+        "path": "challenges[].outcomes.partial.narrative",
+        "category": "cartridge_data",
+        "enterprisePlaceholder": false
+      },
+      {
+        "path": "challenges[].outcomes.partial.rewardTable",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "challenges[].outcomes.success",
+        "category": "cartridge_data",
+        "enterprisePlaceholder": false
+      },
+      {
+        "path": "challenges[].outcomes.success.narrative",
+        "category": "cartridge_data",
+        "enterprisePlaceholder": false
+      },
+      {
+        "path": "challenges[].outcomes.success.rewardTable",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "challenges[].outcomes.success.rewardTable[].dropRate",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "challenges[].outcomes.success.rewardTable[].itemId",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "challenges[].rosterRequirements",
+        "category": "cartridge_data",
+        "enterprisePlaceholder": false
+      },
+      {
+        "path": "challenges[].rosterRequirements.maxAgents",
+        "category": "cartridge_data",
+        "enterprisePlaceholder": false
+      },
+      {
+        "path": "challenges[].rosterRequirements.minAgents",
+        "category": "cartridge_data",
+        "enterprisePlaceholder": false
+      },
+      {
+        "path": "challenges[].rosterRequirements.roleRequirements",
+        "category": "cartridge_data",
+        "enterprisePlaceholder": false
+      },
+      {
+        "path": "challenges[].rosterRequirements.roleRequirements[].count",
+        "category": "cartridge_data",
+        "enterprisePlaceholder": false
+      },
+      {
+        "path": "challenges[].rosterRequirements.roleRequirements[].roleId",
+        "category": "cartridge_data",
+        "enterprisePlaceholder": false
+      },
+      {
+        "path": "challenges[].timePressure",
+        "category": "cartridge_data",
+        "enterprisePlaceholder": false
+      },
+      {
+        "path": "currencyName",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "customTraits",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "customTraits[].description",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "customTraits[].effects",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "customTraits[].effects[].attributeId",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "customTraits[].effects[].bonus",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "customTraits[].effects[].kind",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "customTraits[].id",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "customTraits[].name",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "difficultyModes",
+        "category": "cartridge_data",
+        "enterprisePlaceholder": false
+      },
+      {
+        "path": "infrastructureTokenBonus",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "items",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "items[].flavorText",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "items[].id",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "items[].name",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "items[].slot",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "items[].statBonuses",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "items[].tierRequirement",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "materialName",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "maxTokens",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "meta",
+        "category": "cartridge_data",
+        "enterprisePlaceholder": false
+      },
+      {
+        "path": "meta.author",
+        "category": "cartridge_data",
+        "enterprisePlaceholder": false
+      },
+      {
+        "path": "meta.description",
+        "category": "cartridge_data",
+        "enterprisePlaceholder": false
+      },
+      {
+        "path": "meta.domain",
+        "category": "cartridge_data",
+        "enterprisePlaceholder": false
+      },
+      {
+        "path": "meta.engineVersion",
+        "category": "cartridge_data",
+        "enterprisePlaceholder": false
+      },
+      {
+        "path": "meta.estimatedCycles",
+        "category": "cartridge_data",
+        "enterprisePlaceholder": false
+      },
+      {
+        "path": "meta.id",
+        "category": "cartridge_data",
+        "enterprisePlaceholder": false
+      },
+      {
+        "path": "meta.name",
+        "category": "cartridge_data",
+        "enterprisePlaceholder": false
+      },
+      {
+        "path": "meta.version",
+        "category": "cartridge_data",
+        "enterprisePlaceholder": false
+      },
+      {
+        "path": "namePool",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "namePool.firstNames",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "namePool.lastNames",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "narrativeEvents",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "narrativeEvents[].agentUnlock",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "narrativeEvents[].rewards",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "narrativeEvents[].text",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "narrativeEvents[].title",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "narrativeEvents[].trigger",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "narrativeEvents[].trigger.target",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "narrativeEvents[].trigger.type",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "progressionTiers",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "progressionTiers[].challenges",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "progressionTiers[].flavorText",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "progressionTiers[].id",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "progressionTiers[].name",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "progressionTiers[].optionalChallenges",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "progressionTiers[].requiredChallenges",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "progressionTiers[].unlockConditions",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "progressionTiers[].unlockConditions.orgMilestones",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "progressionTiers[].unlockConditions.reputationMinimum",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "reputationName",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "roles",
+        "category": "decision_kernel",
+        "enterprisePlaceholder": false
+      },
+      {
+        "path": "roles[].attributeWeights",
+        "category": "decision_kernel",
+        "enterprisePlaceholder": false
+      },
+      {
+        "path": "roles[].id",
+        "category": "decision_kernel",
+        "enterprisePlaceholder": false
+      },
+      {
+        "path": "roles[].name",
+        "category": "decision_kernel",
+        "enterprisePlaceholder": false
+      },
+      {
+        "path": "scaling",
+        "category": "cartridge_data",
+        "enterprisePlaceholder": false
+      },
+      {
+        "path": "scaling.scalingRules",
+        "category": "cartridge_data",
+        "enterprisePlaceholder": false
+      },
+      {
+        "path": "scaling.type",
+        "category": "cartridge_data",
+        "enterprisePlaceholder": false
+      },
+      {
+        "path": "tiers",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "tiers[].baseEfficiencyModifier",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "tiers[].id",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "tiers[].name",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "tiers[].statBudgetMax",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "tiers[].statBudgetMin",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "tiers[].upkeepCost",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "tokenName",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      },
+      {
+        "path": "tokensPerCycle",
+        "category": "game_only_policy",
+        "enterprisePlaceholder": true
+      }
+    ],
+    "enterprisePlaceholderPaths": [
+      "attunementChains",
+      "attunementChains[].grantsAccessTo",
+      "attunementChains[].id",
+      "attunementChains[].name",
+      "attunementChains[].steps",
+      "attunementChains[].steps[].target",
+      "attunementChains[].steps[].type",
+      "challenges[].accessRequirements.agentAttunements",
+      "challenges[].accessRequirements.attunementThreshold",
+      "challenges[].mechanicChecks[].failureConsequence",
+      "challenges[].mechanicChecks[].failureConsequence.severity",
+      "challenges[].mechanicChecks[].failureConsequence.type",
+      "challenges[].outcomes.failure.rewardTable",
+      "challenges[].outcomes.partial.rewardTable",
+      "challenges[].outcomes.success.rewardTable",
+      "challenges[].outcomes.success.rewardTable[].dropRate",
+      "challenges[].outcomes.success.rewardTable[].itemId",
+      "currencyName",
+      "customTraits",
+      "customTraits[].description",
+      "customTraits[].effects",
+      "customTraits[].effects[].attributeId",
+      "customTraits[].effects[].bonus",
+      "customTraits[].effects[].kind",
+      "customTraits[].id",
+      "customTraits[].name",
+      "infrastructureTokenBonus",
+      "items",
+      "items[].flavorText",
+      "items[].id",
+      "items[].name",
+      "items[].slot",
+      "items[].statBonuses",
+      "items[].tierRequirement",
+      "materialName",
+      "maxTokens",
+      "namePool",
+      "namePool.firstNames",
+      "namePool.lastNames",
+      "narrativeEvents",
+      "narrativeEvents[].agentUnlock",
+      "narrativeEvents[].rewards",
+      "narrativeEvents[].text",
+      "narrativeEvents[].title",
+      "narrativeEvents[].trigger",
+      "narrativeEvents[].trigger.target",
+      "narrativeEvents[].trigger.type",
+      "progressionTiers",
+      "progressionTiers[].challenges",
+      "progressionTiers[].flavorText",
+      "progressionTiers[].id",
+      "progressionTiers[].name",
+      "progressionTiers[].optionalChallenges",
+      "progressionTiers[].requiredChallenges",
+      "progressionTiers[].unlockConditions",
+      "progressionTiers[].unlockConditions.orgMilestones",
+      "progressionTiers[].unlockConditions.reputationMinimum",
+      "reputationName",
+      "tiers",
+      "tiers[].baseEfficiencyModifier",
+      "tiers[].id",
+      "tiers[].name",
+      "tiers[].statBudgetMax",
+      "tiers[].statBudgetMin",
+      "tiers[].upkeepCost",
+      "tokenName",
+      "tokensPerCycle"
+    ],
+    "enterprisePlaceholderCount": 67
+  },
+  "cycle": {
+    "totalStages": 14,
+    "mandatoryGameStages": 6,
+    "mandatoryGameRatio": 0.42857142857142855,
+    "stages": [
+      {
+        "step": "0",
+        "title": "Downed-agent recovery",
+        "category": "game_only_policy",
+        "removable": false,
+        "rationale": "Mandatory downed-state recovery."
+      },
+      {
+        "step": "1",
+        "title": "Challenge Resolution",
+        "category": "game_only_policy",
+        "removable": false,
+        "rationale": "Always resolves simulated challenges, loot, downtime, and progression rewards."
+      },
+      {
+        "step": "2",
+        "title": "Reward Resolution",
+        "category": "game_only_policy",
+        "removable": false,
+        "rationale": "Mandatory item eligibility and loot choice lifecycle."
+      },
+      {
+        "step": "3",
+        "title": "Stress Processing",
+        "category": "optional_org_policy",
+        "removable": false,
+        "rationale": "Potential organizational policy, but hard-wired into runCycle."
+      },
+      {
+        "step": "4",
+        "title": "Relationship Updates",
+        "category": "optional_org_policy",
+        "removable": false,
+        "rationale": "Potential team policy, but hard-wired into runCycle."
+      },
+      {
+        "step": "5",
+        "title": "Morale Drift",
+        "category": "optional_org_policy",
+        "removable": false,
+        "rationale": "Potential workforce policy, but hard-wired into runCycle."
+      },
+      {
+        "step": "6",
+        "title": "Infrastructure Tick",
+        "category": "optional_org_policy",
+        "removable": false,
+        "rationale": "Potential capacity policy, but fixed facility mechanics are mandatory."
+      },
+      {
+        "step": "7",
+        "title": "Recruitment Pool Refresh",
+        "category": "optional_org_policy",
+        "removable": false,
+        "rationale": "Potential staffing policy, but generated-agent recruitment is mandatory."
+      },
+      {
+        "step": "8",
+        "title": "Token Regeneration",
+        "category": "optional_org_policy",
+        "removable": false,
+        "rationale": "A configurable resource policy executed unconditionally."
+      },
+      {
+        "step": "8b",
+        "title": "Upkeep",
+        "category": "optional_org_policy",
+        "removable": false,
+        "rationale": "A configurable cost policy executed unconditionally."
+      },
+      {
+        "step": "9",
+        "title": "Drama Card Queue Finalization",
+        "category": "game_only_policy",
+        "removable": false,
+        "rationale": "Mandatory narrative drama generation."
+      },
+      {
+        "step": "10",
+        "title": "Hidden Attribute / Trait Reveals",
+        "category": "game_only_policy",
+        "removable": false,
+        "rationale": "Mandatory hidden-trait progression."
+      },
+      {
+        "step": "10b",
+        "title": "Attunement stamping",
+        "category": "game_only_policy",
+        "removable": false,
+        "rationale": "Mandatory game progression gate."
+      },
+      {
+        "step": "11",
+        "title": "Save Checkpoint",
+        "category": "browser_custody",
+        "removable": false,
+        "rationale": "Serialization is part of the fixed cycle result."
+      }
+    ]
+  },
+  "dependencies": {
+    "totalEdges": 65,
+    "edges": [
+      {
+        "from": "access.ts",
+        "fromCategory": "game_only_policy",
+        "to": "types.ts",
+        "toCategory": "game_only_policy",
+        "import": "./types"
+      },
+      {
+        "from": "cartridge-digest.ts",
+        "fromCategory": "cartridge_data",
+        "to": "types.ts",
+        "toCategory": "game_only_policy",
+        "import": "./types"
+      },
+      {
+        "from": "character.ts",
+        "fromCategory": "game_only_policy",
+        "to": "types.ts",
+        "toCategory": "game_only_policy",
+        "import": "./types"
+      },
+      {
+        "from": "character.ts",
+        "fromCategory": "game_only_policy",
+        "to": "constants.ts",
+        "toCategory": "game_only_policy",
+        "import": "./constants"
+      },
+      {
+        "from": "character.ts",
+        "fromCategory": "game_only_policy",
+        "to": "prng.ts",
+        "toCategory": "decision_kernel",
+        "import": "./prng"
+      },
+      {
+        "from": "constants.ts",
+        "fromCategory": "game_only_policy",
+        "to": "types.ts",
+        "toCategory": "game_only_policy",
+        "import": "./types"
+      },
+      {
+        "from": "cycle.ts",
+        "fromCategory": "game_only_policy",
+        "to": "types.ts",
+        "toCategory": "game_only_policy",
+        "import": "./types.js"
+      },
+      {
+        "from": "cycle.ts",
+        "fromCategory": "game_only_policy",
+        "to": "resolver.ts",
+        "toCategory": "game_only_policy",
+        "import": "./resolver.js"
+      },
+      {
+        "from": "cycle.ts",
+        "fromCategory": "game_only_policy",
+        "to": "stress.ts",
+        "toCategory": "optional_org_policy",
+        "import": "./stress.js"
+      },
+      {
+        "from": "cycle.ts",
+        "fromCategory": "game_only_policy",
+        "to": "relationships.ts",
+        "toCategory": "optional_org_policy",
+        "import": "./relationships.js"
+      },
+      {
+        "from": "cycle.ts",
+        "fromCategory": "game_only_policy",
+        "to": "drama.ts",
+        "toCategory": "game_only_policy",
+        "import": "./drama.js"
+      },
+      {
+        "from": "cycle.ts",
+        "fromCategory": "game_only_policy",
+        "to": "rewards.ts",
+        "toCategory": "game_only_policy",
+        "import": "./rewards.js"
+      },
+      {
+        "from": "cycle.ts",
+        "fromCategory": "game_only_policy",
+        "to": "infrastructure.ts",
+        "toCategory": "optional_org_policy",
+        "import": "./infrastructure.js"
+      },
+      {
+        "from": "cycle.ts",
+        "fromCategory": "game_only_policy",
+        "to": "recruitment.ts",
+        "toCategory": "optional_org_policy",
+        "import": "./recruitment.js"
+      },
+      {
+        "from": "cycle.ts",
+        "fromCategory": "game_only_policy",
+        "to": "economy.ts",
+        "toCategory": "optional_org_policy",
+        "import": "./economy.js"
+      },
+      {
+        "from": "cycle.ts",
+        "fromCategory": "game_only_policy",
+        "to": "access.ts",
+        "toCategory": "game_only_policy",
+        "import": "./access.js"
+      },
+      {
+        "from": "cycle.ts",
+        "fromCategory": "game_only_policy",
+        "to": "difficulty.ts",
+        "toCategory": "optional_org_policy",
+        "import": "./difficulty.js"
+      },
+      {
+        "from": "cycle.ts",
+        "fromCategory": "game_only_policy",
+        "to": "save.ts",
+        "toCategory": "browser_custody",
+        "import": "./save.js"
+      },
+      {
+        "from": "cycle.ts",
+        "fromCategory": "game_only_policy",
+        "to": "prng.ts",
+        "toCategory": "decision_kernel",
+        "import": "./prng.js"
+      },
+      {
+        "from": "cycle.ts",
+        "fromCategory": "game_only_policy",
+        "to": "constants.ts",
+        "toCategory": "game_only_policy",
+        "import": "./constants.js"
+      },
+      {
+        "from": "difficulty.ts",
+        "fromCategory": "optional_org_policy",
+        "to": "types.ts",
+        "toCategory": "game_only_policy",
+        "import": "./types"
+      },
+      {
+        "from": "drama-triage.ts",
+        "fromCategory": "game_only_policy",
+        "to": "types.ts",
+        "toCategory": "game_only_policy",
+        "import": "./types.js"
+      },
+      {
+        "from": "drama.ts",
+        "fromCategory": "game_only_policy",
+        "to": "types.ts",
+        "toCategory": "game_only_policy",
+        "import": "./types.js"
+      },
+      {
+        "from": "drama.ts",
+        "fromCategory": "game_only_policy",
+        "to": "constants.ts",
+        "toCategory": "game_only_policy",
+        "import": "./constants.js"
+      },
+      {
+        "from": "drama.ts",
+        "fromCategory": "game_only_policy",
+        "to": "prng.ts",
+        "toCategory": "decision_kernel",
+        "import": "./prng.js"
+      },
+      {
+        "from": "drama.ts",
+        "fromCategory": "game_only_policy",
+        "to": "prng.ts",
+        "toCategory": "decision_kernel",
+        "import": "./prng.js"
+      },
+      {
+        "from": "economy.ts",
+        "fromCategory": "optional_org_policy",
+        "to": "types.ts",
+        "toCategory": "game_only_policy",
+        "import": "./types.js"
+      },
+      {
+        "from": "economy.ts",
+        "fromCategory": "optional_org_policy",
+        "to": "types.ts",
+        "toCategory": "game_only_policy",
+        "import": "./types.js"
+      },
+      {
+        "from": "infrastructure.ts",
+        "fromCategory": "optional_org_policy",
+        "to": "types.ts",
+        "toCategory": "game_only_policy",
+        "import": "./types.js"
+      },
+      {
+        "from": "infrastructure.ts",
+        "fromCategory": "optional_org_policy",
+        "to": "prng.ts",
+        "toCategory": "decision_kernel",
+        "import": "./prng.js"
+      },
+      {
+        "from": "infrastructure.ts",
+        "fromCategory": "optional_org_policy",
+        "to": "economy.ts",
+        "toCategory": "optional_org_policy",
+        "import": "./economy.js"
+      },
+      {
+        "from": "infrastructure.ts",
+        "fromCategory": "optional_org_policy",
+        "to": "relationships.ts",
+        "toCategory": "optional_org_policy",
+        "import": "./relationships.js"
+      },
+      {
+        "from": "precedents.ts",
+        "fromCategory": "optional_org_policy",
+        "to": "types.ts",
+        "toCategory": "game_only_policy",
+        "import": "./types.js"
+      },
+      {
+        "from": "precedents.ts",
+        "fromCategory": "optional_org_policy",
+        "to": "constants.ts",
+        "toCategory": "game_only_policy",
+        "import": "./constants.js"
+      },
+      {
+        "from": "projections.ts",
+        "fromCategory": "decision_kernel",
+        "to": "types.ts",
+        "toCategory": "game_only_policy",
+        "import": "./types.js"
+      },
+      {
+        "from": "projections.ts",
+        "fromCategory": "decision_kernel",
+        "to": "scoring.ts",
+        "toCategory": "decision_kernel",
+        "import": "./scoring.js"
+      },
+      {
+        "from": "recruitment.ts",
+        "fromCategory": "optional_org_policy",
+        "to": "types.ts",
+        "toCategory": "game_only_policy",
+        "import": "./types.js"
+      },
+      {
+        "from": "recruitment.ts",
+        "fromCategory": "optional_org_policy",
+        "to": "prng.ts",
+        "toCategory": "decision_kernel",
+        "import": "./prng.js"
+      },
+      {
+        "from": "recruitment.ts",
+        "fromCategory": "optional_org_policy",
+        "to": "character.ts",
+        "toCategory": "game_only_policy",
+        "import": "./character.js"
+      },
+      {
+        "from": "relationships.ts",
+        "fromCategory": "optional_org_policy",
+        "to": "types.ts",
+        "toCategory": "game_only_policy",
+        "import": "./types.js"
+      },
+      {
+        "from": "report.ts",
+        "fromCategory": "presentation_shell",
+        "to": "types.ts",
+        "toCategory": "game_only_policy",
+        "import": "./types"
+      },
+      {
+        "from": "report.ts",
+        "fromCategory": "presentation_shell",
+        "to": "prng.ts",
+        "toCategory": "decision_kernel",
+        "import": "./prng"
+      },
+      {
+        "from": "resolver.ts",
+        "fromCategory": "game_only_policy",
+        "to": "types.ts",
+        "toCategory": "game_only_policy",
+        "import": "./types"
+      },
+      {
+        "from": "resolver.ts",
+        "fromCategory": "game_only_policy",
+        "to": "prng.ts",
+        "toCategory": "decision_kernel",
+        "import": "./prng"
+      },
+      {
+        "from": "resolver.ts",
+        "fromCategory": "game_only_policy",
+        "to": "scoring.ts",
+        "toCategory": "decision_kernel",
+        "import": "./scoring.js"
+      },
+      {
+        "from": "rewards.ts",
+        "fromCategory": "game_only_policy",
+        "to": "types.ts",
+        "toCategory": "game_only_policy",
+        "import": "./types.js"
+      },
+      {
+        "from": "rewards.ts",
+        "fromCategory": "game_only_policy",
+        "to": "drama.ts",
+        "toCategory": "game_only_policy",
+        "import": "./drama.js"
+      },
+      {
+        "from": "rewards.ts",
+        "fromCategory": "game_only_policy",
+        "to": "prng.ts",
+        "toCategory": "decision_kernel",
+        "import": "./prng.js"
+      },
+      {
+        "from": "save.ts",
+        "fromCategory": "browser_custody",
+        "to": "types.ts",
+        "toCategory": "game_only_policy",
+        "import": "./types.js"
+      },
+      {
+        "from": "schema.ts",
+        "fromCategory": "cartridge_data",
+        "to": "external:zod",
+        "toCategory": "external_verification_integration",
+        "import": "zod"
+      },
+      {
+        "from": "schema.ts",
+        "fromCategory": "cartridge_data",
+        "to": "types.ts",
+        "toCategory": "game_only_policy",
+        "import": "./types"
+      },
+      {
+        "from": "scoring.ts",
+        "fromCategory": "decision_kernel",
+        "to": "types.ts",
+        "toCategory": "game_only_policy",
+        "import": "./types.js"
+      },
+      {
+        "from": "scoring.ts",
+        "fromCategory": "decision_kernel",
+        "to": "constants.ts",
+        "toCategory": "game_only_policy",
+        "import": "./constants.js"
+      },
+      {
+        "from": "strategy-board/index.ts",
+        "fromCategory": "optional_org_policy",
+        "to": "strategy-board/types.ts",
+        "toCategory": "optional_org_policy",
+        "import": "./types"
+      },
+      {
+        "from": "strategy-board/index.ts",
+        "fromCategory": "optional_org_policy",
+        "to": "strategy-board/schema.ts",
+        "toCategory": "cartridge_data",
+        "import": "./schema"
+      },
+      {
+        "from": "strategy-board/index.ts",
+        "fromCategory": "optional_org_policy",
+        "to": "strategy-board/program-of-record-mini.ts",
+        "toCategory": "cartridge_data",
+        "import": "./program-of-record-mini"
+      },
+      {
+        "from": "strategy-board/index.ts",
+        "fromCategory": "optional_org_policy",
+        "to": "strategy-board/turn.ts",
+        "toCategory": "optional_org_policy",
+        "import": "./turn"
+      },
+      {
+        "from": "strategy-board/program-of-record-mini.ts",
+        "fromCategory": "cartridge_data",
+        "to": "strategy-board/types.ts",
+        "toCategory": "optional_org_policy",
+        "import": "./types"
+      },
+      {
+        "from": "strategy-board/program-of-record-mini.ts",
+        "fromCategory": "cartridge_data",
+        "to": "strategy-board/schema.ts",
+        "toCategory": "cartridge_data",
+        "import": "./schema"
+      },
+      {
+        "from": "strategy-board/schema.ts",
+        "fromCategory": "cartridge_data",
+        "to": "external:zod",
+        "toCategory": "external_verification_integration",
+        "import": "zod"
+      },
+      {
+        "from": "strategy-board/schema.ts",
+        "fromCategory": "cartridge_data",
+        "to": "strategy-board/types.ts",
+        "toCategory": "optional_org_policy",
+        "import": "./types"
+      },
+      {
+        "from": "strategy-board/turn.ts",
+        "fromCategory": "optional_org_policy",
+        "to": "strategy-board/types.ts",
+        "toCategory": "optional_org_policy",
+        "import": "./types"
+      },
+      {
+        "from": "stress.ts",
+        "fromCategory": "optional_org_policy",
+        "to": "types.ts",
+        "toCategory": "game_only_policy",
+        "import": "./types.js"
+      },
+      {
+        "from": "stress.ts",
+        "fromCategory": "optional_org_policy",
+        "to": "constants.ts",
+        "toCategory": "game_only_policy",
+        "import": "./constants.js"
+      },
+      {
+        "from": "stress.ts",
+        "fromCategory": "optional_org_policy",
+        "to": "prng.ts",
+        "toCategory": "decision_kernel",
+        "import": "./prng.js"
+      }
+    ],
+    "kernelViolations": [
+      {
+        "from": "projections.ts",
+        "fromCategory": "decision_kernel",
+        "to": "types.ts",
+        "toCategory": "game_only_policy",
+        "import": "./types.js"
+      },
+      {
+        "from": "scoring.ts",
+        "fromCategory": "decision_kernel",
+        "to": "types.ts",
+        "toCategory": "game_only_policy",
+        "import": "./types.js"
+      },
+      {
+        "from": "scoring.ts",
+        "fromCategory": "decision_kernel",
+        "to": "constants.ts",
+        "toCategory": "game_only_policy",
+        "import": "./constants.js"
+      }
+    ]
+  },
+  "modules": {
+    "total": 28,
+    "loc": 6367,
+    "inventory": [
+      {
+        "module": "access.ts",
+        "category": "game_only_policy",
+        "loc": 207
+      },
+      {
+        "module": "cartridge-digest.ts",
+        "category": "cartridge_data",
+        "loc": 216
+      },
+      {
+        "module": "character.ts",
+        "category": "game_only_policy",
+        "loc": 146
+      },
+      {
+        "module": "constants.ts",
+        "category": "game_only_policy",
+        "loc": 155
+      },
+      {
+        "module": "cycle.ts",
+        "category": "game_only_policy",
+        "loc": 563
+      },
+      {
+        "module": "difficulty.ts",
+        "category": "optional_org_policy",
+        "loc": 65
+      },
+      {
+        "module": "drama-triage.ts",
+        "category": "game_only_policy",
+        "loc": 113
+      },
+      {
+        "module": "drama.ts",
+        "category": "game_only_policy",
+        "loc": 517
+      },
+      {
+        "module": "economy.ts",
+        "category": "optional_org_policy",
+        "loc": 117
+      },
+      {
+        "module": "infrastructure.ts",
+        "category": "optional_org_policy",
+        "loc": 233
+      },
+      {
+        "module": "precedents.ts",
+        "category": "optional_org_policy",
+        "loc": 99
+      },
+      {
+        "module": "prng.ts",
+        "category": "decision_kernel",
+        "loc": 76
+      },
+      {
+        "module": "projections.ts",
+        "category": "decision_kernel",
+        "loc": 227
+      },
+      {
+        "module": "recruitment.ts",
+        "category": "optional_org_policy",
+        "loc": 112
+      },
+      {
+        "module": "relationships.ts",
+        "category": "optional_org_policy",
+        "loc": 300
+      },
+      {
+        "module": "report.ts",
+        "category": "presentation_shell",
+        "loc": 219
+      },
+      {
+        "module": "resolver.ts",
+        "category": "game_only_policy",
+        "loc": 397
+      },
+      {
+        "module": "rewards.ts",
+        "category": "game_only_policy",
+        "loc": 228
+      },
+      {
+        "module": "save.ts",
+        "category": "browser_custody",
+        "loc": 110
+      },
+      {
+        "module": "schema.ts",
+        "category": "cartridge_data",
+        "loc": 349
+      },
+      {
+        "module": "scoring.ts",
+        "category": "decision_kernel",
+        "loc": 168
+      },
+      {
+        "module": "strategy-board/index.ts",
+        "category": "optional_org_policy",
+        "loc": 17
+      },
+      {
+        "module": "strategy-board/program-of-record-mini.ts",
+        "category": "cartridge_data",
+        "loc": 168
+      },
+      {
+        "module": "strategy-board/schema.ts",
+        "category": "cartridge_data",
+        "loc": 276
+      },
+      {
+        "module": "strategy-board/turn.ts",
+        "category": "optional_org_policy",
+        "loc": 160
+      },
+      {
+        "module": "strategy-board/types.ts",
+        "category": "optional_org_policy",
+        "loc": 227
+      },
+      {
+        "module": "stress.ts",
+        "category": "optional_org_policy",
+        "loc": 373
+      },
+      {
+        "module": "types.ts",
+        "category": "game_only_policy",
+        "loc": 529
+      }
+    ],
+    "byCategory": {
+      "game_only_policy": {
+        "modules": 9,
+        "loc": 2855,
+        "locRatio": 0.4484058426260405
+      },
+      "cartridge_data": {
+        "modules": 4,
+        "loc": 1009,
+        "locRatio": 0.15847337835715408
+      },
+      "optional_org_policy": {
+        "modules": 10,
+        "loc": 1703,
+        "locRatio": 0.26747290717763467
+      },
+      "decision_kernel": {
+        "modules": 3,
+        "loc": 471,
+        "locRatio": 0.07397518454531177
+      },
+      "presentation_shell": {
+        "modules": 1,
+        "loc": 219,
+        "locRatio": 0.03439610491597299
+      },
+      "browser_custody": {
+        "modules": 1,
+        "loc": 110,
+        "locRatio": 0.017276582377885975
+      }
+    }
+  },
+  "minimumCoreFilesToEdit": 11,
+  "headlessKernelViolations": [],
+  "disposition": "modularize-or-split"
+}

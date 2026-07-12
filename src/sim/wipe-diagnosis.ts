@@ -26,6 +26,7 @@ import type {
   RunReport,
   ScoreBreakdown,
 } from "../engine/types";
+import { deterministicAgentScore } from "../engine/scoring.js";
 
 export interface FactorNote {
   label: string;
@@ -128,16 +129,6 @@ function intendedRoleId(check: MechanicCheck, arc: Arc): string | undefined {
   return undefined;
 }
 
-function gearBonusFor(agent: Agent, attrId: string | undefined, arc: Arc): number {
-  if (!attrId) return 0;
-  let g = 0;
-  for (const itemId of Object.values(agent.equippedItems)) {
-    const item = arc.items.find((it) => it.id === itemId);
-    if (item) g += item.statBonuses[attrId] ?? 0;
-  }
-  return g;
-}
-
 /** The NET change to `attrId` from equipping `candidate`, after DISPLACING
  *  whatever currently occupies its slot. `equippedItems` is keyed by slot, so
  *  equipping evicts the slot's current occupant — the real gain is the
@@ -154,17 +145,17 @@ export function netGearGain(
   return (candidate.statBonuses[attrId] ?? 0) - (displaced?.statBonuses[attrId] ?? 0);
 }
 
-/** The deterministic mean of an agent's score on a check — raw attribute pull +
- *  equipped gear + morale offset, with no roll. Used ONLY to rank candidate
- *  swaps/reassigns; the actual attempt's numbers come from the resolver. */
-function expectedContribution(agent: Agent, check: MechanicCheck, arc: Arc): number {
-  const raw = check.attributeWeights.reduce(
-    (s, aw) => s + (agent.attributes[aw.attributeId] ?? 0) * aw.weight,
-    0,
-  );
-  const gear = gearBonusFor(agent, dominantAttr(check), arc);
-  const morale = (agent.morale - 50) / 10;
-  return raw + gear + morale;
+/** The resolver-parity deterministic mean of an agent's score on a check.
+ *  The supplied party is the composition being priced, so candidate swaps use
+ *  their post-swap relationship context rather than the current party's. */
+function expectedContribution(
+  agent: Agent,
+  check: MechanicCheck,
+  party: Agent[],
+  org: Organization,
+  arc: Arc,
+): number {
+  return deterministicAgentScore(agent, check, party, org, arc);
 }
 
 function inScope(agent: Agent, check: MechanicCheck, challenge: Challenge): boolean {
@@ -220,7 +211,7 @@ function factorsFor(
   return notes.sort((a, b2) => a.value - b2.value).slice(0, 3);
 }
 
-// ── fix generation (grounded in real org state) ───────────────────────────────
+// ── fix generation (grounded in real org state) ──────────────────────────────
 
 function generateFixes(
   primary: FailedCheckReport,
@@ -236,8 +227,26 @@ function generateFixes(
   const culprit = org.agents[topCulprit.agentId];
   if (!culprit) return fixes;
   const attr = dominantAttr(check);
-  const culpritExpected = expectedContribution(culprit, check, arc);
+  const assignedParty = [...assignedIds]
+    .map((agentId) => org.agents[agentId])
+    .filter((agent): agent is Agent => agent !== undefined);
+  const partyAfterSwap = (candidate: Agent): Agent[] => [
+    ...assignedParty.filter(
+      (agent) => agent.id !== culprit.id && agent.id !== candidate.id,
+    ),
+    candidate,
+  ];
+  const culpritExpected = expectedContribution(
+    culprit,
+    check,
+    assignedParty,
+    org,
+    arc,
+  );
   const bench = Object.values(org.agents).filter((a) => !assignedIds.has(a.id));
+  const candidateGain = (candidate: Agent): number =>
+    expectedContribution(candidate, check, partyAfterSwap(candidate), org, arc) -
+    culpritExpected;
   const checkId = primary.mechanicId;
   const S = round(primary.shortfall);
   // Projected remaining shortfall after a gain of `g` closes part of S.
@@ -246,7 +255,7 @@ function generateFixes(
   // 1. Bench swap — a benched, in-scope agent with a higher expected contribution.
   const swapCandidate = bench
     .filter((a) => inScope(a, check, challenge))
-    .map((a) => ({ a, gain: expectedContribution(a, check, arc) - culpritExpected }))
+    .map((a) => ({ a, gain: candidateGain(a) }))
     .filter((c) => c.gain > 1)
     .sort((x, y) => y.gain - x.gain)[0];
   if (swapCandidate) {
@@ -345,24 +354,27 @@ function generateFixes(
   }
 
   // 6. Tradeoff — shift composition toward the role the check is built to lean
-  //    on, naming the cost. Constructible whenever the bench has such a body.
+  //    on, naming the cost. A role label alone is not enough: the candidate must
+  //    produce a real positive resolver-parity gain in the post-swap party.
   const intended = intendedRoleId(check, arc);
   const benchIntended = intended
     ? bench
         .filter((a) => a.role === intended)
-        .sort((a, b) => expectedContribution(b, check, arc) - expectedContribution(a, check, arc))[0]
+        .map((a) => ({ a, gain: candidateGain(a) }))
+        .filter((candidate) => candidate.gain > 0)
+        .sort((a, b) => b.gain - a.gain)[0]
     : undefined;
   if (intended && benchIntended) {
     fixes.push({
       lever: "tradeoff",
-      description: `Field ${benchIntended.name} (${intended}) and sit a defensive body — more ${attr ?? intended}, thinner safety net`,
-      target: benchIntended.name,
+      description: `Field ${benchIntended.a.name} (${intended}) and sit a defensive body — more ${attr ?? intended}, thinner safety net`,
+      target: benchIntended.a.name,
       cost: "trade a defensive slot for offense; the sat starter remembers it",
-      impact: 1,
-      swapAgentId: benchIntended.id,
+      impact: benchIntended.gain,
+      swapAgentId: benchIntended.a.id,
       attrId: attr,
       checkId,
-      projectedEffect: closes(Math.max(1, expectedContribution(benchIntended, check, arc) - culpritExpected)),
+      projectedEffect: closes(benchIntended.gain),
     });
   }
 
@@ -565,7 +577,7 @@ function round(n: number): number {
   return Math.round(n * 10) / 10;
 }
 
-// ── readable console render (the "not pretty yet" first pass) ──────────────────
+// ── readable console render (the "not pretty yet" first pass) ─────────────────
 
 export function renderDiagnosis(d: WipeDiagnosis): string {
   const L: string[] = [];
@@ -599,7 +611,7 @@ export function renderDiagnosis(d: WipeDiagnosis): string {
   return L.join("\n");
 }
 
-// ── tier-2 persistence note (NOT implemented in this slice) ────────────────────
+// ── tier-2 persistence note (NOT implemented in this slice) ───────────────────
 //
 // This slice is one lockout on one cartridge. When tier 2 arrives, the data
 // that must PERSIST across raid cartridges (and which this diagnosis already

@@ -12,8 +12,11 @@ import type {
   RunReport,
   ScoreBreakdown,
 } from "./types";
-import { AFFLICTION_PENALTIES, RELATIONSHIP_MODS, DEFAULT_TRAIT_POOL } from "./constants";
 import { Rng, hashSeed } from "./prng";
+import {
+  deterministicScoreBreakdown,
+  effectiveCheckThreshold,
+} from "./scoring.js";
 
 export interface ResolveChallengeOpts {
   challenge: Challenge;
@@ -31,50 +34,6 @@ export interface ResolveChallengeOpts {
    *  and purely additive — a run with it set is byte-identical to one without,
    *  because it captures values already computed rather than drawing anew. */
   collectDiagnostics?: boolean;
-}
-
-function effectiveThreshold(check: MechanicCheck, partySize: number): number {
-  return check.scope === "team_aggregate" && check.thresholdMode === "perAssignedAgent"
-    ? check.difficultyThreshold * Math.max(1, partySize)
-    : check.difficultyThreshold;
-}
-
-function getPrimaryAttrId(check: MechanicCheck): string {
-  let best = check.attributeWeights[0]!;
-  for (const aw of check.attributeWeights) {
-    if (aw.weight > best.weight) best = aw;
-  }
-  return best.attributeId;
-}
-
-function getGearBonus(agent: Agent, primaryAttrId: string, arc: Arc): number {
-  let bonus = 0;
-  for (const [_slot, itemId] of Object.entries(agent.equippedItems)) {
-    const item = arc.items.find((it) => it.id === itemId);
-    if (item) bonus += item.statBonuses[primaryAttrId] ?? 0;
-  }
-  return bonus * 0.5;
-}
-
-function getRelMod(agent: Agent, others: Agent[], org: Organization): number {
-  if (others.length === 0) return 0;
-  let total = 0;
-  for (const other of others) {
-    const rel = org.relationships.find(
-      (r) =>
-        (r.agentIds[0] === agent.id && r.agentIds[1] === other.id) ||
-        (r.agentIds[0] === other.id && r.agentIds[1] === agent.id),
-    );
-    const state = rel?.state ?? "Neutral";
-    total += RELATIONSHIP_MODS[state];
-  }
-  return total / Math.max(1, others.length);
-}
-
-function getAfflictionMod(agent: Agent): number {
-  if (agent.afflictionState.kind === "none") return 0;
-  const p = AFFLICTION_PENALTIES[agent.afflictionState.kind];
-  return p.scoreMod;
 }
 
 function getVolatilitySwing(volatility: number, rng: Rng): number {
@@ -115,86 +74,47 @@ function steadinessFor(
   return Math.max(lever.minSteadiness, 1 - lever.steadinessPerToken * honored);
 }
 
-function getAllTraits(agent: Agent, arc: Arc) {
-  return agent.traits.map((tid) => {
-    const t = arc.customTraits.find((c) => c.id === tid) ?? DEFAULT_TRAIT_POOL.find((d) => d.id === tid);
-    return t ?? null;
-  }).filter(Boolean);
-}
-
-function applyTraitBonuses(agent: Agent, check: MechanicCheck, arc: Arc): number {
-  let bonus = 0;
-  const traits = getAllTraits(agent, arc);
-  for (const trait of traits) {
-    if (!trait) continue;
-    for (const fx of trait.effects) {
-      if (fx.kind === "attributeCheckBonus") {
-        // apply if attribute is in check weights
-        const matchById = check.attributeWeights.some((aw) => aw.attributeId === fx.attributeId);
-        const matchByPrecision =
-          fx.attributeId === "__precision__" &&
-          check.attributeWeights.some((aw) => aw.attributeId.toLowerCase().includes("precision"));
-        if (matchById || matchByPrecision) bonus += fx.bonus;
-      }
-      if (
-        fx.kind === "attributeBonusWhenMoraleHigh" &&
-        agent.morale > fx.threshold
-      ) {
-        let attrId = fx.attributeId;
-        if (attrId === "__highest__") {
-          // find agent's highest attribute
-          attrId = Object.entries(agent.attributes).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "";
-        }
-        if (check.attributeWeights.some((aw) => aw.attributeId === attrId)) {
-          bonus += fx.bonus;
-        }
-      }
-    }
-  }
-  return bonus;
-}
-
 function scoreAgent(
   agent: Agent,
   check: MechanicCheck,
-  others: Agent[],
+  party: Agent[],
   org: Organization,
   arc: Arc,
   rng: Rng,
   steadiness = 1,
   out?: { breakdown?: ScoreBreakdown },
 ): number {
-  const rawScore = check.attributeWeights.reduce((s, aw) => {
-    return s + (agent.attributes[aw.attributeId] ?? 0) * aw.weight;
-  }, 0);
+  // Every non-random term comes from the one exported scoring contract. The
+  // resolver owns only variance and volatility, so projections and diagnosis
+  // cannot silently drift from the terms a real pull uses.
+  const deterministic = deterministicScoreBreakdown(agent, check, party, org, arc);
 
-  const primaryAttrId = getPrimaryAttrId(check);
-  const gearBonus = getGearBonus(agent, primaryAttrId, arc);
-  const relMod = getRelMod(agent, others, org);
-  const moraleMod = (agent.morale - 50) / 10;
-  const afflictionMod = getAfflictionMod(agent);
   // Symmetric, mean-zero luck-of-the-roll. The resource-spend lever scales this
   // (and macroVariance) by `steadiness` — never the deterministic terms and
   // never volatilitySwing — so the mean is invariant and only the spread moves.
   // The rng draw is unchanged, so steadiness === 1 is byte-identical to before.
   const variance = rng.uniform(-4, 4) * steadiness;
 
-  // Reckless forces max volatility
+  // Reckless forces max volatility.
   const effectiveVolatility =
     agent.afflictionState.kind === "Reckless" ? 20 : agent.hiddenAttributes.volatility;
   const volatilitySwing = getVolatilitySwing(effectiveVolatility, rng);
-
-  const traitBonus = applyTraitBonuses(agent, check, arc);
-
-  const total =
-    rawScore + gearBonus + relMod + moraleMod + afflictionMod + variance + volatilitySwing + traitBonus;
+  const total = deterministic.total + variance + volatilitySwing;
 
   // Diagnostics capture: only fills the out-param when the caller asked for it.
   // These are the exact terms just summed — no extra rng, no recomputation — so
   // a run with `out` set is byte-identical to one without.
   if (out) {
     out.breakdown = {
-      rawScore, gearBonus, relMod, moraleMod, afflictionMod, variance, volatilitySwing, traitBonus, total,
+      rawScore: deterministic.rawScore,
+      gearBonus: deterministic.gearBonus,
+      relMod: deterministic.relMod,
+      moraleMod: deterministic.moraleMod,
+      afflictionMod: deterministic.afflictionMod,
+      variance,
+      volatilitySwing,
+      traitBonus: deterministic.traitBonus,
+      total,
     };
   }
 
@@ -323,11 +243,10 @@ export function resolveChallenge(opts: ResolveChallengeOpts): RunReport {
 
   for (const agent of assignedAgents) {
     const mechanicResults: MechanicResult[] = [];
-    const others = assignedAgents.filter((a) => a.id !== agent.id);
 
     for (const check of challenge.mechanicChecks) {
       let score: number;
-      let threshold = effectiveThreshold(check, assignedAgents.length);
+      let threshold = effectiveCheckThreshold(check, assignedAgents.length);
       let passed = false;
       // Steadiness for this check: 1 (no effect) unless a lever is authored, the
       // gates hold, and tokens were spent. Scales only the symmetric variance.
@@ -345,7 +264,16 @@ export function resolveChallenge(opts: ResolveChallengeOpts): RunReport {
           }
         }
         const cap: { breakdown?: ScoreBreakdown } = {};
-        score = scoreAgent(agent, check, others, org, arc, rng, steadiness, collectDiag ? cap : undefined);
+        score = scoreAgent(
+          agent,
+          check,
+          assignedAgents,
+          org,
+          arc,
+          rng,
+          steadiness,
+          collectDiag ? cap : undefined,
+        );
         passed = score >= threshold;
         if (collectDiag && cap.breakdown) {
           const d = diagFor(check, threshold);
@@ -367,7 +295,13 @@ export function resolveChallenge(opts: ResolveChallengeOpts): RunReport {
         const teamScore = assignedAgents.reduce((s, a) => {
           const cap: { breakdown?: ScoreBreakdown } = {};
           const contribution = scoreAgent(
-            a, check, assignedAgents.filter((o) => o.id !== a.id), org, arc, rng, steadiness,
+            a,
+            check,
+            assignedAgents,
+            org,
+            arc,
+            rng,
+            steadiness,
             collectDiag ? cap : undefined,
           );
           if (collectDiag && cap.breakdown) {
@@ -379,7 +313,7 @@ export function resolveChallenge(opts: ResolveChallengeOpts): RunReport {
         // numbers. Symmetric and mean-zero, so the lever scales it too.
         const macroVariance = rng.uniform(-3, 3) * (assignedAgents.length / 2) * steadiness;
         score = teamScore + macroVariance;
-        threshold = effectiveThreshold(check, assignedAgents.length);
+        threshold = effectiveCheckThreshold(check, assignedAgents.length);
         passed = score >= threshold;
         if (collectDiag) {
           // Keep the WORST of the per-agent rolls (the one that could drop

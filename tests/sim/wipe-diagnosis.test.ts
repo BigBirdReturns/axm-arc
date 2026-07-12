@@ -16,7 +16,7 @@ import { importArcFromJson } from "../../src/game/lib/arc-library.js";
 import { resolveChallenge } from "../../src/engine/resolver.js";
 import { Rng } from "../../src/engine/prng.js";
 import { buildStartingOrg } from "../../src/sim/cartridge-conformance.js";
-import { diagnoseWipe, renderDiagnosis } from "../../src/sim/wipe-diagnosis.js";
+import { diagnoseWipe, renderDiagnosis, netGearGain } from "../../src/sim/wipe-diagnosis.js";
 import type { Agent, Arc, Challenge, Organization, RunReport } from "../../src/engine/types.js";
 
 const CHOIR = "the-hollow-choir"; // the wall (survival_check; wipes ~47%)
@@ -194,6 +194,40 @@ describe("wipe diagnosis", () => {
     expect(new Set(d.fixes.map((f) => f.lever)).size).toBe(d.fixes.length);
   });
 
+  it("a gear fix projects the resolver's HALVED gear effect, not the raw stat bonus — empty-slot case (issue #109)", () => {
+    const arc = loadArc();
+    // Strip everyone's equipped gear so the gear lever always has an
+    // equippable, attribute-boosting item to recommend — this guarantees gear
+    // fixes surface across the wipe seeds rather than depending on loot RNG.
+    // NOTE: with slots empty, net gain equals gross bonus; the occupied-slot
+    // (displacement) case is covered by the netGearGain suite below (issue #112).
+    const strip = (org: Organization) => {
+      for (const a of Object.values(org.agents)) a.equippedItems = {};
+    };
+    const itemBonus = (itemId: string, attrId: string) =>
+      arc.items.find((it) => it.id === itemId)!.statBonuses[attrId] ?? 0;
+
+    let asserted = 0;
+    for (let s = 1; s <= 40; s++) {
+      const at = attempt(arc, s, CHOIR, strip);
+      if (at.report.outcome !== "failure") continue;
+      const d = diagnoseWipe(at.report, at.challenge, at.org, arc);
+      for (const f of d.fixes) {
+        if (f.lever !== "gear" || !f.itemId || !f.attrId) continue;
+        const raw = itemBonus(f.itemId, f.attrId);
+        // The resolver halves gear in a check contribution; the projected
+        // impact must be that halved value, never the raw stat sheet number.
+        expect(f.impact).toBeCloseTo(raw * 0.5, 10);
+        expect(f.impact).not.toBe(raw); // the exact defect: raw would be double
+        // the readout names the halved check effect, not the raw bonus alone
+        expect(f.projectedEffect).toContain(`+${Math.round(raw * 0.5 * 10) / 10}`);
+        asserted++;
+      }
+    }
+    // Non-vacuous: the sweep must actually exercise at least one gear fix.
+    expect(asserted).toBeGreaterThan(0);
+  });
+
   it("the render is a real readout, not 'you failed'", () => {
     const arc = loadArc();
     const seed = firstWipeSeed(arc, CHOIR);
@@ -216,5 +250,35 @@ describe("wipe diagnosis", () => {
     const b = attempt(arc, seed, CHOIR);
     expect(diagnoseWipe(a.report, a.challenge, a.org, arc))
       .toEqual(diagnoseWipe(b.report, b.challenge, b.org, arc));
+  });
+});
+
+describe("netGearGain — a gear fix accounts for slot displacement (issue #112)", () => {
+  // Two first-lockout items that share the "trinket" slot with different
+  // restoration bonuses, so equipping one displaces the other.
+  const OCCUPANT = "menders-steady-hand"; // trinket, restoration 1
+  const CANDIDATE = "hollow-chorus-signet"; // trinket, restoration 2
+
+  it("subtracts the displaced item's bonus, not just the candidate's", () => {
+    const arc = loadArc();
+    const item = (id: string) => arc.items.find((i) => i.id === id)!;
+    expect(item(OCCUPANT).slot).toBe(item(CANDIDATE).slot); // a real displacement
+
+    // Occupied slot: net = candidate(2) − displaced(1) = 1, NOT the gross 2.
+    const occupied = netGearGain({ [item(CANDIDATE).slot]: OCCUPANT }, item(CANDIDATE), "restoration", arc);
+    expect(occupied).toBe(1);
+    // The realized check delta is the halved net (resolver applies gear * 0.5).
+    expect(occupied * 0.5).toBe(0.5);
+
+    // Empty slot: net equals the gross candidate bonus (the case the sweep test covers).
+    expect(netGearGain({}, item(CANDIDATE), "restoration", arc)).toBe(2);
+  });
+
+  it("is negative for a downgrade — the lever must not recommend it", () => {
+    const arc = loadArc();
+    const item = (id: string) => arc.items.find((i) => i.id === id)!;
+    // Occupant is the better item; equipping the weaker one is a net loss.
+    const net = netGearGain({ [item(OCCUPANT).slot]: CANDIDATE }, item(OCCUPANT), "restoration", arc);
+    expect(net).toBe(-1);
   });
 });

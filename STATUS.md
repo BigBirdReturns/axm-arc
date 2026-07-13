@@ -41,10 +41,9 @@ paid and unpaid amounts without persisting negative currency; Industrious is
 applied exactly once; and the Arc assignment UI prevents capacity overcommit
 while honoring zero-cost farm runs.
 
-**Verification:** Arc `npm run check` is green after these changes (typecheck +
-59 Vitest files / 585 tests). World must be fully re-vendored from the resulting
-Arc commit and pass its drift-first `npm run check` before the cross-repo change
-is complete.
+**Verification:** both repository gates are green after these changes. Arc:
+typecheck + 59 Vitest files / 585 tests. World: strict engine drift against the
+pinned Arc commit + typecheck + 81 Vitest files / 664 tests.
 
 Library and Workshop are maintained foundations. Repair their correctness and
 use them to support the game/custody loop; do not grow them as independent lanes

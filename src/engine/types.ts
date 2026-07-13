@@ -183,6 +183,9 @@ export interface Organization {
   id: string;
   name: string;
   reputation: number;
+  /** Progression tiers earned at least once. Optional for backward-compatible
+   * v1 saves; runCycle stamps current unlocks before any reputation can move. */
+  unlockedProgressionTiers?: string[];
   resources: {
     currency: number;
     materials: number;

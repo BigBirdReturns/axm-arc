@@ -56,7 +56,9 @@ function distributeStats(
   return result;
 }
 
-// Base efficiency per §1.2.5. Shared by generateAgent and the designer editor
+// Base efficiency per §1.2.5. This stored value is effective infrastructure
+// productivity, including trait effects; infrastructure must not multiply the
+// same trait again. Shared by generateAgent and the designer editor
 // (Editor tier/trait patches must reconcile through the exact same formula —
 // no duplicated math). Deliberately takes only arc/tier/traitIds: the stat
 // distribution itself has never fed this formula (statSum/statAvg were dead

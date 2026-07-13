@@ -44,10 +44,15 @@ export function missingOrgMilestones(challenge: Challenge, org: Organization): s
   return challenge.accessRequirements.orgMilestones.filter((m) => !milestoneSatisfied(m, cleared));
 }
 
-/** Progression tiers whose unlock conditions the org currently meets. */
+/** Progression tiers the org has earned or whose unlock conditions it currently
+ * meets. Earned ids are durable so a later reputation loss cannot re-lock a
+ * tier that was already open. */
 export function unlockedProgressionTierIds(org: Organization, arc: Arc): Set<string> {
   const cleared = clearedChallenges(org);
-  const out = new Set<string>();
+  const validTierIds = new Set(arc.progressionTiers.map((tier) => tier.id));
+  const out = new Set(
+    (org.unlockedProgressionTiers ?? []).filter((tierId) => validTierIds.has(tierId)),
+  );
   for (const tier of arc.progressionTiers) {
     const milestonesMet = tier.unlockConditions.orgMilestones.every((m) =>
       milestoneSatisfied(m, cleared),
@@ -56,6 +61,21 @@ export function unlockedProgressionTierIds(org: Organization, arc: Arc): Set<str
     if (milestonesMet && repMet) out.add(tier.id);
   }
   return out;
+}
+
+/** Persist every tier currently derivable as unlocked. Pure with respect to the
+ * input org and deterministic in authored tier order. Optional state keeps old
+ * saves valid; the first cycle after load backfills it. */
+export function stampUnlockedProgressionTiers(org: Organization, arc: Arc): Organization {
+  const unlocked = unlockedProgressionTierIds(org, arc);
+  const stamped = arc.progressionTiers
+    .map((tier) => tier.id)
+    .filter((tierId) => unlocked.has(tierId));
+  const current = org.unlockedProgressionTiers ?? [];
+  if (current.length === stamped.length && current.every((tierId, index) => tierId === stamped[index])) {
+    return org;
+  }
+  return { ...org, unlockedProgressionTiers: stamped };
 }
 
 function stepComplete(

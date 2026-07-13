@@ -28,8 +28,7 @@ head state. Since it was written:
 **Current correctness queue, ahead of expansion:**
 
 1. Finish First Charter cold onboarding and the full six-challenge campaign.
-2. Close confirmed progression non-monotonicity.
-3. Import and resume the changed-run custody object; export alone remains
+2. Import and resume the changed-run custody object; export alone remains
    one-way portability.
 
 **Closed in the current working change:** open-pool recruitment now excludes the
@@ -39,11 +38,13 @@ shipped JSON cartridge; World custody no longer calls a cleared location
 before capacity is charged; invalid token debits are refused; upkeep records
 paid and unpaid amounts without persisting negative currency; Industrious is
 applied exactly once; and the Arc assignment UI prevents capacity overcommit
-while honoring zero-cost farm runs.
+while honoring zero-cost farm runs. Progression unlocks are now stamped into
+the run record before and after each cycle, so later reputation loss cannot
+re-lock a tier the holder already earned.
 
-**Verification:** both repository gates are green after these changes. Arc:
-typecheck + 59 Vitest files / 585 tests. World: strict engine drift against the
-pinned Arc commit + typecheck + 81 Vitest files / 664 tests.
+**Verification:** Arc is green after these changes: typecheck + 59 Vitest files
+/ 588 tests. World will be revalidated when its vendored engine pin advances
+to this Arc commit.
 
 Library and Workshop are maintained foundations. Repair their correctness and
 use them to support the game/custody loop; do not grow them as independent lanes

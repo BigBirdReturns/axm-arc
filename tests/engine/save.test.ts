@@ -18,6 +18,7 @@ function makeTestState() {
 describe("serializeGame / deserializeGame", () => {
   it("round-trips org state including all fields", () => {
     const { org, arc } = makeTestState();
+    org.unlockedProgressionTiers = ["earned-tier"];
     const json = serializeGame(org, arc);
     const { org: loaded, cycle } = deserializeGame(json, arc);
 
@@ -25,6 +26,7 @@ describe("serializeGame / deserializeGame", () => {
     expect(loaded.id).toBe(org.id);
     expect(loaded.reputation).toBe(org.reputation);
     expect(loaded.resources).toEqual(org.resources);
+    expect(loaded.unlockedProgressionTiers).toEqual(["earned-tier"]);
     expect(Object.keys(loaded.agents)).toEqual(Object.keys(org.agents));
     expect(loaded.agents["save-agent-1"]!.upkeep).toBe(1);
     expect(loaded.infrastructure.Quarters.level).toBe(2);

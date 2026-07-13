@@ -19,7 +19,11 @@ import { applyRewardDecision, evaluateLootEligibility } from "./rewards.js";
 import { tickInfrastructure } from "./infrastructure.js";
 import { refreshOpenPool } from "./recruitment.js";
 import { regenerateTokens, spendTokens, accrueChallengeRewards, chargeUpkeep } from "./economy.js";
-import { challengeAccess, stampNewAttunements } from "./access.js";
+import {
+  challengeAccess,
+  stampNewAttunements,
+  stampUnlockedProgressionTiers,
+} from "./access.js";
 import { applyDifficultyMode } from "./difficulty.js";
 import { serializeGame } from "./save.js";
 import { Rng, hashSeed } from "./prng.js";
@@ -114,6 +118,11 @@ export function runCycle(opts: {
   const events: CycleEvent[] = [];
   const allDramaTriggers: DramaTriggerInput[] = [];
   const warnings: string[] = [];
+
+  // Persist every tier open at cycle start before any authored outcome can
+  // reduce reputation. Old saves omit this additive field and are backfilled
+  // here without a version break.
+  org = stampUnlockedProgressionTiers(org, arc);
 
   // ── STEP 0: Downed-agent recovery ─────────────────────────────────────────
   // Agents return to duty once their downtime has elapsed, regardless of a
@@ -557,6 +566,10 @@ export function runCycle(opts: {
   for (const grant of stamped.newlyAttuned) {
     events.push({ type: "attuned", agentId: grant.agentId, data: { chainId: grant.chainId } });
   }
+
+  // Capture tiers first earned through this cycle's milestones or reputation
+  // before the save checkpoint, so export/resume preserves the unlock.
+  org = stampUnlockedProgressionTiers(org, arc);
 
   // ── Increment cycle ───────────────────────────────────────────────────────
 

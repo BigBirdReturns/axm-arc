@@ -18,6 +18,14 @@ The breakthrough: swap "raid boss" for "contract deliverable" and "guild hall" f
 
 Every design mistake in this document's history was the same mistake: **collapsing layers that need to be separate.** Engine vs content. Generic vs specific. System vs implementation. This document exists to prevent that collapse from happening again during the build.
 
+> **Current product note.** Later Workshop, Library, custody, digest, and ledger
+> work made the authored artifact visible to its creator and holder. Statements
+> below about hiding generic engine machinery apply inside an immersive domain
+> experience; they do not authorize hiding cartridge identity, custody, model
+> inspection, or institutional history in authoring and artifact-management
+> surfaces. The reference game must still be completed and enjoyable without an
+> architecture lesson.
+
 ---
 
 ## PART 1: THE ENGINE

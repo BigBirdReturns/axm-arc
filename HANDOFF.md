@@ -1,5 +1,9 @@
 # AXM Arc — Session Handoff
 
+> **HISTORICAL HANDOFF.** Do not use this file as current product authority or
+> as the next-work queue. Read `AGENTS.md`, `CLAUDE.md`, `ROADMAP.md`, and
+> `STATUS.md`. This file remains only as the record of an early game-loop session.
+
 ## What this is
 
 Organizational simulation engine + browser game. Deterministic, offline-first, schema-validated. The engine is content-free — arcs are portable JSON. The first arc is a guild management game; the first raid is Karazhan.

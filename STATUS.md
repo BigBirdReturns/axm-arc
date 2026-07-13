@@ -1,4 +1,4 @@
-# STATUS — axm-arc, 2026-07-03
+# STATUS — AXM Arc / World, 2026-07-13
 
 **The "where exactly are we right now + what's next" artifact.** Re-readable
 in any new session or by any agent picking up cold. Updated as state changes.
@@ -10,12 +10,65 @@ in any new session or by any agent picking up cold. Updated as state changes.
 
 ---
 
-## ⬛ CHECKPOINT — the cartridge-platform milestone (2026-07-03)
+## Current overlay — 2026-07-13
 
-This section is the trust boundary. Everything in §1–§2 is merged, tested,
-and was verified live in a real browser. Everything in §3 is explicitly NOT
-proven yet — do not describe it as done, and do not "continue" work that
-touches §5 without reading §5.
+The July 3 checkpoint below is retained as historical evidence, not current
+head state. Since it was written:
+
+- Arc shipped the Workshop round trip, Library custody work, digest/profile
+  visibility, ledger, Guild Hall, Expansion Archive, CI floor, and six JSON
+  proof cartridges with conformance coverage.
+- World shipped the generic appliance/bay path, per-cartridge memory,
+  digest-visible custody, and the proximity-gated inhabited Cellar slice with
+  transformed-location export.
+- The product ontology is now explicit: authored law, deterministic execution,
+  representations, run memory, custody, and provenance are separate layers.
+  The game remains the current shipping priority and reference proof.
+
+**Current correctness queue, ahead of expansion:**
+
+1. Finish First Charter cold onboarding and the full six-challenge campaign.
+2. Close confirmed economy defects: pay-before-gate, negative balances, and the
+   Industrious production multiplier being applied twice.
+3. Close confirmed progression non-monotonicity.
+4. Import and resume the changed-run custody object; export alone remains
+   one-way portability.
+
+**Closed in the current working change:** open-pool recruitment now excludes the
+highest authored tier for three-, four-, and five-tier arcs, including every
+shipped JSON cartridge; World custody no longer calls a cleared location
+`recorded` without a matching ledger entry.
+
+**Verification:** `npm run check` is green in both repositories after these
+changes (typecheck + full Vitest suites; World: 80 files / 650 tests).
+
+Library and Workshop are maintained foundations. Repair their correctness and
+use them to support the game/custody loop; do not grow them as independent lanes
+ahead of game completion.
+
+---
+
+## Product frame and current mandate
+
+Arc is an authored-model, deterministic-decision, custody, and institutional-
+record system. The checkpoints below use games because games expose whether the
+schema is expressive, the runtime exact, the choices legible, the consequences
+memorable, the artifact portable, and the ledger honest.
+
+Current work must continue finishing the reference game and cartridges. The
+broader AXM thesis never lowers that bar and never creates permission to replace
+game completion with speculative enterprise UI. Every completion claim should
+name the layer it proves: model expressiveness, execution, evidence, custody,
+continuity, presentation, or game quality.
+
+---
+
+## ⬛ HISTORICAL CHECKPOINT — the cartridge-platform milestone (2026-07-03)
+
+This section records the trust boundary as it stood on July 3. Everything in
+§1–§2 was merged, tested, and verified live at that checkpoint. Everything in
+§3 was explicitly unproven then. Use the current overlay above for today's
+priority and status.
 
 ### 1. What exists now
 
@@ -106,8 +159,8 @@ authored; `engine:check` drift guard green.
 7. Contrast: boot The First Charter (different grammar, no mode picker), or
    import the Operations Lab file (different vocabulary entirely).
 
-The sentence the demo earns: **"Different cartridge. Same verified runtime.
-Playable immediately."**
+The sentence the demo earns: **"Different authored grammar. Same deterministic
+runtime and custody/evidence contract. Playable immediately."**
 
 ### 5. What must NOT be touched casually
 

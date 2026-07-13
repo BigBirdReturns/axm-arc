@@ -8,9 +8,10 @@ picking up cold, read this first.
 ## Thesis — one engine, two audiences, no fork
 
 axm-arc is a **content-free deterministic simulation engine** plus a
-**portable arc format**. The guild game is the first arc. Enterprise
-(program offices, staffing, org modeling) is a later arc. **They are the same
-product.** The engine hardcodes no challenge, no attribute, no role.
+**portable authored-model format**, custody lifecycle, and durable record seam.
+The guild game is the first arc. Enterprise applications (program offices,
+staffing, org modeling) may be later arcs. **They use the same substrate.** The
+engine hardcodes no challenge, attribute, role, domain, or presentation.
 
 The consequence that governs every decision: **polishing the game IS
 enterprise work.** A clearer assign screen, a legible cycle loop, a manual
@@ -22,6 +23,19 @@ deterministic-team-management UX for any domain that loads an arc.
 So we do not choose between "make the game good" and "make the platform."
 We make the loop excellent (which is dual-use by construction) and, in
 parallel, build the thin layer that lets *other people's arcs* run on it.
+
+### The game-completion gate
+
+The broader thesis raises the bar for the reference game; it does not excuse an
+unfinished one. The First Charter must work for a stranger with no explanation,
+carry a campaign from opening choice through a legible ending, make consequence
+and recovery understandable, save and resume reliably, and feel intentionally
+crafted on desktop and mobile.
+
+The platform proof must emerge from those player actions. Determinism is not
+pacing. Portability is not fun. A digest is not provenance. Honest fixed moments
+do not excuse a campaign without enough consequential agency. Tools, Library,
+Workshop, and ledger support the game; they do not substitute for finishing it.
 
 ## The three threads
 
@@ -48,10 +62,10 @@ run. Every win here is dual-use for free.
   with provenance tags (#7)
 - 🔜 Engine debt: explicit `resolveEvent` on RunReport (kill the heuristic)
 
-### Thread 2 — Arc-as-artifact (the bridge; mostly unbuilt)
-The smallest layer that turns the polished engine into something a stranger
-can use. **This is the highest-leverage unstarted work** — it converts all of
-Thread 1 into a platform without new engine capability.
+### Thread 2 — Arc-as-artifact (the shipped bridge)
+The layer that turns the engine into something a stranger can author, hold,
+inspect, transfer, and run. The foundation is shipped; later signing and
+cross-player run continuity must remain honestly distinguished from it.
 
 - ✅ **Arc import** — JSON → `validateArc()` → store → load. `arc-library.ts`
   is the versioned localStorage layer; LibraryScreen is the import/inspect/
@@ -70,6 +84,12 @@ Thread 1 into a platform without new engine capability.
 bundle, provenance shows in the UI, and the same engine ships under different
 positioning without a fork.
 
+**Maintenance posture:** Library and Workshop are shipped foundations, not
+abandoned lanes and not open-ended feature priorities. Keep their validation,
+custody, accessibility, and game-support paths correct. Expand them now only
+when the work closes the reference game, enables the changed-run custody round
+trip, or repairs an artifact/record invariant.
+
 When Thread 2 is done, **arc distribution becomes possible without us building
 a marketplace** — we ship the runtime + format + import + trust; arcs are
 content other people make. Who runs any eventual marketplace (us, a third
@@ -78,6 +98,10 @@ party, none) is a deliberately deferred decision, not a prerequisite.
 ### Thread 3 — Authoring (makes people *want* to make arcs)
 The tools that make arc creation pleasant, and that make authored arcs
 self-checking.
+
+The cartridge Workshop's validate/preview/save/export loop is shipped. The
+separate roster Designer below remains a proposed deeper authoring workbench;
+do not confuse its status with the existing Workshop.
 
 - 🔜 **Designer port** (`DESIGNER_PORT.md`) — multi-agent roster workshop as
   a real authoring mode. 8 sequenced steps, none started. Prototype lives at
@@ -90,14 +114,16 @@ self-checking.
 
 ## Sequencing recommendation (owner decides)
 
-1. **Land the current branch** (codex + liveness + release-notes + deploy +
-   design docs). Confirm the deploy Action works on first merge.
-2. **Thread 2 trio** — import → trust labels → variant flag. Smallest set that
-   makes the engine a platform. ~1–2 sprints.
-3. **Telemetry** (HANDOFF #11) — becomes obvious *after* strangers can run
-   arcs; you'll want to know what they do.
-4. **Threads 1 & 3 continue in parallel** as feedback and authoring needs
-   pull them. Hook work and the designer port don't block Thread 2.
+1. **Finish the reference game.** Cold onboarding, full First Charter campaign,
+   meaningful decisions, legible consequence, ending, failure recovery,
+   accessibility, mobile/desktop craft, and reliable save/resume.
+2. **Protect artifact and record truth.** Fix silent save loss; preserve digest,
+   custody, ledger, and compatibility invariants while the game is finished.
+3. **Continue authoring where it improves the proof.** Prefer Workshop and
+   validation work that helps create, tune, and complete real cartridges.
+4. **Add broader-domain work only with its missing contracts named.** Enterprise
+   or research arcs need model validity, scale, evidence, privacy, and authority
+   decisions; a lobby variant is not that product.
 
 ## What's deferred on purpose
 - Marketplace economics (falls out of Threads 2+3; not a build target yet).
@@ -105,7 +131,10 @@ self-checking.
   trust-label plumbing in Thread 2 is the honest precursor).
 - The Wits rebalance (`BALANCE.md`) — options costed, decision pending.
 
-## Status snapshot (2026-06-01)
+## Historical status snapshot (2026-06-01)
+
+This snapshot records the state on that date and is not the current queue. Read
+`STATUS.md` for present truth; later work completed portions marked red below.
 - Sprint 1: ✅ done, live.
 - Sprint 2: 🟡 #5 and #7 remain.
 - Sprint 3 (= Thread 2): 🔴 the bridge, barely started — **the gap that matters.**

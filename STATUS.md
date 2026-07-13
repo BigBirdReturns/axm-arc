@@ -42,9 +42,9 @@ while honoring zero-cost farm runs. Progression unlocks are now stamped into
 the run record before and after each cycle, so later reputation loss cannot
 re-lock a tier the holder already earned.
 
-**Verification:** Arc is green after these changes: typecheck + 59 Vitest files
-/ 588 tests. World will be revalidated when its vendored engine pin advances
-to this Arc commit.
+**Verification:** both repository gates are green after these changes. Arc:
+typecheck + 59 Vitest files / 588 tests. World: strict engine drift against the
+pinned Arc commit + typecheck + 81 Vitest files / 667 tests.
 
 Library and Workshop are maintained foundations. Repair their correctness and
 use them to support the game/custody loop; do not grow them as independent lanes

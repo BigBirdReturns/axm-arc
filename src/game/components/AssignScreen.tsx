@@ -491,6 +491,8 @@ export function AssignScreen({
           challenge={picking}
           org={org}
           arc={arc}
+          tokenCost={clearCount(org, picking.id) > 0 ? 0 : 1}
+          tokensAvailable={tokensLeft}
           onCancel={() => setPicking(null)}
           onSubmit={(agentIds, tokens) => {
             setAssignments([
@@ -552,12 +554,16 @@ function RosterPicker({
   challenge,
   org,
   arc,
+  tokenCost,
+  tokensAvailable,
   onCancel,
   onSubmit,
 }: {
   challenge: Challenge;
   org: Organization;
   arc: Arc;
+  tokenCost: number;
+  tokensAvailable: number;
   onCancel: () => void;
   onSubmit: (agentIds: string[], tokens: number) => void;
 }): JSX.Element {
@@ -713,13 +719,27 @@ function RosterPicker({
           );
         })}
         {!reqsMet && <div className="warning">{t("assign.roleReqNotMet")}</div>}
+        {tokensAvailable < tokenCost && (
+          <div className="warning">
+            {t("assign.insufficientTokens", {
+              have: tokensAvailable,
+              need: tokenCost,
+              tokenName: arc.tokenName,
+            })}
+          </div>
+        )}
         <button
           className="primary accent"
-          disabled={selected.size < min || selected.size > max || !reqsMet}
-          onClick={() => onSubmit(Array.from(selected), 1)}
+          disabled={
+            selected.size < min ||
+            selected.size > max ||
+            !reqsMet ||
+            tokensAvailable < tokenCost
+          }
+          onClick={() => onSubmit(Array.from(selected), tokenCost)}
           style={{ marginTop: 8 }}
         >
-          {t("assign.slotRoster", { n: selected.size })}
+          {t("assign.slotRoster", { n: selected.size, tokens: tokenCost })}
         </button>
       </div>
     </dialog>

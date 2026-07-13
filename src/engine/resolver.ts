@@ -88,8 +88,9 @@ function getVolatilitySwing(volatility: number, rng: Rng): number {
  *  strict no-op unless this holds, so a below-gate party resolves identically
  *  with or without spend (gate independence). Mirrors readiness.evaluateParty's
  *  countOk/rolesOk on the world side. */
-function partyClearsGates(challenge: Challenge, assignedAgents: Agent[]): boolean {
+export function partyClearsGates(challenge: Challenge, assignedAgents: Agent[]): boolean {
   const rr = challenge.rosterRequirements;
+  if (new Set(assignedAgents.map((agent) => agent.id)).size !== assignedAgents.length) return false;
   if (assignedAgents.length < rr.minAgents || assignedAgents.length > rr.maxAgents) return false;
   for (const req of rr.roleRequirements) {
     const have = assignedAgents.filter((a) => a.role === req.roleId).length;

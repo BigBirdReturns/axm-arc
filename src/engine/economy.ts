@@ -33,6 +33,9 @@ export function regenerateTokens(org: Organization, arc: Arc): Organization {
 // ── spendTokens ───────────────────────────────────────────────────────────────
 
 export function spendTokens(org: Organization, n: number): Organization {
+  if (!Number.isSafeInteger(n) || n < 0) {
+    throw new Error(`Invalid token spend: ${String(n)} (expected a non-negative safe integer)`);
+  }
   if (org.resources.tokens < n) {
     throw new Error(`Insufficient tokens: have ${org.resources.tokens}, need ${n}`);
   }
@@ -44,20 +47,25 @@ export function spendTokens(org: Organization, n: number): Organization {
 
 // ── chargeUpkeep ──────────────────────────────────────────────────────────────
 
-export type OrgWithBalance = Organization & { negativeBalance?: boolean };
+export type OrgWithBalance = Organization & {
+  negativeBalance?: boolean;
+  upkeepDue: number;
+  upkeepPaid: number;
+  unpaidUpkeep: number;
+};
 
 export function chargeUpkeep(org: Organization, _cycle: number): OrgWithBalance {
   const totalUpkeep = Object.values(org.agents).reduce((s, a) => s + a.upkeep, 0);
-  if (org.resources.currency < totalUpkeep) {
-    return {
-      ...org,
-      resources: { ...org.resources, currency: org.resources.currency - totalUpkeep },
-      negativeBalance: true,
-    };
-  }
+  const availableCurrency = Math.max(0, org.resources.currency);
+  const upkeepPaid = Math.min(availableCurrency, totalUpkeep);
+  const unpaidUpkeep = totalUpkeep - upkeepPaid;
   return {
     ...org,
-    resources: { ...org.resources, currency: org.resources.currency - totalUpkeep },
+    resources: { ...org.resources, currency: availableCurrency - upkeepPaid },
+    upkeepDue: totalUpkeep,
+    upkeepPaid,
+    unpaidUpkeep,
+    ...(unpaidUpkeep > 0 ? { negativeBalance: true } : {}),
   };
 }
 

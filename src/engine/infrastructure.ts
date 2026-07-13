@@ -33,10 +33,9 @@ function tickProduction(org: Organization, _arc: Arc): Organization {
   for (const agentId of facility.assignedAgents) {
     const agent = org.agents[agentId];
     if (!agent) continue;
-    // Check for Industrious trait
-    const hasIndustrious = agent.traits.includes("industrious");
-    const multiplier = hasIndustrious ? 1.3 : 1.0;
-    const output = agent.baseEfficiency * facility.level * multiplier;
+    // baseEfficiency already includes authored trait effects (including the
+    // Industrious multiplier) when the agent is created or edited.
+    const output = agent.baseEfficiency * facility.level;
     materialsGained += output;
   }
 

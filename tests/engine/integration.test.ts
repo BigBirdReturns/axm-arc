@@ -85,7 +85,7 @@ describe("FIRST_CHARTER arc", () => {
 describe("FIRST_CHARTER integration: end-to-end tutorial", () => {
   it("cycle 1: clears The Cellar", () => {
     const org = buildOrg();
-    const agentIds = FIRST_CHARTER_STARTING_ROSTER.slice(0, 5).map((a) => a.id);
+    const agentIds = FIRST_CHARTER_STARTING_ROSTER.map((a) => a.id);
     const assignments: ChallengeAssignment[] = [
       { challengeId: "cellar", agentIds, tokensSpent: 1 },
     ];
@@ -107,7 +107,7 @@ describe("FIRST_CHARTER integration: end-to-end tutorial", () => {
       assignments: [
         {
           challengeId: "cellar",
-          agentIds: FIRST_CHARTER_STARTING_ROSTER.slice(0, 5).map((a) => a.id),
+          agentIds: FIRST_CHARTER_STARTING_ROSTER.map((a) => a.id),
           tokensSpent: 1,
         },
       ],
@@ -174,7 +174,7 @@ describe("FIRST_CHARTER integration: end-to-end tutorial", () => {
     let r = runCycle({
       org,
       arc: FIRST_CHARTER,
-      assignments: [{ challengeId: "cellar", agentIds: pickRoster("cellar", 5), tokensSpent: 1 }],
+      assignments: [{ challengeId: "cellar", agentIds: pickRoster("cellar", 6), tokensSpent: 1 }],
     });
     org = r.org;
     pendingDecisions = autoResolveRewards(r);
@@ -212,7 +212,7 @@ describe("FIRST_CHARTER integration: end-to-end tutorial", () => {
     let org = buildOrg();
 
     // Run cellar with both skirmishers to trigger rivalry drama
-    const allIds = FIRST_CHARTER_STARTING_ROSTER.slice(0, 5).map((a) => a.id);
+    const allIds = FIRST_CHARTER_STARTING_ROSTER.map((a) => a.id);
     const result = runCycle({
       org,
       arc: FIRST_CHARTER,
@@ -234,7 +234,7 @@ describe("FIRST_CHARTER integration: end-to-end tutorial", () => {
 
   it("pending reward choices block advance until resolved", () => {
     let org = buildOrg();
-    const allIds = FIRST_CHARTER_STARTING_ROSTER.slice(0, 5).map((a) => a.id);
+    const allIds = FIRST_CHARTER_STARTING_ROSTER.map((a) => a.id);
     const result = runCycle({
       org,
       arc: FIRST_CHARTER,
@@ -269,7 +269,7 @@ describe("FIRST_CHARTER integration: end-to-end tutorial", () => {
       assignments: [
         {
           challengeId: "cellar",
-          agentIds: FIRST_CHARTER_STARTING_ROSTER.slice(0, 4).map((a) => a.id),
+          agentIds: FIRST_CHARTER_STARTING_ROSTER.map((a) => a.id),
           tokensSpent: 1,
         },
       ],

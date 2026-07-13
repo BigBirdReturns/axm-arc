@@ -314,6 +314,7 @@ export type MessageId =
   | "assign.liveReadout"
   | "assign.stressBadge"
   | "assign.roleReqNotMet"
+  | "assign.insufficientTokens"
   | "assign.slotRoster"
   | "assign.assessComfortable"
   | "assign.assessTight"
@@ -1031,7 +1032,8 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "assign.liveReadout": "Live Readout · before you slot",
     "assign.stressBadge": "STRESS",
     "assign.roleReqNotMet": "Role requirements not met.",
-    "assign.slotRoster": (p) => `Slot Roster (${num(p, "n")} agents, 1 lockout)`,
+    "assign.insufficientTokens": (p) => `Not enough ${str(p, "tokenName")}: have ${num(p, "have")}, need ${num(p, "need")}.`,
+    "assign.slotRoster": (p) => `Slot Roster (${num(p, "n")} agents, ${num(p, "tokens")} lockout)`,
     "assign.assessComfortable": "COMFORTABLE",
     "assign.assessTight": "TIGHT",
     "assign.assessFail": "FAIL",
@@ -1759,7 +1761,8 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "assign.liveReadout": "即時讀數 · 上場之前",
     "assign.stressBadge": "壓力",
     "assign.roleReqNotMet": "職責需求未滿足。",
-    "assign.slotRoster": (p) => `編入隊伍（${num(p, "n")} 名人員，1 鎖定）`,
+    "assign.insufficientTokens": (p) => `${str(p, "tokenName")}不足：現有 ${num(p, "have")}，需要 ${num(p, "need")}。`,
+    "assign.slotRoster": (p) => `編入隊伍（${num(p, "n")} 名人員，鎖定 ${num(p, "tokens")}）`,
     "assign.assessComfortable": "從容",
     "assign.assessTight": "緊繃",
     "assign.assessFail": "未過",

@@ -251,6 +251,79 @@ describe("wipe diagnosis", () => {
     expect(diagnoseWipe(a.report, a.challenge, a.org, arc))
       .toEqual(diagnoseWipe(b.report, b.challenge, b.org, arc));
   });
+
+  it("bench_swap projects the resolver's HALVED gear effect, not the raw stat bonus (issue #109, mirrors the gear lever)", () => {
+    const arc = loadArc();
+    const strip = (org: Organization) => {
+      for (const a of Object.values(org.agents)) a.equippedItems = {};
+    };
+    // faithful mirror of the module's private inScope()
+    const inScopeT = (agent: Agent, check: Challenge["mechanicChecks"][number], challenge: Challenge): boolean => {
+      if (check.scope !== "role_specific") return true;
+      const reqs = check.roleIds && check.roleIds.length > 0
+        ? check.roleIds
+        : challenge.rosterRequirements.roleRequirements.map((r) => r.roleId);
+      return reqs.includes(agent.role ?? "");
+    };
+
+    let asserted = 0;
+    for (let s = 1; s <= 40 && asserted === 0; s++) {
+      const base = attempt(arc, s, CHOIR, strip);
+      if (base.report.outcome !== "failure") continue;
+      const d0 = diagnoseWipe(base.report, base.challenge, base.org, arc);
+      const primary = d0.failedChecks[0];
+      if (!primary) continue;
+      const check = base.challenge.mechanicChecks.find((c) => c.id === primary.mechanicId)!;
+      // Gear feeds ONLY the dominant attribute (both here and in the resolver),
+      // so the item we add must boost exactly it.
+      const attr = [...check.attributeWeights].sort((a, b) => b.weight - a.weight)[0]!.attributeId;
+      const assigned = new Set(base.report.assignedAgents.map((ar) => ar.agentId));
+      const candidate = Object.values(base.org.agents)
+        .filter((a) => !assigned.has(a.id) && inScopeT(a, check, base.challenge))
+        .sort((a, b) => (a.id < b.id ? -1 : 1))[0];
+      if (!candidate) continue;
+      const gearItem = arc.items
+        .filter((it) => (it.statBonuses[attr] ?? 0) > 0)
+        .sort((a, b) => (b.statBonuses[attr] ?? 0) - (a.statBonuses[attr] ?? 0))[0];
+      if (!gearItem) continue;
+      const B = gearItem.statBonuses[attr]!;
+
+      // Baseline: boost the benched candidate's dominant attr so a bench_swap for
+      // it is guaranteed to surface and rank; NO gear yet. Candidate stays benched
+      // (legalParty is attribute-independent), so the report is unchanged.
+      const baseRun = attempt(arc, s, CHOIR, (org) => {
+        strip(org);
+        const c = org.agents[candidate.id]!;
+        c.attributes[attr] = (c.attributes[attr] ?? 0) + 10;
+      });
+      const dBase = diagnoseWipe(baseRun.report, baseRun.challenge, baseRun.org, arc);
+      const swapBase = dBase.fixes.find((f) => f.lever === "bench_swap" && f.swapAgentId === candidate.id);
+      if (!swapBase) continue;
+
+      // Geared: identical, plus ONE dominant-attr item on the same candidate — the
+      // only difference between the two runs.
+      const gearRun = attempt(arc, s, CHOIR, (org) => {
+        strip(org);
+        const c = org.agents[candidate.id]!;
+        c.attributes[attr] = (c.attributes[attr] ?? 0) + 10;
+        c.equippedItems = { [gearItem.slot]: gearItem.id };
+      });
+      const dGear = diagnoseWipe(gearRun.report, gearRun.challenge, gearRun.org, arc);
+      const swapGear = dGear.fixes.find((f) => f.lever === "bench_swap" && f.swapAgentId === candidate.id);
+      expect(swapGear).toBeDefined();
+
+      // Adding a +B dominant-attr item raises the candidate's realized check
+      // contribution by only B*0.5 (resolver applies gear at half), so the
+      // bench_swap's projected gain must rise by B/2 — never the raw B (the exact
+      // pre-fix defect this pins).
+      const delta = swapGear!.impact - swapBase.impact;
+      expect(delta).toBeCloseTo(B * 0.5, 10);
+      expect(delta).not.toBeCloseTo(B, 10);
+      asserted++;
+    }
+    // Non-vacuous: the sweep must actually exercise one geared bench_swap.
+    expect(asserted).toBeGreaterThan(0);
+  });
 });
 
 describe("netGearGain — a gear fix accounts for slot displacement (issue #112)", () => {

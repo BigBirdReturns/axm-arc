@@ -162,7 +162,11 @@ function expectedContribution(agent: Agent, check: MechanicCheck, arc: Arc): num
     (s, aw) => s + (agent.attributes[aw.attributeId] ?? 0) * aw.weight,
     0,
   );
-  const gear = gearBonusFor(agent, dominantAttr(check), arc);
+  // The resolver folds gear into a check contribution at HALF weight
+  // (resolver.ts getGearBonus: `bonus * 0.5`), so this deterministic mean — and
+  // every bench_swap / tradeoff projection derived from it — must halve gear
+  // too, exactly as the gear lever already does. (issues #109, #112)
+  const gear = gearBonusFor(agent, dominantAttr(check), arc) * 0.5;
   const morale = (agent.morale - 50) / 10;
   return raw + gear + morale;
 }

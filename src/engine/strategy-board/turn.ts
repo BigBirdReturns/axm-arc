@@ -80,6 +80,12 @@ export function initialStrategyState(
   seatIds: string[],
 ): TurnState {
   if (def.doctrines.length === 0) throw new Error("definition has no doctrines");
+  const { min, max } = def.seatCountRange;
+  if (seatIds.length < min || seatIds.length > max) {
+    throw new Error(
+      `seat count ${seatIds.length} out of range [${min}, ${max}]`,
+    );
+  }
   const seats: SeatState[] = seatIds.map((seatId, i) => {
     const doctrine = def.doctrines[i % def.doctrines.length]!;
     const balances: Record<string, number> = {};

@@ -187,7 +187,9 @@ export function loadLedger(): CampaignLedger | null {
   try {
     const raw = localStorage.getItem(LEDGER_KEY);
     if (!raw) return null;
-    return migrate(JSON.parse(raw) as CampaignLedger);
+    const parsed = JSON.parse(raw) as unknown;
+    if (ledgerShapeErrors(parsed).length > 0) return null;   // reject non-ledger blobs (parity with importLedger)
+    return migrate(parsed as CampaignLedger);                // migrate may refuse (null) a newer schema
   } catch {
     return null;
   }
@@ -240,12 +242,34 @@ export function importLedger(json: string): ImportLedgerResult {
   }
   const errs = ledgerShapeErrors(parsed);
   if (errs.length > 0) return { ok: false, errors: errs };
-  return { ok: true, ledger: migrate(parsed as CampaignLedger) };
+  const migrated = migrate(parsed as CampaignLedger);
+  if (!migrated) {
+    return { ok: false, errors: [`Unsupported ledger schema version '${(parsed as CampaignLedger).schemaVersion}' — newer than this build (${SCHEMA_VERSION}) understands.`] };
+  }
+  return { ok: true, ledger: migrated };
 }
-/** Forward migration hook. Additive versions load as-is; a destructive bump would
- *  register a transform here. Never migrates a cartridge (it is not embedded). */
-function migrate(ledger: CampaignLedger): CampaignLedger {
-  return ledger; // ledger/1.0 is current
+/** Forward migration hook. Additive OLDER versions load and are re-stamped to
+ *  the current schema; a record written by a NEWER schema than this build is
+ *  REFUSED (null) rather than silently loaded — we will not drop fields we do
+ *  not understand (docs/RFC_TIER2_LEDGER_SCHEMA.md: memory belongs to the run).
+ *  Never migrates a cartridge (it is not embedded). */
+function migrate(ledger: CampaignLedger): CampaignLedger | null {
+  const cur = parseSchemaVersion(SCHEMA_VERSION)!;
+  const got = parseSchemaVersion(ledger.schemaVersion);
+  if (!got) return null;                                   // unrecognized version string
+  if (got.major > cur.major || (got.major === cur.major && got.minor > cur.minor)) {
+    return null;                                           // newer than this build — refuse
+  }
+  if (ledger.schemaVersion === SCHEMA_VERSION) return ledger; // already current — byte-identical
+  return { ...ledger, schemaVersion: SCHEMA_VERSION };     // upgrade older → stamp current
+}
+
+/** Parse a "ledger/MAJOR.MINOR" version tag; null if it is not that shape.
+ *  Integer compare (no parseFloat, no locale) keeps ordering deterministic. */
+function parseSchemaVersion(v: string): { major: number; minor: number } | null {
+  const m = /^ledger\/(\d+)\.(\d+)$/.exec(v);
+  if (!m) return null;
+  return { major: Number(m[1]), minor: Number(m[2]) };
 }
 
 // ── projection (Q1 gear rule + purity; the source seam) ──────────────────────

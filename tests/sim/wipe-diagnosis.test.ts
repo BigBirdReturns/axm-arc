@@ -16,7 +16,7 @@ import { importArcFromJson } from "../../src/game/lib/arc-library.js";
 import { resolveChallenge } from "../../src/engine/resolver.js";
 import { Rng } from "../../src/engine/prng.js";
 import { buildStartingOrg } from "../../src/sim/cartridge-conformance.js";
-import { diagnoseWipe, renderDiagnosis, netGearGain } from "../../src/sim/wipe-diagnosis.js";
+import { diagnoseWipe, renderDiagnosis, netGearGain, distributeGap } from "../../src/sim/wipe-diagnosis.js";
 import type { Agent, Arc, Challenge, Organization, RunReport } from "../../src/engine/types.js";
 
 const CHOIR = "the-hollow-choir"; // the wall (survival_check; wipes ~47%)
@@ -145,6 +145,23 @@ describe("wipe diagnosis", () => {
     // culprits are the weakest addends — sorted ascending by score
     const scores = dirge!.culprits.map((c) => c.score);
     expect([...scores].sort((a, b) => a - b)).toEqual(scores);
+    // #114: no individual is measured against the whole-team bar. Each culprit's
+    // shortfall is an attributed SHARE of the actual team gap, so the shares
+    // reconcile to the check-level gap and none exceeds it — the old
+    // `threshold - individualScore` inflated both (sum far above the team gap).
+    const shareSum = dirge!.culprits.reduce((s, c) => s + c.shortfall, 0);
+    expect(shareSum).toBeLessThanOrEqual(dirge!.shortfall + 0.1);
+    for (const c of dirge!.culprits) expect(c.shortfall).toBeLessThanOrEqual(dirge!.shortfall + 0.1);
+  });
+
+  it("distributeGap splits a team gap into exact 0.1 tenths that sum back (issue #114)", () => {
+    // the adversarial rounding case: 0.1 across 2 must NOT become [0.1, 0.1]
+    expect(distributeGap(0.1, 2)).toEqual([0.1, 0]);
+    const shares = distributeGap(2.5, 3);
+    expect(shares.reduce((s, x) => s + x, 0)).toBeCloseTo(2.5, 9);
+    expect(shares.every((x, i, a) => i === 0 || a[i - 1]! >= x)).toBe(true); // residual to earliest
+    expect(distributeGap(0, 3)).toEqual([0, 0, 0]);
+    expect(distributeGap(1, 0)).toEqual([]);
   });
 
   // ── modifiers surface when they matter ──────────────────────────────────────

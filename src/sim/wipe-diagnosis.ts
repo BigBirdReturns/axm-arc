@@ -447,7 +447,15 @@ export function diagnoseWipe(
         ? cd.threshold - (cd.teamScore ?? 0)
         : Math.max(...failing.map((c) => cd.threshold - c.score), 0);
 
-    const culprits: Culprit[] = failing.map((c) => {
+    // For a team_aggregate check no individual is measured against the whole-team
+    // bar, so a culprit's shortfall is an attributed SHARE of the actual team gap
+    // (exact 0.1 tenths that sum back to the check gap) — never
+    // `threshold - individualScore`, which inflated both the per-culprit readout
+    // and computeBottlenecks. per_agent/role_specific are measured individually. (#114)
+    const teamShares =
+      cd.scope === "team_aggregate" ? distributeGap(Math.max(0, shortfall), failing.length) : [];
+
+    const culprits: Culprit[] = failing.map((c, i) => {
       const agent = org.agents[c.agentId];
       return {
         agentId: c.agentId,
@@ -455,7 +463,7 @@ export function diagnoseWipe(
         role: agent?.role ?? null,
         score: round(c.score),
         threshold: round(cd.threshold),
-        shortfall: round(cd.threshold - c.score),
+        shortfall: cd.scope === "team_aggregate" ? (teamShares[i] ?? 0) : round(cd.threshold - c.score),
         stress: agent?.stress ?? 0,
         morale: agent?.morale ?? 0,
         factors: agent ? factorsFor(agent, c.breakdown, check, challenge, arc) : [],
@@ -524,6 +532,18 @@ function computePrimaryCause(primary: FailedCheckReport | undefined, fixes: Fix[
     return { kind: "gear", note: `No one's geared for this check — ${gearFix.target} is available.` };
   }
   return { kind: "build", note: `Raw output is short — the party isn't strong enough for this wall yet (short ${round(S)}).` };
+}
+
+/** Attribute a team_aggregate shortfall across the named culprits as exact 0.1
+ *  tenths that sum back to `gap`. Shares are equal to 0.1 precision; residual
+ *  tenths go deterministically to the earliest (weakest) culprits. No individual
+ *  is measured against the whole-team bar. (issue #114) */
+export function distributeGap(gap: number, parts: number): number[] {
+  if (parts <= 0) return [];
+  const totalTenths = Math.round(Math.max(0, gap) * 10);
+  const base = Math.floor(totalTenths / parts);
+  const extra = totalTenths - base * parts;
+  return Array.from({ length: parts }, (_, i) => (base + (i < extra ? 1 : 0)) / 10);
 }
 
 function computeBottlenecks(failed: FailedCheckReport[]): Bottleneck[] {

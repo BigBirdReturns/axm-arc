@@ -26,6 +26,14 @@ export interface CompatibilityProfile {
   profileDigest: string;
 }
 
+function profileDigestFrom(p: {
+  roleIds: string[]; attributeIds: string[]; tierIds: string[]; itemSlots: string[]; checkVocab: string[];
+}): string {
+  return "prof1_" + sha256Hex(JSON.stringify({
+    roleIds: p.roleIds, attributeIds: p.attributeIds, tierIds: p.tierIds, itemSlots: p.itemSlots, checkVocab: p.checkVocab,
+  }));
+}
+
 export function compatibilityProfile(arc: Arc): CompatibilityProfile {
   const roleIds = arc.roles.map((r) => r.id).sort();
   const attributeIds = arc.attributes.map((a) => a.id).sort();
@@ -40,8 +48,7 @@ export function compatibilityProfile(arc: Arc): CompatibilityProfile {
     }
   }
   const checkVocab = [...vocab].sort();
-  const profileDigest =
-    "prof1_" + sha256Hex(JSON.stringify({ roleIds, attributeIds, tierIds, itemSlots, checkVocab }));
+  const profileDigest = profileDigestFrom({ roleIds, attributeIds, tierIds, itemSlots, checkVocab });
   return { roleIds, attributeIds, tierIds, itemSlots, checkVocab, profileDigest };
 }
 
@@ -73,7 +80,9 @@ export function checkCompatibility(ledger: CampaignLedger | null, arc: Arc): Com
   ] as const).map(([dimension, a, b]) => ({
     dimension, ledgerValue: a, cartridgeValue: b, match: JSON.stringify(a) === JSON.stringify(b),
   }));
-  const compatible = lp.profileDigest === cartridgeProfile.profileDigest;
+  // Recompute the ledger's digest from its own profile arrays — a crafted or
+  // stale stored profileDigest is never trusted (fail-closed).
+  const compatible = profileDigestFrom(lp) === cartridgeProfile.profileDigest;
   const mism = dims.filter((d) => !d.match).map((d) => d.dimension);
   return {
     compatible,
@@ -178,7 +187,9 @@ export function loadLedger(): CampaignLedger | null {
   try {
     const raw = localStorage.getItem(LEDGER_KEY);
     if (!raw) return null;
-    return migrate(JSON.parse(raw) as CampaignLedger);
+    const parsed = JSON.parse(raw) as unknown;
+    if (ledgerShapeErrors(parsed).length > 0) return null;   // reject non-ledger blobs (parity with importLedger)
+    return migrate(parsed as CampaignLedger);                // migrate may refuse (null) a newer schema
   } catch {
     return null;
   }
@@ -231,12 +242,34 @@ export function importLedger(json: string): ImportLedgerResult {
   }
   const errs = ledgerShapeErrors(parsed);
   if (errs.length > 0) return { ok: false, errors: errs };
-  return { ok: true, ledger: migrate(parsed as CampaignLedger) };
+  const migrated = migrate(parsed as CampaignLedger);
+  if (!migrated) {
+    return { ok: false, errors: [`Unsupported ledger schema version '${(parsed as CampaignLedger).schemaVersion}' — newer than this build (${SCHEMA_VERSION}) understands.`] };
+  }
+  return { ok: true, ledger: migrated };
 }
-/** Forward migration hook. Additive versions load as-is; a destructive bump would
- *  register a transform here. Never migrates a cartridge (it is not embedded). */
-function migrate(ledger: CampaignLedger): CampaignLedger {
-  return ledger; // ledger/1.0 is current
+/** Forward migration hook. Additive OLDER versions load and are re-stamped to
+ *  the current schema; a record written by a NEWER schema than this build is
+ *  REFUSED (null) rather than silently loaded — we will not drop fields we do
+ *  not understand (docs/RFC_TIER2_LEDGER_SCHEMA.md: memory belongs to the run).
+ *  Never migrates a cartridge (it is not embedded). */
+function migrate(ledger: CampaignLedger): CampaignLedger | null {
+  const cur = parseSchemaVersion(SCHEMA_VERSION)!;
+  const got = parseSchemaVersion(ledger.schemaVersion);
+  if (!got) return null;                                   // unrecognized version string
+  if (got.major > cur.major || (got.major === cur.major && got.minor > cur.minor)) {
+    return null;                                           // newer than this build — refuse
+  }
+  if (ledger.schemaVersion === SCHEMA_VERSION) return ledger; // already current — byte-identical
+  return { ...ledger, schemaVersion: SCHEMA_VERSION };     // upgrade older → stamp current
+}
+
+/** Parse a "ledger/MAJOR.MINOR" version tag; null if it is not that shape.
+ *  Integer compare (no parseFloat, no locale) keeps ordering deterministic. */
+function parseSchemaVersion(v: string): { major: number; minor: number } | null {
+  const m = /^ledger\/(\d+)\.(\d+)$/.exec(v);
+  if (!m) return null;
+  return { major: Number(m[1]), minor: Number(m[2]) };
 }
 
 // ── projection (Q1 gear rule + purity; the source seam) ──────────────────────
@@ -428,6 +461,20 @@ function foldCommit(base: CampaignLedger, night: NightResult, commit: LockoutCom
     const f = fairness.perAgent[c.toAgentId] ?? { received: 0, passedOver: 0 };
     fairness.perAgent[c.toAgentId] = { received: f.received + 1, passedOver: f.passedOver };
   }
+
+  // Distribution evenness (0-100, Gini-like): derived from the real per-agent
+  // loot receipts across the full roster, not a frozen constant. Every eligible
+  // raider counts — an agent who received nothing is a real zero — so hoarding
+  // scores low and an even spread scores high. Deterministic; no locale, no random.
+  const shares = roster.map((m) => fairness.perAgent[m.agentId]?.received ?? 0);
+  const totalAwarded = shares.reduce((sum, n) => sum + n, 0);
+  if (shares.length > 0 && totalAwarded > 0) {
+    let sumAbsDiff = 0;
+    for (const a of shares) for (const b of shares) sumAbsDiff += Math.abs(a - b);
+    const gini = sumAbsDiff / (2 * shares.length * totalAwarded);
+    fairness.distributionScore = Math.round((1 - gini) * 100);
+  }
+  // else: no loot recorded yet — keep the honest default (nothing to be unfair about).
 
   // Tier record + gate advance (victory + cleared only).
   const tiers = [...base.progress.tiers];

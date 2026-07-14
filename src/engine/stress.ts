@@ -1,5 +1,5 @@
 import type { Organization, Agent, Affliction } from "./types.js";
-import { STRESS_THRESHOLD, AFFLICTION_CHANCE } from "./constants.js";
+import { STRESS_THRESHOLD, AFFLICTION_CHANCE, AFFLICTION_PENALTIES } from "./constants.js";
 import type { Rng } from "./prng.js";
 
 // ── Local Event Types ─────────────────────────────────────────────────────────
@@ -172,8 +172,19 @@ export function processAfflictionThreshold(
       },
     };
 
-    // Find witnesses (all other agents in org — caller can filter by challenge)
-    const witnesses = Object.keys(org.agents).filter((id) => id !== agentId);
+    // Witnesses are the agents co-located with the resolving agent this cycle:
+    // those whose most recent assignment shares the resolver's current challenge
+    // (the same "nearby" derivation applyAfflictionBarks uses). If the resolver
+    // has no assignment on record, every other agent counts as a witness.
+    const resolverLast = agent.assignmentHistory[agent.assignmentHistory.length - 1];
+    const witnesses = Object.keys(org.agents).filter((id) => {
+      if (id === agentId) return false;
+      if (!resolverLast) return true;
+      const other = org.agents[id];
+      if (!other) return false;
+      const otherLast = other.assignmentHistory[other.assignmentHistory.length - 1];
+      return !!otherLast && otherLast.challengeId === resolverLast.challengeId;
+    });
 
     let result: Organization = {
       ...org,
@@ -347,8 +358,9 @@ export function applyAfflictionBarks(
           highest = id;
         }
       }
-      stressGains.set(highest, (stressGains.get(highest) ?? 0) + 1);
-      barks.push({ kind: "bark", sourceAgentId: agentId, targetAgentId: highest, stressAmount: 1, cycle: _cycle });
+      const stressAmount = AFFLICTION_PENALTIES.Resentful.stressToTeam;
+      stressGains.set(highest, (stressGains.get(highest) ?? 0) + stressAmount);
+      barks.push({ kind: "bark", sourceAgentId: agentId, targetAgentId: highest, stressAmount, cycle: _cycle });
     } else if (affliction === "Defiant") {
       // +2 stress to ALL others on same challenge
       for (const targetId of nearby) {

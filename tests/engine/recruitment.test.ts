@@ -33,17 +33,30 @@ describe("refreshOpenPool", () => {
     expect(level10Pool.length).toBe(8);
   });
 
-  it("legendary never appears in open pool", () => {
-    // CYCLE_ARC only has 4 tiers (common/uncommon/rare/epic), no legendary
-    // Run many times to verify
+  it("the highest authored tier never appears in the open pool", () => {
     const org = makeCycleOrg([], { reputation: 100 });
+    const topTierId = CYCLE_ARC.tiers.at(-1)!.id;
     for (let seed = 0; seed < 20; seed++) {
       const { pool } = refreshOpenPool(org, CYCLE_ARC, new Rng(seed), 1);
       for (const agent of pool) {
-        // Tier should be one of the 4 defined tiers, never beyond
-        const validTiers = CYCLE_ARC.tiers.map((t) => t.id);
-        expect(validTiers).toContain(agent.tier);
+        expect(agent.tier).not.toBe(topTierId);
       }
+    }
+  });
+
+  it.each([3, 4, 5])("suppresses the top tier in a %i-tier arc", (tierCount) => {
+    const tiers = [
+      ...CYCLE_ARC.tiers,
+      { id: "legendary", name: "Legendary", statBudgetMin: 39, statBudgetMax: 45, upkeepCost: 5, baseEfficiencyModifier: 0.6 },
+    ];
+    const arc = { ...CYCLE_ARC, tiers: tiers.slice(0, tierCount) };
+    const topTierId = arc.tiers.at(-1)!.id;
+    const org = makeCycleOrg([], { reputation: 100 });
+
+    for (let seed = 0; seed < 30; seed++) {
+      const { pool } = refreshOpenPool(org, arc, new Rng(seed), 1);
+      expect(pool.length).toBeGreaterThan(0);
+      expect(pool.every((agent) => agent.tier !== topTierId)).toBe(true);
     }
   });
 

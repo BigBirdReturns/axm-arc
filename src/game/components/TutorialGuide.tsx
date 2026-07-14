@@ -19,6 +19,14 @@ const STEPS: Step[] = [
   { messageId: "tutorial.step3", tab: "Reports" },
 ];
 
+export function tutorialStepAutoNavigation(previousStep: number, nextStep: number): Tab | null {
+  if (previousStep === nextStep) return null;
+  // Resolving the opening drama creates a consequence receipt in the Drama
+  // screen. Leave that receipt mounted; the Assign pulse is the handoff.
+  if (previousStep === 0 && nextStep === 1) return null;
+  return STEPS[nextStep]?.tab ?? null;
+}
+
 export function deriveTutorialStep(
   active: boolean,
   dramaQueueLength: number,
@@ -90,8 +98,9 @@ export function TutorialGuide({
 
   // Auto-navigate to the relevant tab when advancing to a new step
   useEffect(() => {
+    const target = tutorialStepAutoNavigation(prevStep, step);
     if (step !== prevStep) {
-      setTab(s.tab);
+      if (target) setTab(target);
       setPrevStep(step);
     }
   }, [step]); // eslint-disable-line react-hooks/exhaustive-deps

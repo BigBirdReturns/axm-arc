@@ -453,62 +453,100 @@ export function resolveDramaCard(
   cardId: string,
   optionId: string,
   _cycle: number,
-): { org: Organization; revealedHidden: DramaCardEffect[] } {
+): {
+  org: Organization;
+  appliedVisibleEffects: DramaCardEffect[];
+  appliedHiddenEffects: DramaCardEffect[];
+} {
   const cardIdx = org.dramaQueue.findIndex((c) => c.id === cardId);
-  if (cardIdx < 0) return { org, revealedHidden: [] };
+  if (cardIdx < 0) return { org, appliedVisibleEffects: [], appliedHiddenEffects: [] };
 
   const card = org.dramaQueue[cardIdx]!;
   const option = card.options.find((o) => o.id === optionId);
-  if (!option) return { org, revealedHidden: [] };
+  if (!option) return { org, appliedVisibleEffects: [], appliedHiddenEffects: [] };
 
-  // Apply visible effects (in this pure engine we just remove the card from queue;
-  // callers apply the effects to agents — drama engine outputs the effect list)
-  // We apply morale/stress effects to agents if targets are agent ids
+  // Remove the resolved card before applying its deterministic consequences.
   let result: Organization = {
     ...org,
     dramaQueue: org.dramaQueue.filter((_, i) => i !== cardIdx),
   };
 
-  // Apply immediate visible effects to org state where possible
+  const appliedVisibleEffects: DramaCardEffect[] = [];
+  const appliedHiddenEffects: DramaCardEffect[] = [];
+
+  // Receipts report the actual bounded delta, not the authored request. This
+  // keeps a +5 morale option at morale 98 from claiming that all five landed.
   for (const fx of option.effects) {
-    result = applyEffect(result, fx);
+    const applied = applyEffect(result, fx);
+    result = applied.org;
+    if (applied.effect) appliedVisibleEffects.push(applied.effect);
   }
 
-  // Hidden effects are returned for the caller to handle / surface later
-  const revealedHidden = option.hiddenEffects;
+  // Hidden consequences are game state, not preview copy. Apply supported
+  // effects here, through the same deterministic path, but keep them out of
+  // the visible receipt.
+  for (const fx of option.hiddenEffects) {
+    const applied = applyEffect(result, fx);
+    result = applied.org;
+    if (applied.effect) appliedHiddenEffects.push(applied.effect);
+  }
 
-  return { org: result, revealedHidden };
+  return { org: result, appliedVisibleEffects, appliedHiddenEffects };
 }
 
-function applyEffect(org: Organization, fx: DramaCardEffect): Organization {
+export function canApplyDramaEffect(org: Organization, fx: DramaCardEffect): boolean {
+  if (fx.target === "_org_") return false;
+  if (!org.agents[fx.target]) return false;
+  return fx.type === "morale" || fx.type === "stress" || fx.type === "loyalty";
+}
+
+function applyEffect(
+  org: Organization,
+  fx: DramaCardEffect,
+): { org: Organization; effect: DramaCardEffect | null } {
   const { target, type, value } = fx;
 
-  if (target === "_org_") return org; // org-level effects are out of scope here
+  if (!canApplyDramaEffect(org, fx)) return { org, effect: null };
 
   const agent = org.agents[target];
-  if (!agent) return org;
+  if (!agent) return { org, effect: null };
 
   switch (type) {
     case "morale": {
       const newMorale = Math.max(0, Math.min(100, agent.morale + value));
-      return { ...org, agents: { ...org.agents, [target]: { ...agent, morale: newMorale } } };
+      const appliedValue = newMorale - agent.morale;
+      if (appliedValue === 0) return { org, effect: null };
+      return {
+        org: { ...org, agents: { ...org.agents, [target]: { ...agent, morale: newMorale } } },
+        effect: { ...fx, value: appliedValue },
+      };
     }
     case "stress": {
       const newStress = Math.max(0, Math.min(10, agent.stress + value));
-      return { ...org, agents: { ...org.agents, [target]: { ...agent, stress: newStress } } };
+      const appliedValue = newStress - agent.stress;
+      if (appliedValue === 0) return { org, effect: null };
+      return {
+        org: { ...org, agents: { ...org.agents, [target]: { ...agent, stress: newStress } } },
+        effect: { ...fx, value: appliedValue },
+      };
     }
     case "loyalty": {
       const newLoyalty = Math.max(0, Math.min(20, agent.hiddenAttributes.loyalty + value));
+      const appliedValue = newLoyalty - agent.hiddenAttributes.loyalty;
+      if (appliedValue === 0) return { org, effect: null };
       return {
-        ...org,
-        agents: {
-          ...org.agents,
-          [target]: { ...agent, hiddenAttributes: { ...agent.hiddenAttributes, loyalty: newLoyalty } },
+        org: {
+          ...org,
+          agents: {
+            ...org.agents,
+            [target]: { ...agent, hiddenAttributes: { ...agent.hiddenAttributes, loyalty: newLoyalty } },
+          },
         },
+        effect: { ...fx, value: appliedValue },
       };
     }
     default:
-      return org;
+      return { org, effect: null };
   }
 }
 

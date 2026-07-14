@@ -25,29 +25,27 @@ function getTierWeights(reputation: number): TierWeights {
 }
 
 function pickTier(arc: Arc, weights: TierWeights, rng: Rng): import("./types.js").ArcTier | null {
-  const tierIds = Object.keys(weights) as (keyof TierWeights)[];
-
-  // Map weight names to actual arc tiers by position (common=0, uncommon=1, rare=2, epic=3)
-  const tierByRank = [
-    arc.tiers[0], // common
-    arc.tiers[1], // uncommon
-    arc.tiers[2], // rare
-    arc.tiers[3], // epic
-  ];
-
-  const items = tierIds
-    .map((key, i) => ({
-      item: tierByRank[i] ?? null,
-      weight: weights[key],
+  // Tier names are authored vocabulary, so rarity is positional. The last tier
+  // is ALWAYS the arc's top tier and is intentionally excluded from the open
+  // pool (§1.9): it can only arrive through an authored milestone/event. The
+  // previous fixed four-slot mapping accidentally admitted the top tier for
+  // every three- and four-tier cartridge.
+  const eligibleTiers = arc.tiers.slice(0, -1);
+  const rankWeights = [weights.common, weights.uncommon, weights.rare, weights.epic];
+  const items = eligibleTiers
+    .map((item, index) => ({
+      item,
+      // Arcs normally use 3–5 tiers. If an authored arc defines more, keep the
+      // remaining non-top ranks in the highest open-pool bucket rather than
+      // silently making them unreachable.
+      weight: rankWeights[Math.min(index, rankWeights.length - 1)] ?? 0,
     }))
-    .filter((x) => x.item !== null && x.weight > 0) as {
-    item: import("./types.js").ArcTier;
-    weight: number;
-  }[];
+    .filter((entry) => entry.weight > 0);
 
   if (items.length === 0) {
-    // Fallback to first tier
-    return arc.tiers[0] ?? null;
+    // A one-tier arc has no below-top tier to recruit. Returning no candidate is
+    // more honest than violating the top-tier exclusion.
+    return null;
   }
 
   return rng.weightedPick(items);

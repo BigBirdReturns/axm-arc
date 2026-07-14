@@ -12,13 +12,36 @@ The first arc is a guild management game. The first raid is Karazhan.
 
 ---
 
+## What the system is
+
+AXM Arc is more than an engine beside a game UI. It is an authored-model and
+decision-record lifecycle:
+
+```text
+author a model
+  → validate, profile, and content-address it
+  → execute decisions deterministically
+  → produce inspectable reports
+  → commit visible consequences to a ledger
+  → reopen or project that record into another compatible engagement
+```
+
+The guild game is the reference implementation and the current product-quality
+mandate. It tests whether the model is expressive, the loop understandable, the
+outcomes satisfying, the artifact portable, and the record honest. It must be
+finished as a game; it is also not the boundary of the system.
+
+---
+
 ## What this repo contains
 
 | Layer | Path | What it does |
 |---|---|---|
 | **Engine** | `src/engine/` | Generic deterministic simulation. Resolver, stress/morale/affliction cascade, relationship state machine, drama event cards, reward distribution (Council mode), infrastructure tick, recruitment, save/load. Content-free — zero imports from `src/arcs/`. |
 | **Arc format** | `src/arcs/` | Portable JSON scenario definitions. The tutorial arc "The First Charter" ships here: 4 attributes, 3 roles, 3 tiers, 6 challenges across 2 progression tiers, 8 items, 6-agent starting roster with a seeded rivalrous pair. |
-| **Game UI** | `src/game/` | React PWA in the AXM House Style (Barlow Condensed / Lora / IBM Plex Mono, cream paper, brick-red accent). Mobile-first portrait layout with a desktop "Situation Room" 3-column view at ≥960px. |
+| **Authoring + custody** | `src/game/`, `docs/RFC_WORKSHOP.md`, `docs/RFC_CARTRIDGE_LIBRARY.md` | Workshop, Library, validation, digest/profile, import/export, conformance preview, and explicit custody receipts. |
+| **Institutional record** | `src/game/lib/ledger.ts`, `docs/RFC_TIER2_LEDGER_SCHEMA.md` | Append-only committed consequences, compatibility projection, Guild Hall, and Expansion Archive. |
+| **Reference game UI** | `src/game/` | React PWA and proof cartridges used to finish a compelling game while exercising the general model and record contract. |
 | **Tests** | `tests/engine/`, `tests/game/` | 147 tests across 14 files. Engine subsystem tests, resolver edge cases (drop-rate gates, determinism, gear bonus, hostile relationships), schema validation, and a full end-to-end integration test that plays through the tutorial arc. |
 | **Landing page** | `docs/index.html` | AXM House Style static page. Live at [bigbirdreturns.github.io/axm-arc](https://bigbirdreturns.github.io/axm-arc/). |
 | **Game (built)** | `docs/game/` | Compiled PWA output. Live at [bigbirdreturns.github.io/axm-arc/game](https://bigbirdreturns.github.io/axm-arc/game/). |
@@ -115,25 +138,24 @@ The game UI (`src/game/`) uses `localStorage` and CSS custom properties. It work
 
 ---
 
-## Browser product roadmap
+## Browser product status
 
-The playable build at `docs/game/` ships a title screen, tutorial, and the full cycle loop. The roadmap for evolving it from single-arc player to platform:
-
-| Phase | What | Status |
-|---|---|---|
-| **1. Shell** | Title screen with continue/new game, save awareness, onboarding coach, cycle transition interstitial | Shipped |
-| **2. Arc Library** | List bundled + imported arcs, import arc JSON via file picker, validate with schema, store in browser | Next |
-| **3. Settings & Data** | Export/import save bundles, accessibility prefs (text scale, reduced motion), animation toggle, data controls | Next |
-| **4. Arc Creator** | Guided form editor over the Zod schema, live validation panel, test-one-cycle-in-editor with fixed seed | Later |
-| **5. Mods** | Enable/disable installed arc packs, compatibility warnings, optional trust levels (unsigned/signed) | Later |
+The browser product now includes the playable reference loop, Arc Library,
+Workshop authoring, digest/profile visibility, import/export custody, ledger,
+Guild Hall, and Expansion Archive. See [STATUS.md](STATUS.md) for the current
+implemented-versus-proposed boundary; older phase labels in historical RFCs and
+handoffs are not the active roadmap.
 
 ### Architecture
 
-The app uses a top-level `mode` state that gates between screens. Currently `"title"` and `"play"`. Adding `"library"`, `"settings"`, `"creator"` is additive — each mode gets its own screen component. The engine/content split means arc import is `validateArc()` + localStorage. The creator is a form over the existing schema.
+The browser modes share one Arc schema, validation seam, digest implementation,
+and deterministic engine. Library custody metadata and trust are loader facts,
+never content the Arc may claim about itself. Workshop preview uses the real
+bounded conformance harness and does not persist or certify a draft.
 
-### Phase 2 design notes: Arc Library as trust boundary
+### Arc Library as trust boundary
 
-Phase 1 has one arc, bundled, implicitly trusted. The moment "Import JSON" exists, untrusted arcs enter the system. The library data model should carry a trust taxonomy from day one:
+Imported artifacts are untrusted input. The Library carries the trust taxonomy:
 
 | Level | Meaning |
 |---|---|
@@ -142,7 +164,9 @@ Phase 1 has one arc, bundled, implicitly trusted. The moment "Import JSON" exist
 | **Imported (unsigned)** | Schema-valid, runs, but flagged — the natural state for "I'm authoring this" |
 | **Quarantined** | Schema-valid but signature failed or was revoked |
 
-Only "bundled" and "imported" need to be exercised initially. But if the field exists in the data model, the Creator outputs "imported (unsigned)" by default, Mods is a list view filtered by trust level, and the research-deploy story ("publish a signed arc + seed + result hash, any reviewer can re-run") becomes a natural extension instead of a retrofit.
+Only **Bundled** and **Imported (unsigned)** are reachable today. **Verified** and
+**Quarantined** are reserved for future signing and verification; no runtime
+behavior currently depends on them.
 
 ### Deploy variants (same codebase, different lobby)
 
@@ -150,7 +174,8 @@ The title screen's mode state supports build-time configuration for different au
 
 - **Game deploy** — lobby shows Continue / New Game against the bundled arc, Library is secondary
 - **Enterprise deploy** — lobby shows "Open arc..." first, no bundled arc, no marketing copy
-- **Research deploy** — lobby shows arc + seed + reviewer-mode toggle, "New Game" is suppressed
+- **Research deploy** — research-oriented positioning; reviewer-mode behavior and
+  signed rerun packages are not implemented
 
 This is a build-time flag, not three codebases. The Library components should not assume a bundled tutorial arc always exists.
 

@@ -5,7 +5,7 @@
 // crashing, and corrupt/empty storage never throws. No new mechanics.
 import { describe, it, expect, beforeEach } from "vitest";
 import {
-  loadLedger, saveLedger, clearLedger, exportLedger,
+  loadLedger, saveLedger, clearLedger, exportLedger, importLedger,
 } from "../../src/game/lib/ledger.js";
 import {
   newRaidNight, pull, applyFix, commitNightVictory, type RaidNightState,
@@ -66,6 +66,33 @@ describe("ledger migration + schema versioning", () => {
     expect(loaded).not.toBeNull();
     expect(loaded!.roster.length).toBe(guild.roster.length);
     expect(loaded!.commits.length).toBe(guild.commits.length);
+  });
+
+  it("REFUSES a record written by a NEWER schema than this build (no silent field loss)", () => {
+    const newer = { ...guild, schemaVersion: "ledger/2.0" };
+    localStorage.setItem(LEDGER_KEY, JSON.stringify(newer));
+    expect(loadLedger()).toBeNull(); // FAILS before fix: no-op migrate returns the newer record
+  });
+
+  it("import refuses a newer-schema guild with a legible error", () => {
+    const { json } = exportLedger({ ...guild, schemaVersion: "ledger/2.0" });
+    const res = importLedger(json);
+    expect(res.ok).toBe(false); // FAILS before fix: migrate no-op → ok:true
+    if (res.ok) return;
+    expect(res.errors.join(" ")).toMatch(/schema version/i);
+  });
+
+  it("stamps the current schema version when it upgrades an OLDER record", () => {
+    const older = { ...guild, schemaVersion: "ledger/0.9" };
+    localStorage.setItem(LEDGER_KEY, JSON.stringify(older));
+    const loaded = loadLedger();
+    expect(loaded).not.toBeNull();
+    expect(loaded!.schemaVersion).toBe("ledger/1.0"); // FAILS before fix: stays "ledger/0.9"
+  });
+
+  it("returns null on structurally-invalid-but-parseable storage (shape-checked like import)", () => {
+    localStorage.setItem(LEDGER_KEY, JSON.stringify({ schemaVersion: "ledger/1.0", hello: "world" }));
+    expect(loadLedger()).toBeNull(); // FAILS before fix: no shape check → returns the bogus object
   });
 
   it("returns null on empty or corrupt storage — never throws", () => {

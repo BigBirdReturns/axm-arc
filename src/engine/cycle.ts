@@ -1,5 +1,5 @@
 import type { Organization, Arc, Agent, RunReport, DramaCard } from "./types.js";
-import { resolveChallenge } from "./resolver.js";
+import { partyClearsGates, resolveChallenge } from "./resolver.js";
 import {
   applyStressGains,
   processAfflictionThreshold,
@@ -19,7 +19,11 @@ import { applyRewardDecision, evaluateLootEligibility } from "./rewards.js";
 import { tickInfrastructure } from "./infrastructure.js";
 import { refreshOpenPool } from "./recruitment.js";
 import { regenerateTokens, spendTokens, accrueChallengeRewards, chargeUpkeep } from "./economy.js";
-import { challengeAccess, stampNewAttunements } from "./access.js";
+import {
+  challengeAccess,
+  stampNewAttunements,
+  stampUnlockedProgressionTiers,
+} from "./access.js";
 import { applyDifficultyMode } from "./difficulty.js";
 import { serializeGame } from "./save.js";
 import { Rng, hashSeed } from "./prng.js";
@@ -115,6 +119,11 @@ export function runCycle(opts: {
   const allDramaTriggers: DramaTriggerInput[] = [];
   const warnings: string[] = [];
 
+  // Persist every tier open at cycle start before any authored outcome can
+  // reduce reputation. Old saves omit this additive field and are backfilled
+  // here without a version break.
+  org = stampUnlockedProgressionTiers(org, arc);
+
   // ── STEP 0: Downed-agent recovery ─────────────────────────────────────────
   // Agents return to duty once their downtime has elapsed, regardless of a
   // Medical facility (Medical only accelerates recovery during STEP 6).
@@ -171,7 +180,25 @@ export function runCycle(opts: {
       effectiveChallenge = applyDifficultyMode(challenge, mode);
     }
 
-    // Spend tokens
+    const agentList = assignment.agentIds
+      .map((id) => org.agents[id])
+      .filter((a): a is Agent => a !== undefined && a.downedUntilCycle === null);
+
+    if (agentList.length === 0 || agentList.length !== assignment.agentIds.length) {
+      warnings.push(`No valid agents for challenge ${assignment.challengeId}`);
+      continue;
+    }
+
+    // Count, role, and identity gates are admission rules, not costly failed
+    // attempts. Refuse the assignment before debiting its capacity tokens.
+    if (!partyClearsGates(effectiveChallenge, agentList)) {
+      warnings.push(`Party is not eligible for challenge ${assignment.challengeId}`);
+      continue;
+    }
+
+    // Capacity tokens are the authored per-attempt cost. Debit only after every
+    // access and party gate has passed, so a refused assignment cannot consume
+    // capacity it never used.
     if (assignment.tokensSpent > 0) {
       try {
         org = spendTokens(org, assignment.tokensSpent);
@@ -179,15 +206,6 @@ export function runCycle(opts: {
         warnings.push(`Token spend failed for ${assignment.challengeId}: ${String(e)}`);
         continue;
       }
-    }
-
-    const agentList = assignment.agentIds
-      .map((id) => org.agents[id])
-      .filter((a): a is Agent => a !== undefined && a.downedUntilCycle === null);
-
-    if (agentList.length === 0) {
-      warnings.push(`No valid agents for challenge ${assignment.challengeId}`);
-      continue;
     }
 
     const report = resolveChallenge({
@@ -414,12 +432,19 @@ export function runCycle(opts: {
   // ── STEP 8b: Upkeep ───────────────────────────────────────────────────────
 
   const afterUpkeep = chargeUpkeep(org, cycle);
-  const upkeepPaid = org.resources.currency - afterUpkeep.resources.currency;
-  if (upkeepPaid !== 0) {
-    events.push({ type: "upkeep_charged", data: { amount: upkeepPaid, deficit: afterUpkeep.negativeBalance ?? false } });
+  if (afterUpkeep.upkeepDue > 0) {
+    events.push({
+      type: "upkeep_charged",
+      data: {
+        amount: afterUpkeep.upkeepPaid,
+        due: afterUpkeep.upkeepDue,
+        unpaid: afterUpkeep.unpaidUpkeep,
+        deficit: afterUpkeep.negativeBalance ?? false,
+      },
+    });
   }
   if (afterUpkeep.negativeBalance) {
-    warnings.push("Treasury in deficit — agent upkeep exceeds currency reserves.");
+    warnings.push(`Treasury shortfall — ${afterUpkeep.unpaidUpkeep} upkeep remains unpaid.`);
   }
   org = { ...org, resources: afterUpkeep.resources };
 
@@ -541,6 +566,10 @@ export function runCycle(opts: {
   for (const grant of stamped.newlyAttuned) {
     events.push({ type: "attuned", agentId: grant.agentId, data: { chainId: grant.chainId } });
   }
+
+  // Capture tiers first earned through this cycle's milestones or reputation
+  // before the save checkpoint, so export/resume preserves the unlock.
+  org = stampUnlockedProgressionTiers(org, arc);
 
   // ── Increment cycle ───────────────────────────────────────────────────────
 

@@ -141,9 +141,15 @@ export function applyRelationshipDelta(
       : { agentIds: [lo, hi], state: "Neutral", affinity: 0 };
 
   const agentAObj = org.agents[agentA];
+  const agentBObj = org.agents[agentB];
+  // Relationship trait multipliers are edge properties: apply each once,
+  // symmetrically, so (agentA, agentB) and (agentB, agentA) yield the same edge.
+  const pairHasTrait = (traitId: string): boolean =>
+    (agentAObj !== undefined && hasTrait(agentAObj, traitId)) ||
+    (agentBObj !== undefined && hasTrait(agentBObj, traitId));
   let delta = affinityDelta;
-  if (agentAObj && hasTrait(agentAObj, "team_player")) delta *= 1.5;
-  if (agentAObj && hasTrait(agentAObj, "charismatic")) delta *= 1.3;
+  if (pairHasTrait("team_player")) delta *= 1.5;
+  if (pairHasTrait("charismatic")) delta *= 1.3;
 
   const newAffinity = clampAffinity(existing.affinity + delta);
   const updated: Relationship = { ...existing, affinity: newAffinity };
@@ -185,8 +191,7 @@ export function processChallengeRelationshipEffects(
 
       if (outcome === "success") {
         delta = 5;
-        // Team Player multiplier
-        if (hasTrait(agentA, "team_player") || hasTrait(agentB, "team_player")) delta *= 1.5;
+        // team_player multiplier is owned by applyRelationshipDelta (applied once, symmetrically).
       } else if (outcome === "failure") {
         if (hasTrait(agentA, "team_player") && hasTrait(agentB, "team_player")) {
           delta = 3; // shared adversity

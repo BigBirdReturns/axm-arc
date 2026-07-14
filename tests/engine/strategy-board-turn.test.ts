@@ -113,3 +113,20 @@ describe("no action is listed without a named resolver", () => {
     }
   });
 });
+
+describe("seat count is validated against the board's seatCountRange", () => {
+  it("rejects too few seats (empty) instead of building a dangling activeSeatIndex", () => {
+    // def.seatCountRange.min is 2; [] would otherwise yield seats:[] with activeSeatIndex:0.
+    expect(() => initialStrategyState(def, [])).toThrow();
+  });
+  it("rejects more seats than the board's max", () => {
+    // def.seatCountRange.max is 3.
+    expect(() => initialStrategyState(def, ["a", "b", "c", "d"])).toThrow();
+  });
+  it("activeSeatIndex addresses a real seat for every legal seat count", () => {
+    for (const seats of [["a", "b"], ["a", "b", "c"]]) {
+      const s = initialStrategyState(def, seats);
+      expect(s.seats[s.activeSeatIndex]).toBeDefined();
+    }
+  });
+});

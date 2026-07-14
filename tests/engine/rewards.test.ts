@@ -113,6 +113,23 @@ describe("applyRewardDecision", () => {
     expect(result.agents["winner"]!.equippedItems["weapon"]).toBe("basic-sword");
   });
 
+  it("does not award loot to a winner who is not in the eligible list", () => {
+    const insider = makeTestAgent({ id: "insider" });
+    const outsider = makeTestAgent({ id: "outsider" });
+    const org = makeTestOrg([insider, outsider]);
+    const item = STATE_ARC.items.find((i) => i.id === "basic-sword")!;
+    const rng = new Rng(42);
+    const { org: result } = applyRewardDecision(
+      org,
+      { item, eligible: ["insider"], winner: "outsider", sourceChallenge: "c1" },
+      rng,
+      1,
+    );
+    // Ineligible winner must not receive the item.
+    expect(result.agents["outsider"]!.equippedItems["weapon"]).toBeUndefined();
+    expect(result.agents["outsider"]!.rewardHistory).toHaveLength(0);
+  });
+
   it("drops non-winner morale when they were eligible", () => {
     const winner = makeTestAgent({ id: "winner", morale: 70 });
     const loser = makeTestAgent({ id: "loser", morale: 70, loyalty: 5 });

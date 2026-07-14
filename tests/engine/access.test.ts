@@ -12,6 +12,7 @@ import {
   milestoneSatisfied,
   requiredAttunementChains,
   stampNewAttunements,
+  stampUnlockedProgressionTiers,
   unlockedProgressionTierIds,
 } from "../../src/engine/access.js";
 import { runCycle } from "../../src/engine/cycle.js";
@@ -54,6 +55,30 @@ describe("progression tier unlock", () => {
 
     const both = makeCycleOrg([cleared], { reputation: 40 });
     expect(unlockedProgressionTierIds(both, GATED_ARC).has("tier-2")).toBe(true);
+  });
+
+  it("stamps an earned tier so a later reputation dip cannot re-lock it", () => {
+    const cleared = makeCycleAgent({ assignmentCount: 1 });
+    const earned = stampUnlockedProgressionTiers(
+      makeCycleOrg([cleared], { reputation: 40 }),
+      GATED_ARC,
+    );
+    expect(earned.unlockedProgressionTiers).toEqual(["tier-1", "tier-2"]);
+
+    const lapsed = { ...earned, reputation: 0 };
+    expect(unlockedProgressionTierIds(lapsed, GATED_ARC)).toEqual(
+      new Set(["tier-1", "tier-2"]),
+    );
+    expect(stampUnlockedProgressionTiers(lapsed, GATED_ARC).unlockedProgressionTiers)
+      .toEqual(["tier-1", "tier-2"]);
+  });
+
+  it("ignores stale stamped ids that the loaded cartridge does not define", () => {
+    const org = {
+      ...makeCycleOrg([makeCycleAgent()]),
+      unlockedProgressionTiers: ["removed-tier"],
+    };
+    expect(unlockedProgressionTierIds(org, GATED_ARC)).toEqual(new Set(["tier-1"]));
   });
 });
 
@@ -176,6 +201,17 @@ describe("challengeAccess", () => {
 });
 
 describe("runCycle gate enforcement and attunement stamping", () => {
+  it("backfills and saves progression unlocks for legacy org state", () => {
+    const cleared = makeCycleAgent({ id: "veteran", assignmentCount: 1 });
+    const org = makeCycleOrg([cleared], { reputation: 40 });
+    expect(org.unlockedProgressionTiers).toBeUndefined();
+
+    const result = runCycle({ org, arc: GATED_ARC, assignments: [] });
+    expect(result.org.unlockedProgressionTiers).toEqual(["tier-1", "tier-2"]);
+    expect(JSON.parse(result.saveData).organization.unlockedProgressionTiers)
+      .toEqual(["tier-1", "tier-2"]);
+  });
+
   it("a locked challenge is skipped with a warning and spends no tokens", () => {
     const fresh = makeCycleAgent({ id: "raw-1" });
     const org = makeCycleOrg([fresh], { tokens: 5 });

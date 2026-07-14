@@ -55,6 +55,85 @@ describe("runCycle", () => {
     void startTokens;
   });
 
+  it("refuses a missing or downed party before spending tokens", () => {
+    const downed = makeCycleAgent({ id: "downed", downedUntilCycle: 5 });
+    const org = makeCycleOrg([downed], { tokens: 5 });
+    const control = runCycle({ org, arc: CYCLE_ARC, assignments: [] });
+
+    for (const agentIds of [["ghost"], ["downed"]]) {
+      const result = runCycle({
+        org,
+        arc: CYCLE_ARC,
+        assignments: [{ challengeId: "test-challenge", agentIds, tokensSpent: 2 }],
+      });
+      expect(result.reports).toHaveLength(0);
+      expect(result.org.resources.tokens).toBe(control.org.resources.tokens);
+      expect(result.warnings.some((warning) => warning.includes("No valid agents"))).toBe(true);
+    }
+  });
+
+  it("refuses count, role, and duplicate-identity gate failures before spending", () => {
+    const striker = makeCycleAgent({ id: "striker" });
+    const org = makeCycleOrg([striker], { tokens: 5 });
+    const control = runCycle({ org, arc: CYCLE_ARC, assignments: [] });
+    const baseChallenge = CYCLE_ARC.challenges[0]!;
+    const invalidArcs = [
+      {
+        ...CYCLE_ARC,
+        challenges: [{
+          ...baseChallenge,
+          rosterRequirements: { minAgents: 2, maxAgents: 3, roleRequirements: [] },
+        }],
+      },
+      {
+        ...CYCLE_ARC,
+        challenges: [{
+          ...baseChallenge,
+          rosterRequirements: {
+            minAgents: 1,
+            maxAgents: 3,
+            roleRequirements: [{ roleId: "guardian", count: 1 }],
+          },
+        }],
+      },
+    ];
+
+    for (const arc of invalidArcs) {
+      const result = runCycle({
+        org,
+        arc,
+        assignments: [{ challengeId: "test-challenge", agentIds: ["striker"], tokensSpent: 2 }],
+      });
+      expect(result.reports).toHaveLength(0);
+      expect(result.org.resources.tokens).toBe(control.org.resources.tokens);
+      expect(result.warnings.some((warning) => warning.includes("Party is not eligible"))).toBe(true);
+    }
+
+    const duplicate = runCycle({
+      org,
+      arc: CYCLE_ARC,
+      assignments: [{ challengeId: "test-challenge", agentIds: ["striker", "striker"], tokensSpent: 2 }],
+    });
+    expect(duplicate.reports).toHaveLength(0);
+    expect(duplicate.org.resources.tokens).toBe(control.org.resources.tokens);
+  });
+
+  it("reports actual upkeep paid and never persists negative currency", () => {
+    const agent = makeCycleAgent({ id: "expensive", upkeep: 10 });
+    const result = runCycle({
+      org: makeCycleOrg([agent], { currency: 3 }),
+      arc: CYCLE_ARC,
+      assignments: [],
+    });
+
+    expect(result.org.resources.currency).toBe(0);
+    expect(result.events).toContainEqual({
+      type: "upkeep_charged",
+      data: { amount: 3, due: 10, unpaid: 7, deficit: true },
+    });
+    expect(result.warnings).toContain("Treasury shortfall — 7 upkeep remains unpaid.");
+  });
+
   it("warns but continues on invalid challengeId", () => {
     const agent = makeCycleAgent({ id: "a1" });
     const org = makeCycleOrg([agent]);

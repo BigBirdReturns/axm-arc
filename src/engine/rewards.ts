@@ -160,8 +160,12 @@ export function applyRewardDecision(
     .map((id) => org.agents[id])
     .filter((a): a is Agent => a !== undefined);
 
-  // Award item
-  let result = awardItem(org, winner, item, cycle, sourceChallenge);
+  // Award item — only to a winner that is actually eligible. An ineligible
+  // or absent winner must not receive loot.
+  const winnerEligible = eligibleAgents.some((a) => a.id === winner);
+  let result = winnerEligible
+    ? awardItem(org, winner, item, cycle, sourceChallenge)
+    : org;
 
   // Compute disappointment
   const disappointmentDeltas = computeRewardDisappointment(

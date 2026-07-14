@@ -73,3 +73,18 @@ export function toggleEquip(equippedItems: Agent["equippedItems"], slot: string,
   }
   return next;
 }
+
+/** Mint a collision-free id for a duplicated agent. The numeric suffix is one
+ * past the highest `${srcId}-copy-N` suffix already present in the roster, so
+ * it stays unique across delete+duplicate cycles (where the roster length can
+ * shrink and re-collide). Non-matching or non-integer suffixes are ignored. */
+export function nextCopyId(existingIds: Iterable<string>, srcId: string): string {
+  const prefix = `${srcId}-copy-`;
+  let max = 0;
+  for (const id of existingIds) {
+    if (!id.startsWith(prefix)) continue;
+    const suffix = Number(id.slice(prefix.length));
+    if (Number.isInteger(suffix) && suffix > max) max = suffix;
+  }
+  return `${prefix}${max + 1}`;
+}

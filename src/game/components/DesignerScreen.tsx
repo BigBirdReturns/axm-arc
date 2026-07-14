@@ -9,6 +9,7 @@ import {
   clampAttribute,
   computeItemBonuses,
   isItemLocked,
+  nextCopyId,
   statBudgetStatus,
   toggleEquip,
   toggleTrait,
@@ -123,7 +124,7 @@ export function DesignerScreen({ arc, onBack }: Props): JSX.Element {
       if (!src) return d;
       // Deep clone via JSON — Agent is plain data. Mint a new id; refresh name.
       const clone = JSON.parse(JSON.stringify(src)) as Agent;
-      clone.id = `${src.id}-copy-${d.agents.length}`;
+      clone.id = nextCopyId(d.agents.map((a) => a.id), src.id);
       clone.name = `${src.name} (copy)`;
       const idx = d.agents.findIndex((a) => a.id === id);
       const next = [...d.agents];

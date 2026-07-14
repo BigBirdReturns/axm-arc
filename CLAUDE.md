@@ -1,9 +1,35 @@
 # axm-arc — notes for Claude sessions
 
-Start with `README.md`, then the two documents that govern everything:
-**axm-genesis `docs/CONTINUITY.md`** (the family's laws, operating
-doctrine, and roadmap — read it before designing anything) and this
-repo's `docs/COMPATIBILITY_ATLAS.md` + `docs/CLONE_PORTING.md`.
+## Product ontology and execution priority
+
+- **Arc** — an authored organizational model and playable grammar: vocabulary,
+  actors, constraints, challenges, progression, and consequences.
+- **Cartridge** — a validated, content-addressed Arc artifact under custody,
+  portable between compatible runtimes.
+- **Run record** — deterministic evidence of inputs, decisions, and outcomes.
+  Replayability proves what the model did; it is not automatically empirical
+  truth, certification, or proof that the model describes a real institution.
+- **Ledger** — append-only institutional memory that carries people, precedent,
+  fairness, and consequence across compatible engagements.
+- **Clients** — axm-arc authors, holds, and plays artifacts; axm-world/Rodoh
+  spatially interprets them. Presentation never redefines authored law.
+
+The current shipping mandate is to finish and harden the game and its reference
+cartridges. This is not a retreat to “just games”: the game is the executable
+proof, conformance corpus, UX laboratory, and pressure test for every layer
+above. Prefer game work that strengthens arc-agnostic seams; never build
+speculative enterprise chrome instead of closing the reference game loop.
+When product experience and platform proof compete for sequence, close the
+player loop first. The exception is an irreversible schema, custody,
+determinism, save, or ledger defect that would become expensive or dishonest if
+allowed to harden.
+
+Start with `README.md`, `ROADMAP.md`, and `STATUS.md`, then the documents that
+govern the artifact and record boundaries: `docs/RFC_WORKSHOP.md`,
+`docs/RFC_CARTRIDGE_LIBRARY.md`, `docs/RFC_TIER2_LEDGER_SCHEMA.md`,
+`docs/COMPATIBILITY_ATLAS.md`, and `docs/CLONE_PORTING.md`. Also read
+**axm-genesis `docs/CONTINUITY.md`** (the family's laws, operating doctrine, and
+roadmap) before changing family contracts.
 
 ## Ground rules
 

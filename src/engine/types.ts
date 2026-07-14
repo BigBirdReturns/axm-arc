@@ -507,6 +507,62 @@ export interface ArcScaling {
   scalingRules: Record<string, unknown>;
 }
 
+// ── Authored Opening ─────────────────────────────────────────────────────────────────────────
+
+/** A state-changing opening effect authored by the arc. `scope: "all"` binds
+ * to the deterministic boot roster when a client projects the opening into a
+ * drama card. Keeping this law inside Arc makes it part of `cart1_` identity. */
+export interface AuthoredOpeningEffect {
+  scope: "all";
+  type: "morale" | "stress" | "loyalty";
+  value: number;
+}
+
+export interface AuthoredOpeningOption {
+  id: string;
+  label: string;
+  description: string;
+  effects: AuthoredOpeningEffect[];
+}
+
+export interface AuthoredOpening {
+  triggerType: string;
+  narrativeText: string;
+  options: AuthoredOpeningOption[];
+}
+
+export interface FoundingRosterSlot {
+  /** Stable authored handle used by founding relationships and seed derivation. */
+  id: string;
+  tierId: string;
+  roleId?: string;
+  /** Optional authored opening-state overrides after deterministic generation. */
+  morale?: number;
+  stress?: number;
+}
+
+export interface FoundingRelationship {
+  rosterSlotIds: [string, string];
+  state: RelationshipState;
+  affinity: number;
+}
+
+export interface FoundingFacility {
+  type: InfrastructureFacility;
+  level: number;
+}
+
+/** All state-affecting authored policy for the initial organization. Engine
+ * code supplies one frozen v1 fallback for legacy arcs that omit this field. */
+export interface FoundingLaw {
+  organization: { id: string; name: string };
+  resources: { currency: number; materials: number; tokens: number };
+  facilities: FoundingFacility[];
+  distributionPolicy: RewardDistributionPolicy;
+  roster: FoundingRosterSlot[];
+  relationships: FoundingRelationship[];
+}
+
 export interface Arc {
   meta: ArcMeta;
   attributes: ArcAttribute[];
@@ -528,4 +584,9 @@ export interface Arc {
   items: Item[];
   narrativeEvents: NarrativeEvent[];
   scaling: ArcScaling | null;
+  /** Optional first decision. This is authored, state-changing law and therefore
+   * lives inside the digested Arc rather than in a presentation envelope. */
+  opening?: AuthoredOpening;
+  /** Optional content-addressed initial-state law. */
+  founding?: FoundingLaw;
 }

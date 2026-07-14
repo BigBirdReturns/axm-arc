@@ -1176,8 +1176,8 @@ export const KARAZHAN: Arc = {
     description:
       "The haunted tower of the last Guardian, run as a raid campaign: fourteen encounters across five wings, gated by attunement chains, wing progression, and a heroic mode. Prove a full roster — tanks, healers, melee, ranged, support — from the stables to the Pit Lord's chamber.",
     author: "axm-arc team",
-    version: "1.0.0",
-    engineVersion: "1.0.0",
+    version: "1.1.0",
+    engineVersion: "1.1.0",
     domain: "haunted-fantasy",
     estimatedCycles: 40,
   },
@@ -1200,4 +1200,68 @@ export const KARAZHAN: Arc = {
   items: [...ITEMS],
   narrativeEvents: [...NARRATIVE_EVENTS],
   scaling: { type: "fixed", scalingRules: {} },
+  opening: {
+    triggerType: "warding-oath",
+    narrativeText:
+      "The last Guardian is dead, and his tower has not gone quiet. Wards that held for a lifetime are thinning, and what they held is stirring — stables, halls, and the master's ruined court, all waking at once. The Violet Eye grants your raid the key and the tally both: clear Karazhan, and every wing you reclaim is counted against the order's name. The raiders wait at the door for your word.",
+    options: [
+      {
+        id: "sworn-to-the-eye",
+        label: "Answer to the Violet Eye",
+        description:
+          "You take the tower as the order's sanctioned raid — its key, its rules, its tally. The raiders stand a little straighter under a name worth answering to.",
+        effects: [
+          { scope: "all", type: "morale", value: 7 },
+          { scope: "all", type: "loyalty", value: 3 },
+        ],
+      },
+      {
+        id: "for-the-standing",
+        label: "Go in for the standing",
+        description:
+          "The Eye's ranks are climbed by those who clear what others cannot. You take the tower to prove the roster — drive ahead of devotion.",
+        effects: [
+          { scope: "all", type: "morale", value: 3 },
+          { scope: "all", type: "stress", value: 1 },
+        ],
+      },
+      {
+        id: "for-the-vaults",
+        label: "Strip the tower's vaults",
+        description:
+          "A dead Guardian's hoard outweighs an order's name. The raid goes in for what it can carry out — and knows it.",
+        effects: [
+          { scope: "all", type: "morale", value: -4 },
+          { scope: "all", type: "stress", value: 2 },
+        ],
+      },
+    ],
+  },
+  founding: {
+    organization: { id: "player-raid", name: "The Violet Eye Expedition" },
+    resources: { currency: 150, materials: 0, tokens: 2 },
+    facilities: [
+      { type: "Quarters", level: 1 },
+      { type: "Production", level: 0 },
+      { type: "Recreation", level: 1 },
+      { type: "Research", level: 0 },
+      { type: "Training", level: 0 },
+      { type: "Storage", level: 0 },
+      { type: "Medical", level: 0 },
+    ],
+    distributionPolicy: "council",
+    roster: [
+      { id: "tank-veteran", tierId: "veteran", roleId: "tank" },
+      { id: "tank-member", tierId: "member", roleId: "tank" },
+      { id: "healer-veteran", tierId: "veteran", roleId: "healer" },
+      { id: "healer-member", tierId: "member", roleId: "healer" },
+      { id: "melee-veteran", tierId: "veteran", roleId: "melee" },
+      { id: "melee-recruit", tierId: "recruit", roleId: "melee" },
+      { id: "ranged-veteran", tierId: "veteran", roleId: "ranged" },
+      { id: "ranged-member", tierId: "member", roleId: "ranged" },
+      { id: "support-member", tierId: "member", roleId: "support" },
+      { id: "support-recruit", tierId: "recruit", roleId: "support" },
+    ],
+    relationships: [],
+  },
 };

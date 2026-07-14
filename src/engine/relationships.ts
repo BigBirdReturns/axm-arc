@@ -1,4 +1,5 @@
 import type { Organization, Agent, Relationship, RelationshipState } from "./types.js";
+import { compareCodepoints } from "./determinism.js";
 
 // ── Local Types ───────────────────────────────────────────────────────────────
 
@@ -21,7 +22,7 @@ function clampAffinity(v: number): number {
 }
 
 function pairKey(a: string, b: string): [string, string] {
-  return a < b ? [a, b] : [b, a];
+  return compareCodepoints(a, b) <= 0 ? [a, b] : [b, a];
 }
 
 function findRelIdx(org: Organization, aId: string, bId: string): number {

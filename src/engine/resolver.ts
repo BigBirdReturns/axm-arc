@@ -33,7 +33,7 @@ export interface ResolveChallengeOpts {
   collectDiagnostics?: boolean;
 }
 
-function effectiveThreshold(check: MechanicCheck, partySize: number): number {
+export function effectiveThreshold(check: MechanicCheck, partySize: number): number {
   return check.scope === "team_aggregate" && check.thresholdMode === "perAssignedAgent"
     ? check.difficultyThreshold * Math.max(1, partySize)
     : check.difficultyThreshold;

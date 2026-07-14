@@ -173,9 +173,9 @@ export function ExpansionArchiveScreen({ onBack, onOpenLibrary }: { onBack: () =
             <span className="empty">—</span>
           ) : (
             <div className="expansion-archive-journey" aria-label={`${t("archive.journey")} ${journey.length}`}>
-              {journey.map((entry, i) => (
+              {journey.map((entry) => (
                 <div key={entry.commitSeq} className="mechanic-row">
-                  <span className="agent-name">{t("archive.night")} {i + 1}</span>{" "}
+                  <span className="agent-name">{t("archive.night")} {entry.journeyNumber}</span>{" "}
                   <span className="agent-name">{entry.cartridgeId}</span>{" "}
                   <span className={entry.type === "victory" ? "badge pass" : "badge"}>
                     {entry.type === "victory" ? t("archive.victory") : t("archive.failed")}

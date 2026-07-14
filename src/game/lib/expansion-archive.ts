@@ -213,6 +213,9 @@ export function expansionRecord(digest: string, ledger: CampaignLedger | null): 
 
 /** One recorded night, in ledger (commitSeq-ascending) order. */
 export interface JourneyEntry {
+  /** This night's position in the guild's journey, 1-indexed (the first
+   *  recorded night is 1) — never the ledger's 0-indexed commitSeq. */
+  journeyNumber: number;
   commitSeq: number;
   cartridgeId: string;
   digest: string;
@@ -229,7 +232,8 @@ export interface JourneyEntry {
  *  journey. */
 export function journeyTimeline(ledger: CampaignLedger | null): JourneyEntry[] {
   if (!ledger) return [];
-  return ledger.commits.map((c) => ({
+  return ledger.commits.map((c, i) => ({
+    journeyNumber: i + 1,
     commitSeq: c.commitSeq,
     cartridgeId: c.cartridgeId,
     digest: c.cartridgeDigest,

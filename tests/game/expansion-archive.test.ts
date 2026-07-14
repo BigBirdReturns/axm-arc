@@ -275,6 +275,19 @@ describe("journey timeline (PR 045 — cross-expansion chronology)", () => {
     }
   });
 
+  it("numbers journey entries 1-indexed per the contract (first night is 1)", () => {
+    const ledger = commitNightVictory(playToClear(3));
+    const timeline = journeyTimeline(ledger);
+    expect(timeline.length).toBeGreaterThan(0);
+    // Contract: journey numbering is 1-indexed, never the ledger's 0-indexed commitSeq.
+    expect(timeline[0]!.journeyNumber).toBe(1);
+    timeline.forEach((entry, i) => {
+      expect(entry.journeyNumber).toBe(i + 1);
+    });
+    // And it is genuinely distinct from the raw 0-indexed commitSeq for the first entry.
+    expect(timeline[0]!.commitSeq).toBe(0);
+  });
+
   it("a failed-lockout ledger: that entry has type failed-lockout, null grade, not cleared", () => {
     const state = newRaidNight(3);
     const ledger = commitNightFailed(state);

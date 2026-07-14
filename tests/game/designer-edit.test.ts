@@ -7,6 +7,7 @@ import {
   computeItemBonuses,
   toggleTrait,
   toggleEquip,
+  nextCopyId,
 } from "../../src/game/lib/designer-edit.js";
 import { computeBaseEfficiency, generateAgent } from "../../src/engine/character.js";
 import { Rng } from "../../src/engine/prng.js";
@@ -209,5 +210,31 @@ describe("engine legality after a sequence of editor patches", () => {
     // Attribute value clamped in range even after a deliberately out-of-range input.
     expect(agent.attributes.power).toBeGreaterThanOrEqual(1);
     expect(agent.attributes.power).toBeLessThanOrEqual(20);
+  });
+});
+
+describe("nextCopyId", () => {
+  it("mints distinct ids across a duplicate/delete/duplicate sequence", () => {
+    // Reproduce DesignerScreen's roster mutation at the id level.
+    let ids = ["A"];
+    const c1 = nextCopyId(ids, "A"); ids = [...ids, c1];   // A-copy-1
+    const c2 = nextCopyId(ids, "A"); ids = [...ids, c2];   // A-copy-2
+    ids = ids.filter((id) => id !== c1);                   // delete first copy → [A, A-copy-2]
+    const c3 = nextCopyId(ids, "A"); ids = [...ids, c3];   // must NOT collide with A-copy-2
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(c3).not.toBe(c2);
+  });
+
+  it("returns the first copy suffix for a fresh source", () => {
+    expect(nextCopyId(["A"], "A")).toBe("A-copy-1");
+  });
+
+  it("preserves additive-path ids (no regression when nothing is deleted)", () => {
+    expect(nextCopyId(["A"], "A")).toBe("A-copy-1");
+    expect(nextCopyId(["A", "A-copy-1"], "A")).toBe("A-copy-2");
+  });
+
+  it("ignores non-matching and non-integer suffixes", () => {
+    expect(nextCopyId(["A", "A-copy-x", "B-copy-9"], "A")).toBe("A-copy-1");
   });
 });

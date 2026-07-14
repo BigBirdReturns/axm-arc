@@ -727,8 +727,8 @@ export const FIRST_CHARTER: Arc = {
     description:
       "Your guild's founding contract. Six challenges across two tiers introduce every core system: assignment, role composition, reward decisions, drama resolution, recruitment, attunement, and infrastructure. Complete the Warden's Keep to earn your place among the province's recognized guilds.",
     author: "axm-arc team",
-    version: "1.0.0",
-    engineVersion: "1.0.0",
+    version: "1.1.0",
+    engineVersion: "1.1.0",
     domain: "fantasy",
     estimatedCycles: 10,
   },
@@ -751,4 +751,68 @@ export const FIRST_CHARTER: Arc = {
   items: [...ITEMS],
   narrativeEvents: [...NARRATIVE_EVENTS],
   scaling: { type: "fixed", scalingRules: {} },
+  opening: {
+    triggerType: "founding-oath",
+    narrativeText:
+      "Before a single contract is taken, the charter must be sworn. The crown's envoy lays a sealed writ on the table: accept its protection, and the crown takes its claim on all the hall will build. The guild waits on your word.",
+    options: [
+      {
+        id: "open-charter",
+        label: "Swear the open charter",
+        description:
+          "You refuse the seal. The hall binds itself to a charter no crown or company can seize — what you build stays yours. The room rises.",
+        effects: [
+          { scope: "all", type: "morale", value: 8 },
+          { scope: "all", type: "loyalty", value: 3 },
+        ],
+      },
+      {
+        id: "crown-seal",
+        label: "Take the crown's seal",
+        description:
+          "Safety, and a leash. Coin will flow — but the work is the crown's to claim. A few eyes lower.",
+        effects: [
+          { scope: "all", type: "morale", value: 3 },
+          { scope: "all", type: "loyalty", value: -3 },
+        ],
+      },
+      {
+        id: "coin-bound",
+        label: "Bind the hall to coin",
+        description:
+          "No oath, no crown — only the ledger. The mercenary road pays now and costs later. The hall grows quiet.",
+        effects: [
+          { scope: "all", type: "morale", value: -5 },
+          { scope: "all", type: "stress", value: 1 },
+        ],
+      },
+    ],
+  },
+  founding: {
+    organization: { id: "player-charter", name: "Your Charter" },
+    resources: { currency: 100, materials: 0, tokens: 2 },
+    facilities: [
+      { type: "Quarters", level: 1 },
+      { type: "Production", level: 0 },
+      { type: "Recreation", level: 1 },
+      { type: "Research", level: 0 },
+      { type: "Training", level: 0 },
+      { type: "Storage", level: 0 },
+      { type: "Medical", level: 0 },
+    ],
+    distributionPolicy: "council",
+    roster: [
+      { id: "vanguard-veteran", tierId: "veteran", roleId: "vanguard" },
+      { id: "mender-veteran", tierId: "veteran", roleId: "mender" },
+      { id: "skirmisher-veteran", tierId: "veteran", roleId: "skirmisher", stress: 3 },
+      { id: "skirmisher-recruit", tierId: "recruit", roleId: "skirmisher", morale: 38 },
+      { id: "champion-flex", tierId: "champion" },
+      { id: "recruit-flex", tierId: "recruit" },
+    ],
+    relationships: [{
+      rosterSlotIds: ["skirmisher-veteran", "skirmisher-recruit"],
+      state: "Rivalrous",
+      affinity: -5,
+    }],
+  },
 };

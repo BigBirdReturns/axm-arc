@@ -1,5 +1,7 @@
 import { z } from "zod";
 import type { Arc } from "./types";
+import { assertEngineCompatible, compareEngineVersions } from "./version.js";
+import { compareCodepoints } from "./determinism.js";
 
 const AttributeWeightSchema = z.object({
   attributeId: z.string(),
@@ -243,6 +245,63 @@ const ArcScalingSchema = z.object({
   scalingRules: z.record(z.unknown()),
 });
 
+const AuthoredOpeningEffectSchema = z.object({
+  scope: z.literal("all"),
+  type: z.enum(["morale", "stress", "loyalty"]),
+  value: z.number().finite(),
+});
+
+const AuthoredOpeningOptionSchema = z.object({
+  id: z.string().min(1),
+  label: z.string().min(1),
+  description: z.string().min(1),
+  effects: z.array(AuthoredOpeningEffectSchema).min(1),
+});
+
+const AuthoredOpeningSchema = z.object({
+  triggerType: z.string().min(1),
+  narrativeText: z.string().min(1),
+  options: z.array(AuthoredOpeningOptionSchema).min(2),
+});
+
+const InfrastructureFacilitySchema = z.enum([
+  "Quarters",
+  "Production",
+  "Recreation",
+  "Research",
+  "Training",
+  "Storage",
+  "Medical",
+]);
+
+const FoundingRosterSlotSchema = z.object({
+  id: z.string().min(1),
+  tierId: z.string().min(1),
+  roleId: z.string().min(1).optional(),
+  morale: z.number().min(0).max(100).optional(),
+  stress: z.number().min(0).max(10).optional(),
+});
+
+const FoundingLawSchema = z.object({
+  organization: z.object({ id: z.string().min(1), name: z.string().min(1) }),
+  resources: z.object({
+    currency: z.number().int().min(0),
+    materials: z.number().int().min(0),
+    tokens: z.number().int().min(0),
+  }),
+  facilities: z.array(z.object({
+    type: InfrastructureFacilitySchema,
+    level: z.number().int().min(0),
+  })).length(7),
+  distributionPolicy: z.enum(["council", "points", "rotation"]),
+  roster: z.array(FoundingRosterSlotSchema).min(1),
+  relationships: z.array(z.object({
+    rosterSlotIds: z.tuple([z.string().min(1), z.string().min(1)]),
+    state: z.enum(["Neutral", "Allied", "Rivalrous", "Hostile", "Mentorship", "Bonded"]),
+    affinity: z.number().min(-100).max(100),
+  })),
+});
+
 const ArcBaseSchema = z.object({
   meta: z.object({
     id: z.string().min(1),
@@ -250,7 +309,7 @@ const ArcBaseSchema = z.object({
     description: z.string(),
     author: z.string(),
     version: z.string(),
-    engineVersion: z.string(),
+    engineVersion: z.string().regex(/^\d+(?:\.\d+){0,2}$/),
     domain: z.string(),
     estimatedCycles: z.number().int().positive(),
   }),
@@ -276,6 +335,8 @@ const ArcBaseSchema = z.object({
   items: z.array(ItemSchema),
   narrativeEvents: z.array(NarrativeEventSchema),
   scaling: ArcScalingSchema.nullable(),
+  opening: AuthoredOpeningSchema.optional(),
+  founding: FoundingLawSchema.optional(),
 });
 
 type ArcBase = z.infer<typeof ArcBaseSchema>;
@@ -283,6 +344,109 @@ type ArcBase = z.infer<typeof ArcBaseSchema>;
 export const ArcSchema = ArcBaseSchema.superRefine((arc: ArcBase, ctx: z.RefinementCtx) => {
   const attrIds = new Set(arc.attributes.map((a: { id: string }) => a.id));
   const roleIds = new Set(arc.roles.map((r: { id: string }) => r.id));
+  const tierIds = new Set(arc.tiers.map((tier: { id: string }) => tier.id));
+
+  if (arc.opening) {
+    const optionIds = new Set<string>();
+    for (const [optionIndex, option] of arc.opening.options.entries()) {
+      if (optionIds.has(option.id)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["opening", "options", optionIndex, "id"],
+          message: `Authored opening has duplicate option id "${option.id}".`,
+        });
+      }
+      optionIds.add(option.id);
+    }
+  }
+
+  if ((arc.opening || arc.founding) && compareEngineVersions(arc.meta.engineVersion, "1.1.0") < 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["meta", "engineVersion"],
+      message: `Authored opening/founding law requires engineVersion 1.1.0 or newer.`,
+    });
+  }
+
+  if (arc.founding) {
+    const slotIds = new Set<string>();
+    for (const [slotIndex, slot] of arc.founding.roster.entries()) {
+      if (slotIds.has(slot.id)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["founding", "roster", slotIndex, "id"],
+          message: `Founding roster has duplicate slot id "${slot.id}".`,
+        });
+      }
+      slotIds.add(slot.id);
+      if (!tierIds.has(slot.tierId)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["founding", "roster", slotIndex, "tierId"],
+          message: `Founding roster slot "${slot.id}" references unknown tierId "${slot.tierId}".`,
+        });
+      }
+      if (slot.roleId !== undefined && !roleIds.has(slot.roleId)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["founding", "roster", slotIndex, "roleId"],
+          message: `Founding roster slot "${slot.id}" references unknown roleId "${slot.roleId}".`,
+        });
+      }
+    }
+
+    const facilityTypes = new Set<string>();
+    for (const [facilityIndex, facility] of arc.founding.facilities.entries()) {
+      if (facilityTypes.has(facility.type)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["founding", "facilities", facilityIndex, "type"],
+          message: `Founding law has duplicate facility "${facility.type}".`,
+        });
+      }
+      facilityTypes.add(facility.type);
+    }
+
+    if (arc.founding.resources.tokens > arc.maxTokens) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["founding", "resources", "tokens"],
+        message: `Founding tokens (${arc.founding.resources.tokens}) exceed maxTokens (${arc.maxTokens}).`,
+      });
+    }
+
+    const relationshipPairs = new Set<string>();
+    for (const [relationshipIndex, relationship] of arc.founding.relationships.entries()) {
+      const [left, right] = relationship.rosterSlotIds;
+      if (left === right) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["founding", "relationships", relationshipIndex, "rosterSlotIds"],
+          message: `Founding relationship must reference two different roster slots.`,
+        });
+      }
+      for (const slotId of relationship.rosterSlotIds) {
+        if (!slotIds.has(slotId)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["founding", "relationships", relationshipIndex, "rosterSlotIds"],
+            message: `Founding relationship references unknown roster slot "${slotId}".`,
+          });
+        }
+      }
+      const pair = JSON.stringify(
+        compareCodepoints(left, right) <= 0 ? [left, right] : [right, left],
+      );
+      if (relationshipPairs.has(pair)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["founding", "relationships", relationshipIndex, "rosterSlotIds"],
+          message: `Founding law has duplicate relationship between "${left}" and "${right}".`,
+        });
+      }
+      relationshipPairs.add(pair);
+    }
+  }
 
   for (const [challengeIndex, challenge] of arc.challenges.entries()) {
     for (const [checkIndex, check] of challenge.mechanicChecks.entries()) {
@@ -361,6 +525,12 @@ export const ArcSchema = ArcBaseSchema.superRefine((arc: ArcBase, ctx: z.Refinem
 });
 
 export function validateArc(input: unknown): Arc {
+  const requiredEngine = input && typeof input === "object"
+    && "meta" in input && input.meta && typeof input.meta === "object"
+    && "engineVersion" in input.meta && typeof input.meta.engineVersion === "string"
+    ? input.meta.engineVersion
+    : null;
+  if (requiredEngine !== null) assertEngineCompatible(requiredEngine);
   const result = ArcSchema.safeParse(input);
   if (!result.success) {
     const messages = result.error.errors

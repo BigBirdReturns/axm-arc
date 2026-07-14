@@ -75,6 +75,31 @@ describe("cartridgeDigest — content-identity anchor over a real arc", () => {
     const reversed = { challenges: [{ id: "b" }, { id: "a" }] } as unknown as Arc;
     expect(cartridgeDigest(forward)).not.toBe(cartridgeDigest(reversed));
   });
+
+  it("changes when state-changing authored opening law changes", () => {
+    const opening = {
+      triggerType: "oath",
+      narrativeText: "Choose.",
+      options: [{
+        id: "answer",
+        label: "Answer",
+        description: "The roster answers.",
+        effects: [{ scope: "all" as const, type: "morale" as const, value: 1 }],
+      }],
+    };
+    const first = { ...MINI_ARC, opening };
+    const changed = {
+      ...MINI_ARC,
+      opening: {
+        ...opening,
+        options: [{
+          ...opening.options[0]!,
+          effects: [{ scope: "all" as const, type: "morale" as const, value: 2 }],
+        }],
+      },
+    };
+    expect(cartridgeDigest(changed)).not.toBe(cartridgeDigest(first));
+  });
 });
 
 describe("cartridgeDigest — reserved envelope/custody keys are excluded", () => {

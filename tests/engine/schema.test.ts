@@ -57,10 +57,121 @@ describe("validateArc", () => {
     expect(arc.attributes).toHaveLength(3);
   });
 
+  it("accepts and preserves authored opening law", () => {
+    const opening = {
+      triggerType: "founding-oath",
+      narrativeText: "Choose the hall's founding posture.",
+      options: [
+        {
+          id: "stand-open",
+          label: "Stand open",
+          description: "The roster answers together.",
+          effects: [{ scope: "all", type: "morale", value: 2 }],
+        },
+        {
+          id: "stand-back",
+          label: "Stand back",
+          description: "The roster waits.",
+          effects: [{ scope: "all", type: "stress", value: 1 }],
+        },
+      ],
+    };
+    const meta = {
+      ...(minimalArc() as { meta: Record<string, unknown> }).meta,
+      engineVersion: "1.1.0",
+    };
+    expect(validateArc(minimalArc({ meta, opening })).opening).toEqual(opening);
+    expect(() => validateArc(minimalArc({ opening }))).toThrow(
+      /opening\/founding law requires engineVersion 1\.1\.0/,
+    );
+  });
+
+  it("rejects duplicate authored opening option ids", () => {
+    const option = {
+      id: "same",
+      label: "A choice",
+      description: "A consequence.",
+      effects: [{ scope: "all", type: "loyalty", value: 1 }],
+    };
+    expect(() => validateArc(minimalArc({
+      meta: {
+        ...(minimalArc() as { meta: Record<string, unknown> }).meta,
+        engineVersion: "1.1.0",
+      },
+      opening: {
+        triggerType: "oath",
+        narrativeText: "Choose.",
+        options: [option, { ...option, label: "Another choice" }],
+      },
+    }))).toThrow(/duplicate option id "same"/);
+  });
+
+  it("validates founding references instead of accepting client-only boot law", () => {
+    const facilities = ["Quarters", "Production", "Recreation", "Research", "Training", "Storage", "Medical"]
+      .map((type) => ({ type, level: 0 }));
+    const founding = {
+      organization: { id: "org", name: "The Org" },
+      resources: { currency: 10, materials: 0, tokens: 1 },
+      facilities,
+      distributionPolicy: "council",
+      roster: [{ id: "founder", tierId: "common" }],
+      relationships: [],
+    };
+    const meta = {
+      ...(minimalArc() as { meta: Record<string, unknown> }).meta,
+      engineVersion: "1.1.0",
+    };
+    expect(validateArc(minimalArc({ meta, founding })).founding).toEqual(founding);
+    expect(() => validateArc(minimalArc({
+      meta,
+      founding: {
+        ...founding,
+        roster: [{ id: "founder", tierId: "missing" }],
+      },
+    }))).toThrow(/unknown tierId "missing"/);
+    expect(() => validateArc(minimalArc({
+      meta,
+      maxTokens: 1,
+      founding: {
+        ...founding,
+        resources: { ...founding.resources, tokens: 2 },
+      },
+    }))).toThrow(/Founding tokens \(2\) exceed maxTokens \(1\)/);
+    expect(() => validateArc(minimalArc({
+      meta,
+      founding: {
+        ...founding,
+        roster: [
+          { id: "founder", tierId: "common" },
+          { id: "second", tierId: "common" },
+        ],
+        relationships: [
+          { rosterSlotIds: ["founder", "second"], state: "Neutral", affinity: 0 },
+          { rosterSlotIds: ["second", "founder"], state: "Allied", affinity: 10 },
+        ],
+      },
+    }))).toThrow(/duplicate relationship/);
+  });
+
   it("throws when a required top-level field is missing", () => {
     const bad = minimalArc();
     delete (bad as Record<string, unknown>)["meta"];
     expect(() => validateArc(bad)).toThrow(/Invalid arc/);
+  });
+
+  it("enforces meta.engineVersion as a real runtime floor", () => {
+    expect(() => validateArc(minimalArc({
+      meta: {
+        ...(minimalArc() as { meta: Record<string, unknown> }).meta,
+        engineVersion: "1.2.0",
+      },
+    }))).toThrow(/requires engine 1\.2\.0.*provides 1\.1\.0/);
+    expect(() => validateArc(minimalArc({
+      meta: {
+        ...(minimalArc() as { meta: Record<string, unknown> }).meta,
+        engineVersion: "future",
+      },
+    }))).toThrow(/Invalid engine version/);
   });
 
   it("throws when attributes array has fewer than 3 entries", () => {

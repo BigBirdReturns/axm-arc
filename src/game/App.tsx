@@ -1,14 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import type { Agent, DramaCard, Facility, InfrastructureFacility, Organization, RunReport } from "../engine/types.js";
+import type { Organization, RunReport } from "../engine/types.js";
 import { runCycle, type ChallengeAssignment, type PendingRewardChoice, type RewardDecision } from "../engine/cycle.js";
 import {
   FIRST_CHARTER,
-  FIRST_CHARTER_STARTING_ROSTER,
-  FIRST_CHARTER_STARTING_RELATIONSHIPS,
-  FIRST_CHARTER_STARTING_SKIRMISHERS,
   KARAZHAN,
-  KARAZHAN_STARTING_ROSTER,
 } from "../arcs/index.js";
+import { foundOrganization } from "../engine/founding.js";
 import { loadSave, saveSave, clearSave } from "./lib/storage.js";
 import {
   ensureBundledArc,
@@ -94,121 +91,10 @@ function initialTheme(): Theme {
   return "light";
 }
 
-function defaultFacilities(): Record<InfrastructureFacility, Facility> {
-  const names: InfrastructureFacility[] = [
-    "Quarters", "Production", "Recreation", "Research", "Training", "Storage", "Medical",
-  ];
-  const out: Partial<Record<InfrastructureFacility, Facility>> = {};
-  for (const n of names) {
-    out[n] = { type: n, level: n === "Quarters" || n === "Recreation" ? 1 : 0, assignedAgents: [] };
-  }
-  return out as Record<InfrastructureFacility, Facility>;
-}
-
-// Build a generic empty org for any arc. Used when the active arc is something
-// other than the bundled default (we don't have a hand-tuned starting roster +
-// opening drama for arbitrary imported arcs). Arc-agnostic by construction.
-function buildGenericOrg(): Organization {
-  return {
-    id: "player-charter",
-    name: "Your Charter",
-    reputation: 0,
-    resources: { currency: 100, materials: 0, tokens: 2 },
-    infrastructure: defaultFacilities(),
-    agents: {},
-    relationships: [],
-    precedents: [],
-    dramaQueue: [],
-    cycle: 0,
-    distributionPolicy: "council",
-    rngSeed: Math.floor(Math.random() * 2 ** 31),
-  };
-}
-
-function buildNewOrgForBundled(): Organization {
-  const agents: Record<string, Agent> = {};
-  for (const a of FIRST_CHARTER_STARTING_ROSTER) agents[a.id] = a;
-
-  const { veteran: vet, recruit: rec } = FIRST_CHARTER_STARTING_SKIRMISHERS;
-  const vetFirst = vet.name.split(" ")[0]!;
-  const recFirst = rec.name.split(" ")[0]!;
-
-  const openingCard: DramaCard = {
-    id: "opening-rivalry",
-    cycleGenerated: 0,
-    triggerType: "rivalrous_perf_gap",
-    agentsInvolved: [vet.id, rec.id],
-    narrativeText: `${vet.name} has history. ${rec.name} arrived with ambition. Both skirmishers, both watching to see who gets slotted first. You haven't run a contract yet.`,
-    options: [
-      {
-        id: "acknowledge_winner",
-        label: `Acknowledge ${vetFirst}'s edge`,
-        description: `Pull ${vetFirst} aside. Their record speaks for itself. Draw the line before the first contract runs.`,
-        effects: [
-          { target: vet.id, type: "morale", value: 4 },
-          { target: rec.id, type: "morale", value: -2 },
-        ],
-        hiddenEffects: [
-          { target: vet.id, type: "loyalty", value: 2 },
-        ],
-      },
-      {
-        id: "let_it_play",
-        label: "Let the field decide.",
-        description: "Refuse to choose before the first contract. The unresolved rivalry raises the pressure on both of them.",
-        effects: [
-          { target: vet.id, type: "stress", value: 1 },
-          { target: rec.id, type: "stress", value: 1 },
-        ],
-        hiddenEffects: [],
-      },
-    ],
-  };
-
-  return {
-    id: "player-charter",
-    name: "Your Charter",
-    reputation: 0,
-    resources: { currency: 100, materials: 0, tokens: 2 },
-    infrastructure: defaultFacilities(),
-    agents,
-    relationships: [...FIRST_CHARTER_STARTING_RELATIONSHIPS],
-    precedents: [],
-    dramaQueue: [openingCard],
-    cycle: 0,
-    distributionPolicy: "council",
-    rngSeed: Math.floor(Math.random() * 2 ** 31),
-  };
-}
-
-// Karazhan starts with a full ten-raider roster (all five roles covered) and
-// no scripted opening drama — the tower is the drama.
-function buildNewOrgForKarazhan(): Organization {
-  const agents: Record<string, Agent> = {};
-  for (const a of KARAZHAN_STARTING_ROSTER) agents[a.id] = a;
-  return {
-    id: "player-raid",
-    name: "The Violet Eye Expedition",
-    reputation: 0,
-    resources: { currency: 150, materials: 0, tokens: 2 },
-    infrastructure: defaultFacilities(),
-    agents,
-    relationships: [],
-    precedents: [],
-    dramaQueue: [],
-    cycle: 0,
-    distributionPolicy: "council",
-    rngSeed: Math.floor(Math.random() * 2 ** 31),
-  };
-}
-
-// Pick a new-org builder based on which bundled arc is active (each bundled
-// arc ships a hand-tuned start). Imported arcs get a generic empty start.
-// The engine treats all of them identically.
+// One founding transition for bundled and imported arcs alike. No client-local
+// roster, resource, facility, relationship, seed, or opening policy remains.
 function buildNewOrg(activeArc: typeof FIRST_CHARTER): Organization {
-  if (activeArc.meta.id === FIRST_CHARTER.meta.id) return buildNewOrgForBundled();
-  if (activeArc.meta.id === KARAZHAN.meta.id) return buildNewOrgForKarazhan();
-  return buildGenericOrg();
+  return foundOrganization(activeArc);
 }
 
 export function App(): JSX.Element {

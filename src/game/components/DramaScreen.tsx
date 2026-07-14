@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import type { Arc, DramaCard, Organization } from "../../engine/types.js";
 import type { PendingRewardChoice } from "../../engine/cycle.js";
-import { resolveDramaCard } from "../../engine/drama.js";
+import { canApplyDramaEffect, resolveDramaCard } from "../../engine/drama.js";
 import { precedentContextSentence } from "../lib/headline.js";
 import { agentInitials } from "../lib/ui-helpers.js";
 import { t, type MessageId } from "../../i18n/index.js";
@@ -16,9 +16,20 @@ interface Props {
   pendingRewardChoices: PendingRewardChoice[];
 }
 
+export function dramaResolutionReceiptMessageId(
+  precedentsBefore: number,
+  precedentsAfter: number,
+): "drama.precedentLogged" | "drama.decisionApplied" {
+  return precedentsAfter > precedentsBefore ? "drama.precedentLogged" : "drama.decisionApplied";
+}
+
 export function DramaScreen({ org, arc, setOrg, cycle, pendingRewardChoices }: Props): JSX.Element {
   const [openIdx, setOpenIdx] = useState(0);
-  const [feedback, setFeedback] = useState<{ label: string; effects: string[] } | null>(null);
+  const [feedback, setFeedback] = useState<{
+    label: string;
+    effects: string[];
+    precedentLogged: boolean;
+  } | null>(null);
   const queue = org.dramaQueue;
   const card = queue[openIdx] ?? null;
 
@@ -31,8 +42,8 @@ export function DramaScreen({ org, arc, setOrg, cycle, pendingRewardChoices }: P
   const resolve = (optionId: string) => {
     if (!card) return;
     const option = card.options.find((o) => o.id === optionId);
-    const { org: next, revealedHidden } = resolveDramaCard(org, card.id, optionId, cycle);
-    const lines = revealedHidden
+    const { org: next, appliedVisibleEffects } = resolveDramaCard(org, card.id, optionId, cycle);
+    const lines = appliedVisibleEffects
       .map((e) => {
         const delta = `${e.value > 0 ? "+" : ""}${e.value}`;
         if (e.target === "_org_") return `${delta} ${vocabLabel(e.type)}`;
@@ -40,7 +51,14 @@ export function DramaScreen({ org, arc, setOrg, cycle, pendingRewardChoices }: P
         return name ? `${delta} ${vocabLabel(e.type)} · ${name}` : null;
       })
       .filter((s): s is string => s !== null);
-    setFeedback({ label: option?.label ?? optionId, effects: lines });
+    setFeedback({
+      label: option?.label ?? optionId,
+      effects: lines,
+      precedentLogged: dramaResolutionReceiptMessageId(
+        org.precedents.length,
+        next.precedents.length,
+      ) === "drama.precedentLogged",
+    });
     setOrg(next);
     if (openIdx >= next.dramaQueue.length) setOpenIdx(Math.max(0, next.dramaQueue.length - 1));
   };
@@ -48,8 +66,10 @@ export function DramaScreen({ org, arc, setOrg, cycle, pendingRewardChoices }: P
   return (
     <div className="screen">
       {feedback && (
-        <div className="resolve-toast" onClick={() => setFeedback(null)}>
-          <span className="resolve-toast-label">{t("drama.precedentLogged")}</span>
+        <div className="resolve-toast" role="status" aria-live="polite" onClick={() => setFeedback(null)}>
+          <span className="resolve-toast-label">
+            {t(feedback.precedentLogged ? "drama.precedentLogged" : "drama.decisionApplied")}
+          </span>
           <span className="resolve-toast-action">{feedback.label}</span>
           {feedback.effects.length > 0 && (
             <span className="resolve-toast-fx">{feedback.effects.join(" · ")}</span>
@@ -256,28 +276,13 @@ function EffectRows({ opt, org }: {
   const basis = basisLabel(opt.id);
 
   const visibleLines = opt.effects
-    .filter((e) => e.type !== "equip_item")
+    .filter((e) => canApplyDramaEffect(org, e))
     .map((e) => {
       const delta = `${e.value > 0 ? "+" : ""}${e.value}`;
       if (e.target === "_org_") return t("drama.orgWide", { delta, type: vocabLabel(e.type) });
       const name = org.agents[e.target]?.name?.split(" ")[0];
       if (!name) return null;
       return t("drama.effectOn", { delta, type: vocabLabel(e.type), name });
-    })
-    .filter((s): s is string => s !== null);
-
-  const hiddenLines = opt.hiddenEffects
-    .map((e) => {
-      if (e.type.includes("precedent")) return t("drama.precedentConsistency");
-      if (e.type.includes("loyalty") && e.value < 0)
-        return t("drama.loyaltyViolation", { n: Math.abs(e.value) });
-      if (e.type === "affinity_toward_winner") {
-        const rawId = e.target.split("_toward_")[0] ?? "";
-        const name = org.agents[rawId]?.name?.split(" ")[0];
-        return name ? t("drama.moraleSmall", { delta: `${e.value < 0 ? "-" : "+"}${Math.abs(e.value)}`, name }) : null;
-      }
-      const name = org.agents[e.target]?.name?.split(" ")[0];
-      return name ? t("drama.effectOn", { delta: `${e.value > 0 ? "+" : ""}${e.value}`, type: vocabLabel(e.type), name }) : null;
     })
     .filter((s): s is string => s !== null);
 
@@ -296,14 +301,6 @@ function EffectRows({ opt, org }: {
           <span className="tag-label visible">{t("drama.tagVisible")}</span>
           <span style={{ fontFamily: "var(--serif)", fontSize: 13, color: "var(--ink-2)", lineHeight: 1.4 }}>
             {visibleLines.join(" · ")}
-          </span>
-        </div>
-      )}
-      {hiddenLines.length > 0 && (
-        <div className="row" style={{ gap: 8, alignItems: "flex-start" }}>
-          <span className="tag-label hidden">{t("drama.tagHidden")}</span>
-          <span style={{ fontFamily: "var(--serif)", fontSize: 13, color: "var(--dim)", fontStyle: "italic", lineHeight: 1.4 }}>
-            {hiddenLines.join(" · ")}
           </span>
         </div>
       )}

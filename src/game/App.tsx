@@ -154,8 +154,8 @@ function buildNewOrgForBundled(): Organization {
       },
       {
         id: "let_it_play",
-        label: "Run them both. See what the field produces.",
-        description: `Assign both to the same contract. Either they figure it out or the friction tells you what you need to know.`,
+        label: "Let the field decide.",
+        description: "Refuse to choose before the first contract. The unresolved rivalry raises the pressure on both of them.",
         effects: [
           { target: vet.id, type: "stress", value: 1 },
           { target: rec.id, type: "stress", value: 1 },

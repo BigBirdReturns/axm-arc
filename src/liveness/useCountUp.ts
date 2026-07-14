@@ -1,29 +1,9 @@
 import { useEffect, useRef, useState } from "react";
+import { useReducedMotion } from "./useReducedMotion.js";
 
 /** Ease-out cubic: fast start, gentle settle. */
 function easeOutCubic(t: number): number {
   return 1 - Math.pow(1 - t, 3);
-}
-
-/**
- * Returns whether motion should be suppressed for accessibility reasons.
- *
- * Honors the existing reduce-motion contract via BOTH signals:
- *  - the OS-level `prefers-reduced-motion: reduce` media query, and
- *  - the `reduce-motion` class on <html> (toggled by the in-app
- *    accessibility setting added in PR #6).
- *
- * If either is set, animations snap instantly to their target.
- */
-function prefersReducedMotion(): boolean {
-  if (typeof window === "undefined") return false;
-  const mediaReduced =
-    typeof window.matchMedia === "function" &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const classReduced =
-    typeof document !== "undefined" &&
-    document.documentElement.classList.contains("reduce-motion");
-  return mediaReduced || classReduced;
 }
 
 /**
@@ -36,6 +16,7 @@ function prefersReducedMotion(): boolean {
  */
 export function useCountUp(value: number, opts?: { durationMs?: number }): number {
   const durationMs = opts?.durationMs ?? 400;
+  const reducedMotion = useReducedMotion();
   const [display, setDisplay] = useState(value);
   const rafRef = useRef<number | null>(null);
   // Track the last value we rendered so animations start from it.
@@ -58,7 +39,7 @@ export function useCountUp(value: number, opts?: { durationMs?: number }): numbe
       return;
     }
 
-    if (prefersReducedMotion() || durationMs <= 0) {
+    if (reducedMotion || durationMs <= 0) {
       fromRef.current = to;
       setDisplay(to);
       return;
@@ -93,7 +74,7 @@ export function useCountUp(value: number, opts?: { durationMs?: number }): numbe
         rafRef.current = null;
       }
     };
-  }, [value, durationMs]);
+  }, [value, durationMs, reducedMotion]);
 
   return display;
 }

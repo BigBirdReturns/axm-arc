@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { Rng } from "../../src/engine/prng.js";
 import {
+  canApplyDramaEffect,
   generateDramaCards,
   enqueueDramaCards,
   resolveDramaCard,
@@ -204,8 +205,8 @@ describe("resolveDramaCard", () => {
     expect(result.agents["a1"]!.morale).toBeGreaterThan(50);
   });
 
-  it("returns hidden effects list", () => {
-    const a = makeTestAgent({ id: "a1" });
+  it("applies supported hidden effects without mixing them into the visible receipt", () => {
+    const a = makeTestAgent({ id: "a1", loyalty: 10 });
     const org = makeTestOrg([a]);
     const rng = new Rng(42);
     const triggers: DramaTriggerInput[] = [
@@ -216,8 +217,52 @@ describe("resolveDramaCard", () => {
     const card = withCards.dramaQueue[0]!;
     // stay_course has hidden effect
     const option = card.options.find((o) => o.id === "stay_course")!;
-    const { revealedHidden } = resolveDramaCard(withCards, card.id, option.id, 1);
-    expect(revealedHidden.length).toBeGreaterThan(0);
+    const { org: result, appliedVisibleEffects, appliedHiddenEffects } = resolveDramaCard(
+      withCards,
+      card.id,
+      option.id,
+      1,
+    );
+    expect(result.agents["a1"]!.hiddenAttributes.loyalty).toBe(7);
+    expect(appliedVisibleEffects).toEqual([
+      { target: "a1", type: "stress", value: 1 },
+    ]);
+    expect(appliedHiddenEffects).toEqual([
+      { target: "a1", type: "loyalty", value: -3 },
+    ]);
+  });
+
+  it("reports the bounded delta that actually landed", () => {
+    const a = makeTestAgent({ id: "a1", morale: 98 });
+    const org = makeTestOrg([a]);
+    const rng = new Rng(42);
+    const [card] = generateDramaCards(
+      [{ type: "morale_extreme", agentId: "a1", morale: 98 }],
+      org,
+      rng,
+      1,
+    );
+    const option = card!.options.find((candidate) => candidate.id === "acknowledge")!;
+    const withCards = enqueueDramaCards(org, [card!], 1);
+
+    const { org: result, appliedVisibleEffects } = resolveDramaCard(
+      withCards,
+      card!.id,
+      option.id,
+      1,
+    );
+
+    expect(result.agents["a1"]!.morale).toBe(100);
+    expect(appliedVisibleEffects).toEqual([
+      { target: "a1", type: "morale", value: 2 },
+    ]);
+  });
+
+  it("does not advertise effects the drama resolver cannot apply", () => {
+    const org = makeTestOrg([makeTestAgent({ id: "a1" })]);
+    expect(canApplyDramaEffect(org, { target: "a1", type: "morale", value: 1 })).toBe(true);
+    expect(canApplyDramaEffect(org, { target: "a1", type: "attributes", value: 1 })).toBe(false);
+    expect(canApplyDramaEffect(org, { target: "_org_", type: "reputation", value: 1 })).toBe(false);
   });
 
   it("resolving nonexistent card returns unchanged org", () => {

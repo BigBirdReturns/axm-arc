@@ -321,6 +321,7 @@ export type MessageId =
   | "assign.assessFail"
   // ── drama screen ──
   | "drama.precedentLogged"
+  | "drama.decisionApplied"
   | "drama.councilCycle"
   | "drama.decisions"
   | "drama.empty"
@@ -1039,6 +1040,7 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "assign.assessFail": "FAIL",
 
     "drama.precedentLogged": "PRECEDENT LOGGED",
+    "drama.decisionApplied": "DECISION APPLIED",
     "drama.councilCycle": (p) => `Council · Cycle ${str(p, "cycle")}`,
     "drama.decisions": (p) => {
       const n = num(p, "count");
@@ -1768,6 +1770,7 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "assign.assessFail": "未過",
 
     "drama.precedentLogged": "先例已記錄",
+    "drama.decisionApplied": "決策已生效",
     "drama.councilCycle": (p) => `議會 · 週期 ${str(p, "cycle")}`,
     "drama.decisions": (p) => {
       const n = num(p, "count");

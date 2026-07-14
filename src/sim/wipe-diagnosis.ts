@@ -26,6 +26,7 @@ import type {
   RunReport,
   ScoreBreakdown,
 } from "../engine/types";
+import { deterministicContribution } from "../engine/scoring.js";
 
 export interface FactorNote {
   label: string;
@@ -128,16 +129,6 @@ function intendedRoleId(check: MechanicCheck, arc: Arc): string | undefined {
   return undefined;
 }
 
-function gearBonusFor(agent: Agent, attrId: string | undefined, arc: Arc): number {
-  if (!attrId) return 0;
-  let g = 0;
-  for (const itemId of Object.values(agent.equippedItems)) {
-    const item = arc.items.find((it) => it.id === itemId);
-    if (item) g += item.statBonuses[attrId] ?? 0;
-  }
-  return g;
-}
-
 /** The NET change to `attrId` from equipping `candidate`, after DISPLACING
  *  whatever currently occupies its slot. `equippedItems` is keyed by slot, so
  *  equipping evicts the slot's current occupant — the real gain is the
@@ -157,18 +148,19 @@ export function netGearGain(
 /** The deterministic mean of an agent's score on a check — raw attribute pull +
  *  equipped gear + morale offset, with no roll. Used ONLY to rank candidate
  *  swaps/reassigns; the actual attempt's numbers come from the resolver. */
-function expectedContribution(agent: Agent, check: MechanicCheck, arc: Arc): number {
-  const raw = check.attributeWeights.reduce(
-    (s, aw) => s + (agent.attributes[aw.attributeId] ?? 0) * aw.weight,
-    0,
-  );
-  // The resolver folds gear into a check contribution at HALF weight
-  // (resolver.ts getGearBonus: `bonus * 0.5`), so this deterministic mean — and
-  // every bench_swap / tradeoff projection derived from it — must halve gear
-  // too, exactly as the gear lever already does. (issues #109, #112)
-  const gear = gearBonusFor(agent, dominantAttr(check), arc) * 0.5;
-  const morale = (agent.morale - 50) / 10;
-  return raw + gear + morale;
+function expectedContribution(
+  agent: Agent,
+  check: MechanicCheck,
+  others: Agent[],
+  org: Organization,
+  arc: Arc,
+): number {
+  // Single scoring source: the resolver's complete deterministic (no-roll)
+  // contribution — attributes, gear (half weight), relationships within `others`,
+  // morale, afflictions, and traits. `others` is the party the agent would field
+  // beside, so a candidate is priced in the post-swap party (issues #113, #116;
+  // gear-halving from #109/#112 is now inherent to the shared source).
+  return deterministicContribution(agent, check, others, org, arc).total;
 }
 
 function inScope(agent: Agent, check: MechanicCheck, challenge: Challenge): boolean {
@@ -240,7 +232,12 @@ function generateFixes(
   const culprit = org.agents[topCulprit.agentId];
   if (!culprit) return fixes;
   const attr = dominantAttr(check);
-  const culpritExpected = expectedContribution(culprit, check, arc);
+  // Party context for resolver-parity pricing: an agent is scored beside the rest
+  // of the assigned party, so a swap candidate is priced in the post-swap party
+  // (the assigned party with the culprit removed).
+  const assignedAgents = [...assignedIds].map((id) => org.agents[id]).filter((a): a is Agent => a !== undefined);
+  const postSwapParty = assignedAgents.filter((a) => a.id !== culprit.id);
+  const culpritExpected = expectedContribution(culprit, check, postSwapParty, org, arc);
   const bench = Object.values(org.agents).filter((a) => !assignedIds.has(a.id));
   const checkId = primary.mechanicId;
   const S = round(primary.shortfall);
@@ -250,7 +247,7 @@ function generateFixes(
   // 1. Bench swap — a benched, in-scope agent with a higher expected contribution.
   const swapCandidate = bench
     .filter((a) => inScope(a, check, challenge))
-    .map((a) => ({ a, gain: expectedContribution(a, check, arc) - culpritExpected }))
+    .map((a) => ({ a, gain: expectedContribution(a, check, postSwapParty, org, arc) - culpritExpected }))
     .filter((c) => c.gain > 1)
     .sort((x, y) => y.gain - x.gain)[0];
   if (swapCandidate) {
@@ -354,19 +351,29 @@ function generateFixes(
   const benchIntended = intended
     ? bench
         .filter((a) => a.role === intended)
-        .sort((a, b) => expectedContribution(b, check, arc) - expectedContribution(a, check, arc))[0]
+        .sort(
+          (a, b) =>
+            expectedContribution(b, check, postSwapParty, org, arc) -
+            expectedContribution(a, check, postSwapParty, org, arc),
+        )[0]
     : undefined;
-  if (intended && benchIntended) {
+  // The tradeoff's real impact is the counterfactual delta of fielding the intended
+  // body in the post-swap party. Only surface it when that delta is a provable
+  // positive gain — no hardcoded impact manufacturing a fake improvement. (issue #116)
+  const tradeoffGain = benchIntended
+    ? expectedContribution(benchIntended, check, postSwapParty, org, arc) - culpritExpected
+    : 0;
+  if (intended && benchIntended && tradeoffGain > 0) {
     fixes.push({
       lever: "tradeoff",
       description: `Field ${benchIntended.name} (${intended}) and sit a defensive body — more ${attr ?? intended}, thinner safety net`,
       target: benchIntended.name,
       cost: "trade a defensive slot for offense; the sat starter remembers it",
-      impact: 1,
+      impact: tradeoffGain,
       swapAgentId: benchIntended.id,
       attrId: attr,
       checkId,
-      projectedEffect: closes(Math.max(1, expectedContribution(benchIntended, check, arc) - culpritExpected)),
+      projectedEffect: closes(tradeoffGain),
     });
   }
 

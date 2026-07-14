@@ -438,6 +438,20 @@ function foldCommit(base: CampaignLedger, night: NightResult, commit: LockoutCom
     fairness.perAgent[c.toAgentId] = { received: f.received + 1, passedOver: f.passedOver };
   }
 
+  // Distribution evenness (0-100, Gini-like): derived from the real per-agent
+  // loot receipts across the full roster, not a frozen constant. Every eligible
+  // raider counts — an agent who received nothing is a real zero — so hoarding
+  // scores low and an even spread scores high. Deterministic; no locale, no random.
+  const shares = roster.map((m) => fairness.perAgent[m.agentId]?.received ?? 0);
+  const totalAwarded = shares.reduce((sum, n) => sum + n, 0);
+  if (shares.length > 0 && totalAwarded > 0) {
+    let sumAbsDiff = 0;
+    for (const a of shares) for (const b of shares) sumAbsDiff += Math.abs(a - b);
+    const gini = sumAbsDiff / (2 * shares.length * totalAwarded);
+    fairness.distributionScore = Math.round((1 - gini) * 100);
+  }
+  // else: no loot recorded yet — keep the honest default (nothing to be unfair about).
+
   // Tier record + gate advance (victory + cleared only).
   const tiers = [...base.progress.tiers];
   const advanced = commit.type === "victory" && commit.consequences.clearedTier;

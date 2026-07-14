@@ -1,5 +1,6 @@
 import type { Agent, Arc, Challenge, NarrativeTemplate, RunReport, AgentRunResult, MechanicResult } from "./types";
 import { Rng } from "./prng";
+import { compareCodepoints } from "./determinism.js";
 
 export const DEFAULT_TEMPLATES: NarrativeTemplate[] = [
   {
@@ -163,10 +164,14 @@ function findMostNotableMechanic(ar: AgentRunResult): MechanicResult | null {
   // Prefer failures, then closest margins
   const failed = ar.mechanicResults.filter((mr) => !mr.passed);
   if (failed.length > 0) {
-    return failed.sort((a, b) => (b.score - b.threshold) - (a.score - a.threshold))[0]!;
+    return failed.sort((a, b) =>
+      (b.score - b.threshold) - (a.score - a.threshold) || compareCodepoints(a.mechanicId, b.mechanicId)
+    )[0]!;
   }
   // All passed: pick the closest (smallest positive margin)
-  return ar.mechanicResults.sort((a, b) => (a.score - a.threshold) - (b.score - b.threshold))[0]!;
+  return [...ar.mechanicResults].sort((a, b) =>
+    (a.score - a.threshold) - (b.score - b.threshold) || compareCodepoints(a.mechanicId, b.mechanicId)
+  )[0]!;
 }
 
 export function renderReport(

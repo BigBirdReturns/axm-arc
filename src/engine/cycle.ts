@@ -25,8 +25,14 @@ import {
   stampUnlockedProgressionTiers,
 } from "./access.js";
 import { applyDifficultyMode } from "./difficulty.js";
-import { serializeGame } from "./save.js";
 import { Rng, hashSeed } from "./prng.js";
+import {
+  compareCodepoints,
+  orderedEntries,
+  orderedKeys,
+  orderedStrings,
+  orderRecordKeysDeep,
+} from "./determinism.js";
 import {
   HIDDEN_ATTR_REVEAL_THRESHOLDS,
   TRAIT_REVEAL_THRESHOLDS,
@@ -81,7 +87,6 @@ export interface CycleResult {
   queuedDramaCards: DramaCard[];
   pendingRewardChoices: PendingRewardChoice[];
   warnings: string[];
-  saveData: string;
 }
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
@@ -103,6 +108,22 @@ function mergeStressDeltas(a: Map<string, number>, b: Map<string, number>): Map<
   return merged;
 }
 
+/** Normalize Record-backed collections and set-like assignment arrays before
+ * any transition work. Insertion and click order are not authored game law and
+ * must not survive into output bytes or RNG traversal order. */
+function normalizeOrganizationOrder(org: Organization): Organization {
+  return orderRecordKeysDeep({
+    ...org,
+    agents: Object.fromEntries(orderedEntries(org.agents)),
+    infrastructure: Object.fromEntries(
+      orderedEntries(org.infrastructure).map(([id, facility]) => [
+        id,
+        { ...facility, assignedAgents: orderedStrings(facility.assignedAgents) },
+      ]),
+    ) as Organization["infrastructure"],
+  });
+}
+
 // ── runCycle ──────────────────────────────────────────────────────────────────
 
 export function runCycle(opts: {
@@ -113,7 +134,7 @@ export function runCycle(opts: {
 }): CycleResult {
   const { arc, assignments, pendingRewardDecisions = [] } = opts;
   const cycle = opts.org.cycle;
-  let org = opts.org;
+  let org = normalizeOrganizationOrder(opts.org);
 
   const events: CycleEvent[] = [];
   const allDramaTriggers: DramaTriggerInput[] = [];
@@ -127,7 +148,7 @@ export function runCycle(opts: {
   // ── STEP 0: Downed-agent recovery ─────────────────────────────────────────
   // Agents return to duty once their downtime has elapsed, regardless of a
   // Medical facility (Medical only accelerates recovery during STEP 6).
-  for (const [agentId, agent] of Object.entries(org.agents)) {
+  for (const [agentId, agent] of orderedEntries(org.agents)) {
     if (agent.downedUntilCycle !== null && cycle >= agent.downedUntilCycle) {
       org = patchAgent(org, agentId, { downedUntilCycle: null });
       events.push({ type: "recovered", agentId, data: { cycle } });
@@ -140,8 +161,6 @@ export function runCycle(opts: {
   // Map: challengeId → agentIds assigned
   const assignmentsByChallenge = new Map<string, string[]>();
 
-  const step1Rng = new Rng(hashSeed(org.rngSeed, cycle, "step1"));
-
   for (const assignment of assignments) {
     const challenge = arc.challenges.find((c) => c.id === assignment.challengeId);
     if (!challenge) {
@@ -151,7 +170,8 @@ export function runCycle(opts: {
 
     // Gate enforcement: a locked challenge never resolves and never spends
     // tokens. Judged against the declared party (access.ts).
-    const access = challengeAccess(challenge, org, arc, assignment.agentIds);
+    const canonicalAgentIds = [...assignment.agentIds].sort(compareCodepoints);
+    const access = challengeAccess(challenge, org, arc, canonicalAgentIds);
     if (!access.accessible) {
       const reasons: string[] = [];
       if (access.missingMilestones.length > 0) {
@@ -180,11 +200,11 @@ export function runCycle(opts: {
       effectiveChallenge = applyDifficultyMode(challenge, mode);
     }
 
-    const agentList = assignment.agentIds
+    const agentList = canonicalAgentIds
       .map((id) => org.agents[id])
       .filter((a): a is Agent => a !== undefined && a.downedUntilCycle === null);
 
-    if (agentList.length === 0 || agentList.length !== assignment.agentIds.length) {
+    if (agentList.length === 0 || agentList.length !== canonicalAgentIds.length) {
       warnings.push(`No valid agents for challenge ${assignment.challengeId}`);
       continue;
     }
@@ -213,14 +233,13 @@ export function runCycle(opts: {
       assignedAgents: agentList,
       org,
       arc,
-      rng: step1Rng.fork(),
       cycle,
       // Already debited above by spendTokens; this only informs the roll of what
       // was spent. A no-op unless the challenge authors a resource-spend lever.
       tokensSpent: assignment.tokensSpent,
     });
     reports.push(report);
-    assignmentsByChallenge.set(assignment.challengeId, assignment.agentIds);
+    assignmentsByChallenge.set(assignment.challengeId, canonicalAgentIds);
 
     // Apply downed status and update assignment history
     for (const ar of report.assignedAgents) {
@@ -316,7 +335,7 @@ export function runCycle(opts: {
   const assignedThisCycle = new Set(
     assignments.flatMap((a) => a.agentIds),
   );
-  for (const [agentId, agent] of Object.entries(org.agents)) {
+  for (const [agentId, agent] of orderedEntries(org.agents)) {
     if (assignedThisCycle.has(agentId)) continue;
     const recentAssignments = agent.assignmentHistory.filter(
       (r) => r.cycle >= cycle - 2 && r.cycle < cycle,
@@ -339,7 +358,7 @@ export function runCycle(opts: {
 
   // Affliction threshold processing for each agent at stress >= 10
   const step3bRng = new Rng(hashSeed(org.rngSeed, cycle, "step3b"));
-  for (const agentId of Object.keys(org.agents)) {
+  for (const agentId of orderedKeys(org.agents)) {
     const agent = org.agents[agentId];
     if (!agent || agent.stress < 10) continue;
 
@@ -403,7 +422,7 @@ export function runCycle(opts: {
   org = driftMorale(org, cycle);
 
   // Check for morale extremes and emit events/triggers
-  for (const [agentId, agent] of Object.entries(org.agents)) {
+  for (const [agentId, agent] of orderedEntries(org.agents)) {
     if (agent.morale < 25 || agent.morale > 85) {
       events.push({ type: "morale_extreme", agentId, data: { morale: agent.morale } });
       allDramaTriggers.push({ type: "morale_extreme", agentId, morale: agent.morale });
@@ -453,7 +472,7 @@ export function runCycle(opts: {
   const step9Rng = new Rng(hashSeed(org.rngSeed, cycle, "step9"));
 
   // Check prolonged benching triggers (3+ consecutive cycles benched)
-  for (const [agentId, agent] of Object.entries(org.agents)) {
+  for (const [agentId, agent] of orderedEntries(org.agents)) {
     if (assignedThisCycle.has(agentId)) continue;
     const recentHistory = agent.assignmentHistory;
     if (recentHistory.length === 0) continue;
@@ -498,7 +517,7 @@ export function runCycle(opts: {
 
   // ── STEP 10: Hidden Attribute / Trait Reveals ─────────────────────────────
 
-  for (const [agentId, agent] of Object.entries(org.agents)) {
+  for (const [agentId, agent] of orderedEntries(org.agents)) {
     const totalAssignments = agent.assignmentHistory.length;
 
     // Hidden attr reveals: [3, 8] thresholds
@@ -568,24 +587,19 @@ export function runCycle(opts: {
   }
 
   // Capture tiers first earned through this cycle's milestones or reputation
-  // before the save checkpoint, so export/resume preserves the unlock.
+  // before returning the transition, so a caller's save preserves the unlock.
   org = stampUnlockedProgressionTiers(org, arc);
 
   // ── Increment cycle ───────────────────────────────────────────────────────
 
   org = { ...org, cycle: cycle + 1 };
 
-  // ── STEP 11: Save Checkpoint ──────────────────────────────────────────────
-
-  const saveData = serializeGame(org, arc);
-
-  return {
+  return orderRecordKeysDeep({
     org,
     reports,
     events,
     queuedDramaCards: newDramaCards,
     pendingRewardChoices,
     warnings,
-    saveData,
-  };
+  });
 }

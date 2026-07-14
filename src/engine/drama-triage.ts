@@ -1,4 +1,5 @@
 import type { DramaCard } from "./types.js";
+import { compareCodepoints } from "./determinism.js";
 
 export type DramaLane = "blocking" | "inbox" | "ambient";
 
@@ -97,7 +98,7 @@ export function triageDrama(queue: DramaCard[], opts?: TriageOptions): TriagedDr
 
   // Emit ambient groups in a deterministic order: sorted by triggerType string.
   const ambient: AmbientGroup[] = [...ambientGroups.keys()]
-    .sort()
+    .sort(compareCodepoints)
     .map((triggerType) => {
       const cards = ambientGroups.get(triggerType)!;
       return {

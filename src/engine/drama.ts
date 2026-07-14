@@ -2,6 +2,7 @@ import type { Organization, DramaCard, DramaCardEffect, DramaCardOption, Precede
 import { MAX_DRAMA_CARDS_PER_CYCLE } from "./constants.js";
 import type { Rng } from "./prng.js";
 import { hashSeed } from "./prng.js";
+import { compareCodepoints } from "./determinism.js";
 
 // ── DramaTriggerInput ─────────────────────────────────────────────────────────
 
@@ -427,7 +428,7 @@ export function enqueueDramaCards(
       // Tiebreak by max tier of involved agents
       const tierA = agentMaxTier(a.agentsInvolved, org);
       const tierB = agentMaxTier(b.agentsInvolved, org);
-      return tierB - tierA;
+      return tierB - tierA || compareCodepoints(a.id, b.id);
     });
     toAdd = toAdd.slice(0, Math.max(0, available));
   }

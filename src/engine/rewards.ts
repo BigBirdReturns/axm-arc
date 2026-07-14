@@ -1,11 +1,12 @@
 import type { Organization, Agent, Item, Arc, Precedent } from "./types.js";
 import type { DramaTriggerInput } from "./drama.js";
 import type { Rng } from "./prng.js";
+import { compareCodepoints, orderedStrings, orderedValues } from "./determinism.js";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function sumStatBonuses(bonuses: Record<string, number>): number {
-  return Object.values(bonuses).reduce((a, b) => a + b, 0);
+  return orderedValues(bonuses).reduce((a, b) => a + b, 0);
 }
 
 function tierRank(tierId: string, arc: Arc): number {
@@ -68,7 +69,7 @@ export function computeRewardDisappointment(
   const affinityDeltas = new Map<string, number>();
   const itemValue = sumStatBonuses(item.statBonuses);
 
-  for (const agent of eligibleAgents) {
+  for (const agent of [...eligibleAgents].sort((a, b) => compareCodepoints(a.id, b.id))) {
     if (agent.id === winner) continue;
 
     // Upgrade size: how much better is the item than current?
@@ -120,7 +121,7 @@ function inferDecisionBasis(
 
   // Check seniority: most assignment history
   const sortedBySeniority = [...eligibleAgents].sort(
-    (a, b) => b.assignmentHistory.length - a.assignmentHistory.length,
+    (a, b) => b.assignmentHistory.length - a.assignmentHistory.length || compareCodepoints(a.id, b.id),
   );
   if (sortedBySeniority[0]?.id === winner) return "seniority";
 
@@ -128,7 +129,7 @@ function inferDecisionBasis(
   const sortedByNeed = [...eligibleAgents].sort((a, b) => {
     const aLast = a.rewardHistory[a.rewardHistory.length - 1]?.cycle ?? 0;
     const bLast = b.rewardHistory[b.rewardHistory.length - 1]?.cycle ?? 0;
-    return aLast - bLast; // earlier last reward = more need
+    return aLast - bLast || compareCodepoints(a.id, b.id); // earlier last reward = more need
   });
   if (sortedByNeed[0]?.id === winner) return "need";
 
@@ -155,7 +156,8 @@ export function applyRewardDecision(
 ): { org: Organization; precedent: Precedent; dramaTriggers: DramaTriggerInput[] } {
   void rng; // used by caller for narrative; determinism preserved
 
-  const { item, eligible, winner, sourceChallenge } = decision;
+  const { item, winner, sourceChallenge } = decision;
+  const eligible = [...new Set(orderedStrings(decision.eligible))];
   const eligibleAgents = eligible
     .map((id) => org.agents[id])
     .filter((a): a is Agent => a !== undefined);

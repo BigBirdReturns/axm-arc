@@ -1,6 +1,7 @@
 import type { Organization, Agent, Affliction } from "./types.js";
 import { STRESS_THRESHOLD, AFFLICTION_CHANCE, AFFLICTION_PENALTIES } from "./constants.js";
 import type { Rng } from "./prng.js";
+import { compareCodepoints, orderedKeys } from "./determinism.js";
 
 // ── Local Event Types ─────────────────────────────────────────────────────────
 
@@ -40,13 +41,6 @@ function clampMorale(v: number): number {
   return Math.max(0, Math.min(100, v));
 }
 
-function orderedAgentIds(org: Organization): string[] {
-  // Codepoint comparison, NOT localeCompare: collation must not vary with the
-  // host's locale or the same seed could produce different runs on different
-  // machines (family law — see axm-genesis: "bytewise, not locale order").
-  return Object.keys(org.agents).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
-}
-
 function deterministicShuffle<T>(items: readonly T[], rng: Rng): T[] {
   const shuffled = [...items];
   for (let i = shuffled.length - 1; i > 0; i--) {
@@ -84,7 +78,7 @@ export function applyStressGains(
   _cycle: number,
 ): Organization {
   let result = org;
-  for (const [agentId, delta] of gains) {
+  for (const [agentId, delta] of [...gains].sort(([a], [b]) => compareCodepoints(a, b))) {
     const agent = result.agents[agentId];
     if (!agent) continue;
 
@@ -177,7 +171,7 @@ export function processAfflictionThreshold(
     // (the same "nearby" derivation applyAfflictionBarks uses). If the resolver
     // has no assignment on record, every other agent counts as a witness.
     const resolverLast = agent.assignmentHistory[agent.assignmentHistory.length - 1];
-    const witnesses = Object.keys(org.agents).filter((id) => {
+    const witnesses = orderedKeys(org.agents).filter((id) => {
       if (id === agentId) return false;
       if (!resolverLast) return true;
       const other = org.agents[id];
@@ -242,7 +236,7 @@ function computeMoraleTarget(agent: Agent, org: Organization): number {
 
 export function driftMorale(org: Organization, cycle: number): Organization {
   let result = org;
-  for (const agentId of Object.keys(org.agents)) {
+  for (const agentId of orderedKeys(org.agents)) {
     const agent = result.agents[agentId];
     if (!agent) continue;
     const target = computeMoraleTarget(agent, result);
@@ -317,7 +311,7 @@ export function applyAfflictionBarks(
   // The caller is expected to pass org with up-to-date assignment context.
   // We iterate all agents to find Afflicted ones and compute barks.
 
-  const allAgentIds = orderedAgentIds(org);
+  const allAgentIds = orderedKeys(org.agents);
 
   for (const agentId of allAgentIds) {
     const agent = org.agents[agentId];

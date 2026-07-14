@@ -201,15 +201,13 @@ describe("challengeAccess", () => {
 });
 
 describe("runCycle gate enforcement and attunement stamping", () => {
-  it("backfills and saves progression unlocks for legacy org state", () => {
+  it("backfills progression unlocks into the returned transition state", () => {
     const cleared = makeCycleAgent({ id: "veteran", assignmentCount: 1 });
     const org = makeCycleOrg([cleared], { reputation: 40 });
     expect(org.unlockedProgressionTiers).toBeUndefined();
 
     const result = runCycle({ org, arc: GATED_ARC, assignments: [] });
     expect(result.org.unlockedProgressionTiers).toEqual(["tier-1", "tier-2"]);
-    expect(JSON.parse(result.saveData).organization.unlockedProgressionTiers)
-      .toEqual(["tier-1", "tier-2"]);
   });
 
   it("a locked challenge is skipped with a warning and spends no tokens", () => {

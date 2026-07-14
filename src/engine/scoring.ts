@@ -11,6 +11,7 @@
 
 import type { Agent, Arc, MechanicCheck, Organization } from "./types.js";
 import { AFFLICTION_PENALTIES, RELATIONSHIP_MODS, DEFAULT_TRAIT_POOL } from "./constants.js";
+import { compareCodepoints, orderedEntries } from "./determinism.js";
 
 export interface DeterministicContribution {
   rawScore: number;
@@ -38,7 +39,7 @@ export function primaryAttrId(check: MechanicCheck): string {
  *  half weight. */
 export function gearContribution(agent: Agent, primary: string, arc: Arc): number {
   let bonus = 0;
-  for (const [, itemId] of Object.entries(agent.equippedItems)) {
+  for (const [, itemId] of orderedEntries(agent.equippedItems)) {
     const item = arc.items.find((it) => it.id === itemId);
     if (item) bonus += item.statBonuses[primary] ?? 0;
   }
@@ -88,7 +89,8 @@ export function traitContribution(agent: Agent, check: MechanicCheck, arc: Arc):
       if (fx.kind === "attributeBonusWhenMoraleHigh" && agent.morale > fx.threshold) {
         let attrId = fx.attributeId;
         if (attrId === "__highest__") {
-          attrId = Object.entries(agent.attributes).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "";
+          attrId = orderedEntries(agent.attributes)
+            .sort((a, b) => b[1] - a[1] || compareCodepoints(a[0], b[0]))[0]?.[0] ?? "";
         }
         if (check.attributeWeights.some((aw) => aw.attributeId === attrId)) bonus += fx.bonus;
       }

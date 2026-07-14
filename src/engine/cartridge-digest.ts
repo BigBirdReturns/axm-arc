@@ -20,6 +20,7 @@
 // point of a content-identity anchor.
 
 import type { Arc } from "./types";
+import { orderedKeys } from "./determinism.js";
 
 /** Envelope / custody / provenance keys that may ride alongside an arc at the
  *  top level — in a cartridge envelope, an imported object, or a signed record —
@@ -93,7 +94,7 @@ function stripReservedTopLevel(value: unknown): unknown {
   }
   const obj = value as Record<string, unknown>;
   const out: Record<string, unknown> = {};
-  for (const key of Object.keys(obj)) {
+  for (const key of orderedKeys(obj)) {
     if (RESERVED_ENVELOPE_KEYS.has(key)) continue;
     out[key] = obj[key];
   }
@@ -121,7 +122,7 @@ function canonicalize(value: unknown): string {
   if (t === "object") {
     const obj = value as Record<string, unknown>;
     const parts: string[] = [];
-    for (const key of Object.keys(obj).sort()) {
+    for (const key of orderedKeys(obj)) {
       const v = obj[key];
       if (v === undefined) continue; // JSON drops undefined members
       parts.push(JSON.stringify(key) + ":" + canonicalize(v));

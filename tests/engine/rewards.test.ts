@@ -176,6 +176,27 @@ describe("applyRewardDecision", () => {
     expect(dramaTriggers.some((t) => t.type === "reward_dispute")).toBe(true);
   });
 
+  it("treats eligible agent ids as a deterministic set", () => {
+    const winner = makeTestAgent({ id: "winner" });
+    const runner = makeTestAgent({ id: "runner" });
+    const org = makeTestOrg([winner, runner]);
+    const item = STATE_ARC.items.find((i) => i.id === "basic-sword")!;
+    const forward = applyRewardDecision(
+      org,
+      { item, eligible: ["winner", "runner"], winner: "winner", sourceChallenge: "c1" },
+      new Rng(42),
+      1,
+    );
+    const reversedWithDuplicate = applyRewardDecision(
+      org,
+      { item, eligible: ["runner", "winner", "runner"], winner: "winner", sourceChallenge: "c1" },
+      new Rng(42),
+      1,
+    );
+    expect(reversedWithDuplicate).toEqual(forward);
+    expect(JSON.stringify(reversedWithDuplicate)).toBe(JSON.stringify(forward));
+  });
+
   it("does NOT generate a reward_dispute trigger when only 1 agent is eligible", () => {
     const winner = makeTestAgent({ id: "winner" });
     const org = makeTestOrg([winner]);

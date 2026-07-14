@@ -23,11 +23,12 @@ import type {
   Challenge,
   Organization,
 } from "./types";
+import { compareCodepoints, orderedKeys, orderedValues } from "./determinism.js";
 
 /** Challenge ids any agent has a success record for. */
 export function clearedChallenges(org: Organization): Set<string> {
   const out = new Set<string>();
-  for (const agent of Object.values(org.agents)) {
+  for (const agent of orderedValues(org.agents)) {
     for (const record of agent.assignmentHistory) {
       if (record.outcome === "success") out.add(record.challengeId);
     }
@@ -96,7 +97,7 @@ function stepComplete(
       // start with items equipped and no reward record).
       return (
         agent.rewardHistory.some((r) => r.itemId === step.target) ||
-        Object.values(agent.equippedItems).includes(step.target)
+        orderedValues(agent.equippedItems).includes(step.target)
       );
     case "chain_complete":
       return done.has(step.target);
@@ -134,10 +135,12 @@ export function stampNewAttunements(
   if (arc.attunementChains.length === 0) return { org, newlyAttuned: [] };
   const newlyAttuned: Array<{ agentId: string; chainId: string }> = [];
   let next = org;
-  for (const agentId of Object.keys(org.agents).sort()) {
+  for (const agentId of orderedKeys(org.agents)) {
     const agent = org.agents[agentId]!;
     const completed = completedAttunementChains(agent, org, arc);
-    const fresh = [...completed].filter((id) => !agent.attunements.includes(id)).sort();
+    const fresh = [...completed]
+      .filter((id) => !agent.attunements.includes(id))
+      .sort(compareCodepoints);
     if (fresh.length === 0) continue;
     next = {
       ...next,
@@ -159,7 +162,7 @@ export function requiredAttunementChains(challenge: Challenge, arc: Arc): string
   for (const chain of arc.attunementChains) {
     if (chain.grantsAccessTo.includes(challenge.id)) ids.add(chain.id);
   }
-  return [...ids].sort();
+  return [...ids].sort(compareCodepoints);
 }
 
 export interface AttunementGate {
@@ -200,7 +203,7 @@ export function challengeAccess(
     const threshold = challenge.accessRequirements.attunementThreshold ?? 1;
     const pool = partyAgentIds
       ? partyAgentIds.map((id) => org.agents[id]).filter((a): a is Agent => a !== undefined)
-      : Object.values(org.agents);
+      : orderedValues(org.agents);
     const attunedAgentIds = pool
       .filter((agent) => {
         const done = completedAttunementChains(agent, org, arc);

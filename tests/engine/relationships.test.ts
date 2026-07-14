@@ -33,6 +33,19 @@ describe("getRelationship", () => {
 // ── applyRelationshipDelta ────────────────────────────────────────────────────
 
 describe("applyRelationshipDelta", () => {
+  it("applies trait multipliers once and order-independently (symmetric edge)", () => {
+    const a = makeTestAgent({ id: "a1", traits: ["team_player"] });
+    const b = makeTestAgent({ id: "a2" }); // no multiplier trait
+    const org = makeTestOrg([a, b]);
+    const ab = getRelationship(applyRelationshipDelta(org, "a1", "a2", 10, 1), "a1", "a2");
+    const ba = getRelationship(applyRelationshipDelta(org, "a2", "a1", 10, 1), "a1", "a2");
+    // Order-independent edge
+    expect(ab.affinity).toBe(ba.affinity);
+    expect(ab.state).toBe(ba.state);
+    // team_player multiplier applied exactly once: 10 * 1.5 = 15
+    expect(ab.affinity).toBe(15);
+  });
+
   it("Neutral → Allied transition fires at affinity > 30", () => {
     const a = makeTestAgent({ id: "a1" });
     const b = makeTestAgent({ id: "a2" });
@@ -123,6 +136,19 @@ describe("applyRelationshipDelta", () => {
 // ── processChallengeRelationshipEffects ───────────────────────────────────────
 
 describe("processChallengeRelationshipEffects", () => {
+  it("team_player success multiplier is applied once, not double-counted", () => {
+    const a = makeTestAgent({ id: "a1", traits: ["team_player"] });
+    const b = makeTestAgent({ id: "a2" });
+    const org = makeTestOrg([a, b]);
+    const perf = new Map([["a1", 80], ["a2", 75]]);
+    const { org: result } = processChallengeRelationshipEffects(
+      org, "c1", ["a1", "a2"], "success", perf, 1,
+    );
+    const rel = getRelationship(result, "a1", "a2");
+    // base 5 * team_player 1.5 = 7.5 (NOT 5 * 1.5 * 1.5 = 11.25)
+    expect(rel.affinity).toBe(7.5);
+  });
+
   it("shared success increases affinity", () => {
     const a = makeTestAgent({ id: "a1" });
     const b = makeTestAgent({ id: "a2" });

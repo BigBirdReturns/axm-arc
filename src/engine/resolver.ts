@@ -12,7 +12,7 @@ import type {
   RunReport,
   ScoreBreakdown,
 } from "./types";
-import { AFFLICTION_PENALTIES, RELATIONSHIP_MODS, DEFAULT_TRAIT_POOL } from "./constants";
+import { deterministicContribution } from "./scoring.js";
 import { Rng, hashSeed } from "./prng";
 
 export interface ResolveChallengeOpts {
@@ -37,44 +37,6 @@ export function effectiveThreshold(check: MechanicCheck, partySize: number): num
   return check.scope === "team_aggregate" && check.thresholdMode === "perAssignedAgent"
     ? check.difficultyThreshold * Math.max(1, partySize)
     : check.difficultyThreshold;
-}
-
-function getPrimaryAttrId(check: MechanicCheck): string {
-  let best = check.attributeWeights[0]!;
-  for (const aw of check.attributeWeights) {
-    if (aw.weight > best.weight) best = aw;
-  }
-  return best.attributeId;
-}
-
-function getGearBonus(agent: Agent, primaryAttrId: string, arc: Arc): number {
-  let bonus = 0;
-  for (const [_slot, itemId] of Object.entries(agent.equippedItems)) {
-    const item = arc.items.find((it) => it.id === itemId);
-    if (item) bonus += item.statBonuses[primaryAttrId] ?? 0;
-  }
-  return bonus * 0.5;
-}
-
-function getRelMod(agent: Agent, others: Agent[], org: Organization): number {
-  if (others.length === 0) return 0;
-  let total = 0;
-  for (const other of others) {
-    const rel = org.relationships.find(
-      (r) =>
-        (r.agentIds[0] === agent.id && r.agentIds[1] === other.id) ||
-        (r.agentIds[0] === other.id && r.agentIds[1] === agent.id),
-    );
-    const state = rel?.state ?? "Neutral";
-    total += RELATIONSHIP_MODS[state];
-  }
-  return total / Math.max(1, others.length);
-}
-
-function getAfflictionMod(agent: Agent): number {
-  if (agent.afflictionState.kind === "none") return 0;
-  const p = AFFLICTION_PENALTIES[agent.afflictionState.kind];
-  return p.scoreMod;
 }
 
 function getVolatilitySwing(volatility: number, rng: Rng): number {
@@ -116,45 +78,6 @@ function steadinessFor(
   return Math.max(lever.minSteadiness, 1 - lever.steadinessPerToken * honored);
 }
 
-function getAllTraits(agent: Agent, arc: Arc) {
-  return agent.traits.map((tid) => {
-    const t = arc.customTraits.find((c) => c.id === tid) ?? DEFAULT_TRAIT_POOL.find((d) => d.id === tid);
-    return t ?? null;
-  }).filter(Boolean);
-}
-
-function applyTraitBonuses(agent: Agent, check: MechanicCheck, arc: Arc): number {
-  let bonus = 0;
-  const traits = getAllTraits(agent, arc);
-  for (const trait of traits) {
-    if (!trait) continue;
-    for (const fx of trait.effects) {
-      if (fx.kind === "attributeCheckBonus") {
-        // apply if attribute is in check weights
-        const matchById = check.attributeWeights.some((aw) => aw.attributeId === fx.attributeId);
-        const matchByPrecision =
-          fx.attributeId === "__precision__" &&
-          check.attributeWeights.some((aw) => aw.attributeId.toLowerCase().includes("precision"));
-        if (matchById || matchByPrecision) bonus += fx.bonus;
-      }
-      if (
-        fx.kind === "attributeBonusWhenMoraleHigh" &&
-        agent.morale > fx.threshold
-      ) {
-        let attrId = fx.attributeId;
-        if (attrId === "__highest__") {
-          // find agent's highest attribute
-          attrId = Object.entries(agent.attributes).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "";
-        }
-        if (check.attributeWeights.some((aw) => aw.attributeId === attrId)) {
-          bonus += fx.bonus;
-        }
-      }
-    }
-  }
-  return bonus;
-}
-
 function scoreAgent(
   agent: Agent,
   check: MechanicCheck,
@@ -165,15 +88,9 @@ function scoreAgent(
   steadiness = 1,
   out?: { breakdown?: ScoreBreakdown },
 ): number {
-  const rawScore = check.attributeWeights.reduce((s, aw) => {
-    return s + (agent.attributes[aw.attributeId] ?? 0) * aw.weight;
-  }, 0);
+  // Deterministic terms come from the single scoring source (scoring.ts).
+  const d = deterministicContribution(agent, check, others, org, arc);
 
-  const primaryAttrId = getPrimaryAttrId(check);
-  const gearBonus = getGearBonus(agent, primaryAttrId, arc);
-  const relMod = getRelMod(agent, others, org);
-  const moraleMod = (agent.morale - 50) / 10;
-  const afflictionMod = getAfflictionMod(agent);
   // Symmetric, mean-zero luck-of-the-roll. The resource-spend lever scales this
   // (and macroVariance) by `steadiness` — never the deterministic terms and
   // never volatilitySwing — so the mean is invariant and only the spread moves.
@@ -185,17 +102,19 @@ function scoreAgent(
     agent.afflictionState.kind === "Reckless" ? 20 : agent.hiddenAttributes.volatility;
   const volatilitySwing = getVolatilitySwing(effectiveVolatility, rng);
 
-  const traitBonus = applyTraitBonuses(agent, check, arc);
-
+  // Historical sum order preserved (traitBonus last, after the rng terms) and the
+  // rng draw order (variance then volatility) is unchanged, so `total` is
+  // byte-identical to before the single-source extraction.
   const total =
-    rawScore + gearBonus + relMod + moraleMod + afflictionMod + variance + volatilitySwing + traitBonus;
+    d.rawScore + d.gearBonus + d.relMod + d.moraleMod + d.afflictionMod + variance + volatilitySwing + d.traitBonus;
 
   // Diagnostics capture: only fills the out-param when the caller asked for it.
   // These are the exact terms just summed — no extra rng, no recomputation — so
   // a run with `out` set is byte-identical to one without.
   if (out) {
     out.breakdown = {
-      rawScore, gearBonus, relMod, moraleMod, afflictionMod, variance, volatilitySwing, traitBonus, total,
+      rawScore: d.rawScore, gearBonus: d.gearBonus, relMod: d.relMod, moraleMod: d.moraleMod,
+      afflictionMod: d.afflictionMod, variance, volatilitySwing, traitBonus: d.traitBonus, total,
     };
   }
 

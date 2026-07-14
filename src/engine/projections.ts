@@ -5,11 +5,7 @@ import type {
   MechanicCheck,
   Organization,
 } from "./types.js";
-import {
-  AFFLICTION_PENALTIES,
-  RELATIONSHIP_MODS,
-  DEFAULT_TRAIT_POOL,
-} from "./constants.js";
+import { deterministicContribution } from "./scoring.js";
 import { effectiveThreshold } from "./resolver.js";
 
 export interface MechanicProjection {
@@ -193,60 +189,11 @@ function estimateScore(
   org: Organization,
   arc: Arc,
 ): number {
-  const rawScore = check.attributeWeights.reduce(
-    (s, aw) => s + (agent.attributes[aw.attributeId] ?? 0) * aw.weight,
-    0,
-  );
-
-  let gearBonus = 0;
-  let best = check.attributeWeights[0]!;
-  for (const aw of check.attributeWeights) {
-    if (aw.weight > best.weight) best = aw;
-  }
-  for (const [, itemId] of Object.entries(agent.equippedItems)) {
-    const item = arc.items.find((it) => it.id === itemId);
-    if (item) gearBonus += item.statBonuses[best.attributeId] ?? 0;
-  }
-  gearBonus *= 0.5;
-
   const others = allAgents.filter((a) => a.id !== agent.id);
-  let relMod = 0;
-  if (others.length > 0) {
-    for (const other of others) {
-      const rel = org.relationships.find(
-        (r) =>
-          (r.agentIds[0] === agent.id && r.agentIds[1] === other.id) ||
-          (r.agentIds[0] === other.id && r.agentIds[1] === agent.id),
-      );
-      relMod += RELATIONSHIP_MODS[rel?.state ?? "Neutral"];
-    }
-    relMod /= others.length;
-  }
-
-  const moraleMod = (agent.morale - 50) / 10;
-  const afflictionMod =
-    agent.afflictionState.kind !== "none"
-      ? AFFLICTION_PENALTIES[agent.afflictionState.kind].scoreMod
-      : 0;
-
-  let traitBonus = 0;
-  for (const tid of agent.traits) {
-    const t =
-      arc.customTraits.find((c) => c.id === tid) ??
-      DEFAULT_TRAIT_POOL.find((d) => d.id === tid);
-    if (!t) continue;
-    for (const fx of t.effects) {
-      if (
-        fx.kind === "attributeCheckBonus" &&
-        check.attributeWeights.some((aw) => aw.attributeId === fx.attributeId)
-      ) {
-        traitBonus += fx.bonus;
-      }
-    }
-  }
-
-  // No rng variance — this is the expected score, not the actual roll
-  return rawScore + gearBonus + relMod + moraleMod + afflictionMod + traitBonus;
+  // No rng variance — this is the expected (deterministic) score, not the actual
+  // roll. Single source (scoring.ts) so projections carry the resolver's complete
+  // relationship, affliction, and trait semantics rather than a partial copy.
+  return deterministicContribution(agent, check, others, org, arc).total;
 }
 
 export function predictImminentEvents(org: Organization, arc: Arc): string[] {

@@ -26,6 +26,14 @@ export interface CompatibilityProfile {
   profileDigest: string;
 }
 
+function profileDigestFrom(p: {
+  roleIds: string[]; attributeIds: string[]; tierIds: string[]; itemSlots: string[]; checkVocab: string[];
+}): string {
+  return "prof1_" + sha256Hex(JSON.stringify({
+    roleIds: p.roleIds, attributeIds: p.attributeIds, tierIds: p.tierIds, itemSlots: p.itemSlots, checkVocab: p.checkVocab,
+  }));
+}
+
 export function compatibilityProfile(arc: Arc): CompatibilityProfile {
   const roleIds = arc.roles.map((r) => r.id).sort();
   const attributeIds = arc.attributes.map((a) => a.id).sort();
@@ -40,8 +48,7 @@ export function compatibilityProfile(arc: Arc): CompatibilityProfile {
     }
   }
   const checkVocab = [...vocab].sort();
-  const profileDigest =
-    "prof1_" + sha256Hex(JSON.stringify({ roleIds, attributeIds, tierIds, itemSlots, checkVocab }));
+  const profileDigest = profileDigestFrom({ roleIds, attributeIds, tierIds, itemSlots, checkVocab });
   return { roleIds, attributeIds, tierIds, itemSlots, checkVocab, profileDigest };
 }
 
@@ -73,7 +80,9 @@ export function checkCompatibility(ledger: CampaignLedger | null, arc: Arc): Com
   ] as const).map(([dimension, a, b]) => ({
     dimension, ledgerValue: a, cartridgeValue: b, match: JSON.stringify(a) === JSON.stringify(b),
   }));
-  const compatible = lp.profileDigest === cartridgeProfile.profileDigest;
+  // Recompute the ledger's digest from its own profile arrays — a crafted or
+  // stale stored profileDigest is never trusted (fail-closed).
+  const compatible = profileDigestFrom(lp) === cartridgeProfile.profileDigest;
   const mism = dims.filter((d) => !d.match).map((d) => d.dimension);
   return {
     compatible,

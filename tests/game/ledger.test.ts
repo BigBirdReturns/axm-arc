@@ -11,7 +11,7 @@ import { validateArc } from "../../src/engine/schema.js";
 import { buildStartingOrg } from "../../src/sim/cartridge-conformance.js";
 import {
   project, checkCompatibility, compatibilityProfile,
-  commitVictory, commitFailedLockout, type NightResult,
+  commitVictory, commitFailedLockout, type NightResult, type CampaignLedger,
 } from "../../src/game/lib/ledger.js";
 import {
   RAID_ARC, RAID_ARC_T2, newRaidNight, newRaidNightFrom, pull, applyFix,
@@ -168,5 +168,26 @@ describe("tier-2 persistence", () => {
     const refused = newRaidNightFrom(loadArc("severed-march"), led, 1);
     expect(refused.blocked).not.toBeNull();
     expect(refused.blocked!.verdict).toBe("incompatible");
+  });
+
+  it("a crafted/stale stored profileDigest cannot force a 'compatible' verdict — the digest is recomputed from the profile arrays", () => {
+    const led = commitVictory(null, nightOf(playToClear(3)));
+    // Honest baseline: same-profile cartridge is genuinely compatible.
+    expect(checkCompatibility(led, RAID_ARC_T2).verdict).toBe("compatible");
+
+    // Tamper the profile ARRAYS so they no longer describe the cartridge's
+    // vocabulary, but leave the self-reported digest untouched (crafted/stale).
+    const tampered: CampaignLedger = {
+      ...led,
+      profile: { ...led.profile, roleIds: [...led.profile.roleIds, "phantom-role"] },
+    };
+    // The stored digest still equals the cartridge's — trusting it would pass.
+    expect(tampered.profile.profileDigest).toBe(compatibilityProfile(RAID_ARC_T2).profileDigest);
+
+    const rep = checkCompatibility(tampered, RAID_ARC_T2);
+    expect(rep.compatible).toBe(false);
+    expect(rep.verdict).toBe("incompatible");
+    // And projection refuses — no partial guild carried in.
+    expect(project(tampered, RAID_ARC_T2, 1).ok).toBe(false);
   });
 });

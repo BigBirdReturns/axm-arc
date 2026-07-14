@@ -47,6 +47,29 @@ function makeOrg(agents: Agent[]): Organization {
 }
 
 describe("projectMechanics UX metadata", () => {
+  it("team threshold scales by party size only for perAssignedAgent, matching the resolver (issue #116)", () => {
+    const agents = [
+      makeAgent(1, { preferredRoleId: "striker" }),
+      makeAgent(2, { preferredRoleId: "striker" }),
+      makeAgent(3, { preferredRoleId: "striker" }),
+    ];
+    const base = MINI_ARC.challenges[0]!;
+    const teamCheck = { ...base.mechanicChecks[0]!, id: "team-check", scope: "team_aggregate" as const, difficultyThreshold: 40 };
+    const org = makeOrg(agents);
+    const run = (mode: "fixed" | "perAssignedAgent" | undefined) =>
+      projectMechanics({
+        challenge: { ...base, mechanicChecks: [{ ...teamCheck, thresholdMode: mode }] },
+        assignedAgents: agents,
+        org,
+        arc: MINI_ARC,
+      })[0]?.threshold;
+    // fixed / omitted: the authored total, NOT multiplied by party size (the bug)
+    expect(run("fixed")).toBe(40);
+    expect(run(undefined)).toBe(40);
+    // perAssignedAgent: authored total × party size — resolver parity
+    expect(run("perAssignedAgent")).toBe(40 * agents.length);
+  });
+
   it("explains which attributes a check reads", () => {
     const agents = [makeAgent(1, { preferredRoleId: "striker" })];
     const challenge = MINI_ARC.challenges[0]!;

@@ -10,6 +10,7 @@ import {
   RELATIONSHIP_MODS,
   DEFAULT_TRAIT_POOL,
 } from "./constants.js";
+import { effectiveThreshold } from "./resolver.js";
 
 export interface MechanicProjection {
   mechanicId: string;
@@ -44,7 +45,11 @@ export function projectMechanics(opts: {
         (s, a) => s + estimateScore(a, check, assignedAgents, org, arc),
         0,
       );
-      const threshold = check.difficultyThreshold * assignedAgents.length;
+      // Match the resolver exactly: only a perAssignedAgent team check scales the
+      // bar by party size; a fixed or omitted threshold is the authored total.
+      // Reusing the resolver's function keeps projection and resolution from
+      // drifting on the bar the player is judged against.
+      const threshold = effectiveThreshold(check, assignedAgents.length);
       const margin = teamScore - threshold;
       const averageScore =
         assignedAgents.length > 0 ? teamScore / assignedAgents.length : 0;

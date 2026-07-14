@@ -1,6 +1,6 @@
 import type { Organization, Agent, Item, Arc, Precedent } from "./types.js";
 import type { DramaTriggerInput } from "./drama.js";
-import type { Rng } from "./prng.js";
+import { Rng, hashSeed } from "./prng.js";
 import { compareCodepoints, orderedStrings, orderedValues } from "./determinism.js";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -230,4 +230,80 @@ export function applyRewardDecision(
   }
 
   return { org: result, precedent, dramaTriggers };
+}
+
+// ── resolvePendingRewardChoice ───────────────────────────────────────────────
+
+/** The durable choice emitted by runCycle after a real loot drop. Kept
+ * structural here so rewards.ts remains the authority for applying the choice
+ * without importing its caller (cycle.ts). */
+export interface PendingRewardChoiceInput {
+  itemId: string;
+  eligibleAgentIds: string[];
+  sourceChallenge: string;
+  cycle: number;
+}
+
+export type PendingRewardResolution =
+  | {
+      ok: true;
+      org: Organization;
+      precedent: Precedent;
+      dramaTriggers: DramaTriggerInput[];
+    }
+  | {
+      ok: false;
+      org: Organization;
+      reason: "item_missing" | "challenge_missing" | "winner_ineligible" | "already_resolved";
+    };
+
+/** Apply one pending reward choice without advancing the campaign clock.
+ *
+ * This is the canonical receiver-facing transition for a post-contract loot
+ * decision. It rechecks the authored item/challenge and current eligibility,
+ * refuses replay, then applies the same fairness precedent, morale changes, and
+ * reward history as cycle resolution. A presentation layer may choose *who*;
+ * it cannot award an item or author the social consequence itself.
+ */
+export function resolvePendingRewardChoice(
+  org: Organization,
+  arc: Arc,
+  choice: PendingRewardChoiceInput,
+  winner: string,
+): PendingRewardResolution {
+  const item = arc.items.find((candidate) => candidate.id === choice.itemId);
+  if (!item) return { ok: false, org, reason: "item_missing" };
+  if (!arc.challenges.some((candidate) => candidate.id === choice.sourceChallenge)) {
+    return { ok: false, org, reason: "challenge_missing" };
+  }
+
+  const alreadyResolved = Object.values(org.agents).some((agent) =>
+    agent.rewardHistory.some((reward) =>
+      reward.itemId === choice.itemId
+      && reward.challengeId === choice.sourceChallenge
+      && reward.cycle === choice.cycle,
+    ),
+  );
+  if (alreadyResolved) return { ok: false, org, reason: "already_resolved" };
+
+  const eligible = [...new Set(orderedStrings(choice.eligibleAgentIds))].filter((agentId) => {
+    const agent = org.agents[agentId];
+    return Boolean(agent && evaluateLootEligibility(item, agent, arc));
+  });
+  if (!eligible.includes(winner)) return { ok: false, org, reason: "winner_ineligible" };
+
+  const rng = new Rng(hashSeed(
+    org.rngSeed,
+    choice.cycle,
+    "pending-reward-choice",
+    choice.sourceChallenge,
+    choice.itemId,
+  ));
+  const resolved = applyRewardDecision(
+    org,
+    { item, eligible, winner, sourceChallenge: choice.sourceChallenge },
+    rng,
+    choice.cycle,
+  );
+  return { ok: true, ...resolved };
 }

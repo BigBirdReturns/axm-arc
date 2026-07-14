@@ -63,6 +63,14 @@ describe("FIRST_CHARTER arc", () => {
     ]);
   });
 
+  it("authors a bounded Contract-spend choice for the opening Cellar run", () => {
+    expect(FIRST_CHARTER.challenges.find((challenge) => challenge.id === "cellar")?.resourceSpend).toEqual({
+      maxTokens: 1,
+      steadinessPerToken: 0.35,
+      minSteadiness: 0.65,
+    });
+  });
+
   it("starting roster is deterministic and well-formed", () => {
     expect(FIRST_CHARTER_STARTING_ROSTER).toHaveLength(6);
     for (const a of FIRST_CHARTER_STARTING_ROSTER) {

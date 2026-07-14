@@ -1,8 +1,10 @@
 import type { Organization, Arc } from "./types.js";
+import type { PendingRewardChoice } from "./cycle.js";
+import { cartridgeDigest } from "./cartridge-digest.js";
 
 // ── Version ───────────────────────────────────────────────────────────────────
 
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 
 // ── Map serialization helpers ─────────────────────────────────────────────────
 
@@ -19,8 +21,9 @@ export function arrayToMap<K, V>(a: [K, V][]): Map<K, V> {
 interface SaveFile {
   version: number;
   savedAt: string;
-  arcRef: { id: string; version: string };
+  arcRef: { id: string; version: string; digest: string };
   organization: SerializedOrg;
+  pendingRewardChoices: PendingRewardChoice[];
 }
 
 // We need to handle the Organization's fields. The only Map-like structure
@@ -34,19 +37,21 @@ type SerializedOrg = Omit<Organization, never>; // same shape, kept for migratio
 
 // Each migration transforms a save from version N to N+1.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const MIGRATIONS: Record<number, (s: any) => any> = {
-  // Example placeholder (no-op for v1 → v2 when v2 ships):
-  // 1: (s) => ({ ...s, version: 2, organization: { ...s.organization, newField: null } }),
-};
+export const MIGRATIONS: Record<number, (s: any) => any> = {};
 
 // ── serializeGame ─────────────────────────────────────────────────────────────
 
-export function serializeGame(org: Organization, arc: Arc): string {
+export function serializeGame(
+  org: Organization,
+  arc: Arc,
+  pendingRewardChoices: PendingRewardChoice[] = [],
+): string {
   const save: SaveFile = {
     version: SAVE_VERSION,
     savedAt: new Date().toISOString(),
-    arcRef: { id: arc.meta.id, version: arc.meta.version },
+    arcRef: { id: arc.meta.id, version: arc.meta.version, digest: cartridgeDigest(arc) },
     organization: org,
+    pendingRewardChoices,
   };
   return JSON.stringify(save);
 }
@@ -56,7 +61,7 @@ export function serializeGame(org: Organization, arc: Arc): string {
 export function deserializeGame(
   json: string,
   arc: Arc,
-): { org: Organization; cycle: number } {
+): { org: Organization; cycle: number; pendingRewardChoices: PendingRewardChoice[] } {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let raw: any;
   try {
@@ -79,6 +84,14 @@ export function deserializeGame(
     );
   }
 
+  // v1 saves did not bind the exact authored bytes and cannot be relabelled as
+  // current state without laundering a historical same-id cartridge revision.
+  if (raw["version"] < SAVE_VERSION) {
+    throw new Error(
+      `Legacy save version ${raw["version"]} lacks exact cartridge identity and cannot be resumed`,
+    );
+  }
+
   if (raw["arcRef"] == null || typeof raw["arcRef"]["id"] !== "string") {
     throw new Error("Save data missing required field: arcRef.id");
   }
@@ -89,8 +102,22 @@ export function deserializeGame(
     );
   }
 
+  if (typeof raw["arcRef"]["digest"] !== "string") {
+    throw new Error("Save data missing required field: arcRef.digest");
+  }
+  const actualDigest = cartridgeDigest(arc);
+  if (raw["arcRef"]["digest"] !== actualDigest) {
+    throw new Error(
+      `Cartridge digest mismatch: save has "${raw["arcRef"]["digest"]}", current arc is "${actualDigest}"`,
+    );
+  }
+
   if (raw["organization"] == null) {
     throw new Error("Save data missing required field: organization");
+  }
+
+  if (!Array.isArray(raw["pendingRewardChoices"])) {
+    throw new Error("Save data missing required field: pendingRewardChoices");
   }
 
   // Run migrations from saved version up to current version
@@ -105,5 +132,9 @@ export function deserializeGame(
   }
 
   const org = migrated["organization"] as Organization;
-  return { org, cycle: org.cycle };
+  return {
+    org,
+    cycle: org.cycle,
+    pendingRewardChoices: migrated["pendingRewardChoices"] as PendingRewardChoice[],
+  };
 }

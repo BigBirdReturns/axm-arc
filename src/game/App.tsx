@@ -111,7 +111,9 @@ export function App(): JSX.Element {
   });
   const [assignments, setAssignments] = useState<ChallengeAssignment[]>([]);
   const [lastReports, setLastReports] = useState<RunReport[]>([]);
-  const [pendingRewardChoices, setPendingRewardChoices] = useState<PendingRewardChoice[]>([]);
+  const [pendingRewardChoices, setPendingRewardChoices] = useState<PendingRewardChoice[]>(
+    () => loadSave(arc)?.pendingRewardChoices ?? [],
+  );
   const [rewardDecisions, setRewardDecisions] = useState<RewardDecision[]>([]);
   const [advanceError, setAdvanceError] = useState<string | null>(null);
   const [cycleTransition, setCycleTransition] = useState<{ fromCycle: number; toCycle: number } | null>(null);
@@ -133,8 +135,8 @@ export function App(): JSX.Element {
   }, [theme]);
 
   useEffect(() => {
-    saveSave(org, arc);
-  }, [org]);
+    saveSave(org, arc, pendingRewardChoices);
+  }, [org, arc, pendingRewardChoices]);
 
   useEffect(() => {
     try { localStorage.setItem(INTENT_KEY, intent); } catch { /* noop */ }
@@ -213,7 +215,7 @@ export function App(): JSX.Element {
 
   const resetGame = () => {
     if (!confirm(t("confirm.reset"))) return;
-    clearSave();
+    clearSave(arc);
     try { localStorage.removeItem(INTENT_KEY); } catch { /* noop */ }
     setOrg(buildNewOrg(arc));
     setLastReports([]);
@@ -397,7 +399,7 @@ export function App(): JSX.Element {
           setMode("play");
         }}
         onNewGame={() => {
-          clearSave();
+          clearSave(arc);
           setOrg(buildNewOrg(arc));
           setLastReports([]);
           setPendingRewardChoices([]);
@@ -453,7 +455,7 @@ export function App(): JSX.Element {
             if (!confirm(t("confirm.loadArc"))) return;
           }
           saveActiveArcId(arcId);
-          clearSave();
+          clearSave(arc);
           const entries = loadArcLibrary();
           const next = entries.find((e) => e.arc.meta.id === arcId)?.arc ?? FIRST_CHARTER;
           setArc(next);

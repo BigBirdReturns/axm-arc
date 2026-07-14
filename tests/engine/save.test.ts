@@ -8,6 +8,7 @@ import {
   arrayToMap,
 } from "../../src/engine/save.js";
 import { CYCLE_ARC, makeCycleAgent, makeCycleOrg } from "../fixtures/cycle-arc.js";
+import type { PendingRewardChoice } from "../../src/engine/cycle.js";
 
 function makeTestState() {
   const agent = makeCycleAgent({ id: "save-agent-1" });
@@ -33,6 +34,18 @@ describe("serializeGame / deserializeGame", () => {
     expect(loaded.rngSeed).toBe(org.rngSeed);
   });
 
+  it("round-trips pending reward custody with the exact cartridge identity", () => {
+    const { org, arc } = makeTestState();
+    const pending: PendingRewardChoice[] = [{
+      itemId: "earned-item",
+      eligibleAgentIds: ["save-agent-1"],
+      sourceChallenge: "opening-contract",
+      cycle: org.cycle,
+    }];
+    const loaded = deserializeGame(serializeGame(org, arc, pending), arc);
+    expect(loaded.pendingRewardChoices).toEqual(pending);
+  });
+
   it("throws on version newer than SAVE_VERSION", () => {
     const { org, arc } = makeTestState();
     const json = serializeGame(org, arc);
@@ -49,6 +62,22 @@ describe("serializeGame / deserializeGame", () => {
     raw.arcRef.id = "completely-different-arc";
 
     expect(() => deserializeGame(JSON.stringify(raw), arc)).toThrow(/Arc ID mismatch/);
+  });
+
+  it("refuses same-id cartridge bytes with a different digest", () => {
+    const { org, arc } = makeTestState();
+    const raw = JSON.parse(serializeGame(org, arc));
+    raw.arcRef.digest = `cart1_${"0".repeat(64)}`;
+    expect(() => deserializeGame(JSON.stringify(raw), arc)).toThrow(/Cartridge digest mismatch/);
+  });
+
+  it("refuses legacy saves that never bound exact cartridge identity", () => {
+    const { org, arc } = makeTestState();
+    expect(() => deserializeGame(JSON.stringify({
+      version: 1,
+      arcRef: { id: arc.meta.id, version: arc.meta.version },
+      organization: org,
+    }), arc)).toThrow(/lacks exact cartridge identity/);
   });
 
   it("throws on missing required fields", () => {

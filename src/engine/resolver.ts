@@ -14,13 +14,13 @@ import type {
 } from "./types";
 import { deterministicContribution } from "./scoring.js";
 import { Rng, hashSeed } from "./prng";
+import { compareCodepoints, orderedEntries } from "./determinism.js";
 
 export interface ResolveChallengeOpts {
   challenge: Challenge;
   assignedAgents: Agent[];
   org: Organization;
   arc: Arc;
-  rng: Rng;
   cycle: number;
   /** Tokens the assignment committed toward the authored resource-spend lever.
    *  Defaults to 0. Honored only when the party clears the same count+role gates
@@ -129,7 +129,7 @@ function timePressureCheck(challenge: Challenge, agents: Agent[], org: Organizat
     const moraleMod = (agent.morale - 50) / 10;
     // gear bonus for time pressure attr
     let gear = 0;
-    for (const [_slot, itemId] of Object.entries(agent.equippedItems)) {
+    for (const [_slot, itemId] of orderedEntries(agent.equippedItems)) {
       const item = arc.items.find((it) => it.id === itemId);
       if (item) gear += item.statBonuses[tp.attributeId] ?? 0;
     }
@@ -214,7 +214,10 @@ function stressForDifficulty(difficultyRating: number): number {
 }
 
 export function resolveChallenge(opts: ResolveChallengeOpts): RunReport {
-  const { challenge, assignedAgents, org, arc, cycle } = opts;
+  const { challenge, org, arc, cycle } = opts;
+  const assignedAgents = [...opts.assignedAgents].sort((a, b) =>
+    compareCodepoints(a.id, b.id)
+  );
 
   // Resource-spend: honored only for a party that clears the hard gates (count +
   // roles). Computed once; per-check steadiness is derived from it below.

@@ -1,5 +1,6 @@
 import type { Organization, Arc, Challenge } from "./types.js";
 import type { RunReport } from "./types.js";
+import { orderedValues } from "./determinism.js";
 
 // ── CycleEvent (minimal union used in this file) ──────────────────────────────
 
@@ -18,7 +19,7 @@ export function regenerateTokens(org: Organization, arc: Arc): Organization {
   // Infrastructure bonus: Production/Quarters/etc contribute via arc.infrastructureTokenBonus
   // Design §1.6: "Infrastructure investment can accelerate regeneration by up to 50%"
   // We sum facility levels scaled by infrastructureTokenBonus, capped at 50% bonus
-  const facilities = Object.values(org.infrastructure);
+  const facilities = orderedValues(org.infrastructure);
   const totalFacilityLevel = facilities.reduce((s, f) => s + f.level, 0);
   const bonusFraction = Math.min(0.5, totalFacilityLevel * arc.infrastructureTokenBonus);
   regen = regen * (1 + bonusFraction);
@@ -55,7 +56,7 @@ export type OrgWithBalance = Organization & {
 };
 
 export function chargeUpkeep(org: Organization, _cycle: number): OrgWithBalance {
-  const totalUpkeep = Object.values(org.agents).reduce((s, a) => s + a.upkeep, 0);
+  const totalUpkeep = orderedValues(org.agents).reduce((s, a) => s + a.upkeep, 0);
   const availableCurrency = Math.max(0, org.resources.currency);
   const upkeepPaid = Math.min(availableCurrency, totalUpkeep);
   const unpaidUpkeep = totalUpkeep - upkeepPaid;
@@ -83,7 +84,7 @@ export interface AccruedRewards {
 }
 
 function hasPriorSuccess(org: Organization, challengeId: string, currentCycle: number): boolean {
-  for (const agent of Object.values(org.agents)) {
+  for (const agent of orderedValues(org.agents)) {
     for (const entry of agent.assignmentHistory) {
       if (entry.challengeId === challengeId && entry.outcome === "success" && entry.cycle < currentCycle) {
         return true;

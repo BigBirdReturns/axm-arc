@@ -12,7 +12,6 @@ import firstLockout from "../../../cartridges/first-lockout.arc.json";
 import secondLockout from "../../../cartridges/second-lockout.arc.json";
 import { validateArc } from "../../engine/schema.js";
 import { resolveChallenge } from "../../engine/resolver.js";
-import { Rng } from "../../engine/prng.js";
 import { diagnoseWipe, type Fix, type WipeDiagnosis } from "../../sim/wipe-diagnosis.js";
 import {
   project, commitVictory, commitFailedLockout, buildConsequences, saveLedger,
@@ -151,7 +150,7 @@ export function pull(state: RaidNightState): RaidNightState {
   const cycle = state.pull + 1;
   const report = resolveChallenge({
     challenge: boss, assignedAgents, org: state.org, arc: state.arc,
-    rng: new Rng(0), cycle, collectDiagnostics: true,
+    cycle, collectDiagnostics: true,
   });
   const cleared = report.outcome === "success";
   const diagnosis = cleared ? null : diagnoseWipe(report, boss, state.org, state.arc);

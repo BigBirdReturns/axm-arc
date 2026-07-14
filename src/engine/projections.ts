@@ -7,6 +7,7 @@ import type {
 } from "./types.js";
 import { deterministicContribution } from "./scoring.js";
 import { effectiveThreshold } from "./resolver.js";
+import { compareCodepoints, orderedEntries } from "./determinism.js";
 
 export interface MechanicProjection {
   mechanicId: string;
@@ -32,7 +33,10 @@ export function projectMechanics(opts: {
   org: Organization;
   arc: Arc;
 }): MechanicProjection[] {
-  const { challenge, assignedAgents, org, arc } = opts;
+  const { challenge, org, arc } = opts;
+  const assignedAgents = [...opts.assignedAgents].sort((a, b) =>
+    compareCodepoints(a.id, b.id)
+  );
   const results: MechanicProjection[] = [];
 
   for (const check of challenge.mechanicChecks) {
@@ -198,7 +202,7 @@ function estimateScore(
 
 export function predictImminentEvents(org: Organization, arc: Arc): string[] {
   const events: string[] = [];
-  for (const [, agent] of Object.entries(org.agents)) {
+  for (const [, agent] of orderedEntries(org.agents)) {
     if (agent.stress >= 8 && agent.afflictionState.kind === "none") {
       events.push(
         `${agent.name} affliction in ~${10 - agent.stress} cycle${10 - agent.stress === 1 ? "" : "s"}`,

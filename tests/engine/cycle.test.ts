@@ -201,7 +201,7 @@ describe("runCycle", () => {
     expect(traitRevealEvents.length).toBeGreaterThan(0);
   });
 
-  it("is deterministic: same inputs produce same CycleResult", () => {
+  it("is deterministic: same inputs produce the full same CycleResult", () => {
     const agent = makeCycleAgent({ id: "a1" });
     const org = makeCycleOrg([agent]);
 
@@ -217,21 +217,41 @@ describe("runCycle", () => {
       assignments: [{ challengeId: "test-challenge", agentIds: ["a1"], tokensSpent: 0 }],
     });
 
-    expect(r1.reports[0]!.outcome).toBe(r2.reports[0]!.outcome);
-    expect(r1.org.resources.tokens).toBe(r2.org.resources.tokens);
-    expect(r1.events.length).toBe(r2.events.length);
+    expect(r1).toEqual(r2);
+    expect(r1).not.toHaveProperty("saveData");
   });
 
-  it("saveData is valid JSON containing version and cycle", () => {
-    const agent = makeCycleAgent({ id: "a1" });
-    const org = makeCycleOrg([agent]);
+  it("is invariant to Record insertion and party selection order", () => {
+    const a = makeCycleAgent({ id: "agent-a", stress: 10, morale: 20 });
+    const z = makeCycleAgent({ id: "agent-z", stress: 10, morale: 90 });
+    z.attributes = Object.fromEntries(
+      Object.entries(z.attributes).reverse(),
+    ) as typeof z.attributes;
+    const forward = makeCycleOrg([a, z]);
+    const reverse = makeCycleOrg([structuredClone(z), structuredClone(a)]);
+    reverse.agents["agent-z"]!.attributes = Object.fromEntries(
+      Object.entries(reverse.agents["agent-z"]!.attributes).reverse(),
+    ) as typeof reverse.agents["agent-z"]["attributes"];
 
-    const result = runCycle({ org, arc: CYCLE_ARC, assignments: [] });
+    forward.infrastructure.Training!.assignedAgents = ["agent-z", "agent-a"];
+    reverse.infrastructure = Object.fromEntries(
+      Object.entries(reverse.infrastructure).reverse(),
+    ) as typeof reverse.infrastructure;
+    reverse.infrastructure.Training!.assignedAgents = ["agent-a", "agent-z"];
 
-    const parsed = JSON.parse(result.saveData);
-    expect(parsed.version).toBe(1);
-    expect(parsed.organization.cycle).toBe(2);
-    expect(parsed.arcRef.id).toBe("cycle-test-arc");
+    const r1 = runCycle({
+      org: forward,
+      arc: CYCLE_ARC,
+      assignments: [{ challengeId: "test-challenge", agentIds: ["agent-z", "agent-a"], tokensSpent: 0 }],
+    });
+    const r2 = runCycle({
+      org: reverse,
+      arc: CYCLE_ARC,
+      assignments: [{ challengeId: "test-challenge", agentIds: ["agent-a", "agent-z"], tokensSpent: 0 }],
+    });
+
+    expect(r1).toEqual(r2);
+    expect(JSON.stringify(r1)).toBe(JSON.stringify(r2));
   });
 
   it("downed agent is skipped in subsequent challenge processing", () => {

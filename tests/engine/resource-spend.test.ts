@@ -15,7 +15,6 @@
 
 import { describe, it, expect } from "vitest";
 import { resolveChallenge } from "../../src/engine/resolver";
-import { Rng } from "../../src/engine/prng";
 import { MINI_ARC, makeAgent } from "../fixtures/mini-arc";
 import type { Agent, Challenge, Organization, ResourceSpendLever } from "../../src/engine/types";
 
@@ -85,10 +84,10 @@ function org(agents: Agent[], rngSeed: number): Organization {
   };
 }
 
-// resolveChallenge derives its rng from hashSeed(org.rngSeed, cycle, challenge.id),
-// so varying rngSeed samples different rolls; opts.rng is unused.
+// resolveChallenge derives its RNG from hashSeed(org.rngSeed, cycle, challenge.id),
+// so varying rngSeed samples different rolls.
 function run(ch: Challenge, agents: Agent[], tokensSpent: number, rngSeed: number) {
-  const rep = resolveChallenge({ challenge: ch, assignedAgents: agents, org: org(agents, rngSeed), arc: MINI_ARC, rng: new Rng(1), cycle: 1, tokensSpent });
+  const rep = resolveChallenge({ challenge: ch, assignedAgents: agents, org: org(agents, rngSeed), arc: MINI_ARC, cycle: 1, tokensSpent });
   const mr = rep.assignedAgents[0]!.mechanicResults.find((m) => m.mechanicId === "pc")!;
   return { report: rep, score: mr.score, passed: mr.passed, outcome: rep.outcome };
 }

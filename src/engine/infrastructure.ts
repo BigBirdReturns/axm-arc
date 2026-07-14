@@ -2,6 +2,7 @@ import type { Organization, Arc, Agent, InfrastructureFacility } from "./types.j
 import type { Rng } from "./prng.js";
 import type { CycleEvent } from "./economy.js";
 import { evaluateMentorshipPairs } from "./relationships.js";
+import { orderedEntries, orderedStrings, orderedValues } from "./determinism.js";
 
 // ── tickInfrastructure ────────────────────────────────────────────────────────
 
@@ -30,7 +31,7 @@ function tickProduction(org: Organization, _arc: Arc): Organization {
   if (!facility || facility.assignedAgents.length === 0) return org;
 
   let materialsGained = 0;
-  for (const agentId of facility.assignedAgents) {
+  for (const agentId of orderedStrings(facility.assignedAgents)) {
     const agent = org.agents[agentId];
     if (!agent) continue;
     // baseEfficiency already includes authored trait effects (including the
@@ -62,7 +63,7 @@ function tickTraining(
 
   // Find highest-leadership assigned agent as "trainer"
   let trainerLeadership = 0;
-  for (const agentId of facility.assignedAgents) {
+  for (const agentId of orderedStrings(facility.assignedAgents)) {
     const agent = org.agents[agentId];
     if (!agent) continue;
     if (agent.hiddenAttributes.leadership > trainerLeadership) {
@@ -71,12 +72,13 @@ function tickTraining(
   }
 
   // Evaluate mentorship pairs first (may set Mentorship state)
-  let result = evaluateMentorshipPairs(org, facility.assignedAgents, cycle);
+  const assignedAgentIds = orderedStrings(facility.assignedAgents);
+  let result = evaluateMentorshipPairs(org, assignedAgentIds, cycle);
 
   const attrIds = arc.attributes.map((a) => a.id);
   if (attrIds.length === 0) return result;
 
-  for (const agentId of facility.assignedAgents) {
+  for (const agentId of assignedAgentIds) {
     const agent = result.agents[agentId];
     if (!agent) continue;
 
@@ -134,7 +136,7 @@ function tickRecreation(org: Organization): Organization {
   let result = org;
   const moraleFloor = facility.level * 10;
 
-  for (const agentId of facility.assignedAgents) {
+  for (const agentId of orderedStrings(facility.assignedAgents)) {
     const agent = result.agents[agentId];
     if (!agent) continue;
 
@@ -199,11 +201,11 @@ function tickMedical(org: Organization, cycle: number): Organization {
   let avgResilience = 0;
   if (facility.assignedAgents.length > 0) {
     let total = 0;
-    for (const agentId of facility.assignedAgents) {
+    for (const agentId of orderedStrings(facility.assignedAgents)) {
       const agent = org.agents[agentId];
       if (!agent) continue;
       // Use average of all attributes as resilience proxy
-      const attrVals = Object.values(agent.attributes);
+      const attrVals = orderedValues(agent.attributes);
       total += attrVals.length > 0 ? attrVals.reduce((s, v) => s + v, 0) / attrVals.length : 5;
     }
     avgResilience = total / facility.assignedAgents.length;
@@ -214,7 +216,7 @@ function tickMedical(org: Organization, cycle: number): Organization {
   if (extraRecovery <= 0) return org;
 
   let result = org;
-  for (const [agentId, agent] of Object.entries(org.agents)) {
+  for (const [agentId, agent] of orderedEntries(org.agents)) {
     if (agent.downedUntilCycle === null) continue;
     // Reduce recovery time
     const newDownedUntil = Math.max(cycle, agent.downedUntilCycle - extraRecovery);

@@ -14,7 +14,6 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { importArcFromJson } from "../../src/game/lib/arc-library.js";
 import { resolveChallenge } from "../../src/engine/resolver.js";
-import { Rng } from "../../src/engine/prng.js";
 import { buildStartingOrg } from "../../src/sim/cartridge-conformance.js";
 import { diagnoseWipe, renderDiagnosis, netGearGain, distributeGap } from "../../src/sim/wipe-diagnosis.js";
 import type { Agent, Arc, Challenge, Organization, RunReport } from "../../src/engine/types.js";
@@ -78,7 +77,7 @@ function attempt(
   const challenge = boss(arc, challengeId);
   const assignedAgents = legalParty(challenge, org);
   const report = resolveChallenge({
-    challenge, assignedAgents, org, arc, rng: new Rng(0), cycle: 0, collectDiagnostics: true,
+    challenge, assignedAgents, org, arc, cycle: 0, collectDiagnostics: true,
   });
   return { org, challenge, report };
 }

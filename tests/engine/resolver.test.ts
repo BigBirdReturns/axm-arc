@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import { resolveChallenge } from "../../src/engine/resolver";
-import { Rng, hashSeed } from "../../src/engine/prng";
 import { MINI_ARC, MINI_TANK, MINI_ELITE_TIER, makeAgent } from "../fixtures/mini-arc";
 import type { Agent, Organization, Relationship } from "../../src/engine/types";
 
@@ -32,7 +31,6 @@ function resolve(agents: Agent[], org?: Organization) {
     assignedAgents: agents,
     org: o,
     arc: MINI_ARC,
-    rng: new Rng(999),
     cycle: 1,
   });
 }
@@ -206,7 +204,6 @@ describe("rollLoot drop rates", () => {
         assignedAgents: agents,
         org,
         arc,
-        rng: new Rng(hashSeed(org.rngSeed, 1, "drop-probe")),
         cycle: 1,
       });
       if (report.outcome !== "success") continue;
@@ -227,7 +224,7 @@ describe("rollLoot drop rates", () => {
       const org = { ...makeOrg(agents), rngSeed: 2000 + i };
       const report = resolveChallenge({
         challenge: arc.challenges[0]!, assignedAgents: agents, org, arc,
-        rng: new Rng(0), cycle: 1,
+        cycle: 1,
       });
       if (report.outcome === "success") {
         successes++;
@@ -248,7 +245,7 @@ describe("rollLoot drop rates", () => {
       const org = { ...makeOrg(agents), rngSeed: 3000 + i };
       const report = resolveChallenge({
         challenge: arc.challenges[0]!, assignedAgents: agents, org, arc,
-        rng: new Rng(0), cycle: 1,
+        cycle: 1,
       });
       if (report.outcome === "success") {
         successes.push(i);
@@ -267,11 +264,11 @@ describe("rollLoot drop rates", () => {
     const org = { ...makeOrg(agents), rngSeed: 99 };
     const a = resolveChallenge({
       challenge: arc.challenges[0]!, assignedAgents: agents, org, arc,
-      rng: new Rng(0), cycle: 7,
+      cycle: 7,
     });
     const b = resolveChallenge({
       challenge: arc.challenges[0]!, assignedAgents: agents, org, arc,
-      rng: new Rng(0), cycle: 7,
+      cycle: 7,
     });
     expect(a.lootDrops).toEqual(b.lootDrops);
   });
@@ -288,7 +285,6 @@ describe("thresholdMode", () => {
       assignedAgents: agents,
       org: makeOrg(agents),
       arc: MINI_ARC,
-      rng: new Rng(999),
       cycle: 1,
     });
   }

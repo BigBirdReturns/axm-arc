@@ -61,6 +61,40 @@ describe("applyStressGains", () => {
 // ── processAfflictionThreshold ────────────────────────────────────────────────
 
 describe("processAfflictionThreshold", () => {
+  it("resolve morale is scoped to same-challenge witnesses, not org-wide", () => {
+    const resolver = makeTestAgent({
+      id: "a1", stress: 10, morale: 50,
+      assignmentHistory: [{ challengeId: "C1", cycle: 0, outcome: "success" }],
+    });
+    const witness = makeTestAgent({
+      id: "w1", morale: 50,
+      assignmentHistory: [{ challengeId: "C1", cycle: 0, outcome: "success" }],
+    });
+    const nonWitness = makeTestAgent({
+      id: "n1", morale: 50,
+      assignmentHistory: [{ challengeId: "C2", cycle: 0, outcome: "success" }],
+    });
+    const org = makeTestOrg([resolver, witness, nonWitness]);
+
+    // Find a seed whose first roll produces a resolve (>= 0.75).
+    let resolveSeed = 0;
+    for (let s = 0; s < 10000; s++) {
+      const rng = new Rng(s);
+      if (rng.next() >= 0.75) { resolveSeed = s; break; }
+    }
+
+    const { event, org: result } = processAfflictionThreshold(org, "a1", new Rng(resolveSeed), 1);
+    expect(event!.kind).toBe("resolve");
+    // Witness on the same challenge (C1) is boosted...
+    expect(result.agents["w1"]!.morale).toBe(55);
+    // ...but the agent on a different challenge (C2) is not a witness and gets NO morale.
+    expect(result.agents["n1"]!.morale).toBe(50);
+    if (event && event.kind === "resolve") {
+      expect(event.witnesses).toContain("w1");
+      expect(event.witnesses).not.toContain("n1");
+    }
+  });
+
   it("no event if stress < 10", () => {
     const a = makeTestAgent({ id: "a1", stress: 9 });
     const org = makeTestOrg([a]);

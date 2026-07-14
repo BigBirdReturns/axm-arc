@@ -172,8 +172,19 @@ export function processAfflictionThreshold(
       },
     };
 
-    // Find witnesses (all other agents in org — caller can filter by challenge)
-    const witnesses = Object.keys(org.agents).filter((id) => id !== agentId);
+    // Witnesses are the agents co-located with the resolving agent this cycle:
+    // those whose most recent assignment shares the resolver's current challenge
+    // (the same "nearby" derivation applyAfflictionBarks uses). If the resolver
+    // has no assignment on record, every other agent counts as a witness.
+    const resolverLast = agent.assignmentHistory[agent.assignmentHistory.length - 1];
+    const witnesses = Object.keys(org.agents).filter((id) => {
+      if (id === agentId) return false;
+      if (!resolverLast) return true;
+      const other = org.agents[id];
+      if (!other) return false;
+      const otherLast = other.assignmentHistory[other.assignmentHistory.length - 1];
+      return !!otherLast && otherLast.challengeId === resolverLast.challengeId;
+    });
 
     let result: Organization = {
       ...org,

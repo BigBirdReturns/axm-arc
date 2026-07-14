@@ -1,5 +1,5 @@
 import type { Organization, Agent, Affliction } from "./types.js";
-import { STRESS_THRESHOLD, AFFLICTION_CHANCE } from "./constants.js";
+import { STRESS_THRESHOLD, AFFLICTION_CHANCE, AFFLICTION_PENALTIES } from "./constants.js";
 import type { Rng } from "./prng.js";
 
 // ── Local Event Types ─────────────────────────────────────────────────────────
@@ -347,8 +347,9 @@ export function applyAfflictionBarks(
           highest = id;
         }
       }
-      stressGains.set(highest, (stressGains.get(highest) ?? 0) + 1);
-      barks.push({ kind: "bark", sourceAgentId: agentId, targetAgentId: highest, stressAmount: 1, cycle: _cycle });
+      const stressAmount = AFFLICTION_PENALTIES.Resentful.stressToTeam;
+      stressGains.set(highest, (stressGains.get(highest) ?? 0) + stressAmount);
+      barks.push({ kind: "bark", sourceAgentId: agentId, targetAgentId: highest, stressAmount, cycle: _cycle });
     } else if (affliction === "Defiant") {
       // +2 stress to ALL others on same challenge
       for (const targetId of nearby) {

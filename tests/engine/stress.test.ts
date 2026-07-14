@@ -9,6 +9,7 @@ import {
   applyAfflictionBarks,
 } from "../../src/engine/stress.js";
 import { makeTestAgent, makeTestOrg } from "../fixtures/state-arc.js";
+import { AFFLICTION_PENALTIES } from "../../src/engine/constants.js";
 
 // ── applyStressGains ──────────────────────────────────────────────────────────
 
@@ -306,6 +307,32 @@ describe("applyAfflictionBarks", () => {
     const { barks } = applyAfflictionBarks(org, rng, 1);
     // Resentful should target highest performer (a3)
     expect(barks.some((b) => b.sourceAgentId === "a1" && b.targetAgentId === "a3")).toBe(true);
+  });
+
+  it("Resentful bark stress equals the declared AFFLICTION_PENALTIES.stressToTeam (no declared-vs-applied divergence)", () => {
+    const history = [{ challengeId: "c1", cycle: 1, outcome: "success" as const }];
+    const historySuccess = Array.from({ length: 5 }, (_, i) => ({
+      challengeId: "c1",
+      cycle: i + 1,
+      outcome: "success" as const,
+    }));
+    const afflicted = makeTestAgent({
+      id: "a1",
+      affliction: { kind: "Resentful", sinceCycle: 1 },
+      assignmentHistory: history,
+    });
+    const highPerf = makeTestAgent({ id: "a3", assignmentHistory: historySuccess });
+    highPerf.assignmentHistory[0]!.challengeId = "c1";
+    const org = makeTestOrg([afflicted, highPerf]);
+    const { stressGains, barks } = applyAfflictionBarks(org, new Rng(42), 1);
+    const resentfulBark = barks.find((b) => b.sourceAgentId === "a1");
+    expect(resentfulBark).toBeDefined();
+    // Applied bark stress must match the canonical declaration (single source of truth).
+    expect(resentfulBark!.stressAmount).toBe(AFFLICTION_PENALTIES.Resentful.stressToTeam);
+    // And the stressGains delta applied to the target must match it too.
+    expect(stressGains.get(resentfulBark!.targetAgentId) ?? 0).toBe(
+      AFFLICTION_PENALTIES.Resentful.stressToTeam,
+    );
   });
 
   it("Fearful agent propagates to at most 2 nearby agents", () => {

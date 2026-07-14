@@ -201,6 +201,11 @@ const CHALLENGES: Challenge[] = [
     ],
     completionCriteria: { type: "all_mechanics_passed", parameters: {} },
     timePressure: null,
+    // The opening contract teaches one real, engine-honored resource decision:
+    // spend a Contract to narrow the attempt's variance, or keep it for later.
+    // This does not buy power or guarantee success; the resolver preserves the
+    // mean and retains a bounded failure band.
+    resourceSpend: { maxTokens: 1, steadinessPerToken: 0.35, minSteadiness: 0.65 },
     outcomes: {
       success: {
         rewardTable: [{ itemId: "rusty-blade", dropRate: 1.0 }],

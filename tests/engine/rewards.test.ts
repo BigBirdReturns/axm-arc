@@ -1,10 +1,12 @@
 import { describe, it, expect } from "vitest";
 import { Rng } from "../../src/engine/prng.js";
+import type { Challenge } from "../../src/engine/types.js";
 import {
   evaluateLootEligibility,
   awardItem,
   computeRewardDisappointment,
   applyRewardDecision,
+  resolvePendingRewardChoice,
 } from "../../src/engine/rewards.js";
 import { makeTestAgent, makeTestOrg, STATE_ARC } from "../fixtures/state-arc.js";
 
@@ -227,5 +229,59 @@ describe("applyRewardDecision", () => {
     const greedyDrop = 70 - result.agents["greedy-loser"]!.morale;
     const normalDrop = 70 - result.agents["normal-loser"]!.morale;
     expect(greedyDrop).toBeGreaterThanOrEqual(normalDrop);
+  });
+});
+
+describe("resolvePendingRewardChoice", () => {
+  const arc = { ...STATE_ARC, challenges: [{ id: "c1" } as Challenge] };
+
+  function setup() {
+    const org = makeTestOrg([
+      makeTestAgent({ id: "winner", morale: 70 }),
+      makeTestAgent({ id: "runner", morale: 70, loyalty: 5 }),
+    ]);
+    return {
+      org,
+      pending: {
+        itemId: "basic-sword",
+        eligibleAgentIds: ["winner", "runner"],
+        sourceChallenge: "c1",
+        cycle: org.cycle,
+      },
+    };
+  }
+
+  it("applies gear, fairness precedent, and social consequence without advancing the cycle", () => {
+    const { org, pending } = setup();
+    const result = resolvePendingRewardChoice(org, arc, pending, "winner");
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.org.cycle).toBe(org.cycle);
+    expect(result.org.agents.winner?.equippedItems.weapon).toBe("basic-sword");
+    expect(result.org.agents.winner?.rewardHistory).toContainEqual({
+      itemId: "basic-sword",
+      cycle: org.cycle,
+      challengeId: "c1",
+    });
+    expect(result.precedent).toMatchObject({ type: "reward", winner: "winner" });
+    expect(result.org.precedents.at(-1)).toEqual(result.precedent);
+    expect(result.dramaTriggers).toHaveLength(1);
+    expect(result.org.agents.runner?.morale).toBeLessThanOrEqual(70);
+  });
+
+  it("refuses an ineligible winner and leaves the organization byte-for-byte unchanged", () => {
+    const { org, pending } = setup();
+    const result = resolvePendingRewardChoice(org, arc, pending, "not-a-founder");
+    expect(result).toEqual({ ok: false, org, reason: "winner_ineligible" });
+  });
+
+  it("refuses replay after that exact drop was already assigned", () => {
+    const { org, pending } = setup();
+    const first = resolvePendingRewardChoice(org, arc, pending, "winner");
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+    const replay = resolvePendingRewardChoice(first.org, arc, pending, "winner");
+    expect(replay).toEqual({ ok: false, org: first.org, reason: "already_resolved" });
   });
 });

@@ -331,6 +331,70 @@ describe("thresholdMode validation", () => {
   });
 });
 
+describe("role_specific roleIds validation", () => {
+  function arcWithRoleIds(roleIds: string[] | undefined): unknown {
+    const check: Record<string, unknown> = {
+      id: "hold-line",
+      name: "Hold the Line",
+      description: "The tank must hold.",
+      attributeWeights: [{ attributeId: "resilience", weight: 1 }],
+      difficultyThreshold: 10,
+      scope: "role_specific",
+      failureConsequence: { type: "stress", severity: 0.3 },
+    };
+    if (roleIds !== undefined) check.roleIds = roleIds;
+
+    return minimalArc({
+      roles: [
+        { id: "tank", name: "Tank", attributeWeights: { resilience: 1 } },
+        { id: "healer", name: "Healer", attributeWeights: { focus: 1 } },
+      ],
+      challenges: [
+        {
+          id: "ch1",
+          name: "Challenge 1",
+          description: "A challenge.",
+          rosterRequirements: {
+            minAgents: 2,
+            maxAgents: 4,
+            roleRequirements: [{ roleId: "tank", count: 1 }],
+          },
+          accessRequirements: { orgMilestones: [], agentAttunements: [], attunementThreshold: null },
+          difficultyRating: 40,
+          mechanicChecks: [check],
+          completionCriteria: { type: "all_mechanics_passed", parameters: {} },
+          timePressure: null,
+          outcomes: {
+            success: { rewardTable: [], narrative: "Win." },
+            partial: { rewardTable: [], narrative: "Partial." },
+            failure: { rewardTable: [], narrative: "Fail." },
+          },
+        },
+      ],
+    });
+  }
+
+  it("preserves omitted and empty roleIds as the legacy challenge-role fallback", () => {
+    const omitted = validateArc(arcWithRoleIds(undefined));
+    const empty = validateArc(arcWithRoleIds([]));
+    expect(omitted.challenges[0]!.mechanicChecks[0]!.roleIds).toBeUndefined();
+    expect(empty.challenges[0]!.mechanicChecks[0]!.roleIds).toEqual([]);
+  });
+
+  it("accepts explicit roleIds that reference declared Arc roles", () => {
+    expect(() => validateArc(arcWithRoleIds(["tank"]))).not.toThrow();
+  });
+
+  it("rejects every explicit roleId that is not declared by the Arc", () => {
+    expect(() => validateArc(arcWithRoleIds(["ghost"]))).toThrow(
+      /\[challenges\.0\.mechanicChecks\.0\.roleIds\.0\].*unknown roleId "ghost"/,
+    );
+    expect(() => validateArc(arcWithRoleIds(["tank", "ghost"]))).toThrow(
+      /\[challenges\.0\.mechanicChecks\.0\.roleIds\.1\].*unknown roleId "ghost"/,
+    );
+  });
+});
+
 describe("roster requirements validation", () => {
   const TWO_ROLES = [
     { id: "tank", name: "Tank", attributeWeights: { power: 1 } },

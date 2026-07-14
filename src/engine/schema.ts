@@ -284,14 +284,38 @@ export const ArcSchema = ArcBaseSchema.superRefine((arc: ArcBase, ctx: z.Refinem
   const attrIds = new Set(arc.attributes.map((a: { id: string }) => a.id));
   const roleIds = new Set(arc.roles.map((r: { id: string }) => r.id));
 
-  for (const challenge of arc.challenges) {
-    for (const check of challenge.mechanicChecks) {
+  for (const [challengeIndex, challenge] of arc.challenges.entries()) {
+    for (const [checkIndex, check] of challenge.mechanicChecks.entries()) {
       for (const aw of check.attributeWeights) {
         if (!attrIds.has(aw.attributeId)) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
             message: `Challenge "${challenge.id}", mechanic "${check.id}": unknown attributeId "${aw.attributeId}". Valid: ${[...attrIds].join(", ")}`,
           });
+        }
+      }
+
+      // Explicit role scopes must reference authored roles. Omitted and empty
+      // roleIds intentionally remain the v1 compatibility form: resolver,
+      // projections, and diagnostics fall back to this challenge's required
+      // roles. Do not materialize that fallback here; doing so would rewrite
+      // valid cartridge identity and save/ledger digests.
+      if (check.scope === "role_specific" && check.roleIds?.length) {
+        for (const [roleIndex, roleId] of check.roleIds.entries()) {
+          if (!roleIds.has(roleId)) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: [
+                "challenges",
+                challengeIndex,
+                "mechanicChecks",
+                checkIndex,
+                "roleIds",
+                roleIndex,
+              ],
+              message: `Challenge "${challenge.id}", mechanic "${check.id}": roleIds references unknown roleId "${roleId}". Valid: ${[...roleIds].join(", ")}`,
+            });
+          }
         }
       }
     }

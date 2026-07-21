@@ -1,17 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
-import type { Organization, RunReport } from "../engine/types.js";
+import type { Arc, Organization, RunReport } from "../engine/types.js";
 import { runCycle, type ChallengeAssignment, type PendingRewardChoice, type RewardDecision } from "../engine/cycle.js";
 import {
   FIRST_CHARTER,
   KARAZHAN,
 } from "../arcs/index.js";
 import { foundOrganization } from "../engine/founding.js";
+import { cartridgeDigest } from "../engine/cartridge-digest.js";
+import type { PortableRunExtensions } from "../engine/portable-run.js";
 import { loadSave, saveSave, clearSave } from "./lib/storage.js";
 import {
   ensureBundledArc,
-  loadActiveArcId,
+  loadActiveArcSelection,
   loadArcLibrary,
-  saveActiveArcId,
+  saveActiveArc,
 } from "./lib/arc-library.js";
 import { getAdvanceBlockers, isAdvanceBlocked } from "./lib/advance-blockers.js";
 import { triageDrama } from "../engine/drama-triage.js";
@@ -39,6 +41,11 @@ import { CodexOverlay } from "../codex/index.js";
 import { WhatsNew, CURRENT_BUILD } from "../release-notes/index.js";
 import { t, useLocale, type MessageId } from "../i18n/index.js";
 import { LocaleSwitcher } from "../i18n/LocaleSwitcher.js";
+import {
+  exportPortableRunToJson,
+  readHubTurnCheckpoint,
+  withHubTurnCheckpoint,
+} from "./lib/portable-run.js";
 
 declare const __BUILD_SHA__: string;
 const BUILD_SHA = typeof __BUILD_SHA__ === "string" ? __BUILD_SHA__ : "dev";
@@ -62,13 +69,21 @@ const TAB_LABEL_ID: Record<Tab, MessageId> = {
 function resolveActiveArc(): typeof FIRST_CHARTER {
   ensureBundledArc(FIRST_CHARTER);
   ensureBundledArc(KARAZHAN);
-  const activeId = loadActiveArcId();
-  if (activeId && activeId !== FIRST_CHARTER.meta.id) {
-    const entries = loadArcLibrary();
-    const match = entries.find((e) => e.arc.meta.id === activeId);
+  const selection = loadActiveArcSelection();
+  if (selection) {
+    const match = loadArcLibrary().find(
+      (entry) => entry.arc.meta.id === selection.id
+        && cartridgeIdentity(entry.arc) === selection.digest,
+    );
     if (match) return match.arc;
   }
   return FIRST_CHARTER;
+}
+
+function cartridgeIdentity(arc: Arc): string {
+  // Kept local to avoid making presentation code interpret the digest. It is
+  // only an exact revision key for active selection and trust lookup.
+  return cartridgeDigest(arc);
 }
 
 const INTENT_KEY = "axm-arc:intent:v1";
@@ -103,18 +118,32 @@ export function App(): JSX.Element {
   // switch; `locale` is also a dependency of the memos that bake t() output.
   const [locale] = useLocale();
   const tutorial = useTutorial();
-  const [tab, setTab] = useState<Tab>("Roster");
-  const [arc, setArc] = useState<typeof FIRST_CHARTER>(() => resolveActiveArc());
-  const [org, setOrg] = useState<Organization>(() => {
-    const loaded = loadSave(arc);
-    return loaded ? loaded.org : buildNewOrg(arc);
+  const [initial] = useState(() => {
+    const activeArc = resolveActiveArc();
+    const loaded = loadSave(activeArc);
+    const activeOrg = loaded?.org ?? buildNewOrg(activeArc);
+    const checkpoint = loaded
+      ? readHubTurnCheckpoint(loaded.extensions, activeArc, activeOrg)
+      : null;
+    return {
+      arc: activeArc,
+      org: activeOrg,
+      pendingRewardChoices: loaded?.pendingRewardChoices ?? [],
+      extensions: loaded?.extensions ?? {},
+      assignments: checkpoint?.assignments ?? [],
+      rewardDecisions: checkpoint?.rewardDecisions ?? [],
+    };
   });
-  const [assignments, setAssignments] = useState<ChallengeAssignment[]>([]);
+  const [tab, setTab] = useState<Tab>("Roster");
+  const [arc, setArc] = useState<Arc>(initial.arc);
+  const [org, setOrg] = useState<Organization>(initial.org);
+  const [assignments, setAssignments] = useState<ChallengeAssignment[]>(initial.assignments);
   const [lastReports, setLastReports] = useState<RunReport[]>([]);
-  const [pendingRewardChoices, setPendingRewardChoices] = useState<PendingRewardChoice[]>(
-    () => loadSave(arc)?.pendingRewardChoices ?? [],
-  );
-  const [rewardDecisions, setRewardDecisions] = useState<RewardDecision[]>([]);
+  const [pendingRewardChoices, setPendingRewardChoices] = useState<PendingRewardChoice[]>(initial.pendingRewardChoices);
+  const [rewardDecisions, setRewardDecisions] = useState<RewardDecision[]>(initial.rewardDecisions);
+  const [portableExtensions, setPortableExtensions] = useState<PortableRunExtensions>(initial.extensions);
+  const [saveFailure, setSaveFailure] = useState<string | null>(null);
+  const [runExportMessage, setRunExportMessage] = useState<string | null>(null);
   const [advanceError, setAdvanceError] = useState<string | null>(null);
   const [cycleTransition, setCycleTransition] = useState<{ fromCycle: number; toCycle: number } | null>(null);
   const [codexOpen, setCodexOpen] = useState(false);
@@ -135,8 +164,14 @@ export function App(): JSX.Element {
   }, [theme]);
 
   useEffect(() => {
-    saveSave(org, arc, pendingRewardChoices);
-  }, [org, arc, pendingRewardChoices]);
+    const result = saveSave(
+      org,
+      arc,
+      pendingRewardChoices,
+      withHubTurnCheckpoint(portableExtensions, assignments, rewardDecisions),
+    );
+    setSaveFailure(result.ok ? null : result.message);
+  }, [org, arc, pendingRewardChoices, portableExtensions, assignments, rewardDecisions]);
 
   useEffect(() => {
     try { localStorage.setItem(INTENT_KEY, intent); } catch { /* noop */ }
@@ -159,6 +194,69 @@ export function App(): JSX.Element {
     } catch { /* noop */ }
   }, []);
 
+  const exactExtensions = (): PortableRunExtensions =>
+    withHubTurnCheckpoint(portableExtensions, assignments, rewardDecisions);
+
+  const persistCurrentRun = () => {
+    const result = saveSave(org, arc, pendingRewardChoices, exactExtensions());
+    setSaveFailure(result.ok ? null : result.message);
+    return result;
+  };
+
+  const exportCurrentRun = () => {
+    const payload = exportPortableRunToJson({
+      arc,
+      org,
+      pendingRewardChoices,
+      extensions: exactExtensions(),
+    });
+    const blob = new Blob([payload.json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = payload.filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+    setRunExportMessage(t("save.exported", { file: payload.filename }));
+  };
+
+  const restoreClientState = (nextArc: Arc): void => {
+    const loaded = loadSave(nextArc);
+    const nextOrg = loaded?.org ?? buildNewOrg(nextArc);
+    const nextExtensions = loaded?.extensions ?? {};
+    const checkpoint = loaded
+      ? readHubTurnCheckpoint(nextExtensions, nextArc, nextOrg)
+      : null;
+    setArc(nextArc);
+    setOrg(nextOrg);
+    setPendingRewardChoices(loaded?.pendingRewardChoices ?? []);
+    setPortableExtensions(nextExtensions);
+    setAssignments(checkpoint?.assignments ?? []);
+    setRewardDecisions(checkpoint?.rewardDecisions ?? []);
+    setLastReports([]);
+    setAdvanceError(null);
+    setCycleTransition(null);
+    setRunExportMessage(null);
+    setTab(nextOrg.dramaQueue.length > 0 ? "Drama" : "Assign");
+  };
+
+  const startFresh = (nextArc: Arc): void => {
+    const nextOrg = buildNewOrg(nextArc);
+    setArc(nextArc);
+    setOrg(nextOrg);
+    setPendingRewardChoices([]);
+    setPortableExtensions({});
+    setAssignments([]);
+    setRewardDecisions([]);
+    setLastReports([]);
+    setAdvanceError(null);
+    setCycleTransition(null);
+    setRunExportMessage(null);
+    setTab("Drama");
+  };
+
   // ── Tutorial: step derived from game state ──────────────────────────────
   const tutorialStep = deriveTutorialStep(
     tutorial.active,
@@ -173,8 +271,8 @@ export function App(): JSX.Element {
   // Trust for the currently-active arc (sourced from the library entry, never
   // from arc content). Re-derives when the arc swaps; bundled is the floor.
   const activeTrust = useMemo(() => {
-    const entries = loadArcLibrary();
-    return entries.find((e) => e.arc.meta.id === arc.meta.id)?.trust ?? "bundled";
+    const digest = cartridgeIdentity(arc);
+    return loadArcLibrary().find((entry) => cartridgeIdentity(entry.arc) === digest)?.trust ?? "bundled";
   }, [arc]);
 
   const advanceBlockers = useMemo(() => getAdvanceBlockers({
@@ -215,15 +313,11 @@ export function App(): JSX.Element {
 
   const resetGame = () => {
     if (!confirm(t("confirm.reset"))) return;
-    clearSave(arc);
+    const clearedRun = clearSave(arc);
+    if (!clearedRun.ok) setSaveFailure(clearedRun.message);
     try { localStorage.removeItem(INTENT_KEY); } catch { /* noop */ }
-    setOrg(buildNewOrg(arc));
-    setLastReports([]);
-    setPendingRewardChoices([]);
-    setRewardDecisions([]);
-    setAssignments([]);
+    startFresh(arc);
     setIntent("");
-    setTab("Drama");
     tutorial.start();
   };
 
@@ -388,27 +482,20 @@ export function App(): JSX.Element {
     return (
       <TitleScreen
         arc={arc}
+        saveFailure={saveFailure}
+        exportMessage={runExportMessage}
         onContinue={() => {
-          const loaded = loadSave(arc);
-          if (loaded) {
-            setOrg(loaded.org);
-            // Land returning players where action is needed: drama queue first,
-            // otherwise the Assign tab so they can slot agents and advance.
-            setTab(loaded.org.dramaQueue.length > 0 ? "Drama" : "Assign");
-          }
+          restoreClientState(arc);
           setMode("play");
         }}
         onNewGame={() => {
-          clearSave(arc);
-          setOrg(buildNewOrg(arc));
-          setLastReports([]);
-          setPendingRewardChoices([]);
-          setRewardDecisions([]);
-          setAssignments([]);
-          setTab("Drama");
+          const clearedRun = clearSave(arc);
+          if (!clearedRun.ok) setSaveFailure(clearedRun.message);
+          startFresh(arc);
           tutorial.start();
           setMode("play");
         }}
+        onExportRun={exportCurrentRun}
         onOpenLibrary={() => setMode("library")}
         onOpenDesigner={() => setMode("designer")}
         onOpenWorkshop={() => setMode("workshop")}
@@ -446,25 +533,17 @@ export function App(): JSX.Element {
         onBack={() => setMode("title")}
         onOpenArchive={() => setMode("archive")}
         onOpenWorkshop={() => setMode("workshop")}
-        onLoadArc={(arcId) => {
-          // Loading a different arc means the existing save (keyed to a single
-          // global slot) is meaningless. Warn before clobbering progress, then
-          // wipe, swap arc, and rebuild org for the new arc.
-          const hasExistingSave = loadSave(arc) !== null;
-          if (hasExistingSave && arcId !== arc.meta.id) {
-            if (!confirm(t("confirm.loadArc"))) return;
+        onLoadArc={(nextArc) => {
+          const active = saveActiveArc(nextArc);
+          if (!active.ok) {
+            setSaveFailure(active.message);
+            return;
           }
-          saveActiveArcId(arcId);
-          clearSave(arc);
-          const entries = loadArcLibrary();
-          const next = entries.find((e) => e.arc.meta.id === arcId)?.arc ?? FIRST_CHARTER;
-          setArc(next);
-          setOrg(buildNewOrg(next));
-          setLastReports([]);
-          setPendingRewardChoices([]);
-          setRewardDecisions([]);
-          setAssignments([]);
-          setTab("Drama");
+          restoreClientState(nextArc);
+          setMode("title");
+        }}
+        onLoadRun={(nextArc) => {
+          restoreClientState(nextArc);
           setMode("title");
         }}
       />
@@ -563,7 +642,8 @@ export function App(): JSX.Element {
           ))}
         </div>
         <div className="desktop-actions" style={{ display: "none" }}>
-          <button className="secondary" onClick={() => saveSave(org, arc)}>{t("common.save")}</button>
+          <button className="secondary" onClick={persistCurrentRun}>{t("common.save")}</button>
+          <button className="secondary" onClick={exportCurrentRun}>{t("common.exportRun")}</button>
           <button
             className={`primary${!blocked ? " accent" : ""}`}
             disabled={!canAdvanceCycle}
@@ -574,6 +654,20 @@ export function App(): JSX.Element {
           </button>
         </div>
       </header>
+
+      {saveFailure && (
+        <div className="warning" role="alert" style={{ margin: "8px 16px" }}>
+          {t("save.unsaved", { reason: saveFailure })}{" "}
+          <button className="secondary" type="button" onClick={exportCurrentRun}>
+            {t("common.exportRun")}
+          </button>
+        </div>
+      )}
+      {runExportMessage && (
+        <div role="status" style={{ margin: "8px 16px", color: "var(--positive)", fontWeight: 600 }}>
+          {runExportMessage}
+        </div>
+      )}
 
       {/* ── MOBILE ── */}
       <div className="mobile-only">

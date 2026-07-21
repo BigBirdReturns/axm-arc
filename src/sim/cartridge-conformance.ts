@@ -343,6 +343,10 @@ export interface ConformanceOptions {
   difficultyModeId?: string;
   rosterOptions?: RosterBuildOptions;
   startingResources?: StartingResources;
+  /** Optional exact organization state to begin from. The harness clones it so
+   *  a sweep never mutates the caller's fixture. Used to prove an authored
+   *  founding law can finish its own cartridge, not only a synthetic roster. */
+  initialOrganization?: Organization;
 }
 
 export interface AttemptTally {
@@ -401,7 +405,9 @@ function arcCleared(arc: Arc, cleared: Set<string>): boolean {
  *  bypassed by construction (see gateViolations). This is the cartridge-
  *  agnostic generalization of karazhan-sim's simulateKarazhanRun. */
 export function simulateArcRun(arc: Arc, opts: ConformanceOptions): ConformanceRunResult {
-  let org = buildStartingOrg(arc, opts.seed, opts.rosterOptions, opts.startingResources);
+  let org = opts.initialOrganization
+    ? structuredClone(opts.initialOrganization)
+    : buildStartingOrg(arc, opts.seed, opts.rosterOptions, opts.startingResources);
   let pendingChoices: PendingRewardChoice[] = [];
 
   const attempts: Record<string, AttemptTally> = {};

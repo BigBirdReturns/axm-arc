@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import type { Arc } from "../../engine/types.js";
 import { loadSave } from "../lib/storage.js";
+import { cartridgeDigest } from "../../engine/cartridge-digest.js";
 import { loadArcLibrary } from "../lib/arc-library.js";
 import { CodexOverlay, TrustLabel } from "../../codex/index.js";
 import { WhatsNew } from "../../release-notes/index.js";
@@ -12,6 +13,9 @@ interface Props {
   arc: Arc;
   onContinue: () => void;
   onNewGame: () => void;
+  onExportRun: () => void;
+  saveFailure: string | null;
+  exportMessage: string | null;
   onOpenLibrary: () => void;
   onOpenDesigner: () => void;
   onOpenWorkshop: () => void;
@@ -20,15 +24,15 @@ interface Props {
   onOpenArchive: () => void;
 }
 
-export function TitleScreen({ arc, onContinue, onNewGame, onOpenLibrary, onOpenDesigner, onOpenWorkshop, onOpenRaidNight, onOpenGuildHall, onOpenArchive }: Props): JSX.Element {
+export function TitleScreen({ arc, onContinue, onNewGame, onExportRun, saveFailure, exportMessage, onOpenLibrary, onOpenDesigner, onOpenWorkshop, onOpenRaidNight, onOpenGuildHall, onOpenArchive }: Props): JSX.Element {
   useLocale(); // re-render this screen's chrome on locale switch
   const existing = loadSave(arc);
   const hasSave = existing !== null;
   const [manualOpen, setManualOpen] = useState(false);
   const [whatsNewOpen, setWhatsNewOpen] = useState(false);
   const activeTrust = useMemo(() => {
-    const entries = loadArcLibrary();
-    return entries.find((e) => e.arc.meta.id === arc.meta.id)?.trust ?? "bundled";
+    const digest = cartridgeDigest(arc);
+    return loadArcLibrary().find((entry) => cartridgeDigest(entry.arc) === digest)?.trust ?? "bundled";
   }, [arc]);
   const labels = VARIANT_LABELS[VARIANT];
 
@@ -78,6 +82,11 @@ export function TitleScreen({ arc, onContinue, onNewGame, onOpenLibrary, onOpenD
           >
             {labels.ctaPlay}
           </button>
+          {hasSave && (
+            <button className="secondary" onClick={onExportRun}>
+              {t("common.exportRun")}
+            </button>
+          )}
           <button
             className="secondary"
             onClick={onOpenLibrary}
@@ -121,6 +130,20 @@ export function TitleScreen({ arc, onContinue, onNewGame, onOpenLibrary, onOpenD
             {t("common.manual")}
           </button>
         </div>
+
+        {saveFailure && (
+          <div className="warning" role="alert" style={{ marginTop: 16 }}>
+            {t("save.unsaved", { reason: saveFailure })}{" "}
+            <button className="secondary" type="button" onClick={onExportRun}>
+              {t("common.exportRun")}
+            </button>
+          </div>
+        )}
+        {exportMessage && (
+          <div role="status" style={{ marginTop: 12, color: "var(--positive)", fontWeight: 600 }}>
+            {exportMessage}
+          </div>
+        )}
 
         {hasSave && (
           <div className="title-save-info">

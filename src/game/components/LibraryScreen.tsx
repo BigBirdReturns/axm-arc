@@ -6,8 +6,10 @@ import { useMemo, useState } from "react";
 import type { Arc } from "../../engine/types.js";
 import { CodexOverlay, TrustLabel } from "../../codex/index.js";
 import { cartridgeDigest } from "../../engine/cartridge-digest.js";
+import { isPortableRunV3 } from "../../engine/portable-run.js";
 import { compatibilityProfile, loadLedger } from "../lib/ledger.js";
 import { carryVerdict } from "../lib/expansion-archive.js";
+import { importPortableRunFromJson } from "../lib/portable-run.js";
 import {
   type ArcLibraryEntry,
   type ImportPreflight,
@@ -24,12 +26,13 @@ import { t, useLocale } from "../../i18n/index.js";
 interface Props {
   arc: Arc; // currently-active arc (for "this is loaded" badge)
   onBack: () => void;
-  onLoadArc: (arcId: string) => void;
+  onLoadArc: (arc: Arc) => void;
+  onLoadRun: (arc: Arc) => void;
   onOpenArchive: () => void;
   onOpenWorkshop: () => void;
 }
 
-export function LibraryScreen({ arc, onBack, onLoadArc, onOpenArchive, onOpenWorkshop }: Props): JSX.Element {
+export function LibraryScreen({ arc, onBack, onLoadArc, onLoadRun, onOpenArchive, onOpenWorkshop }: Props): JSX.Element {
   useLocale(); // this screen renders outside App's play shell — subscribe directly
   const [entries, setEntries] = useState<ArcLibraryEntry[]>(() => loadArcLibrary());
   const [jsonDraft, setJsonDraft] = useState("");
@@ -53,7 +56,7 @@ export function LibraryScreen({ arc, onBack, onLoadArc, onOpenArchive, onOpenWor
   // same fact the Archive joins by and world's boot-import verifies against
   // (RFC_CARTRIDGE_LIBRARY PR 072). Keyed by id+source to match the card key.
   const digests = useMemo(
-    () => new Map(entries.map((e) => [e.arc.meta.id + ":" + e.source, cartridgeDigest(e.arc)])),
+    () => new Map(entries.map((entry) => [cartridgeDigest(entry.arc), cartridgeDigest(entry.arc)])),
     [entries],
   );
 
@@ -81,11 +84,26 @@ export function LibraryScreen({ arc, onBack, onLoadArc, onOpenArchive, onOpenWor
     setImportErrors([]);
     setImportMsg(null);
     setPreflight(null);
+    // The same import door accepts authored cartridges and exact portable
+    // runs. Detection is only a discriminator; parsePortableRun still performs
+    // the complete integrity/schema/save validation before the first write.
+    if (isPortableRunV3(jsonDraft)) {
+      const result = importPortableRunFromJson(jsonDraft);
+      if (!result.ok) {
+        setImportErrors(result.errors);
+        return;
+      }
+      setImportMsg(t("library.runImported", { name: result.restored.arc.meta.name }));
+      setJsonDraft("");
+      refresh();
+      onLoadRun(result.restored.arc);
+      return;
+    }
+
     // Additive custody report (RFC_CARTRIDGE_LIBRARY PR 073): computed BEFORE
     // the write, from the library as it stands right now, reusing
     // validateArcJson verbatim (via importPreflight) — never a second
-    // validator. The write itself below is byte-for-byte unchanged: one
-    // click still validates AND saves.
+    // validator.
     const pre = importPreflight(jsonDraft, entries);
     const result = importArcFromJson(jsonDraft);
     if (!result.ok) {
@@ -129,7 +147,7 @@ export function LibraryScreen({ arc, onBack, onLoadArc, onOpenArchive, onOpenWor
     // the user must see that honestly, never a false "ok".
     const reparsed = validateArcJson(result.payload.json);
     const receiptDigest = reparsed.ok ? cartridgeDigest(reparsed.arc) : null;
-    const cardKey = `${entry.arc.meta.id}:${entry.source}`;
+    const cardKey = cartridgeDigest(entry.arc);
     const matchesLibrary = receiptDigest !== null && receiptDigest === digests.get(cardKey);
     setExportReceipt({ digest: receiptDigest, matches: matchesLibrary });
   };
@@ -137,16 +155,20 @@ export function LibraryScreen({ arc, onBack, onLoadArc, onOpenArchive, onOpenWor
   const handleRemove = (entry: ArcLibraryEntry) => {
     if (entry.source !== "imported") return;
     if (!confirm(t("confirm.removeArc", { name: entry.arc.meta.name }))) return;
-    removeArc(entry.arc.meta.id);
+    const removed = removeArc(entry.arc.meta.id);
+    if (!removed.ok) {
+      setImportErrors([removed.message]);
+      return;
+    }
     refresh();
   };
 
   const handleLoad = (entry: ArcLibraryEntry) => {
-    if (entry.arc.meta.id === arc.meta.id) {
+    if (cartridgeDigest(entry.arc) === cartridgeDigest(arc)) {
       onBack();
       return;
     }
-    onLoadArc(entry.arc.meta.id);
+    onLoadArc(entry.arc);
   };
 
   return (
@@ -161,9 +183,10 @@ export function LibraryScreen({ arc, onBack, onLoadArc, onOpenArchive, onOpenWor
 
         <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 24 }}>
           {entries.map((entry) => {
-            const isActive = entry.arc.meta.id === arc.meta.id;
+            const digest = cartridgeDigest(entry.arc);
+            const isActive = digest === cartridgeDigest(arc);
             const karazhan = isKarazhan(entry.arc.meta.id);
-            const cardKey = `${entry.arc.meta.id}:${entry.source}`;
+            const cardKey = digest;
             const profileOpen = profileFor === cardKey;
             return (
               <div
@@ -337,7 +360,7 @@ export function LibraryScreen({ arc, onBack, onLoadArc, onOpenArchive, onOpenWor
           <textarea
             value={jsonDraft}
             onChange={(e) => setJsonDraft(e.target.value)}
-            placeholder='{ "meta": { "id": "...", ... }, "attributes": [...], ... }'
+            placeholder='{ "format": "axm-cartridge-run/v3", ... } or { "meta": ... }'
             rows={10}
             style={{ width: "100%", marginTop: 8, fontFamily: "var(--mono)", fontSize: 12 }}
           />

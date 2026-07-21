@@ -10,7 +10,34 @@ in any new session or by any agent picking up cold. Updated as state changes.
 
 ---
 
-## Current overlay — 2026-07-13
+## Current overlay — 2026-07-21
+
+**Working change at the portability/game-completion boundary:**
+
+- `axm-cartridge-run/v3` now carries the canonical Arc, exact engine save,
+  unresolved engine choices, losslessly preserved namespaced runtime memory,
+  and a deterministic integrity digest. The hub imports, restores, saves, and
+  re-exports that object without dropping unknown World or future-player
+  extensions.
+- Hub persistence now reports rejected writes and exposes exact-run export as
+  the recovery path. Active cartridge selection is digest-addressed; new
+  bundled revisions install beside held revisions rather than rewriting their
+  bytes.
+- The First Charter is versioned to 1.2.0 and its authored founding roster,
+  gates, and tier-two calibration now pass a complete six-challenge campaign
+  acceptance sweep from authored founding state. The default run finishes
+  within the stated ten-cycle estimate; the sampled multi-seed gate remains
+  green with no access bypass or structural stall.
+
+**Still required before the full claim closes:** World must consume the exact
+v3 bridge, reunite guided entry with the reusable multi-representation runtime,
+and complete production-shaped desktop/mobile and independent play evidence.
+
+See `docs/PORTABLE_RUN_V3.md` and `docs/FIRST_CHARTER_ACCEPTANCE.md`.
+
+---
+
+## Previous overlay — 2026-07-13
 
 The July 3 checkpoint below is retained as historical evidence, not current
 head state. Since it was written:

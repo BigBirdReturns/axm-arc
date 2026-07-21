@@ -49,6 +49,9 @@ export type MessageId =
   | "common.flex"
   | "common.pass"
   | "common.fail"
+  | "common.exportRun"
+  | "save.unsaved"
+  | "save.exported"
   // ── primary navigation ──
   | "nav.roster"
   | "nav.assign"
@@ -580,6 +583,7 @@ export type MessageId =
   | "library.validateSave"
   | "library.validationFailed"
   | "library.imported"
+  | "library.runImported"
   | "library.preflightNew"
   | "library.preflightUpdate"
   | "library.preflightDuplicate"
@@ -1327,11 +1331,12 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "library.removeAria": "Remove arc",
     "library.exportBlocked": (p) => `Export blocked — "${str(p, "name")}" failed validation:`,
     "library.exported": (p) => `Exported "${str(p, "name")}" as ${str(p, "file")}.`,
-    "library.importArc": "Import arc",
-    "library.importHelp": "Paste arc JSON below, or upload a file. Import runs schema validation; invalid arcs are rejected with a line-by-line explanation.",
-    "library.validateSave": "Validate & Save",
+    "library.importArc": "Import cartridge or run",
+    "library.importHelp": "Paste cartridge JSON or an axm-cartridge-run/v3 file below. Runs restore the exact engine state and preserve unknown runtime extensions; invalid files are rejected before any write.",
+    "library.validateSave": "Validate & Install",
     "library.validationFailed": "Validation failed:",
     "library.imported": (p) => `Imported "${str(p, "name")}" v${str(p, "version")}.`,
+    "library.runImported": (p) => `Installed and restored the exact run for "${str(p, "name")}".`,
     "library.preflightNew": "New cartridge — added to the library",
     "library.preflightUpdate": "Updated your imported copy (replaced)",
     "library.preflightDuplicate": "Already in the library — byte-identical, nothing new recorded",
@@ -1499,6 +1504,9 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "common.flex": "機動",
     "common.pass": "通過",
     "common.fail": "未過",
+    "common.exportRun": "匯出執行紀錄",
+    "save.unsaved": (p) => `此執行紀錄尚未安全儲存：${str(p, "reason")}。請立即匯出以保留完整狀態。`,
+    "save.exported": (p) => `已將完整執行紀錄匯出為 ${str(p, "file")}。`,
 
     "nav.roster": "名冊",
     "nav.assign": "指派",
@@ -2033,11 +2041,12 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "library.removeAria": "移除弧",
     "library.exportBlocked": (p) => `匯出受阻——「${str(p, "name")}」未通過驗證：`,
     "library.exported": (p) => `已將「${str(p, "name")}」匯出為 ${str(p, "file")}。`,
-    "library.importArc": "匯入弧",
-    "library.importHelp": "在下方貼上弧的 JSON，或上傳檔案。匯入會執行結構驗證；無效的弧會被拒絕，並逐行說明原因。",
-    "library.validateSave": "驗證並儲存",
+    "library.importArc": "匯入卡帶或執行紀錄",
+    "library.importHelp": "在下方貼上卡帶 JSON 或 axm-cartridge-run/v3 檔案。執行紀錄會還原完整引擎狀態並保留未知的執行環境擴充；無效檔案會在任何寫入前被拒絕。",
+    "library.validateSave": "驗證並安裝",
     "library.validationFailed": "驗證失敗：",
     "library.imported": (p) => `已匯入「${str(p, "name")}」v${str(p, "version")}。`,
+    "library.runImported": (p) => `已安裝並還原「${str(p, "name")}」的完整執行紀錄。`,
     "library.preflightNew": "新卡帶——已加入資料庫",
     "library.preflightUpdate": "已更新你匯入的副本（已取代）",
     "library.preflightDuplicate": "資料庫中已有——位元組完全相同，未新增任何紀錄",

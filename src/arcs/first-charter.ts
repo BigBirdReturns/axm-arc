@@ -393,7 +393,10 @@ const CHALLENGES: Challenge[] = [
     accessRequirements: {
       orgMilestones: ["merchant-escort-cleared"],
       agentAttunements: [],
-      attunementThreshold: null,
+      // A majority of the party must have completed the Tier-1 escort.
+      // Requiring every founder would let a legal five-person escort clear
+      // permanently strand the six-person rescue roster.
+      attunementThreshold: 0.5,
     },
     difficultyRating: 32,
     mechanicChecks: [
@@ -405,7 +408,7 @@ const CHALLENGES: Challenge[] = [
           { attributeId: "power", weight: 0.8 },
           { attributeId: "mettle", weight: 0.2 },
         ],
-        difficultyThreshold: 9,
+        difficultyThreshold: 6,
         thresholdMode: "perAssignedAgent",
         scope: "team_aggregate",
         failureConsequence: { type: "team_damage", severity: 0.4 },
@@ -415,7 +418,7 @@ const CHALLENGES: Challenge[] = [
         name: "Shore Up the Shaft",
         description: "The Vanguard braces crumbling supports while others work.",
         attributeWeights: [{ attributeId: "mettle", weight: 1.0 }],
-        difficultyThreshold: 16,
+        difficultyThreshold: 11,
         scope: "role_specific",
         roleIds: ["vanguard"],
         failureConsequence: { type: "cascade", severity: 0.6 },
@@ -428,7 +431,7 @@ const CHALLENGES: Challenge[] = [
           { attributeId: "spirit", weight: 0.7 },
           { attributeId: "wits", weight: 0.3 },
         ],
-        difficultyThreshold: 16,
+        difficultyThreshold: 11,
         scope: "role_specific",
         roleIds: ["mender"],
         failureConsequence: { type: "stress", severity: 0.5 },
@@ -491,7 +494,7 @@ const CHALLENGES: Challenge[] = [
           { attributeId: "power", weight: 0.6 },
           { attributeId: "mettle", weight: 0.4 },
         ],
-        difficultyThreshold: 10,
+        difficultyThreshold: 7,
         thresholdMode: "perAssignedAgent",
         scope: "team_aggregate",
         failureConsequence: { type: "agent_damage", severity: 0.5 },
@@ -504,7 +507,7 @@ const CHALLENGES: Challenge[] = [
           { attributeId: "power", weight: 0.5 },
           { attributeId: "wits", weight: 0.5 },
         ],
-        difficultyThreshold: 18,
+        difficultyThreshold: 13,
         scope: "role_specific",
         roleIds: ["skirmisher"],
         failureConsequence: { type: "debuff", severity: 0.3 },
@@ -559,7 +562,9 @@ const CHALLENGES: Challenge[] = [
     accessRequirements: {
       orgMilestones: ["bandit-camp-cleared"],
       agentAttunements: ["veteran-charter"],
-      attunementThreshold: null,
+      // Preserve the veteran gate without requiring every final-party member
+      // to have been seated in one earlier contract.
+      attunementThreshold: 0.5,
     },
     difficultyRating: 55,
     mechanicChecks: [
@@ -571,7 +576,7 @@ const CHALLENGES: Challenge[] = [
           { attributeId: "power", weight: 0.5 },
           { attributeId: "mettle", weight: 0.5 },
         ],
-        difficultyThreshold: 11,
+        difficultyThreshold: 6,
         thresholdMode: "perAssignedAgent",
         scope: "team_aggregate",
         failureConsequence: { type: "agent_damage", severity: 0.6 },
@@ -581,7 +586,7 @@ const CHALLENGES: Challenge[] = [
         name: "Hold the Courtyard",
         description: "The Vanguard anchors the courtyard against the Warden's elite guard.",
         attributeWeights: [{ attributeId: "mettle", weight: 1.0 }],
-        difficultyThreshold: 20,
+        difficultyThreshold: 13,
         scope: "role_specific",
         roleIds: ["vanguard"],
         failureConsequence: { type: "cascade", severity: 0.7 },
@@ -594,7 +599,7 @@ const CHALLENGES: Challenge[] = [
           { attributeId: "power", weight: 0.4 },
           { attributeId: "wits", weight: 0.6 },
         ],
-        difficultyThreshold: 20,
+        difficultyThreshold: 13,
         scope: "role_specific",
         roleIds: ["skirmisher"],
         failureConsequence: { type: "team_damage", severity: 0.4 },
@@ -607,7 +612,7 @@ const CHALLENGES: Challenge[] = [
           { attributeId: "spirit", weight: 0.8 },
           { attributeId: "wits", weight: 0.2 },
         ],
-        difficultyThreshold: 18,
+        difficultyThreshold: 11,
         scope: "role_specific",
         roleIds: ["mender"],
         failureConsequence: { type: "stress", severity: 0.6 },
@@ -616,7 +621,7 @@ const CHALLENGES: Challenge[] = [
     completionCriteria: { type: "all_mechanics_passed", parameters: {} },
     timePressure: {
       rounds: 12,
-      aggregateThreshold: 160,
+      aggregateThreshold: 105,
       attributeId: "power",
     },
     outcomes: {
@@ -732,7 +737,7 @@ export const FIRST_CHARTER: Arc = {
     description:
       "Your guild's founding contract. Six challenges across two tiers introduce every core system: assignment, role composition, reward decisions, drama resolution, recruitment, attunement, and infrastructure. Complete the Warden's Keep to earn your place among the province's recognized guilds.",
     author: "axm-arc team",
-    version: "1.1.0",
+    version: "1.2.0",
     engineVersion: "1.1.0",
     domain: "fantasy",
     estimatedCycles: 10,
@@ -811,8 +816,11 @@ export const FIRST_CHARTER: Arc = {
       { id: "mender-veteran", tierId: "veteran", roleId: "mender" },
       { id: "skirmisher-veteran", tierId: "veteran", roleId: "skirmisher", stress: 3 },
       { id: "skirmisher-recruit", tierId: "recruit", roleId: "skirmisher", morale: 38 },
-      { id: "champion-flex", tierId: "champion" },
-      { id: "recruit-flex", tierId: "recruit" },
+      // The reference cartridge must be finishable by every legal founding
+      // seed without a recruitment UI. Explicit floors guarantee the authored
+      // six can field the final 1 Vanguard / 2 Skirmisher / 2 Mender contract.
+      { id: "champion-flex", tierId: "champion", roleId: "mender" },
+      { id: "recruit-flex", tierId: "recruit", roleId: "vanguard" },
     ],
     relationships: [{
       rosterSlotIds: ["skirmisher-veteran", "skirmisher-recruit"],

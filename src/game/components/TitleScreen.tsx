@@ -19,12 +19,13 @@ interface Props {
   onOpenLibrary: () => void;
   onOpenDesigner: () => void;
   onOpenWorkshop: () => void;
+  onOpenGodscar: () => void;
   onOpenRaidNight: () => void;
   onOpenGuildHall: () => void;
   onOpenArchive: () => void;
 }
 
-export function TitleScreen({ arc, onContinue, onNewGame, onExportRun, saveFailure, exportMessage, onOpenLibrary, onOpenDesigner, onOpenWorkshop, onOpenRaidNight, onOpenGuildHall, onOpenArchive }: Props): JSX.Element {
+export function TitleScreen({ arc, onContinue, onNewGame, onExportRun, saveFailure, exportMessage, onOpenLibrary, onOpenDesigner, onOpenWorkshop, onOpenGodscar, onOpenRaidNight, onOpenGuildHall, onOpenArchive }: Props): JSX.Element {
   useLocale(); // re-render this screen's chrome on locale switch
   const existing = loadSave(arc);
   const hasSave = existing !== null;
@@ -104,6 +105,12 @@ export function TitleScreen({ arc, onContinue, onNewGame, onExportRun, saveFailu
             onClick={onOpenWorkshop}
           >
             {t("title.workshop")}
+          </button>
+          <button
+            className="secondary"
+            onClick={onOpenGodscar}
+          >
+            Godscar Pocket Forge
           </button>
           <button
             className="secondary"

@@ -1,4 +1,4 @@
-export const ENGINE_VERSION = "1.1.0";
+export const ENGINE_VERSION = "1.2.0";
 
 function numericParts(version: string): [number, number, number] {
   if (!/^\d+(?:\.\d+){0,2}$/.test(version)) {

@@ -23,3 +23,8 @@ a real, importable arc — not just well-formed JSON. Before adding or editing
 a cartridge here, validate it (e.g. by running `importArcFromJson` against
 the file text via `vite-node`, with a `localStorage` shim if running outside
 a browser) and confirm it returns `ok: true` with zero errors.
+
+
+## Godscar reference pocket
+
+`kind-gods-of-ilyon.pocket.json` is the creator-owned six-pressure source. `kind-gods-of-ilyon.arc.json` is the exact compiled cartridge accepted by Arc and Rodoh. Rebuild both with `npm run build:godscar-reference`.

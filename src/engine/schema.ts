@@ -3,6 +3,17 @@ import type { Arc } from "./types";
 import { assertEngineCompatible, compareEngineVersions } from "./version.js";
 import { compareCodepoints } from "./determinism.js";
 
+
+const JsonPrimitiveSchema = z.union([z.string(), z.number().finite(), z.boolean(), z.null()]);
+const JsonValueSchema: z.ZodType<unknown> = z.lazy(() =>
+  z.union([JsonPrimitiveSchema, z.array(JsonValueSchema), z.record(JsonValueSchema)]),
+);
+const ArcExtensionsSchema = z.record(
+  z.string().regex(/^[a-z0-9]+(?:[._-][a-z0-9]+)*@\d+$/,
+    'Extension keys must be lowercase namespaced identifiers ending in @<version>.'),
+  JsonValueSchema,
+);
+
 const AttributeWeightSchema = z.object({
   attributeId: z.string(),
   weight: z.number().min(0).max(1),
@@ -276,6 +287,7 @@ const InfrastructureFacilitySchema = z.enum([
 
 const FoundingRosterSlotSchema = z.object({
   id: z.string().min(1),
+  name: z.string().min(1).optional(),
   tierId: z.string().min(1),
   roleId: z.string().min(1).optional(),
   morale: z.number().min(0).max(100).optional(),
@@ -337,6 +349,7 @@ const ArcBaseSchema = z.object({
   scaling: ArcScalingSchema.nullable(),
   opening: AuthoredOpeningSchema.optional(),
   founding: FoundingLawSchema.optional(),
+  extensions: ArcExtensionsSchema.optional(),
 });
 
 type ArcBase = z.infer<typeof ArcBaseSchema>;
@@ -365,6 +378,15 @@ export const ArcSchema = ArcBaseSchema.superRefine((arc: ArcBase, ctx: z.Refinem
       code: z.ZodIssueCode.custom,
       path: ["meta", "engineVersion"],
       message: `Authored opening/founding law requires engineVersion 1.1.0 or newer.`,
+    });
+  }
+
+  const hasAuthoredFounderNames = arc.founding?.roster.some((slot) => slot.name !== undefined) ?? false;
+  if ((arc.extensions || hasAuthoredFounderNames) && compareEngineVersions(arc.meta.engineVersion, "1.2.0") < 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["meta", "engineVersion"],
+      message: `Arc extensions and authored founder names require engineVersion 1.2.0 or newer.`,
     });
   }
 

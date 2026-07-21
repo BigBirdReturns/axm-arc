@@ -59,6 +59,21 @@ describe("canonical founding transition", () => {
     expect(foundOrganization(lowCap).resources.tokens).toBe(1);
   });
 
+  it("honors exact authored founder names without changing their stable ids", () => {
+    const named = {
+      ...FIRST_CHARTER,
+      meta: { ...FIRST_CHARTER.meta, engineVersion: "1.2.0" },
+      founding: {
+        ...FIRST_CHARTER.founding!,
+        roster: FIRST_CHARTER.founding!.roster.map((slot, index) =>
+          index === 0 ? { ...slot, name: "Exact Founder" } : slot,
+        ),
+      },
+    };
+    const org = foundOrganization(named);
+    expect(org.agents[`founder:${named.founding.roster[0]!.id}`]?.name).toBe("Exact Founder");
+  });
+
   it("changes cart1 identity when founding state law changes", () => {
     const changed = {
       ...FIRST_CHARTER,

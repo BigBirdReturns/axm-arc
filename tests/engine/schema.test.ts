@@ -153,6 +153,30 @@ describe("validateArc", () => {
     }))).toThrow(/duplicate relationship/);
   });
 
+  it("accepts JSON-only namespaced extensions and authored founder names at engine 1.2", () => {
+    const base = minimalArc() as Record<string, unknown>;
+    const facilities = ["Quarters", "Production", "Recreation", "Research", "Training", "Storage", "Medical"]
+      .map((type) => ({ type, level: 0 }));
+    const arc = validateArc(minimalArc({
+      meta: { ...(base.meta as Record<string, unknown>), engineVersion: "1.2.0" },
+      founding: {
+        organization: { id: "org", name: "Org" },
+        resources: { currency: 0, materials: 0, tokens: 0 },
+        facilities, distributionPolicy: "council",
+        roster: [{ id: "named", name: "Named Founder", tierId: "common" }],
+        relationships: [],
+      },
+      extensions: { "godscar.pocket@1": { format: "godscar-pocket/1", values: [1, true, null] } },
+    }));
+    expect(arc.founding?.roster[0]?.name).toBe("Named Founder");
+    expect(arc.extensions?.["godscar.pocket@1"]).toEqual({ format: "godscar-pocket/1", values: [1, true, null] });
+    expect(() => validateArc(minimalArc({
+      meta: { ...(base.meta as Record<string, unknown>), engineVersion: "1.2.0" },
+      extensions: { "Not Namespaced": {} },
+    }))).toThrow(/Extension keys/);
+    expect(() => validateArc(minimalArc({ extensions: { "godscar.pocket@1": {} } }))).toThrow(/require engineVersion 1\.2\.0/);
+  });
+
   it("throws when a required top-level field is missing", () => {
     const bad = minimalArc();
     delete (bad as Record<string, unknown>)["meta"];
@@ -163,9 +187,9 @@ describe("validateArc", () => {
     expect(() => validateArc(minimalArc({
       meta: {
         ...(minimalArc() as { meta: Record<string, unknown> }).meta,
-        engineVersion: "1.2.0",
+        engineVersion: "1.3.0",
       },
-    }))).toThrow(/requires engine 1\.2\.0.*provides 1\.1\.0/);
+    }))).toThrow(/requires engine 1\.3\.0.*provides 1\.2\.0/);
     expect(() => validateArc(minimalArc({
       meta: {
         ...(minimalArc() as { meta: Record<string, unknown> }).meta,

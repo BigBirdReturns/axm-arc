@@ -1,0 +1,1541 @@
+{
+  "meta": {
+    "id": "kind-gods-of-ilyon",
+    "name": "The Kind Gods of Ilyon",
+    "description": "An ocean world must decide whether salvation remains a gift after its cures, food systems, and peace are revealed as the first layer of a planetary integration program.",
+    "author": "BigBirdReturns",
+    "version": "1.0.0",
+    "engineVersion": "1.2.0",
+    "domain": "godscar-pocket",
+    "estimatedCycles": 12
+  },
+  "attributes": [
+    {
+      "id": "care",
+      "name": "Care",
+      "description": "Keep concrete lives visible while institutions argue over worlds."
+    },
+    {
+      "id": "evidence",
+      "name": "Evidence",
+      "description": "Recover, test, preserve, and communicate contested knowledge."
+    },
+    {
+      "id": "exteriority",
+      "name": "Exteriority",
+      "description": "Recognize and defend actors a governing model cannot own."
+    },
+    {
+      "id": "systems",
+      "name": "Systems",
+      "description": "Understand infrastructure, dependencies, routes, and institutional power."
+    },
+    {
+      "id": "resolve",
+      "name": "Resolve",
+      "description": "Act before uncertainty can be made comfortable or complete."
+    }
+  ],
+  "roles": [
+    {
+      "id": "auditor",
+      "name": "Auditor",
+      "attributeWeights": {
+        "care": 0.1,
+        "evidence": 0.45,
+        "exteriority": 0.1,
+        "systems": 0.25,
+        "resolve": 0.1
+      }
+    },
+    {
+      "id": "interlocutor",
+      "name": "Interlocutor",
+      "attributeWeights": {
+        "care": 0.35,
+        "evidence": 0.1,
+        "exteriority": 0.35,
+        "systems": 0.1,
+        "resolve": 0.1
+      }
+    },
+    {
+      "id": "witness",
+      "name": "Witness",
+      "attributeWeights": {
+        "care": 0.15,
+        "evidence": 0.5,
+        "exteriority": 0.15,
+        "systems": 0.1,
+        "resolve": 0.1
+      }
+    },
+    {
+      "id": "protector",
+      "name": "Protector",
+      "attributeWeights": {
+        "care": 0.25,
+        "evidence": 0.05,
+        "exteriority": 0.15,
+        "systems": 0.15,
+        "resolve": 0.4
+      }
+    },
+    {
+      "id": "exception",
+      "name": "Sovereign Exception",
+      "attributeWeights": {
+        "care": 0.15,
+        "evidence": 0.15,
+        "exteriority": 0.25,
+        "systems": 0.1,
+        "resolve": 0.35
+      }
+    }
+  ],
+  "tiers": [
+    {
+      "id": "local",
+      "name": "Local Actor",
+      "statBudgetMin": 34,
+      "statBudgetMax": 42,
+      "upkeepCost": 1,
+      "baseEfficiencyModifier": 1.15
+    },
+    {
+      "id": "pocket",
+      "name": "Pocket Actor",
+      "statBudgetMin": 40,
+      "statBudgetMax": 48,
+      "upkeepCost": 2,
+      "baseEfficiencyModifier": 1.05
+    },
+    {
+      "id": "sovereign",
+      "name": "Sovereign Exception",
+      "statBudgetMin": 46,
+      "statBudgetMax": 54,
+      "upkeepCost": 3,
+      "baseEfficiencyModifier": 0.95
+    }
+  ],
+  "currencyName": "Leverage",
+  "materialName": "Evidence",
+  "tokenName": "Mandates",
+  "reputationName": "Legitimacy",
+  "tokensPerCycle": 2,
+  "maxTokens": 6,
+  "infrastructureTokenBonus": 0.1,
+  "namePool": {
+    "firstNames": [
+      "Aster",
+      "Talan",
+      "Iri",
+      "Cael",
+      "Nacre"
+    ],
+    "lastNames": [
+      "Neral",
+      "Rook",
+      "Sable",
+      "Arvon",
+      "of Deep Tide"
+    ]
+  },
+  "customTraits": [],
+  "progressionTiers": [
+    {
+      "id": "arrival",
+      "name": "Arrival",
+      "flavorText": "The pocket experiences the controlling system as a concrete public good.",
+      "unlockConditions": {
+        "orgMilestones": [],
+        "reputationMinimum": null
+      },
+      "challenges": [
+        "end-the-fever",
+        "map-the-dependency"
+      ],
+      "requiredChallenges": [
+        "end-the-fever",
+        "map-the-dependency"
+      ],
+      "optionalChallenges": []
+    },
+    {
+      "id": "disclosure",
+      "name": "Disclosure",
+      "flavorText": "Evidence changes what the rescue, cure, or governing order means.",
+      "unlockConditions": {
+        "orgMilestones": [
+          "map-the-dependency-cleared"
+        ],
+        "reputationMinimum": null
+      },
+      "challenges": [
+        "read-the-dead-star",
+        "hear-the-ocean"
+      ],
+      "requiredChallenges": [
+        "read-the-dead-star",
+        "hear-the-ocean"
+      ],
+      "optionalChallenges": []
+    },
+    {
+      "id": "refusal",
+      "name": "Refusal",
+      "flavorText": "The pocket acts before uncertainty can be made complete.",
+      "unlockConditions": {
+        "orgMilestones": [
+          "hear-the-ocean-cleared"
+        ],
+        "reputationMinimum": null
+      },
+      "challenges": [
+        "refuse-integration",
+        "carry-the-evidence"
+      ],
+      "requiredChallenges": [
+        "refuse-integration",
+        "carry-the-evidence"
+      ],
+      "optionalChallenges": []
+    }
+  ],
+  "attunementChains": [],
+  "challenges": [
+    {
+      "id": "end-the-fever",
+      "name": "End the Fever",
+      "description": "Keep the Benefactor cure moving through a city that cannot survive a constitutional argument at a child's bedside.",
+      "rosterRequirements": {
+        "minAgents": 3,
+        "maxAgents": 5,
+        "roleRequirements": [
+          {
+            "roleId": "protector",
+            "count": 1
+          }
+        ]
+      },
+      "accessRequirements": {
+        "orgMilestones": [],
+        "agentAttunements": [],
+        "attunementThreshold": null
+      },
+      "difficultyRating": 10,
+      "mechanicChecks": [
+        {
+          "id": "triage-the-living",
+          "name": "Triage the living",
+          "description": "Care for the infected without reducing them to evidence in somebody else's case.",
+          "attributeWeights": [
+            {
+              "attributeId": "care",
+              "weight": 0.7
+            },
+            {
+              "attributeId": "systems",
+              "weight": 0.3
+            }
+          ],
+          "difficultyThreshold": 5,
+          "scope": "role_specific",
+          "roleIds": [
+            "protector"
+          ],
+          "failureConsequence": {
+            "type": "stress",
+            "severity": 0.2
+          }
+        },
+        {
+          "id": "hold-the-chain",
+          "name": "Hold the supply chain",
+          "description": "Coordinate ports, clinics, and rival houses before the daily cure shipment spoils.",
+          "attributeWeights": [
+            {
+              "attributeId": "systems",
+              "weight": 0.6
+            },
+            {
+              "attributeId": "resolve",
+              "weight": 0.4
+            }
+          ],
+          "difficultyThreshold": 4,
+          "thresholdMode": "perAssignedAgent",
+          "scope": "team_aggregate",
+          "failureConsequence": {
+            "type": "stress",
+            "severity": 0.2
+          }
+        }
+      ],
+      "completionCriteria": {
+        "type": "all_mechanics_passed",
+        "parameters": {}
+      },
+      "timePressure": null,
+      "outcomes": {
+        "success": {
+          "rewardTable": [],
+          "narrative": "The fever wards hold. The cure remains real, and so does Ilyon's dependence on the hand that supplies it.",
+          "reputationGain": 2,
+          "currencyReward": 30,
+          "milestoneFlag": "end-the-fever-cleared"
+        },
+        "partial": {
+          "rewardTable": [],
+          "narrative": "Most receive treatment, but one district is missed. The argument now has names and graves.",
+          "reputationGain": 1,
+          "agentDowntimeCycles": 1
+        },
+        "failure": {
+          "rewardTable": [],
+          "narrative": "The chain breaks. Preventable deaths make every later refusal harder to distinguish from abandonment.",
+          "stressPenalty": 2,
+          "tokenRefund": 0.5
+        }
+      },
+      "resourceSpend": {
+        "maxTokens": 1,
+        "steadinessPerToken": 0.25,
+        "minSteadiness": 0.7
+      }
+    },
+    {
+      "id": "map-the-dependency",
+      "name": "Map the Dependency",
+      "description": "Trace which miracles can be locally maintained and which fail the moment the Benefactors withdraw.",
+      "rosterRequirements": {
+        "minAgents": 3,
+        "maxAgents": 5,
+        "roleRequirements": [
+          {
+            "roleId": "auditor",
+            "count": 1
+          }
+        ]
+      },
+      "accessRequirements": {
+        "orgMilestones": [
+          "end-the-fever-cleared"
+        ],
+        "agentAttunements": [],
+        "attunementThreshold": null
+      },
+      "difficultyRating": 16,
+      "mechanicChecks": [
+        {
+          "id": "audit-the-gift",
+          "name": "Audit the gift",
+          "description": "Follow medicine, harvest models, relays, and political mediation back to their indispensable nodes.",
+          "attributeWeights": [
+            {
+              "attributeId": "evidence",
+              "weight": 0.5
+            },
+            {
+              "attributeId": "systems",
+              "weight": 0.5
+            }
+          ],
+          "difficultyThreshold": 6,
+          "scope": "role_specific",
+          "roleIds": [
+            "auditor"
+          ],
+          "failureConsequence": {
+            "type": "stress",
+            "severity": 0.2
+          }
+        },
+        {
+          "id": "keep-it-public",
+          "name": "Keep it public",
+          "description": "Publish the map without handing one local dynasty a replacement monopoly.",
+          "attributeWeights": [
+            {
+              "attributeId": "exteriority",
+              "weight": 0.5
+            },
+            {
+              "attributeId": "care",
+              "weight": 0.3
+            },
+            {
+              "attributeId": "resolve",
+              "weight": 0.2
+            }
+          ],
+          "difficultyThreshold": 5,
+          "thresholdMode": "perAssignedAgent",
+          "scope": "team_aggregate",
+          "failureConsequence": {
+            "type": "stress",
+            "severity": 0.2
+          }
+        }
+      ],
+      "completionCriteria": {
+        "type": "all_mechanics_passed",
+        "parameters": {}
+      },
+      "timePressure": null,
+      "outcomes": {
+        "success": {
+          "rewardTable": [],
+          "narrative": "The dependency map is copied across the shoals. Salvation can no longer pretend it arrived without an ownership structure.",
+          "reputationGain": 2,
+          "currencyReward": 35,
+          "milestoneFlag": "map-the-dependency-cleared"
+        },
+        "partial": {
+          "rewardTable": [],
+          "narrative": "The map exists, but key maintenance knowledge remains behind Benefactor seals.",
+          "reputationGain": 1,
+          "agentDowntimeCycles": 1
+        },
+        "failure": {
+          "rewardTable": [],
+          "narrative": "The audit becomes a purge. Clinics hide data, patrons close ranks, and the dependencies grow less visible.",
+          "stressPenalty": 2,
+          "tokenRefund": 0.5
+        }
+      },
+      "resourceSpend": {
+        "maxTokens": 1,
+        "steadinessPerToken": 0.25,
+        "minSteadiness": 0.7
+      }
+    },
+    {
+      "id": "read-the-dead-star",
+      "name": "Read the Dead Star",
+      "description": "Prove what the neighboring ruins say without pretending Benefactor-built instruments are neutral witnesses.",
+      "rosterRequirements": {
+        "minAgents": 3,
+        "maxAgents": 5,
+        "roleRequirements": [
+          {
+            "roleId": "witness",
+            "count": 1
+          },
+          {
+            "roleId": "auditor",
+            "count": 1
+          }
+        ]
+      },
+      "accessRequirements": {
+        "orgMilestones": [
+          "map-the-dependency-cleared"
+        ],
+        "agentAttunements": [],
+        "attunementThreshold": null
+      },
+      "difficultyRating": 22,
+      "mechanicChecks": [
+        {
+          "id": "recover-the-sequence",
+          "name": "Recover the sequence",
+          "description": "Distinguish cure, integration, Crown, Answer, and ruin in the surviving record.",
+          "attributeWeights": [
+            {
+              "attributeId": "evidence",
+              "weight": 0.7
+            },
+            {
+              "attributeId": "systems",
+              "weight": 0.3
+            }
+          ],
+          "difficultyThreshold": 6,
+          "scope": "role_specific",
+          "roleIds": [
+            "witness",
+            "auditor"
+          ],
+          "failureConsequence": {
+            "type": "stress",
+            "severity": 0.2
+          }
+        },
+        {
+          "id": "record-contamination",
+          "name": "Record the contamination",
+          "description": "Attach the intervention that made each fragment observable to the claim built from it.",
+          "attributeWeights": [
+            {
+              "attributeId": "evidence",
+              "weight": 0.5
+            },
+            {
+              "attributeId": "exteriority",
+              "weight": 0.3
+            },
+            {
+              "attributeId": "care",
+              "weight": 0.2
+            }
+          ],
+          "difficultyThreshold": 5,
+          "thresholdMode": "perAssignedAgent",
+          "scope": "team_aggregate",
+          "failureConsequence": {
+            "type": "stress",
+            "severity": 0.2
+          }
+        }
+      ],
+      "completionCriteria": {
+        "type": "all_mechanics_passed",
+        "parameters": {}
+      },
+      "timePressure": null,
+      "outcomes": {
+        "success": {
+          "rewardTable": [],
+          "narrative": "The dead star yields a sequence, not a slogan. Its archive now travels with the history of how Ilyon recovered it.",
+          "reputationGain": 3,
+          "currencyReward": 40,
+          "milestoneFlag": "read-the-dead-star-cleared"
+        },
+        "partial": {
+          "rewardTable": [],
+          "narrative": "The lineage is clear, but motive remains disputed. Every faction can quote a different missing passage.",
+          "reputationGain": 2,
+          "agentDowntimeCycles": 1
+        },
+        "failure": {
+          "rewardTable": [],
+          "narrative": "A damaged symbol is promoted into certainty. The accusation outruns the evidence that was meant to constrain it.",
+          "stressPenalty": 2,
+          "tokenRefund": 0.5
+        }
+      },
+      "resourceSpend": {
+        "maxTokens": 1,
+        "steadinessPerToken": 0.25,
+        "minSteadiness": 0.7
+      }
+    },
+    {
+      "id": "hear-the-ocean",
+      "name": "Hear the Ocean",
+      "description": "Ask what the planetary model excluded, without manufacturing a single convenient voice for a many-bodied ecology.",
+      "rosterRequirements": {
+        "minAgents": 3,
+        "maxAgents": 5,
+        "roleRequirements": [
+          {
+            "roleId": "interlocutor",
+            "count": 1
+          },
+          {
+            "roleId": "exception",
+            "count": 1
+          }
+        ]
+      },
+      "accessRequirements": {
+        "orgMilestones": [
+          "read-the-dead-star-cleared"
+        ],
+        "agentAttunements": [],
+        "attunementThreshold": null
+      },
+      "difficultyRating": 28,
+      "mechanicChecks": [
+        {
+          "id": "translate-refusal",
+          "name": "Translate refusal",
+          "description": "Separate strategic response from migration, predation, and projection by frightened humans.",
+          "attributeWeights": [
+            {
+              "attributeId": "exteriority",
+              "weight": 0.6
+            },
+            {
+              "attributeId": "evidence",
+              "weight": 0.25
+            },
+            {
+              "attributeId": "care",
+              "weight": 0.15
+            }
+          ],
+          "difficultyThreshold": 7,
+          "scope": "role_specific",
+          "roleIds": [
+            "interlocutor",
+            "exception"
+          ],
+          "failureConsequence": {
+            "type": "stress",
+            "severity": 0.2
+          }
+        },
+        {
+          "id": "refuse-one-answer",
+          "name": "Refuse one Answer",
+          "description": "Create political standing for incompatible ecologies instead of declaring one planetary sovereign.",
+          "attributeWeights": [
+            {
+              "attributeId": "exteriority",
+              "weight": 0.5
+            },
+            {
+              "attributeId": "systems",
+              "weight": 0.2
+            },
+            {
+              "attributeId": "resolve",
+              "weight": 0.3
+            }
+          ],
+          "difficultyThreshold": 6,
+          "thresholdMode": "perAssignedAgent",
+          "scope": "team_aggregate",
+          "failureConsequence": {
+            "type": "stress",
+            "severity": 0.2
+          }
+        }
+      ],
+      "completionCriteria": {
+        "type": "all_mechanics_passed",
+        "parameters": {}
+      },
+      "timePressure": null,
+      "outcomes": {
+        "success": {
+          "rewardTable": [],
+          "narrative": "The ocean enters the council as several actors capable of refusal. No one gets the simplicity of one planetary will.",
+          "reputationGain": 3,
+          "currencyReward": 45,
+          "milestoneFlag": "hear-the-ocean-cleared"
+        },
+        "partial": {
+          "rewardTable": [],
+          "narrative": "One reef nation is heard; others reject its standing. Representation becomes the next field of conflict.",
+          "reputationGain": 2,
+          "agentDowntimeCycles": 1
+        },
+        "failure": {
+          "rewardTable": [],
+          "narrative": "The translation collapses many ecologies into one hostile Answer and teaches the Benefactors exactly what to target.",
+          "stressPenalty": 2,
+          "tokenRefund": 0.5
+        }
+      },
+      "resourceSpend": {
+        "maxTokens": 1,
+        "steadinessPerToken": 0.25,
+        "minSteadiness": 0.7
+      }
+    },
+    {
+      "id": "refuse-integration",
+      "name": "Refuse Integration",
+      "description": "Stop planetary closure without turning withdrawal into a sentence of famine, fever, and war.",
+      "rosterRequirements": {
+        "minAgents": 4,
+        "maxAgents": 5,
+        "roleRequirements": [
+          {
+            "roleId": "protector",
+            "count": 1
+          },
+          {
+            "roleId": "exception",
+            "count": 1
+          }
+        ]
+      },
+      "accessRequirements": {
+        "orgMilestones": [
+          "hear-the-ocean-cleared"
+        ],
+        "agentAttunements": [],
+        "attunementThreshold": null
+      },
+      "difficultyRating": 34,
+      "mechanicChecks": [
+        {
+          "id": "fork-the-systems",
+          "name": "Fork the systems",
+          "description": "Split indispensable services before any party can use their withdrawal as command.",
+          "attributeWeights": [
+            {
+              "attributeId": "systems",
+              "weight": 0.45
+            },
+            {
+              "attributeId": "exteriority",
+              "weight": 0.35
+            },
+            {
+              "attributeId": "resolve",
+              "weight": 0.2
+            }
+          ],
+          "difficultyThreshold": 6,
+          "thresholdMode": "perAssignedAgent",
+          "scope": "team_aggregate",
+          "failureConsequence": {
+            "type": "stress",
+            "severity": 0.2
+          }
+        },
+        {
+          "id": "hold-the-cost",
+          "name": "Hold the cost",
+          "description": "Keep clinics and granaries operating while the integration mandate is refused.",
+          "attributeWeights": [
+            {
+              "attributeId": "care",
+              "weight": 0.45
+            },
+            {
+              "attributeId": "resolve",
+              "weight": 0.4
+            },
+            {
+              "attributeId": "systems",
+              "weight": 0.15
+            }
+          ],
+          "difficultyThreshold": 7,
+          "scope": "role_specific",
+          "roleIds": [
+            "protector",
+            "exception"
+          ],
+          "failureConsequence": {
+            "type": "stress",
+            "severity": 0.2
+          }
+        }
+      ],
+      "completionCriteria": {
+        "type": "all_mechanics_passed",
+        "parameters": {}
+      },
+      "timePressure": null,
+      "outcomes": {
+        "success": {
+          "rewardTable": [],
+          "narrative": "Integration stops, but the gifts do not vanish. Ilyon inherits an expensive federation of systems no single actor can close.",
+          "reputationGain": 4,
+          "currencyReward": 50,
+          "milestoneFlag": "refuse-integration-cleared"
+        },
+        "partial": {
+          "rewardTable": [],
+          "narrative": "The Crown is delayed. Two regions retain independent systems while the rest remain inside the Benefactor mesh.",
+          "reputationGain": 3,
+          "agentDowntimeCycles": 1
+        },
+        "failure": {
+          "rewardTable": [],
+          "narrative": "The refusal is made without a viable substitute. Suffering restores the Benefactors' authority faster than argument can challenge it.",
+          "stressPenalty": 2,
+          "tokenRefund": 0.5
+        }
+      },
+      "resourceSpend": {
+        "maxTokens": 1,
+        "steadinessPerToken": 0.25,
+        "minSteadiness": 0.7
+      }
+    },
+    {
+      "id": "carry-the-evidence",
+      "name": "Carry the Evidence",
+      "description": "Decide what leaves Ilyon, who may certify it, and whether exposing the pocket protects the exception or destroys it.",
+      "rosterRequirements": {
+        "minAgents": 4,
+        "maxAgents": 5,
+        "roleRequirements": [
+          {
+            "roleId": "auditor",
+            "count": 1
+          },
+          {
+            "roleId": "witness",
+            "count": 1
+          }
+        ]
+      },
+      "accessRequirements": {
+        "orgMilestones": [
+          "refuse-integration-cleared"
+        ],
+        "agentAttunements": [],
+        "attunementThreshold": null
+      },
+      "difficultyRating": 40,
+      "mechanicChecks": [
+        {
+          "id": "bind-the-receipts",
+          "name": "Bind the receipts",
+          "description": "Package the claim, provenance, dissent, and uncertainty so no archive can claim more than it proves.",
+          "attributeWeights": [
+            {
+              "attributeId": "evidence",
+              "weight": 0.65
+            },
+            {
+              "attributeId": "systems",
+              "weight": 0.2
+            },
+            {
+              "attributeId": "resolve",
+              "weight": 0.15
+            }
+          ],
+          "difficultyThreshold": 7,
+          "scope": "role_specific",
+          "roleIds": [
+            "auditor",
+            "witness"
+          ],
+          "failureConsequence": {
+            "type": "stress",
+            "severity": 0.2
+          }
+        },
+        {
+          "id": "choose-the-audience",
+          "name": "Choose the audience",
+          "description": "Open the route knowing every recipient will convert the evidence into a different mandate.",
+          "attributeWeights": [
+            {
+              "attributeId": "care",
+              "weight": 0.25
+            },
+            {
+              "attributeId": "exteriority",
+              "weight": 0.3
+            },
+            {
+              "attributeId": "systems",
+              "weight": 0.15
+            },
+            {
+              "attributeId": "resolve",
+              "weight": 0.3
+            }
+          ],
+          "difficultyThreshold": 7,
+          "thresholdMode": "perAssignedAgent",
+          "scope": "team_aggregate",
+          "failureConsequence": {
+            "type": "stress",
+            "severity": 0.2
+          }
+        }
+      ],
+      "completionCriteria": {
+        "type": "all_mechanics_passed",
+        "parameters": {}
+      },
+      "timePressure": null,
+      "outcomes": {
+        "success": {
+          "rewardTable": [],
+          "narrative": "The evidence leaves with its limits intact. Ilyon survives as neither laboratory nor sealed exception, but as a pocket whose refusal can be tested.",
+          "reputationGain": 5,
+          "currencyReward": 60,
+          "milestoneFlag": "carry-the-evidence-cleared"
+        },
+        "partial": {
+          "rewardTable": [],
+          "narrative": "The archive escapes through one faction's relay. The truth survives, already entangled with the institution that carried it.",
+          "reputationGain": 4,
+          "agentDowntimeCycles": 1
+        },
+        "failure": {
+          "rewardTable": [],
+          "narrative": "The route opens before custody is agreed. Ilyon becomes a prize in the argument its evidence was meant to discipline.",
+          "stressPenalty": 2,
+          "tokenRefund": 0.5
+        }
+      },
+      "resourceSpend": {
+        "maxTokens": 1,
+        "steadinessPerToken": 0.25,
+        "minSteadiness": 0.7
+      }
+    }
+  ],
+  "difficultyModes": [],
+  "items": [],
+  "narrativeEvents": [
+    {
+      "trigger": {
+        "type": "arc_complete",
+        "target": "carry-the-evidence"
+      },
+      "title": "The pocket remains open",
+      "text": "The immediate decision is recorded. Who possesses the authority to refuse salvation on behalf of people who will suffer without it? The answer now belongs to whoever inherits the changed map.",
+      "rewards": [
+        "The cure network becomes a negotiated dependency",
+        "The dependency map",
+        "Custody of the dead-star archive",
+        "The ocean enters politics",
+        "Ilyon's systems remain forkable",
+        "The route to the dead star is public"
+      ],
+      "agentUnlock": null
+    }
+  ],
+  "scaling": null,
+  "opening": {
+    "triggerType": "godscar-pocket-opening",
+    "narrativeText": "Who possesses the authority to refuse salvation on behalf of people who will suffer without it?",
+    "options": [
+      {
+        "id": "accept-the-gift",
+        "label": "Accept the indispensable gift",
+        "description": "Preserve the concrete lives already dependent on the controlling system while entering its ledger.",
+        "effects": [
+          {
+            "scope": "all",
+            "type": "morale",
+            "value": 6
+          }
+        ]
+      },
+      {
+        "id": "preserve-refusal",
+        "label": "Preserve the right to refuse",
+        "description": "Keep the pocket outside closure, accepting the immediate uncertainty and cost.",
+        "effects": [
+          {
+            "scope": "all",
+            "type": "loyalty",
+            "value": 6
+          }
+        ]
+      }
+    ]
+  },
+  "founding": {
+    "organization": {
+      "id": "kind-gods-of-ilyon-coalition",
+      "name": "The Kind Gods of Ilyon Coalition"
+    },
+    "resources": {
+      "currency": 120,
+      "materials": 30,
+      "tokens": 3
+    },
+    "facilities": [
+      {
+        "type": "Quarters",
+        "level": 1
+      },
+      {
+        "type": "Production",
+        "level": 0
+      },
+      {
+        "type": "Recreation",
+        "level": 1
+      },
+      {
+        "type": "Research",
+        "level": 1
+      },
+      {
+        "type": "Training",
+        "level": 1
+      },
+      {
+        "type": "Storage",
+        "level": 0
+      },
+      {
+        "type": "Medical",
+        "level": 1
+      }
+    ],
+    "distributionPolicy": "council",
+    "roster": [
+      {
+        "id": "aster-neral",
+        "name": "Aster Neral",
+        "tierId": "pocket",
+        "roleId": "auditor",
+        "morale": 62
+      },
+      {
+        "id": "talan-rook",
+        "name": "Talan Rook",
+        "tierId": "local",
+        "roleId": "protector",
+        "morale": 68
+      },
+      {
+        "id": "iri-sable",
+        "name": "Iri Sable",
+        "tierId": "local",
+        "roleId": "witness",
+        "morale": 62
+      },
+      {
+        "id": "cael-arvon",
+        "name": "Cael Arvon",
+        "tierId": "local",
+        "roleId": "interlocutor",
+        "morale": 62
+      },
+      {
+        "id": "nacre-deep-tide",
+        "name": "Nacre of Deep Tide",
+        "tierId": "sovereign",
+        "roleId": "exception",
+        "morale": 62
+      }
+    ],
+    "relationships": []
+  },
+  "extensions": {
+    "godscar.pocket@1": {
+      "format": "godscar-pocket/1",
+      "identity": {
+        "id": "kind-gods-of-ilyon",
+        "title": "The Kind Gods of Ilyon",
+        "description": "An ocean world must decide whether salvation remains a gift after its cures, food systems, and peace are revealed as the first layer of a planetary integration program.",
+        "author": "BigBirdReturns",
+        "version": "1.0.0",
+        "estimatedCycles": 12,
+        "parentCanons": [
+          "The Godscar Codex, Book I: The Open Universe · first recension"
+        ],
+        "canonRelation": "compatible"
+      },
+      "controlQuestion": "Who possesses the authority to refuse salvation on behalf of people who will suffer without it?",
+      "pressures": [
+        {
+          "kind": "pocket",
+          "id": "ilyon-ocean-world",
+          "label": "Ilyon",
+          "description": "An oceanic world of rival thalassocracies, early astronomy, epidemic fever, famine, and dynastic war."
+        },
+        {
+          "kind": "patron",
+          "id": "benefactor-mission",
+          "label": "Final Humanity Benefactors",
+          "description": "Offworld patrons end epidemics, stabilize food production, translate rival languages, and make their systems indispensable."
+        },
+        {
+          "kind": "excluded-actor",
+          "id": "unmanaged-ocean",
+          "label": "The uncommanded ocean",
+          "description": "Migratory reefs, deep ecologies, and nonhuman intelligence are omitted from the planetary model because they cannot be made legible without being changed."
+        },
+        {
+          "kind": "approaching-trigger",
+          "id": "planetary-integration",
+          "label": "Planetary integration",
+          "description": "The Benefactors are ready to connect medicine, harvests, navigation, and governance into one interoperable order."
+        },
+        {
+          "kind": "cost-of-resistance",
+          "id": "salvation-withdrawn",
+          "label": "The return of preventable suffering",
+          "description": "Refusal risks renewed fever, failed harvests, fractured diplomacy, and deaths the Benefactors can prevent today."
+        },
+        {
+          "kind": "scale-revelation",
+          "id": "dead-neighbor-uplift",
+          "label": "The dead neighboring star",
+          "description": "Orbital ruins record another uplift whose marine biosphere was deliberately Crowned, producing a system-scale Answer."
+        }
+      ],
+      "evidence": {
+        "tier": "contested-canon",
+        "claim": "The Benefactor mission is not merely humanitarian aid; it is preparing Ilyon as a deliberate Crown and Cascade laboratory.",
+        "venue": "The Confluence of Tides, Ilyon's first intercontinental astronomical council",
+        "legitimacyTarget": "The Benefactors' mandate to integrate the planet without informed local consent",
+        "upsideIfAccepted": "Ilyon can negotiate, refuse, fork, or locally own the systems on which its people now depend.",
+        "downsideIfAccepted": "Public trust can collapse before local institutions can replace offworld medicine, food stabilization, and conflict mediation.",
+        "failureIfFalse": "A mistaken accusation destroys the only systems preventing epidemic death and renewed war.",
+        "receipts": [
+          {
+            "id": "cure-ledger",
+            "label": "The cure ledger",
+            "source": "Benefactor public-health records",
+            "intervention": "The Benefactors supplied the diagnostic standard and every surviving treatment chain.",
+            "limits": "It proves lives saved and dependency created, not the patrons' terminal intention."
+          },
+          {
+            "id": "dead-star-ruins",
+            "label": "The dead-star geometry",
+            "source": "Telescope spectra and recovered orbital inscriptions",
+            "intervention": "Ilyon found the ruins using Benefactor-derived instruments and mathematical notation.",
+            "limits": "The symbols establish lineage and sequence; damaged records leave motive contested."
+          },
+          {
+            "id": "deep-tide-testimony",
+            "label": "Deep-tide testimony",
+            "source": "Patterns translated from migratory reef-song",
+            "intervention": "Translation requires instruments that alter the acoustic habitat they observe.",
+            "limits": "It demonstrates strategic refusal but cannot establish one unified planetary speaker."
+          }
+        ]
+      },
+      "factionReceipts": [
+        {
+          "factionId": "final-humanity",
+          "factionName": "Final Humanity Benefactors",
+          "variableControlled": "pace",
+          "publicGood": "They cure epidemic fever, stabilize food, and end wars that local powers failed to stop.",
+          "characteristicFailure": "Their integrated gifts narrow the future into a Crown experiment whose refusal becomes mass suffering."
+        },
+        {
+          "factionId": "uncrowned-compact",
+          "factionName": "Uncrowned Compact auditors",
+          "variableControlled": "opacity",
+          "publicGood": "They preserve independent infrastructure and the standing of actors that cannot survive total observability.",
+          "characteristicFailure": "Their demanded redundancy is slower, costlier, and can obstruct emergency care."
+        },
+        {
+          "factionId": "local-dynasties",
+          "factionName": "The Thalassic Houses",
+          "variableControlled": "local legitimacy",
+          "publicGood": "They keep food, law, kinship, and rescue networks operating across the inhabited shoals.",
+          "characteristicFailure": "They may use sovereignty as a reason to preserve hierarchy, war, and preventable disease."
+        }
+      ],
+      "cast": [
+        {
+          "id": "aster-neral",
+          "name": "Aster Neral",
+          "roleId": "auditor",
+          "responsibility": "holds-evidence",
+          "description": "A local astronomer who recognizes Benefactor geometry in the ruins of the dead neighboring star.",
+          "factionId": "local-dynasties"
+        },
+        {
+          "id": "talan-rook",
+          "name": "Talan Rook",
+          "roleId": "protector",
+          "responsibility": "depends-on-system",
+          "description": "A fever physician whose patients live because the offworld cure still arrives each dawn.",
+          "factionId": "final-humanity"
+        },
+        {
+          "id": "iri-sable",
+          "name": "Iri Sable",
+          "roleId": "witness",
+          "responsibility": "benefits-from-delay",
+          "description": "Speaker for the Free Observatory, buying time to verify the claim before dynasties or patrons weaponize it.",
+          "factionId": "local-dynasties"
+        },
+        {
+          "id": "cael-arvon",
+          "name": "Cael Arvon",
+          "roleId": "interlocutor",
+          "responsibility": "translates-excluded-actor",
+          "description": "A reef-listener who can distinguish ordinary migration from the deep ocean's strategic refusal.",
+          "factionId": "uncrowned-compact"
+        },
+        {
+          "id": "nacre-deep-tide",
+          "name": "Nacre of Deep Tide",
+          "roleId": "exception",
+          "responsibility": "sovereign-exception",
+          "description": "A temporary human-shaped organ through which the unmanaged ocean learns the model being imposed upon it."
+        }
+      ],
+      "consequences": [
+        {
+          "id": "cure-dependency",
+          "label": "The cure network becomes a negotiated dependency",
+          "kind": "dependency",
+          "description": "Medicine remains, but no single patron may own every diagnostic, supply chain, and patient record.",
+          "inheritedBy": "Ilyon's physicians and every child whose treatment depends on the settlement"
+        },
+        {
+          "id": "public-dependency-map",
+          "label": "The dependency map",
+          "kind": "archive",
+          "description": "Every indispensable Benefactor service is published with its failure mode, owner, and possible local substitute.",
+          "inheritedBy": "The Confluence of Tides and future Crown auditors"
+        },
+        {
+          "id": "dead-star-custody",
+          "label": "Custody of the dead-star archive",
+          "kind": "archive",
+          "description": "The evidence survives outside both Benefactor and dynastic control, with its contamination history attached.",
+          "inheritedBy": "The Free Observatory and Continuance witnesses"
+        },
+        {
+          "id": "ocean-embassy",
+          "label": "The ocean enters politics",
+          "kind": "citizen",
+          "description": "Deep ecologies gain standing without being collapsed into one administratively convenient species or voice.",
+          "inheritedBy": "Every coastal polity and the next generation of reef-listeners"
+        },
+        {
+          "id": "forked-infrastructure",
+          "label": "Ilyon's systems remain forkable",
+          "kind": "adaptive-capacity",
+          "description": "Food, navigation, and medicine split into interoperable but independently refusible systems.",
+          "inheritedBy": "Local guilds, rival cities, nonhuman nations, and offworld maintainers"
+        },
+        {
+          "id": "scarway-disclosure",
+          "label": "The route to the dead star is public",
+          "kind": "route",
+          "description": "The wider universe can now reach the evidence, and the evidence can attract every faction whose legitimacy it threatens.",
+          "inheritedBy": "Ilyon and every power approaching through the reopened route"
+        }
+      ],
+      "storyPhysics": {
+        "noCleanReset": true,
+        "crowningIsConcentration": true,
+        "answerReflectsExclusion": true,
+        "counterformInheritsClaim": true,
+        "scaleIsDistributed": true,
+        "distanceRemainsPolitical": true,
+        "factionReceiptsRequired": true,
+        "everyVictoryChangesMap": true
+      },
+      "beats": [
+        {
+          "id": "end-the-fever",
+          "name": "End the Fever",
+          "description": "Keep the Benefactor cure moving through a city that cannot survive a constitutional argument at a child's bedside.",
+          "tierId": "arrival",
+          "difficulty": 10,
+          "minAgents": 3,
+          "maxAgents": 5,
+          "requiredRoles": [
+            {
+              "roleId": "protector",
+              "count": 1
+            }
+          ],
+          "checks": [
+            {
+              "id": "triage-the-living",
+              "name": "Triage the living",
+              "description": "Care for the infected without reducing them to evidence in somebody else's case.",
+              "scope": "role",
+              "roleIds": [
+                "protector"
+              ],
+              "weights": {
+                "care": 0.7,
+                "systems": 0.3
+              },
+              "threshold": 5
+            },
+            {
+              "id": "hold-the-chain",
+              "name": "Hold the supply chain",
+              "description": "Coordinate ports, clinics, and rival houses before the daily cure shipment spoils.",
+              "scope": "team",
+              "weights": {
+                "systems": 0.6,
+                "resolve": 0.4
+              },
+              "threshold": 4
+            }
+          ],
+          "success": "The fever wards hold. The cure remains real, and so does Ilyon's dependence on the hand that supplies it.",
+          "partial": "Most receive treatment, but one district is missed. The argument now has names and graves.",
+          "failure": "The chain breaks. Preventable deaths make every later refusal harder to distinguish from abandonment.",
+          "reputationGain": 2,
+          "currencyReward": 30,
+          "consequenceId": "cure-dependency"
+        },
+        {
+          "id": "map-the-dependency",
+          "name": "Map the Dependency",
+          "description": "Trace which miracles can be locally maintained and which fail the moment the Benefactors withdraw.",
+          "tierId": "arrival",
+          "accessAfter": "end-the-fever",
+          "difficulty": 16,
+          "minAgents": 3,
+          "maxAgents": 5,
+          "requiredRoles": [
+            {
+              "roleId": "auditor",
+              "count": 1
+            }
+          ],
+          "checks": [
+            {
+              "id": "audit-the-gift",
+              "name": "Audit the gift",
+              "description": "Follow medicine, harvest models, relays, and political mediation back to their indispensable nodes.",
+              "scope": "role",
+              "roleIds": [
+                "auditor"
+              ],
+              "weights": {
+                "evidence": 0.5,
+                "systems": 0.5
+              },
+              "threshold": 6
+            },
+            {
+              "id": "keep-it-public",
+              "name": "Keep it public",
+              "description": "Publish the map without handing one local dynasty a replacement monopoly.",
+              "scope": "team",
+              "weights": {
+                "exteriority": 0.5,
+                "care": 0.3,
+                "resolve": 0.2
+              },
+              "threshold": 5
+            }
+          ],
+          "success": "The dependency map is copied across the shoals. Salvation can no longer pretend it arrived without an ownership structure.",
+          "partial": "The map exists, but key maintenance knowledge remains behind Benefactor seals.",
+          "failure": "The audit becomes a purge. Clinics hide data, patrons close ranks, and the dependencies grow less visible.",
+          "reputationGain": 2,
+          "currencyReward": 35,
+          "consequenceId": "public-dependency-map"
+        },
+        {
+          "id": "read-the-dead-star",
+          "name": "Read the Dead Star",
+          "description": "Prove what the neighboring ruins say without pretending Benefactor-built instruments are neutral witnesses.",
+          "tierId": "disclosure",
+          "accessAfter": "map-the-dependency",
+          "difficulty": 22,
+          "minAgents": 3,
+          "maxAgents": 5,
+          "requiredRoles": [
+            {
+              "roleId": "witness",
+              "count": 1
+            },
+            {
+              "roleId": "auditor",
+              "count": 1
+            }
+          ],
+          "checks": [
+            {
+              "id": "recover-the-sequence",
+              "name": "Recover the sequence",
+              "description": "Distinguish cure, integration, Crown, Answer, and ruin in the surviving record.",
+              "scope": "role",
+              "roleIds": [
+                "witness",
+                "auditor"
+              ],
+              "weights": {
+                "evidence": 0.7,
+                "systems": 0.3
+              },
+              "threshold": 6
+            },
+            {
+              "id": "record-contamination",
+              "name": "Record the contamination",
+              "description": "Attach the intervention that made each fragment observable to the claim built from it.",
+              "scope": "team",
+              "weights": {
+                "evidence": 0.5,
+                "exteriority": 0.3,
+                "care": 0.2
+              },
+              "threshold": 5
+            }
+          ],
+          "success": "The dead star yields a sequence, not a slogan. Its archive now travels with the history of how Ilyon recovered it.",
+          "partial": "The lineage is clear, but motive remains disputed. Every faction can quote a different missing passage.",
+          "failure": "A damaged symbol is promoted into certainty. The accusation outruns the evidence that was meant to constrain it.",
+          "reputationGain": 3,
+          "currencyReward": 40,
+          "consequenceId": "dead-star-custody"
+        },
+        {
+          "id": "hear-the-ocean",
+          "name": "Hear the Ocean",
+          "description": "Ask what the planetary model excluded, without manufacturing a single convenient voice for a many-bodied ecology.",
+          "tierId": "disclosure",
+          "accessAfter": "read-the-dead-star",
+          "difficulty": 28,
+          "minAgents": 3,
+          "maxAgents": 5,
+          "requiredRoles": [
+            {
+              "roleId": "interlocutor",
+              "count": 1
+            },
+            {
+              "roleId": "exception",
+              "count": 1
+            }
+          ],
+          "checks": [
+            {
+              "id": "translate-refusal",
+              "name": "Translate refusal",
+              "description": "Separate strategic response from migration, predation, and projection by frightened humans.",
+              "scope": "role",
+              "roleIds": [
+                "interlocutor",
+                "exception"
+              ],
+              "weights": {
+                "exteriority": 0.6,
+                "evidence": 0.25,
+                "care": 0.15
+              },
+              "threshold": 7
+            },
+            {
+              "id": "refuse-one-answer",
+              "name": "Refuse one Answer",
+              "description": "Create political standing for incompatible ecologies instead of declaring one planetary sovereign.",
+              "scope": "team",
+              "weights": {
+                "exteriority": 0.5,
+                "systems": 0.2,
+                "resolve": 0.3
+              },
+              "threshold": 6
+            }
+          ],
+          "success": "The ocean enters the council as several actors capable of refusal. No one gets the simplicity of one planetary will.",
+          "partial": "One reef nation is heard; others reject its standing. Representation becomes the next field of conflict.",
+          "failure": "The translation collapses many ecologies into one hostile Answer and teaches the Benefactors exactly what to target.",
+          "reputationGain": 3,
+          "currencyReward": 45,
+          "consequenceId": "ocean-embassy"
+        },
+        {
+          "id": "refuse-integration",
+          "name": "Refuse Integration",
+          "description": "Stop planetary closure without turning withdrawal into a sentence of famine, fever, and war.",
+          "tierId": "refusal",
+          "accessAfter": "hear-the-ocean",
+          "difficulty": 34,
+          "minAgents": 4,
+          "maxAgents": 5,
+          "requiredRoles": [
+            {
+              "roleId": "protector",
+              "count": 1
+            },
+            {
+              "roleId": "exception",
+              "count": 1
+            }
+          ],
+          "checks": [
+            {
+              "id": "fork-the-systems",
+              "name": "Fork the systems",
+              "description": "Split indispensable services before any party can use their withdrawal as command.",
+              "scope": "team",
+              "weights": {
+                "systems": 0.45,
+                "exteriority": 0.35,
+                "resolve": 0.2
+              },
+              "threshold": 6
+            },
+            {
+              "id": "hold-the-cost",
+              "name": "Hold the cost",
+              "description": "Keep clinics and granaries operating while the integration mandate is refused.",
+              "scope": "role",
+              "roleIds": [
+                "protector",
+                "exception"
+              ],
+              "weights": {
+                "care": 0.45,
+                "resolve": 0.4,
+                "systems": 0.15
+              },
+              "threshold": 7
+            }
+          ],
+          "success": "Integration stops, but the gifts do not vanish. Ilyon inherits an expensive federation of systems no single actor can close.",
+          "partial": "The Crown is delayed. Two regions retain independent systems while the rest remain inside the Benefactor mesh.",
+          "failure": "The refusal is made without a viable substitute. Suffering restores the Benefactors' authority faster than argument can challenge it.",
+          "reputationGain": 4,
+          "currencyReward": 50,
+          "consequenceId": "forked-infrastructure"
+        },
+        {
+          "id": "carry-the-evidence",
+          "name": "Carry the Evidence",
+          "description": "Decide what leaves Ilyon, who may certify it, and whether exposing the pocket protects the exception or destroys it.",
+          "tierId": "refusal",
+          "accessAfter": "refuse-integration",
+          "difficulty": 40,
+          "minAgents": 4,
+          "maxAgents": 5,
+          "requiredRoles": [
+            {
+              "roleId": "auditor",
+              "count": 1
+            },
+            {
+              "roleId": "witness",
+              "count": 1
+            }
+          ],
+          "checks": [
+            {
+              "id": "bind-the-receipts",
+              "name": "Bind the receipts",
+              "description": "Package the claim, provenance, dissent, and uncertainty so no archive can claim more than it proves.",
+              "scope": "role",
+              "roleIds": [
+                "auditor",
+                "witness"
+              ],
+              "weights": {
+                "evidence": 0.65,
+                "systems": 0.2,
+                "resolve": 0.15
+              },
+              "threshold": 7
+            },
+            {
+              "id": "choose-the-audience",
+              "name": "Choose the audience",
+              "description": "Open the route knowing every recipient will convert the evidence into a different mandate.",
+              "scope": "team",
+              "weights": {
+                "care": 0.25,
+                "exteriority": 0.3,
+                "systems": 0.15,
+                "resolve": 0.3
+              },
+              "threshold": 7
+            }
+          ],
+          "success": "The evidence leaves with its limits intact. Ilyon survives as neither laboratory nor sealed exception, but as a pocket whose refusal can be tested.",
+          "partial": "The archive escapes through one faction's relay. The truth survives, already entangled with the institution that carried it.",
+          "failure": "The route opens before custody is agreed. Ilyon becomes a prize in the argument its evidence was meant to discipline.",
+          "reputationGain": 5,
+          "currencyReward": 60,
+          "consequenceId": "scarway-disclosure"
+        }
+      ],
+      "notes": {
+        "foundation": "The Godscar Codex, Book I: The Open Universe",
+        "intent": "Reference cartridge demonstrating the six-pressure Story Engine, disciplined canon uncertainty, faction receipts, and persistent consequences."
+      }
+    }
+  }
+}

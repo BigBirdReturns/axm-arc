@@ -239,3 +239,8 @@ and ported per the atlas. Family doctrine: proposed in
 (CARTRIDGE_LIFECYCLE doctrine, pending owner review).
 This repo's implementations: `docs/COMPATIBILITY_ATLAS.md` (what can be a
 cartridge, at what cost) and `docs/CLONE_PORTING.md` (how a port happens).
+
+
+## Godscar Pocket Forge
+
+The title screen now opens a Pocket Forge that validates the six-pressure Godscar story grammar, runs bounded exact-founding simulations, installs the compiled cartridge, and exports both the editable `.pocket.json` source and interoperable `.arc.json` artifact. The reference pocket is **The Kind Gods of Ilyon**. See `docs/GODSCAR_POCKET_FORMAT.md`.

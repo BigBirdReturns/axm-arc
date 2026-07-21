@@ -149,6 +149,7 @@ export function foundOrganization(
       // Authored slot identity prevents probabilistic generated-id collisions
       // and gives cross-client journals a stable founder handle.
       id: `founder:${slot.id}`,
+      ...(slot.name !== undefined ? { name: slot.name } : {}),
       ...(slot.morale !== undefined ? { morale: slot.morale } : {}),
       ...(slot.stress !== undefined ? { stress: slot.stress } : {}),
     };

@@ -12,6 +12,30 @@ in any new session or by any agent picking up cold. Updated as state changes.
 
 ## Current overlay — 2026-07-21
 
+**Godscar creator foundation:**
+
+- `godscar-pocket/1` turns the Codex's six-pressure Story Engine into a
+  validated, creator-owned source object: pocket, controlling system, excluded
+  actor, trigger, cost of resistance, and scale revelation.
+- The source carries disciplined canon tiering, evidence provenance, faction
+  receipts, five incompatible cast responsibilities, story-physics invariants,
+  and persistent consequences. It compiles into an ordinary engine-1.2 Arc and
+  remains embedded under `godscar.pocket@1`, so the cartridge can always yield
+  its editable source.
+- The Pocket Forge starts from a complete source rather than an empty page,
+  validates, runs bounded exact-founding simulations, installs the compiled Arc,
+  and exports both `.pocket.json` and `.arc.json`.
+- The Kind Gods of Ilyon is the first reference source and cartridge: exact
+  named cast, six playable beats, three progression tiers, and deterministic
+  campaign completion from authored founding state.
+
+See `docs/GODSCAR_POCKET_FORMAT.md` and the two Ilyon artifacts in
+`cartridges/`.
+
+---
+
+## Previous current overlay — 2026-07-21
+
 **Working change at the portability/game-completion boundary:**
 
 - `axm-cartridge-run/v3` now carries the canonical Arc, exact engine save,

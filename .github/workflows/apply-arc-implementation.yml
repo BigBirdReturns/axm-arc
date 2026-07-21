@@ -1,0 +1,53 @@
+name: Apply Arc implementation
+
+on:
+  push:
+    branches:
+      - agent/bootstrap-source-download
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out patch carrier
+        uses: actions/checkout@v4
+        with:
+          ref: agent/bootstrap-source-download
+          path: bootstrap
+
+      - name: Check out implementation branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/portable-run-first-charter
+          path: work
+          fetch-depth: 0
+
+      - name: Reassemble implementation patch
+        run: cat bootstrap/.bootstrap/arc.patch.gz.b64.* | base64 --decode | gzip --decompress > arc.patch
+
+      - name: Apply implementation commit
+        working-directory: work
+        run: git am ../arc.patch
+
+      - name: Install dependencies
+        working-directory: work
+        run: npm ci
+
+      - name: Verify type contract
+        working-directory: work
+        run: npm run typecheck
+
+      - name: Verify full test suite
+        working-directory: work
+        run: npm test
+
+      - name: Verify production build
+        working-directory: work
+        run: npm run build
+
+      - name: Publish implementation branch
+        working-directory: work
+        run: git push origin HEAD:agent/portable-run-first-charter

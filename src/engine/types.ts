@@ -1,5 +1,12 @@
 // ── Primitives ────────────────────────────────────────────────────────────────
 
+/** JSON-only extension values. Arc extensions are content-addressed authored
+ * data, never executable code and never loader-assigned trust. */
+export type JsonPrimitive = string | number | boolean | null;
+export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
+export type ArcExtensions = Record<string, JsonValue>;
+
+
 // Provenance label for an arc as loaded into this runtime. Trust is a property
 // of *how* an arc arrived (bundled with the build, imported via JSON, etc.),
 // not of the arc's content — so this never appears on ArcMeta. Library entries
@@ -534,6 +541,8 @@ export interface AuthoredOpening {
 export interface FoundingRosterSlot {
   /** Stable authored handle used by founding relationships and seed derivation. */
   id: string;
+  /** Optional authored display identity. Omitted keeps deterministic generation. */
+  name?: string;
   tierId: string;
   roleId?: string;
   /** Optional authored opening-state overrides after deterministic generation. */
@@ -589,4 +598,6 @@ export interface Arc {
   opening?: AuthoredOpening;
   /** Optional content-addressed initial-state law. */
   founding?: FoundingLaw;
+  /** Namespaced, JSON-only authored metadata interpreted by compatible tools. */
+  extensions?: ArcExtensions;
 }

@@ -11,7 +11,8 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "check": "npm run typecheck && npm test",
-    "sim:karazhan": "vite-node src/sim/karazhan-sim-cli.ts --"
+    "sim:karazhan": "vite-node src/sim/karazhan-sim-cli.ts --",
+    "build:godscar-reference": "vite-node tools/build-godscar-reference.ts"
   },
   "dependencies": {
     "react": "^18.3.1",

@@ -33,7 +33,10 @@ jobs:
 
       - name: Apply implementation commit
         working-directory: work
-        run: git am ../arc.patch
+        run: |
+          git config user.name "OpenAI"
+          git config user.email "noreply@openai.com"
+          git am ../arc.patch
 
       - name: Install dependencies
         working-directory: work

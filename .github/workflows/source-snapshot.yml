@@ -1,0 +1,40 @@
+name: Source snapshot
+
+on:
+  push:
+    branches:
+      - agent/bootstrap-source-download
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out axm-arc
+        uses: actions/checkout@v4
+        with:
+          path: axm-arc
+      - name: Check out axm-world
+        uses: actions/checkout@v4
+        with:
+          repository: BigBirdReturns/axm-world
+          path: axm-world
+      - name: Check out clifford-number
+        uses: actions/checkout@v4
+        with:
+          repository: BigBirdReturns/clifford-number
+          path: clifford-number
+      - name: Remove git metadata
+        run: find . -name .git -type d -prune -exec rm -rf {} +
+      - name: Upload source snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: rodoh-source-snapshot
+          path: |
+            axm-arc
+            axm-world
+            clifford-number
+          if-no-files-found: error
+          retention-days: 1

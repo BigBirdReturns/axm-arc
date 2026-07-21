@@ -175,3 +175,19 @@ describe("export receipt round trip (PR 076)", () => {
     expect(cartridgeDigest(reparsed.arc)).toBe(cartridgeDigest(FIRST_CHARTER));
   });
 });
+
+describe("installed revision custody", () => {
+  it("keeps distinct bundled revisions side by side instead of replacing held bytes", () => {
+    const earlier = {
+      ...FIRST_CHARTER,
+      meta: { ...FIRST_CHARTER.meta, version: "1.1.9-held" },
+    };
+    ensureBundledArc(earlier);
+    ensureBundledArc(FIRST_CHARTER);
+    ensureBundledArc(FIRST_CHARTER);
+
+    const bundled = loadArcLibrary().filter((entry) => entry.source === "bundled");
+    expect(bundled).toHaveLength(2);
+    expect(new Set(bundled.map((entry) => cartridgeDigest(entry.arc))).size).toBe(2);
+  });
+});

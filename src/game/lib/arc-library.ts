@@ -14,6 +14,7 @@
 import type { Arc, TrustLabel } from "../../engine/types.js";
 import { validateArc } from "../../engine/schema.js";
 import { cartridgeDigest } from "../../engine/cartridge-digest.js";
+import { storageWriteFailure, type StorageWriteResult } from "./storage.js";
 
 export type { TrustLabel };
 
@@ -32,6 +33,12 @@ interface LibraryFile {
 const LIBRARY_KEY = "axm-arc:library:v1";
 const ACTIVE_ARC_KEY = "axm-arc:active-arc:v1";
 
+export interface ActiveArcSelection {
+  version: 2;
+  id: string;
+  digest: string;
+}
+
 export function loadArcLibrary(): ArcLibraryEntry[] {
   try {
     const raw = localStorage.getItem(LIBRARY_KEY);
@@ -45,36 +52,36 @@ export function loadArcLibrary(): ArcLibraryEntry[] {
   }
 }
 
-export function saveArcLibrary(entries: ArcLibraryEntry[]): void {
+export function saveArcLibrary(entries: ArcLibraryEntry[]): StorageWriteResult {
   try {
     const file: LibraryFile = { version: 1, entries };
     localStorage.setItem(LIBRARY_KEY, JSON.stringify(file));
+    return { ok: true };
   } catch (e) {
     console.warn("saveArcLibrary failed", e);
+    return storageWriteFailure(e, "Saving the cartridge library");
   }
 }
 
-// Idempotently ensure the bundled arc is in the library. The bundled arc is
-// always trust="bundled" and source="bundled". If an entry with the same id
-// already exists with source="bundled", we refresh the arc payload (so
-// engine/content updates ship to returning users) but preserve importedAt.
+// Idempotently install this exact bundled revision. A new application build
+// never mutates a holder's previously installed cartridge bytes in place: a
+// changed digest is another revision that can coexist with the old one. This is
+// the library half of exact save identity — updates are additions, not relabels.
 export function ensureBundledArc(arc: Arc): ArcLibraryEntry[] {
   const entries = loadArcLibrary();
-  const existingIdx = entries.findIndex(
-    (e) => e.arc.meta.id === arc.meta.id && e.source === "bundled",
+  const digest = cartridgeDigest(arc);
+  const alreadyInstalled = entries.some(
+    (entry) => entry.source === "bundled" && cartridgeDigest(entry.arc) === digest,
   );
-  if (existingIdx >= 0) {
-    const existing = entries[existingIdx]!;
-    entries[existingIdx] = { ...existing, arc, trust: "bundled" };
-  } else {
+  if (!alreadyInstalled) {
     entries.push({
       arc,
       trust: "bundled",
       importedAt: Date.now(),
       source: "bundled",
     });
+    saveArcLibrary(entries);
   }
-  saveArcLibrary(entries);
   return entries;
 }
 
@@ -128,7 +135,8 @@ export function importArcFromJson(
     source: "imported",
   };
   filtered.push(entry);
-  saveArcLibrary(filtered);
+  const write = saveArcLibrary(filtered);
+  if (!write.ok) return { ok: false, errors: [write.message] };
   return { ok: true, entry };
 }
 
@@ -241,26 +249,55 @@ export function exportArcToJson(
 
 // Only removes imported entries. Bundled entries are permanent (the user
 // always has the shipped arc as a floor).
-export function removeArc(arcId: string): void {
+export function removeArc(arcId: string): StorageWriteResult {
   const entries = loadArcLibrary();
   const next = entries.filter(
     (e) => !(e.arc.meta.id === arcId && e.source === "imported"),
   );
-  saveArcLibrary(next);
+  return saveArcLibrary(next);
 }
 
-export function loadActiveArcId(): string | null {
+export function loadActiveArcSelection(): ActiveArcSelection | null {
   try {
-    return localStorage.getItem(ACTIVE_ARC_KEY);
+    const raw = localStorage.getItem(ACTIVE_ARC_KEY);
+    if (!raw) return null;
+    try {
+      const value = JSON.parse(raw) as Partial<ActiveArcSelection>;
+      if (value.version === 2 && typeof value.id === "string" && typeof value.digest === "string") {
+        return value as ActiveArcSelection;
+      }
+    } catch {
+      // v1 stored only an Arc id. Resolve it against the current library without
+      // inventing an exact historical digest.
+    }
+    const entry = loadArcLibrary().find((candidate) => candidate.arc.meta.id === raw);
+    return entry ? { version: 2, id: raw, digest: cartridgeDigest(entry.arc) } : null;
   } catch {
     return null;
   }
 }
 
-export function saveActiveArcId(id: string): void {
+export function loadActiveArcId(): string | null {
+  return loadActiveArcSelection()?.id ?? null;
+}
+
+export function saveActiveArc(arc: Arc): StorageWriteResult {
   try {
-    localStorage.setItem(ACTIVE_ARC_KEY, id);
-  } catch {
-    /* noop */
+    const selection: ActiveArcSelection = {
+      version: 2,
+      id: arc.meta.id,
+      digest: cartridgeDigest(arc),
+    };
+    localStorage.setItem(ACTIVE_ARC_KEY, JSON.stringify(selection));
+    return { ok: true };
+  } catch (e) {
+    return storageWriteFailure(e, "Saving the active cartridge");
   }
+}
+
+/** Legacy id-only setter retained for older callers. New code should persist
+ * `saveActiveArc(arc)` so same-id revisions remain exactly addressable. */
+export function saveActiveArcId(id: string): StorageWriteResult {
+  const entry = loadArcLibrary().find((candidate) => candidate.arc.meta.id === id);
+  return entry ? saveActiveArc(entry.arc) : storageWriteFailure(new Error(`Unknown cartridge ${id}.`), "Saving the active cartridge");
 }

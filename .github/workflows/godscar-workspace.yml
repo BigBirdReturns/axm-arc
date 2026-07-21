@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - agent/godscar-bootstrap
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: read

@@ -1,0 +1,83 @@
+name: Apply Godscar Arc implementation
+
+on:
+  push:
+    branches:
+      - agent/godscar-bootstrap
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out patch carrier
+        uses: actions/checkout@v4
+        with:
+          ref: agent/godscar-bootstrap
+          path: carrier
+
+      - name: Check out implementation branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/godscar-pocket-foundation
+          path: work
+          fetch-depth: 0
+
+      - name: Reassemble and authenticate implementation patch
+        run: |
+          cat \
+            carrier/.bootstrap/godscar-arc.patch.gz.b64.00a \
+            carrier/.bootstrap/godscar-arc.patch.gz.b64.00b \
+            carrier/.bootstrap/godscar-arc.patch.gz.b64.01 \
+            carrier/.bootstrap/godscar-arc.patch.gz.b64.02 \
+            carrier/.bootstrap/godscar-arc.patch.gz.b64.03 \
+            carrier/.bootstrap/godscar-arc.patch.gz.b64.04 \
+            carrier/.bootstrap/godscar-arc.patch.gz.b64.05 \
+            carrier/.bootstrap/godscar-arc.patch.gz.b64.06 \
+            carrier/.bootstrap/godscar-arc.patch.gz.b64.07 \
+            > godscar-arc.patch.gz.b64
+          echo '8d33ed270490e84ad7bf479cd7c4b9c28c2b2261a1c05e83d9cf10766c9fa637  godscar-arc.patch.gz.b64' | sha256sum --check
+          base64 --decode godscar-arc.patch.gz.b64 > godscar-arc.patch.gz
+          echo '7b798481087f93b5ae988275a549e48eba85e28aba996d8ac9586965dc02cdee  godscar-arc.patch.gz' | sha256sum --check
+          gzip --decompress --stdout godscar-arc.patch.gz > godscar-arc.patch
+          echo 'e16888c326c3de3db6e396405d77d68e17b460067b54ae09a1b79b7952c43a42  godscar-arc.patch' | sha256sum --check
+
+      - name: Apply implementation commit
+        working-directory: work
+        run: |
+          git config user.name 'OpenAI'
+          git config user.email 'noreply@openai.com'
+          git am ../godscar-arc.patch
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: work/package-lock.json
+
+      - name: Install dependencies
+        working-directory: work
+        run: npm ci
+
+      - name: Verify types
+        working-directory: work
+        run: npm run typecheck
+
+      - name: Verify full test suite
+        working-directory: work
+        run: npm test
+
+      - name: Verify production build
+        working-directory: work
+        run: npm run build
+
+      - name: Publish verified implementation branch
+        working-directory: work
+        run: git push origin HEAD:agent/godscar-pocket-foundation

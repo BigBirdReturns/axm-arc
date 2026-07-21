@@ -29,15 +29,22 @@ jobs:
         with:
           repository: BigBirdReturns/clifford-number
           path: clifford-number
+      - name: Install Arc dependencies
+        working-directory: axm-arc
+        run: npm ci
+      - name: Install World dependencies
+        working-directory: axm-world
+        run: npm ci
       - name: Remove git metadata
         run: find . -name .git -type d -prune -exec rm -rf {} +
-      - name: Upload source snapshot
+      - name: Upload development workspace
         uses: actions/upload-artifact@v4
         with:
-          name: rodoh-source-snapshot
+          name: rodoh-dev-workspace
           path: |
             axm-arc
             axm-world
             clifford-number
           if-no-files-found: error
+          include-hidden-files: true
           retention-days: 1

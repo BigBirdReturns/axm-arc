@@ -4,9 +4,6 @@ on:
   push:
     branches:
       - agent/bootstrap-source-download
-  pull_request:
-    branches:
-      - main
 
 permissions:
   contents: read
@@ -15,9 +12,10 @@ jobs:
   snapshot:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out axm-arc
+      - name: Check out axm-arc implementation
         uses: actions/checkout@v4
         with:
+          ref: agent/portable-run-first-charter
           path: axm-arc
       - name: Check out axm-world
         uses: actions/checkout@v4
@@ -40,7 +38,7 @@ jobs:
       - name: Upload development workspace
         uses: actions/upload-artifact@v4
         with:
-          name: rodoh-dev-workspace
+          name: rodoh-dev-workspace-current
           path: |
             axm-arc
             axm-world

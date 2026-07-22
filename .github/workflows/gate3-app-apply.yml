@@ -32,6 +32,8 @@ jobs:
       - run: python tools/apply-gate3-app.py
       - run: rm tools/apply-gate3-app.py .github/workflows/gate3-app-apply.yml
       - run: npm ci
+      - name: Rebuild canonical Lamp District artifacts
+        run: npm run build:dark-tomb-reference
       - name: TypeScript
         run: npm run typecheck 2>&1 | tee gate3-typecheck.log
       - name: Complete tests

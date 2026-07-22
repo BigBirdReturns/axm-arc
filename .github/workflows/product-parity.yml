@@ -9,11 +9,13 @@ on:
       - 'src/i18n/**'
       - 'src/godscar/**'
       - 'src/dark-tomb/**'
+      - 'src/common-ship/**'
       - 'src/arcs/**'
       - 'tests/game/**'
       - 'tests/i18n/**'
       - 'tests/sim/**'
       - 'tests/dark-tomb/**'
+      - 'tests/common-ship/**'
       - 'docs/**'
       - '.github/workflows/product-parity.yml'
 
@@ -53,5 +55,6 @@ jobs:
           tests/sim/karazhan-sim.test.ts
           tests/sim/ilyon-campaign.test.ts
           tests/dark-tomb/dark-tomb.test.ts
+          tests/common-ship/common-ship.test.ts
       - run: npm test
       - run: npm run build

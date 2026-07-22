@@ -4,7 +4,7 @@
 
 The player manages a group of agents — each with attributes, hidden traits, stress, morale, and a relationship web — against structured challenges defined by a portable JSON file called an *arc*. The engine resolves every challenge deterministically. Same seed, same run, every time. No inference, no API, no network.
 
-The first arc is a guild management game. The bundled campaigns are **The First Charter**, **The Waking Tower**, and **The Kind Gods of Ilyon**.
+The first arc is a guild management game. The Arc browser product now bundles **The First Charter**, **The Waking Tower**, **The Kind Gods of Ilyon**, and the first Book II campaign, **The Lamp District**. Rodoh World remains on its separately accepted three-cartridge player boundary until the Underworld receiver ships.
 
 > Swap "guild" for "program office" and "raid boss" for "contract deliverable" and you are modeling any organization facing structured challenges under resource constraints with imperfect information about its own people.
 
@@ -20,8 +20,10 @@ custody, complete reference campaigns, authoring, responsive World expression,
 local pixel/vector assets, bilingual chrome, sensory preferences, and access
 fallbacks are protected by dedicated Arc and World parity workflows. Engine 1.3
 adds bounded creator-authored state and declarative composition law for Dark Tomb
-and Common Ship source planes; see `docs/ENGINE_1_3_STATE_COMPOSITION.md`.
-Multiplayer, cloud sync, marketplace, publisher signing, cinematic media, and
+and Common Ship source planes; see `docs/ENGINE_1_3_STATE_COMPOSITION.md`. The
+Lamp District and Dark Tomb Forge close the Arc-side Book II campaign and
+authoring gate; see `docs/LAMP_DISTRICT_ACCEPTANCE.md`. Multiplayer, cloud sync,
+marketplace, publisher signing, cinematic media, and
 authored-content translation packs are separate future products rather than
 hidden prerequisites.
 
@@ -53,12 +55,12 @@ finished as a game; it is also not the boundary of the system.
 | Layer | Path | What it does |
 |---|---|---|
 | **Engine** | `src/engine/` | Generic deterministic simulation. Resolver, stress/morale/affliction cascade, relationship state machine, drama event cards, bounded cartridge state, declarative composition, recruitment, save/load, and exact receipts. Content-free — zero imports from `src/arcs/`. |
-| **Arc format** | `src/arcs/` | Portable JSON scenario definitions. The tutorial arc "The First Charter" ships here: 4 attributes, 3 roles, 3 tiers, 6 challenges across 2 progression tiers, 8 items, 6-agent starting roster with a seeded rivalrous pair. |
-| **Godscar source planes** | `src/godscar/`, `src/dark-tomb/`, `src/common-ship/` | Creator-owned Pocket, Dark Tomb, and Common Ship source grammars and compilers. Book II and Book III project their persistent state and roster constraints through engine 1.3 rather than receiver law. |
-| **Authoring + custody** | `src/game/`, `docs/RFC_WORKSHOP.md`, `docs/RFC_CARTRIDGE_LIBRARY.md` | Library, Workshop, writable Designer, guided/source Godscar Forge, validation, authoring QA, digest/profile, import/export, simulation, and explicit custody receipts. |
+| **Arc format** | `src/arcs/` | Portable deterministic scenario definitions. The four bundled references now cover the tutorial guild, large-roster campaign, Book I pocket, and Book II Dark Tomb forms. |
+| **Godscar source planes** | `src/godscar/`, `src/dark-tomb/`, `src/common-ship/`, `src/source-planes/` | Creator-owned Pocket, Dark Tomb, and Common Ship grammars plus the one registry connecting formats, validators, compilers, starters, and exact source recovery. The Lamp District is the canonical Book II source and cartridge. |
+| **Authoring + custody** | `src/game/`, `docs/RFC_WORKSHOP.md`, `docs/RFC_CARTRIDGE_LIBRARY.md` | Library, Workshop, writable Designer, guided/source Pocket and Dark Tomb Forges, validation, authoring QA, bounded campaign simulation, digest/profile, import/export, installation, and explicit custody receipts. |
 | **Institutional record** | `src/game/lib/ledger.ts`, `docs/RFC_TIER2_LEDGER_SCHEMA.md` | Append-only committed consequences, compatibility projection, Guild Hall, and Expansion Archive. |
 | **Reference game UI** | `src/game/` | React PWA and proof cartridges used to finish a compelling game while exercising the general model and record contract. |
-| **Tests** | `tests/engine/`, `tests/game/` | Complete engine, custody, authoring, campaign, localization, sensory, and product-parity suites, including deterministic full-campaign acceptance for all bundled references. |
+| **Tests** | `tests/engine/`, `tests/game/`, `tests/sim/`, `tests/dark-tomb/` | Complete engine, custody, authoring, campaign, localization, sensory, and product-parity suites, including exact Lamp District artifacts, multi-seed completion, and inherited Tomb-state acceptance. |
 | **Landing page** | `docs/index.html` | AXM House Style static page. Live at [bigbirdreturns.github.io/axm-arc](https://bigbirdreturns.github.io/axm-arc/). |
 | **Game (built)** | `docs/game/` | Compiled PWA output. Live at [bigbirdreturns.github.io/axm-arc/game](https://bigbirdreturns.github.io/axm-arc/game/). |
 | **Design authority** | `DESIGN.md`, `docs/WAKING_TOWER_DESIGN_AUTHORITY.md` | The system design authority plus the explicit Waking Tower player-facing, compatibility-id, World-projection, and change-control boundary. |
@@ -124,6 +126,8 @@ When the player advances a cycle, the engine processes these steps in order:
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run check` | typecheck + tests |
 | `npm run build` | Production bundle → `docs/game/` |
+| `npm run build:godscar-reference` | Rebuild the canonical Ilyon source and Arc artifacts |
+| `npm run build:dark-tomb-reference` | Rebuild the canonical Lamp District source and Arc artifacts |
 
 ---
 
@@ -157,9 +161,9 @@ The game UI (`src/game/`) uses `localStorage` and CSS custom properties. It work
 
 ## Browser product status
 
-The browser product now includes the playable reference loop, Arc Library,
-Workshop authoring, digest/profile visibility, import/export custody, ledger,
-Guild Hall, and Expansion Archive. See [STATUS.md](STATUS.md) for the current
+The browser product now includes the playable reference loops, Arc Library,
+Workshop authoring, Pocket and Dark Tomb Forges, digest/profile visibility,
+import/export custody, ledger, Guild Hall, and Expansion Archive. See [STATUS.md](STATUS.md) for the current
 implemented-versus-proposed boundary; older phase labels in historical RFCs and
 handoffs are not the active roadmap.
 
@@ -208,7 +212,7 @@ DESIGN.md specifies five schema stress tests proving the engine holds structural
 | Guild Wars 1: GvG | 8v8 PvP | Opposing roster as threshold source (v2) |
 | XCOM / Fire Emblem | 4–12 agents | Permadeath weight, high per-agent stat budgets |
 
-The Waking Tower is the shipped large-roster stress cartridge after The First Charter; Ilyon proves the Godscar creator grammar on the same engine.
+The Waking Tower is the shipped large-roster stress cartridge after The First Charter; Ilyon proves the Book I creator grammar; The Lamp District proves Book II civic underworld play, exact inherited state, and a dedicated source Forge on the same engine.
 
 ---
 

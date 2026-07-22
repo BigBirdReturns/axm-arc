@@ -39,3 +39,5 @@
 .designer-screen .item-card-bonus {
   font-family: var(--mono); font-size: 11px; color: var(--positive);
 }
+
+.authoring-audit { margin-top: 12px; padding: 12px; border: 1px solid var(--rule); background: var(--paper); text-align: left; }

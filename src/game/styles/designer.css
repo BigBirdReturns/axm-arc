@@ -47,7 +47,7 @@
   text-transform: uppercase; letter-spacing: -0.01em;
 }
 /* ── KARAZHAN CARTRIDGE ACCENT (scoped) ──────────────────────────
-   Applied only when the active arc is Karazhan (the container carries
+   Applied only when the active arc is The Waking Tower (the container carries
    data-arc="karazhan"). Violet-night accent on the header rule + arc
    title; the role/attribute vocabulary itself is still arc-data driven.
    No default-arc styling is affected. */

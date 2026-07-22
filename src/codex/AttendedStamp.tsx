@@ -1,23 +1,22 @@
 /**
- * <AttendedStamp> — rubber-stamp affordance lifted from
- * docs/digest-prototype/situation-room.css (`stampIn` keyframe).
- *
- * Pure presentation. Position absolute, anchored against the nearest
- * positioned ancestor (the docket card in the prototype). Consumers
- * mount it with `show` true after a blocking decision is resolved.
- *
- * Drama-resolution wire-up is a future ticket; this component is
- * available + reachable for review per the harvest brief.
+ * Rubber-stamp acknowledgement for a resolved, engine-applied docket.
+ * Pure presentation: consumers provide the resolved state; this component does
+ * not decide, persist, or manufacture a precedent.
  */
 export function AttendedStamp({
   show,
   label = "ATTENDED",
+  className = "",
 }: {
   show: boolean;
   label?: string;
+  className?: string;
 }): JSX.Element {
   return (
-    <div className={`attended-stamp${show ? " show" : ""}`} aria-hidden>
+    <div
+      className={`attended-stamp${show ? " show" : ""}${className ? ` ${className}` : ""}`}
+      aria-hidden="true"
+    >
       {label}
     </div>
   );

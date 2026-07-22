@@ -10,7 +10,35 @@ in any new session or by any agent picking up cold. Updated as state changes.
 
 ---
 
-## Current overlay — 2026-07-21
+## Current overlay — 2026-07-22
+
+**Local-first product parity train:**
+
+- Arc's authoring lane now has functional Roster, Items, Challenges, and Arc
+  Designer sections, exact export, shared Workshop editing, and a visible
+  role/check coverage audit.
+- Godscar Forge now offers guided and exact-source modes over the same Pocket
+  object, including identity, six pressures, evidence provenance, faction
+  receipts, incompatible cast responsibilities, persistent consequences,
+  playable beats, checks, and Story Physics.
+- Entry, play, and standalone tools share persistent local sound and reduced
+  motion controls, visible keyboard focus, mobile target floors, and contrast
+  fallbacks.
+- World carries the three bundled cartridges through the same full-campaign,
+  custody, representation, responsive, and white-label visual parity contract.
+- The second cartridge now ships as **The Waking Tower**: original names,
+  fiction, steward copy, motifs, role art, and material treatment. The historical
+  `karazhan` id remains only as a compatibility key for held runs.
+- `<AttendedStamp>` is wired to accepted drama decisions, and all standalone
+  creator/record surfaces expose the same sensory and localization controls.
+- `product-parity.yml` and World's `bundled-parity.yml` make the completion
+  boundary executable rather than rhetorical.
+
+See `docs/PARITY_COMPLETION.md`.
+
+---
+
+## Previous current overlay — 2026-07-21
 
 **Godscar creator foundation:**
 

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import fs from "node:fs";
 import { KIND_GODS_OF_ILYON_BLUEPRINT } from "../../src/godscar/templates.js";
 import {
   compileGodscarJson,
@@ -46,6 +47,16 @@ describe("Godscar Pocket Forge", () => {
     const report = playtestGodscarArc(compiled.arc, 3, 50);
     expect(report.clearRate).toBe(1);
     expect(report.totalGateViolations).toBe(0);
+  });
+
+
+  it("ships one canonical source through guided and exact-source authoring modes", () => {
+    const screen = fs.readFileSync(new URL("../../src/game/components/GodscarForgeScreen.tsx", import.meta.url), "utf8");
+    expect(screen).toContain('data-testid="godscar-guided-editor"');
+    expect(screen).toContain('data-testid="godscar-forge-editor"');
+    expect(screen).toContain("updateEditableGodscarSource");
+    expect(screen).toContain("compileGodscarJson(text)");
+    expect(screen).toContain("newGodscarCheck");
   });
 
   it("refuses malformed JSON and malformed story grammar before Arc compilation", () => {

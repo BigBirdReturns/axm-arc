@@ -325,6 +325,7 @@ export type MessageId =
   // ── drama screen ──
   | "drama.precedentLogged"
   | "drama.decisionApplied"
+  | "drama.attended"
   | "drama.councilCycle"
   | "drama.decisions"
   | "drama.empty"
@@ -638,6 +639,112 @@ export type MessageId =
   | "workshop.exportMismatch"
   | "workshop.draftRestored"
   | "workshop.draftPersists"
+  // ── accessibility / sensory presentation ──
+  | "sensory.group"
+  | "sensory.soundOn"
+  | "sensory.soundOff"
+  | "sensory.motionSystem"
+  | "sensory.motionReduced"
+  // ── authoring audit ──
+  | "authoring.auditHeading"
+  | "authoring.auditPass"
+  | "authoring.auditWarnings"
+  | "authoring.covered"
+  | "authoring.specialist"
+  | "authoring.cosmetic"
+  | "authoring.dead"
+  | "authoring.roleLeads"
+  | "authoring.checkLeads"
+  | "authoring.none"
+  | "authoring.specialistHint"
+  | "authoring.structuralHint"
+  // ── Godscar guided forge ──
+  | "godscar.forgeAria"
+  | "godscar.heading"
+  | "godscar.intro"
+  | "godscar.newPocket"
+  | "godscar.loadIlyon"
+  | "godscar.importPocket"
+  | "godscar.guidedMode"
+  | "godscar.sourceMode"
+  | "godscar.guidedUnavailable"
+  | "godscar.sourceEditor"
+  | "godscar.identity"
+  | "godscar.controlQuestion"
+  | "godscar.pressures"
+  | "godscar.evidence"
+  | "godscar.factions"
+  | "godscar.cast"
+  | "godscar.consequences"
+  | "godscar.beats"
+  | "godscar.storyPhysics"
+  | "godscar.notes"
+  | "godscar.fieldId"
+  | "godscar.fieldTitle"
+  | "godscar.fieldDescription"
+  | "godscar.fieldAuthor"
+  | "godscar.fieldVersion"
+  | "godscar.fieldEstimatedCycles"
+  | "godscar.fieldParentCanons"
+  | "godscar.fieldCanonRelation"
+  | "godscar.fieldLabel"
+  | "godscar.fieldTier"
+  | "godscar.fieldClaim"
+  | "godscar.fieldVenue"
+  | "godscar.fieldLegitimacyTarget"
+  | "godscar.fieldUpside"
+  | "godscar.fieldDownside"
+  | "godscar.fieldFalseCost"
+  | "godscar.fieldSource"
+  | "godscar.fieldIntervention"
+  | "godscar.fieldLimits"
+  | "godscar.fieldFactionName"
+  | "godscar.fieldVariable"
+  | "godscar.fieldPublicGood"
+  | "godscar.fieldCharacteristicFailure"
+  | "godscar.fieldName"
+  | "godscar.fieldRole"
+  | "godscar.fieldResponsibility"
+  | "godscar.fieldFaction"
+  | "godscar.fieldKind"
+  | "godscar.fieldInheritedBy"
+  | "godscar.fieldProgressionTier"
+  | "godscar.fieldAccessAfter"
+  | "godscar.fieldDifficulty"
+  | "godscar.fieldMinAgents"
+  | "godscar.fieldMaxAgents"
+  | "godscar.fieldRequiredRoles"
+  | "godscar.fieldChecks"
+  | "godscar.fieldScope"
+  | "godscar.fieldThreshold"
+  | "godscar.fieldWeights"
+  | "godscar.fieldFailureType"
+  | "godscar.fieldSeverity"
+  | "godscar.fieldSuccess"
+  | "godscar.fieldPartial"
+  | "godscar.fieldFailure"
+  | "godscar.fieldReputationGain"
+  | "godscar.fieldCurrencyReward"
+  | "godscar.fieldConsequence"
+  | "godscar.addReceipt"
+  | "godscar.addFaction"
+  | "godscar.addPerson"
+  | "godscar.addConsequence"
+  | "godscar.addBeat"
+  | "godscar.addCheck"
+  | "godscar.addRequiredRole"
+  | "godscar.validateCompile"
+  | "godscar.seededPlaytest"
+  | "godscar.install"
+  | "godscar.exportSource"
+  | "godscar.exportArc"
+  | "godscar.openArc"
+  | "godscar.compilationRefused"
+  | "godscar.valid"
+  | "godscar.boundedPlaytest"
+  | "godscar.playtestMetrics"
+  | "godscar.reachabilityNote"
+  | "godscar.sourceHeld"
   // ── codex overlay ──
   | "codex.attributes"
   | "codex.roles"
@@ -777,7 +884,7 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
 
     "intent.label": "Intent · This Cycle",
     "intent.empty": "No intent set. Tap Edit to add one.",
-    "intent.placeholder": "e.g. Run Attumen on farm. Push Moroes for first clear.",
+    "intent.placeholder": "e.g. Run the Ashen Huntsman on farm. Push the Last Steward for first clear.",
 
     "advance.cycle": "Advance Cycle →",
     "advance.blocked": "Advance blocked",
@@ -1045,6 +1152,7 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
 
     "drama.precedentLogged": "PRECEDENT LOGGED",
     "drama.decisionApplied": "DECISION APPLIED",
+    "drama.attended": "ATTENDED",
     "drama.councilCycle": (p) => `Council · Cycle ${str(p, "cycle")}`,
     "drama.decisions": (p) => {
       const n = num(p, "count");
@@ -1418,6 +1526,113 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "workshop.draftRestored": "Draft restored from your last session",
     "workshop.draftPersists": "Drafts autosave to this browser's local storage — nothing leaves your machine until you export",
 
+
+    "sensory.group": "Sound and motion",
+    "sensory.soundOn": "Sound on",
+    "sensory.soundOff": "Sound off",
+    "sensory.motionSystem": "Full motion",
+    "sensory.motionReduced": "Reduced motion",
+
+    "authoring.auditHeading": "Role / check coverage",
+    "authoring.auditPass": "Coverage is structurally usable.",
+    "authoring.auditWarnings": (p) => `${num(p, "count")} coverage observation${num(p, "count") === 1 ? "" : "s"}.`,
+    "authoring.covered": "Covered",
+    "authoring.specialist": "Specialist",
+    "authoring.cosmetic": "Cosmetic",
+    "authoring.dead": "Dead",
+    "authoring.roleLeads": "Role leads",
+    "authoring.checkLeads": "Check leads",
+    "authoring.none": "None",
+    "authoring.specialistHint": "This attribute matters in checks but no role leads it. Treat it as a deliberate specialist signal and expose how players can cultivate it.",
+    "authoring.structuralHint": "A cosmetic or dead attribute cannot be acted on honestly. Remove it or connect it to both authored roles and executable checks.",
+
+    "godscar.forgeAria": "Godscar Pocket Forge",
+    "godscar.heading": "Pocket Forge",
+    "godscar.intro": "Author the six-pressure story machine in guided fields or exact source. Both modes edit one creator-owned object; the canonical validator and compiler remain the only authority.",
+    "godscar.newPocket": "New pocket",
+    "godscar.loadIlyon": "Load Ilyon reference",
+    "godscar.importPocket": "Import .pocket.json",
+    "godscar.guidedMode": "Guided",
+    "godscar.sourceMode": "Source",
+    "godscar.guidedUnavailable": "Guided mode cannot safely interpret this draft because a required section is missing or the JSON is malformed. Source mode remains available for exact repair.",
+    "godscar.sourceEditor": "Godscar pocket JSON editor",
+    "godscar.identity": "Identity and canon",
+    "godscar.controlQuestion": "Control question",
+    "godscar.pressures": "Six ordered pressures",
+    "godscar.evidence": "Evidence ledger",
+    "godscar.factions": "Faction receipts",
+    "godscar.cast": "Incompatible cast responsibilities",
+    "godscar.consequences": "Persistent consequences",
+    "godscar.beats": "Playable beats",
+    "godscar.storyPhysics": "Story Physics invariants",
+    "godscar.notes": "Creator notes",
+    "godscar.fieldId": "Stable id",
+    "godscar.fieldTitle": "Title",
+    "godscar.fieldDescription": "Description",
+    "godscar.fieldAuthor": "Author",
+    "godscar.fieldVersion": "Version",
+    "godscar.fieldEstimatedCycles": "Estimated cycles",
+    "godscar.fieldParentCanons": "Parent canons (one per line)",
+    "godscar.fieldCanonRelation": "Canon relation",
+    "godscar.fieldLabel": "Label",
+    "godscar.fieldTier": "Evidence tier",
+    "godscar.fieldClaim": "Claim",
+    "godscar.fieldVenue": "Certifying venue",
+    "godscar.fieldLegitimacyTarget": "Legitimacy at stake",
+    "godscar.fieldUpside": "If accepted",
+    "godscar.fieldDownside": "Cost of acceptance",
+    "godscar.fieldFalseCost": "If false",
+    "godscar.fieldSource": "Source / witness",
+    "godscar.fieldIntervention": "Intervention history",
+    "godscar.fieldLimits": "Limits",
+    "godscar.fieldFactionName": "Faction name",
+    "godscar.fieldVariable": "Variable controlled",
+    "godscar.fieldPublicGood": "Public good / suffering prevented",
+    "godscar.fieldCharacteristicFailure": "Characteristic failure",
+    "godscar.fieldName": "Name",
+    "godscar.fieldRole": "Role",
+    "godscar.fieldResponsibility": "Responsibility",
+    "godscar.fieldFaction": "Faction id (optional)",
+    "godscar.fieldKind": "Kind",
+    "godscar.fieldInheritedBy": "Inherited by",
+    "godscar.fieldProgressionTier": "Progression tier",
+    "godscar.fieldAccessAfter": "Available after",
+    "godscar.fieldDifficulty": "Difficulty",
+    "godscar.fieldMinAgents": "Minimum agents",
+    "godscar.fieldMaxAgents": "Maximum agents",
+    "godscar.fieldRequiredRoles": "Required roles",
+    "godscar.fieldChecks": "Mechanic checks",
+    "godscar.fieldScope": "Scope",
+    "godscar.fieldThreshold": "Threshold",
+    "godscar.fieldWeights": "Attribute weights",
+    "godscar.fieldFailureType": "Failure type",
+    "godscar.fieldSeverity": "Severity",
+    "godscar.fieldSuccess": "Success continuation",
+    "godscar.fieldPartial": "Partial continuation",
+    "godscar.fieldFailure": "Failure continuation",
+    "godscar.fieldReputationGain": "Legitimacy gain",
+    "godscar.fieldCurrencyReward": "Leverage reward",
+    "godscar.fieldConsequence": "Persistent consequence",
+    "godscar.addReceipt": "Add receipt",
+    "godscar.addFaction": "Add faction",
+    "godscar.addPerson": "Add person",
+    "godscar.addConsequence": "Add consequence",
+    "godscar.addBeat": "Add beat",
+    "godscar.addCheck": "Add check",
+    "godscar.addRequiredRole": "Add required role",
+    "godscar.validateCompile": "Validate & compile",
+    "godscar.seededPlaytest": "Seeded playtest",
+    "godscar.install": "Install cartridge",
+    "godscar.exportSource": "Export source",
+    "godscar.exportArc": "Export compiled Arc",
+    "godscar.openArc": "Open compiled cartridge",
+    "godscar.compilationRefused": "Compilation refused",
+    "godscar.valid": "VALID",
+    "godscar.boundedPlaytest": "Bounded playtest",
+    "godscar.playtestMetrics": (p) => `${num(p, "seeds")} exact founding seeds · clear rate ${str(p, "clearRate")} · stalls ${str(p, "stallRate")} · gate violations ${num(p, "violations")}`,
+    "godscar.reachabilityNote": "This proves deterministic reachability and structural execution. Narrative acceptance remains a separately recorded evidence layer.",
+    "godscar.sourceHeld": "The editable source autosaves locally and remains exportable beside the compiled cartridge.",
+
     "codex.attributes": "Attributes",
     "codex.roles": "Roles",
     "codex.traits": "Traits",
@@ -1535,7 +1750,7 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
 
     "intent.label": "意圖 · 本週期",
     "intent.empty": "尚未設定意圖。點擊「編輯」新增。",
-    "intent.placeholder": "例：刷 Attumen 農本。推 Moroes 首殺。",
+    "intent.placeholder": "例：刷灰燼獵手。推最後管事首殺。",
 
     "advance.cycle": "推進週期 →",
     "advance.blocked": "推進受阻",
@@ -1779,6 +1994,7 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
 
     "drama.precedentLogged": "先例已記錄",
     "drama.decisionApplied": "決策已生效",
+    "drama.attended": "已處理",
     "drama.councilCycle": (p) => `議會 · 週期 ${str(p, "cycle")}`,
     "drama.decisions": (p) => {
       const n = num(p, "count");
@@ -2101,6 +2317,113 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "workshop.exportMismatch": "與已驗證草稿不一致——請勿散布",
     "workshop.draftRestored": "已還原你上次的草稿",
     "workshop.draftPersists": "草稿會自動儲存在此瀏覽器的本機儲存空間——匯出前不會離開你的裝置",
+
+
+    "sensory.group": "聲音與動態",
+    "sensory.soundOn": "聲音開啟",
+    "sensory.soundOff": "聲音關閉",
+    "sensory.motionSystem": "完整動態",
+    "sensory.motionReduced": "減少動態",
+
+    "authoring.auditHeading": "職責／檢定覆蓋",
+    "authoring.auditPass": "覆蓋結構可正常使用。",
+    "authoring.auditWarnings": (p) => `${num(p, "count")} 項覆蓋觀察。`,
+    "authoring.covered": "已覆蓋",
+    "authoring.specialist": "專門屬性",
+    "authoring.cosmetic": "僅裝飾",
+    "authoring.dead": "未使用",
+    "authoring.roleLeads": "主導職責",
+    "authoring.checkLeads": "主導檢定",
+    "authoring.none": "無",
+    "authoring.specialistHint": "此屬性會影響檢定，但沒有任何職責以它為主。請把它明確呈現為專門訊號，並讓玩家知道如何培養。",
+    "authoring.structuralHint": "僅裝飾或未使用的屬性無法被誠實操作。請移除它，或同時接上作者設定的職責與可執行檢定。",
+
+    "godscar.forgeAria": "Godscar 口袋域工坊",
+    "godscar.heading": "口袋域工坊",
+    "godscar.intro": "可用引導欄位或精確原始碼撰寫六重壓力故事機器。兩種模式編輯同一個創作者持有的物件；唯一權威仍是正式驗證器與編譯器。",
+    "godscar.newPocket": "新建口袋域",
+    "godscar.loadIlyon": "載入 Ilyon 範例",
+    "godscar.importPocket": "匯入 .pocket.json",
+    "godscar.guidedMode": "引導模式",
+    "godscar.sourceMode": "原始碼",
+    "godscar.guidedUnavailable": "此草稿缺少必要區段或 JSON 格式錯誤，引導模式無法安全解讀。請在原始碼模式中精確修復。",
+    "godscar.sourceEditor": "Godscar 口袋域 JSON 編輯器",
+    "godscar.identity": "身分與正典",
+    "godscar.controlQuestion": "控制問題",
+    "godscar.pressures": "六項依序壓力",
+    "godscar.evidence": "證據帳本",
+    "godscar.factions": "派系收據",
+    "godscar.cast": "互不相容的角色責任",
+    "godscar.consequences": "持續後果",
+    "godscar.beats": "可遊玩節拍",
+    "godscar.storyPhysics": "故事物理不變量",
+    "godscar.notes": "創作者備註",
+    "godscar.fieldId": "穩定 id",
+    "godscar.fieldTitle": "標題",
+    "godscar.fieldDescription": "描述",
+    "godscar.fieldAuthor": "作者",
+    "godscar.fieldVersion": "版本",
+    "godscar.fieldEstimatedCycles": "預估週期",
+    "godscar.fieldParentCanons": "上層正典（每行一項）",
+    "godscar.fieldCanonRelation": "正典關係",
+    "godscar.fieldLabel": "標籤",
+    "godscar.fieldTier": "證據層級",
+    "godscar.fieldClaim": "主張",
+    "godscar.fieldVenue": "驗證場所",
+    "godscar.fieldLegitimacyTarget": "受影響的正當性",
+    "godscar.fieldUpside": "若被接受",
+    "godscar.fieldDownside": "接受代價",
+    "godscar.fieldFalseCost": "若為假",
+    "godscar.fieldSource": "來源／見證者",
+    "godscar.fieldIntervention": "介入歷史",
+    "godscar.fieldLimits": "限制",
+    "godscar.fieldFactionName": "派系名稱",
+    "godscar.fieldVariable": "控制變數",
+    "godscar.fieldPublicGood": "公共利益／避免的痛苦",
+    "godscar.fieldCharacteristicFailure": "典型失敗",
+    "godscar.fieldName": "名稱",
+    "godscar.fieldRole": "職責",
+    "godscar.fieldResponsibility": "責任",
+    "godscar.fieldFaction": "派系 id（可選）",
+    "godscar.fieldKind": "種類",
+    "godscar.fieldInheritedBy": "由誰繼承",
+    "godscar.fieldProgressionTier": "進程階段",
+    "godscar.fieldAccessAfter": "於此節拍後開放",
+    "godscar.fieldDifficulty": "難度",
+    "godscar.fieldMinAgents": "最少成員",
+    "godscar.fieldMaxAgents": "最多成員",
+    "godscar.fieldRequiredRoles": "必要職責",
+    "godscar.fieldChecks": "機制檢定",
+    "godscar.fieldScope": "範圍",
+    "godscar.fieldThreshold": "門檻",
+    "godscar.fieldWeights": "屬性權重",
+    "godscar.fieldFailureType": "失敗類型",
+    "godscar.fieldSeverity": "嚴重度",
+    "godscar.fieldSuccess": "成功後續",
+    "godscar.fieldPartial": "部分成功後續",
+    "godscar.fieldFailure": "失敗後續",
+    "godscar.fieldReputationGain": "正當性收益",
+    "godscar.fieldCurrencyReward": "槓桿獎勵",
+    "godscar.fieldConsequence": "持續後果",
+    "godscar.addReceipt": "新增收據",
+    "godscar.addFaction": "新增派系",
+    "godscar.addPerson": "新增人物",
+    "godscar.addConsequence": "新增後果",
+    "godscar.addBeat": "新增節拍",
+    "godscar.addCheck": "新增檢定",
+    "godscar.addRequiredRole": "新增必要職責",
+    "godscar.validateCompile": "驗證並編譯",
+    "godscar.seededPlaytest": "種子試玩",
+    "godscar.install": "安裝卡帶",
+    "godscar.exportSource": "匯出來源",
+    "godscar.exportArc": "匯出已編譯 Arc",
+    "godscar.openArc": "開啟已編譯卡帶",
+    "godscar.compilationRefused": "編譯已拒絕",
+    "godscar.valid": "有效",
+    "godscar.boundedPlaytest": "有界試玩",
+    "godscar.playtestMetrics": (p) => `${num(p, "seeds")} 個精確創立種子 · 通關率 ${str(p, "clearRate")} · 停滯 ${str(p, "stallRate")} · 閘門違規 ${num(p, "violations")}`,
+    "godscar.reachabilityNote": "這證明確定性可達性與結構執行。敘事接受度仍由另一份明確記錄的證據層處理。",
+    "godscar.sourceHeld": "可編輯來源會自動儲存在本機，並可與編譯後卡帶一起匯出。",
 
     "codex.attributes": "屬性",
     "codex.roles": "職責",

@@ -20,7 +20,7 @@ import {
   removeArc,
   validateArcJson,
 } from "../lib/arc-library.js";
-import { KarazhanEmblem, isKarazhan } from "../karazhan-theme.js";
+import { CartridgeEmblem, cartridgeThemeScope } from "../cartridge-theme.js";
 import { t, useLocale } from "../../i18n/index.js";
 
 interface Props {
@@ -185,24 +185,20 @@ export function LibraryScreen({ arc, onBack, onLoadArc, onLoadRun, onOpenArchive
           {entries.map((entry) => {
             const digest = cartridgeDigest(entry.arc);
             const isActive = digest === cartridgeDigest(arc);
-            const karazhan = isKarazhan(entry.arc.meta.id);
+            const themeScope = cartridgeThemeScope(entry.arc.meta.id);
             const cardKey = digest;
             const profileOpen = profileFor === cardKey;
             return (
               <div
                 key={cardKey}
                 className="card"
-                data-arc={karazhan ? "karazhan" : undefined}
+                data-arc={themeScope ?? undefined}
                 style={{ padding: 12 }}
               >
                 <div className="row between" style={{ alignItems: "flex-start" }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                      {karazhan && (
-                        <span className="karazhan-emblem" aria-hidden="true">
-                          <KarazhanEmblem size={20} />
-                        </span>
-                      )}
+                      <CartridgeEmblem arcId={entry.arc.meta.id} size={22} />
                       <strong style={{ fontSize: 16 }}>{entry.arc.meta.name}</strong>
                       <TrustLabel trust={entry.trust} />
                       {isActive && <span className="badge pass">{t("library.active")}</span>}

@@ -1,6 +1,6 @@
 import type { Arc, Organization, RunReport, AgentRunResult } from "../../engine/types.js";
 import { generateHeadline } from "../lib/headline.js";
-import { agentInitials } from "../lib/ui-helpers.js";
+import { CartridgePortrait } from "./CartridgePortrait.js";
 import { t } from "../../i18n/index.js";
 import { headlineDisplay } from "../../i18n/display.js";
 
@@ -121,9 +121,12 @@ export default function CycleDigest({ arc, org, reports }: Props): JSX.Element |
           <div className="digest-section-label">{t("digest.cycleTally")}</div>
           {tallyRows.map((row) => (
             <div key={row.id} className="digest-tally-row">
-              <div className={`portrait small${row.wasDowned ? " accent" : ""}`}>
-                {agentInitials(row.agent?.name ?? row.id)}
-              </div>
+              <CartridgePortrait
+                arcId={arc.meta.id}
+                roleId={row.agent?.role ?? null}
+                name={row.agent?.name ?? row.id}
+                className={`small${row.wasDowned ? " accent" : ""}`}
+              />
               <div className="digest-tally-id">
                 <div className="digest-tally-name">{row.agent?.name ?? row.id}</div>
                 <div className="digest-tally-role">{row.roleName}</div>

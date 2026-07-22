@@ -11,14 +11,14 @@
  *
  * Returns { primary, qualifier } where the rendered headline is:
  *   <challenge.name> <qualifier> <primary>.
- * e.g. "MOROES" "NEARLY" "WIPED THE GROUP."
- *      "ATTUMEN" ""       "CLEAN."
+ * e.g. "THE LAST STEWARD" "NEARLY" "WIPED THE GROUP."
+ *      "THE ASHEN HUNTSMAN" ""       "CLEAN."
  */
 
 import type { RunReport, Arc, Agent } from "../../engine/types.js";
 
 export interface Headline {
-  challenge: string;       // "MOROES"
+  challenge: string;       // "THE LAST STEWARD"
   qualifier: string;       // "NEARLY" | "" — rendered in accent color
   primary: string;         // "WIPED THE GROUP." — rest of sentence
   resolveAgent?: string;   // name of agent who resolved, if applicable

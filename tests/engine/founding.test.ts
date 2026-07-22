@@ -45,7 +45,7 @@ describe("canonical founding transition", () => {
       expect(org.dramaQueue[0]?.id).toBe(`opening:${arc.opening!.triggerType}`);
     }
     expect(FIRST_CHARTER.meta.version).toBe("1.2.0");
-    expect(KARAZHAN.meta.version).toBe("1.1.0");
+    expect(KARAZHAN.meta.version).toBe("1.2.0");
     const charter = foundOrganization(FIRST_CHARTER);
     const authored = charter.relationships[0]!;
     expect(getRelationship(charter, authored.agentIds[1], authored.agentIds[0]).state).toBe("Rivalrous");

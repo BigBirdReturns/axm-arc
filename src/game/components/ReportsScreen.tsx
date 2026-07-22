@@ -1,10 +1,10 @@
 import type { Arc, Organization, RunReport } from "../../engine/types.js";
 import type { PendingRewardChoice, RewardDecision } from "../../engine/cycle.js";
 import { generateHeadline, agentRunLine } from "../lib/headline.js";
-import { agentInitials } from "../lib/ui-helpers.js";
 import CycleDigest from "./CycleDigest.js";
 import { t } from "../../i18n/index.js";
 import { headlineDisplay } from "../../i18n/display.js";
+import { CartridgePortrait } from "./CartridgePortrait.js";
 
 interface Props {
   arc: Arc;
@@ -100,10 +100,13 @@ export function ReportsScreen({
                         onClick={() => award(p, aid)}
                       >
                         <div className="row between">
-                          <div>
-                            <div className="agent-name" style={{ fontSize: 13 }}>{a?.name ?? aid}</div>
-                            <div className="agent-meta">
-                              {roleName ?? t("common.flex")} · M{a?.morale ?? 0} S{a?.stress ?? 0}
+                          <div className="row" style={{ gap: 8, minWidth: 0 }}>
+                            <CartridgePortrait arcId={arc.meta.id} roleId={a?.role ?? null} name={a?.name ?? aid} className="small" />
+                            <div style={{ minWidth: 0 }}>
+                              <div className="agent-name" style={{ fontSize: 13 }}>{a?.name ?? aid}</div>
+                              <div className="agent-meta">
+                                {roleName ?? t("common.flex")} · M{a?.morale ?? 0} S{a?.stress ?? 0}
+                              </div>
                             </div>
                           </div>
                           {chosen && <span className="badge pass">{t("reports.awarded")}</span>}

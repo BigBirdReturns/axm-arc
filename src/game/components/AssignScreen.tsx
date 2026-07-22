@@ -11,7 +11,7 @@ import {
   type MechanicProjection,
 } from "../../engine/projections.js";
 import { challengeAccess, unlockedProgressionTierIds } from "../../engine/access.js";
-import { agentInitials } from "../lib/ui-helpers.js";
+import { CartridgePortrait } from "./CartridgePortrait.js";
 import { t } from "../../i18n/index.js";
 import { useModalDialog } from "../../lib/use-modal-dialog.js";
 
@@ -333,9 +333,7 @@ export function AssignScreen({
                 >
                   {agents.map((ag) => (
                     <div key={ag.id} style={{ textAlign: "center" }}>
-                      <div className="portrait small">
-                        {agentInitials(ag.name)}
-                      </div>
+                      <CartridgePortrait arcId={arc.meta.id} roleId={ag.role} name={ag.name} className="small" />
                       <div
                         style={{
                           fontFamily: "var(--mono)",
@@ -694,11 +692,12 @@ function RosterPicker({
                 checked={selected.has(a.id)}
                 onChange={() => toggle(a.id)}
               />
-              <div
-                className={`portrait small${stressClass ? ` ${stressClass}` : ""}`}
-              >
-                {agentInitials(a.name)}
-              </div>
+              <CartridgePortrait
+                arcId={arc.meta.id}
+                roleId={a.role}
+                name={a.name}
+                className={`small${stressClass ? ` ${stressClass}` : ""}`}
+              />
               <div style={{ flex: 1 }}>
                 <div className="agent-name" style={{ fontSize: 13 }}>
                   {a.name}

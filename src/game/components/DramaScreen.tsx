@@ -3,10 +3,12 @@ import type { Arc, DramaCard, Organization } from "../../engine/types.js";
 import type { PendingRewardChoice } from "../../engine/cycle.js";
 import { canApplyDramaEffect, resolveDramaCard } from "../../engine/drama.js";
 import { precedentContextSentence } from "../lib/headline.js";
-import { agentInitials } from "../lib/ui-helpers.js";
+import { CartridgePortrait } from "./CartridgePortrait.js";
 import { t, type MessageId } from "../../i18n/index.js";
 import { triggerTypeLabel, vocabLabel } from "../../i18n/display.js";
 import { MESSAGES } from "../../i18n/messages.js";
+import { playArcPresentationCue } from "../lib/sensory-prefs.js";
+import { AttendedStamp } from "../../codex/AttendedStamp.js";
 
 interface Props {
   org: Organization;
@@ -60,6 +62,7 @@ export function DramaScreen({ org, arc, setOrg, cycle, pendingRewardChoices }: P
       ) === "drama.precedentLogged",
     });
     setOrg(next);
+    playArcPresentationCue("decision", arc.meta.id);
     if (openIdx >= next.dramaQueue.length) setOpenIdx(Math.max(0, next.dramaQueue.length - 1));
   };
 
@@ -67,6 +70,7 @@ export function DramaScreen({ org, arc, setOrg, cycle, pendingRewardChoices }: P
     <div className="screen">
       {feedback && (
         <div className="resolve-toast" role="status" aria-live="polite" onClick={() => setFeedback(null)}>
+          <AttendedStamp show label={t("drama.attended")} />
           <span className="resolve-toast-label">
             {t(feedback.precedentLogged ? "drama.precedentLogged" : "drama.decisionApplied")}
           </span>
@@ -224,7 +228,7 @@ function CouncilCard({
           return (
             <div key={opt.id} style={{ borderTop: "1px solid var(--rule)", padding: "14px 16px" }}>
               <div className="row" style={{ gap: 10, marginBottom: 12 }}>
-                {agentObj && <div className="portrait small">{agentInitials(agentObj.name)}</div>}
+                {agentObj && <CartridgePortrait arcId={arc.meta.id} roleId={agentObj.role} name={agentObj.name} className="small" />}
                 <div style={{ flex: 1 }}>
                   <div className="agent-name" style={{ fontSize: 15 }}>{agentObj?.name ?? opt.label}</div>
                   <div className="agent-meta">

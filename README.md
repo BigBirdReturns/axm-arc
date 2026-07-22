@@ -4,11 +4,23 @@
 
 The player manages a group of agents — each with attributes, hidden traits, stress, morale, and a relationship web — against structured challenges defined by a portable JSON file called an *arc*. The engine resolves every challenge deterministically. Same seed, same run, every time. No inference, no API, no network.
 
-The first arc is a guild management game. The first raid is Karazhan.
+The first arc is a guild management game. The bundled campaigns are **The First Charter**, **The Waking Tower**, and **The Kind Gods of Ilyon**.
 
 > Swap "guild" for "program office" and "raid boss" for "contract deliverable" and you are modeling any organization facing structured challenges under resource constraints with imperfect information about its own people.
 
 **[Play the tutorial arc](https://bigbirdreturns.github.io/axm-arc/game/)** · [Landing page](https://bigbirdreturns.github.io/axm-arc/) · [Design spec](DESIGN.md)
+
+---
+
+
+## Local-first completion scope
+
+The current browser product is governed by `docs/PARITY_COMPLETION.md`: engine,
+custody, complete reference campaigns, authoring, responsive World expression,
+local pixel/vector assets, bilingual chrome, sensory preferences, and access
+fallbacks are protected by dedicated Arc and World parity workflows. Multiplayer,
+cloud sync, marketplace, publisher signing, cinematic media, and authored-content
+translation packs are separate future products rather than hidden prerequisites.
 
 ---
 
@@ -39,13 +51,13 @@ finished as a game; it is also not the boundary of the system.
 |---|---|---|
 | **Engine** | `src/engine/` | Generic deterministic simulation. Resolver, stress/morale/affliction cascade, relationship state machine, drama event cards, reward distribution (Council mode), infrastructure tick, recruitment, save/load. Content-free — zero imports from `src/arcs/`. |
 | **Arc format** | `src/arcs/` | Portable JSON scenario definitions. The tutorial arc "The First Charter" ships here: 4 attributes, 3 roles, 3 tiers, 6 challenges across 2 progression tiers, 8 items, 6-agent starting roster with a seeded rivalrous pair. |
-| **Authoring + custody** | `src/game/`, `docs/RFC_WORKSHOP.md`, `docs/RFC_CARTRIDGE_LIBRARY.md` | Workshop, Library, validation, digest/profile, import/export, conformance preview, and explicit custody receipts. |
+| **Authoring + custody** | `src/game/`, `docs/RFC_WORKSHOP.md`, `docs/RFC_CARTRIDGE_LIBRARY.md` | Library, Workshop, writable Designer, guided/source Godscar Forge, validation, authoring QA, digest/profile, import/export, simulation, and explicit custody receipts. |
 | **Institutional record** | `src/game/lib/ledger.ts`, `docs/RFC_TIER2_LEDGER_SCHEMA.md` | Append-only committed consequences, compatibility projection, Guild Hall, and Expansion Archive. |
 | **Reference game UI** | `src/game/` | React PWA and proof cartridges used to finish a compelling game while exercising the general model and record contract. |
-| **Tests** | `tests/engine/`, `tests/game/` | 147 tests across 14 files. Engine subsystem tests, resolver edge cases (drop-rate gates, determinism, gear bonus, hostile relationships), schema validation, and a full end-to-end integration test that plays through the tutorial arc. |
+| **Tests** | `tests/engine/`, `tests/game/` | Complete engine, custody, authoring, campaign, localization, sensory, and product-parity suites, including deterministic full-campaign acceptance for all bundled references. |
 | **Landing page** | `docs/index.html` | AXM House Style static page. Live at [bigbirdreturns.github.io/axm-arc](https://bigbirdreturns.github.io/axm-arc/). |
 | **Game (built)** | `docs/game/` | Compiled PWA output. Live at [bigbirdreturns.github.io/axm-arc/game](https://bigbirdreturns.github.io/axm-arc/game/). |
-| **Design spec** | `DESIGN.md` | The full v1.0 design authority document. 1,245 lines covering every system, the arc schema, the Karazhan reference arc, schema stress tests (EQ, FFXIV, OSRS, GW1, XCOM), and the non-game applications of the engine. |
+| **Design spec** | `DESIGN.md` | The full v1.0 design authority document covering every system, the arc schema, the Waking Tower reference arc (legacy internal id `karazhan`), schema stress tests (EQ, FFXIV, OSRS, GW1, XCOM), and the non-game applications of the engine. |
 
 ---
 
@@ -121,12 +133,9 @@ A passing `validateArc()` call guarantees the arc will run on any engine version
 
 ---
 
-## Known issues
+## Current-scope defect posture
 
-Two engine debts tracked here so contributors see them without reading git log:
-
-- **Resolve detection is heuristic.** `headline.ts` detects Resolve events by finding agents with zero stress gained and perfect performance rating on an otherwise stressed roster. The engine should emit an explicit `resolveEvent` field on `RunReport` instead.
-- **Reward-dispute item threading.** The `reward_dispute` drama trigger uses an `item` field (string) rather than `itemId`, inconsistent with the rest of the schema. Low severity but should be normalized when drama card types are next refactored.
+The previous resolve-headline and reward-dispute field mismatches are closed: heroic moments are engine-authored on `RunReport`, and reward disputes carry `itemId`. Current local-first completion is governed by `docs/PARITY_COMPLETION.md`; expansion products remain explicitly separate.
 
 ---
 
@@ -191,7 +200,7 @@ DESIGN.md specifies five schema stress tests proving the engine holds structural
 | Guild Wars 1: GvG | 8v8 PvP | Opposing roster as threshold source (v2) |
 | XCOM / Fire Emblem | 4–12 agents | Permadeath weight, high per-agent stat budgets |
 
-The Karazhan arc (10-to-25 expansion moment) is the designed next arc after The First Charter.
+The Waking Tower is the shipped large-roster stress cartridge after The First Charter; Ilyon proves the Godscar creator grammar on the same engine.
 
 ---
 

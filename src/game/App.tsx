@@ -38,11 +38,14 @@ import { ExpansionArchiveScreen } from "./components/ExpansionArchiveScreen.js";
 import { CountUp } from "../liveness/index.js";
 import { CycleChecklist } from "./components/CycleChecklist.js";
 import { ThresholdBar } from "./components/ThresholdBar.js";
-import { agentInitials } from "./lib/ui-helpers.js";
+import { CartridgePortrait } from "./components/CartridgePortrait.js";
 import { CodexOverlay } from "../codex/index.js";
 import { WhatsNew, CURRENT_BUILD } from "../release-notes/index.js";
 import { t, useLocale, type MessageId } from "../i18n/index.js";
 import { LocaleSwitcher } from "../i18n/LocaleSwitcher.js";
+import { SensorySwitcher } from "./components/SensorySwitcher.js";
+import { playArcPresentationCue } from "./lib/sensory-prefs.js";
+import { CartridgeEmblem, cartridgeThemeScope } from "./cartridge-theme.js";
 import {
   exportPortableRunToJson,
   readHubTurnCheckpoint,
@@ -166,6 +169,17 @@ export function App(): JSX.Element {
     try { localStorage.setItem(THEME_KEY, theme); } catch { /* noop */ }
   }, [theme]);
 
+  // Bundled cartridges may carry a local presentation identity. Unknown or
+  // imported Arcs deliberately receive no scope and keep the neutral house
+  // style; changing presentation never changes authored or run state.
+  useEffect(() => {
+    const root = document.documentElement;
+    const scope = cartridgeThemeScope(arc.meta.id);
+    if (scope) root.setAttribute("data-cartridge", scope);
+    else root.removeAttribute("data-cartridge");
+    return () => root.removeAttribute("data-cartridge");
+  }, [arc.meta.id]);
+
   useEffect(() => {
     const result = saveSave(
       org,
@@ -223,6 +237,7 @@ export function App(): JSX.Element {
     anchor.remove();
     URL.revokeObjectURL(url);
     setRunExportMessage(t("save.exported", { file: payload.filename }));
+    playArcPresentationCue("record", arc.meta.id);
   };
 
   const restoreClientState = (nextArc: Arc): void => {
@@ -243,6 +258,7 @@ export function App(): JSX.Element {
     setCycleTransition(null);
     setRunExportMessage(null);
     setTab(nextOrg.dramaQueue.length > 0 ? "Drama" : "Assign");
+    playArcPresentationCue("enter", nextArc.meta.id);
   };
 
   const startFresh = (nextArc: Arc): void => {
@@ -258,6 +274,7 @@ export function App(): JSX.Element {
     setCycleTransition(null);
     setRunExportMessage(null);
     setTab("Drama");
+    playArcPresentationCue("enter", nextArc.meta.id);
   };
 
   // ── Tutorial: step derived from game state ──────────────────────────────
@@ -312,6 +329,13 @@ export function App(): JSX.Element {
     setRewardDecisions([]);
     setAssignments([]);
     setCycleTransition({ fromCycle, toCycle: result.org.cycle });
+    const outcomes = result.reports.map((report) => report.outcome);
+    const cue = outcomes.some((outcome) => outcome === "failure")
+      ? "cycle-failure"
+      : outcomes.some((outcome) => outcome === "partial")
+        ? "cycle-partial"
+        : "cycle-success";
+    playArcPresentationCue(cue, arc.meta.id);
   };
 
   const resetGame = () => {
@@ -481,6 +505,13 @@ export function App(): JSX.Element {
     </>
   );
 
+  const standaloneControls = (
+    <div className="standalone-presentation-controls">
+      <SensorySwitcher />
+      <LocaleSwitcher />
+    </div>
+  );
+
   if (mode === "title") {
     return (
       <TitleScreen
@@ -511,16 +542,16 @@ export function App(): JSX.Element {
   }
 
   if (mode === "designer") {
-    return <DesignerScreen arc={arc} onBack={() => setMode("title")} />;
+    return <>{standaloneControls}<DesignerScreen arc={arc} onBack={() => setMode("title")} onOpenWorkshop={() => setMode("workshop")} /></>;
   }
 
   if (mode === "workshop") {
-    return <WorkshopScreen onBack={() => setMode("title")} onOpenLibrary={() => setMode("library")} />;
+    return <>{standaloneControls}<WorkshopScreen onBack={() => setMode("title")} onOpenLibrary={() => setMode("library")} /></>;
   }
 
   if (mode === "godscar") {
     return (
-      <GodscarForgeScreen
+      <>{standaloneControls}<GodscarForgeScreen
         onBack={() => setMode("title")}
         onOpenLibrary={() => setMode("library")}
         onPlayArc={(nextArc) => {
@@ -529,25 +560,25 @@ export function App(): JSX.Element {
           restoreClientState(nextArc);
           setMode("title");
         }}
-      />
+      /></>
     );
   }
 
   if (mode === "raidnight") {
-    return <RaidNightScreen onBack={() => setMode("title")} />;
+    return <>{standaloneControls}<RaidNightScreen onBack={() => setMode("title")} /></>;
   }
 
   if (mode === "guildhall") {
-    return <GuildHallScreen onBack={() => setMode("title")} />;
+    return <>{standaloneControls}<GuildHallScreen onBack={() => setMode("title")} /></>;
   }
 
   if (mode === "archive") {
-    return <ExpansionArchiveScreen onBack={() => setMode("title")} onOpenLibrary={() => setMode("library")} />;
+    return <>{standaloneControls}<ExpansionArchiveScreen onBack={() => setMode("title")} onOpenLibrary={() => setMode("library")} /></>;
   }
 
   if (mode === "library") {
     return (
-      <LibraryScreen
+      <>{standaloneControls}<LibraryScreen
         arc={arc}
         onBack={() => setMode("title")}
         onOpenArchive={() => setMode("archive")}
@@ -565,7 +596,7 @@ export function App(): JSX.Element {
           restoreClientState(nextArc);
           setMode("title");
         }}
-      />
+      /></>
     );
   }
 
@@ -616,7 +647,8 @@ export function App(): JSX.Element {
       <header className="app-header">
         <div className="top-row">
           <div className="kicker">{t("header.situationRoom", { cycle: String(org.cycle).padStart(2, "0") })}</div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+            <SensorySwitcher />
             <LocaleSwitcher />
             <button
               className="codex-trigger"
@@ -640,7 +672,10 @@ export function App(): JSX.Element {
             </div>
           </div>
         </div>
-        <h1>{arc.meta.name}</h1>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <CartridgeEmblem arcId={arc.meta.id} size={28} />
+          <h1>{arc.meta.name}</h1>
+        </div>
         <div className="subtitle">
           {t("header.subtitle", { domain: arc.meta.domain, cleared: cleared.size, total: arc.challenges.length, build: BUILD_SHA })}
         </div>
@@ -718,7 +753,7 @@ export function App(): JSX.Element {
             return (
               <div key={a.id} className="card" style={{ cursor: "default" }}>
                 <div className="row" style={{ gap: 8 }}>
-                  <div className={`portrait${a.stress >= 8 ? " accent" : ""}`}>{agentInitials(a.name)}</div>
+                  <CartridgePortrait arcId={arc.meta.id} roleId={a.role} name={a.name} className={a.stress >= 8 ? "accent" : ""} />
                   <div style={{ flex: 1, overflow: "hidden" }}>
                     <div className="agent-name">{a.name}</div>
                     <div className="agent-meta">{role?.name ?? "Flex"}</div>

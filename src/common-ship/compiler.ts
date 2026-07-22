@@ -1,246 +1,209 @@
+import "../engine/abi13.js";
 import type {
-  Arc,
-  ArcAttribute,
-  ArcRole,
-  ArcTier,
-  Challenge,
-  FoundingFacility,
-  JsonValue,
-  MechanicCheck,
-} from "../engine/types.js";
+  CartridgeStateDefinition,
+  CartridgeStateEffect,
+  CompositionConstraint,
+  CompositionProfile,
+} from "../engine/abi13.js";
+import type { Arc } from "../engine/types.js";
 import { validateArc } from "../engine/schema.js";
-import { parseCommonShipPocket } from "./schema.js";
 import {
-  COMMON_SHIP_EXTENSION_KEY,
-  type CommonShipPocketSource,
-  type CommonShipWatchBlueprint,
-} from "./types.js";
+  compileCommonShipPocket as compileBaseCommonShipPocket,
+} from "./compiler-base.js";
+import { parseCommonShipPocket } from "./schema.js";
+import type { CommonShipEmbodimentProfile, CommonShipPocketSourceV2 } from "./embodiment.js";
+import { COMMON_SHIP_EXTENSION_KEY } from "./types.js";
 
-const ATTRIBUTES: ArcAttribute[] = [
-  { id: "care", name: "Care", description: "Keep bodies, ordinary goods, recovery, and consent visible inside operational decisions." },
-  { id: "systems", name: "Systems", description: "Read and maintain habitat, transit, stores, interfaces, and compatibility dependencies." },
-  { id: "translation", name: "Translation", description: "Preserve meaning, tempo, sensorium, provenance, and refusal across incompatible persons." },
-  { id: "continuity", name: "Continuity", description: "Carry memory, kinship, standing, and unfinished obligations across watches and generations." },
-  { id: "judgment", name: "Judgment", description: "Separate physical urgency from institutional pressure and choose bounded authority under uncertainty." },
-  { id: "resolve", name: "Resolve", description: "Act before the decision horizon closes while accepting that the ship will inherit the precedent." },
-];
+function profileFor(source: CommonShipEmbodimentProfile): CompositionProfile {
+  const metrics: Record<string, number> = {
+    "occupied-volume-m3": source.scale.occupiedVolumeCubicMeters,
+    "minimum-passage-m": source.scale.minimumPassageMeters,
+  };
+  if (source.scale.typicalHeightMeters !== null) metrics["height-m"] = source.scale.typicalHeightMeters;
+  if (source.scale.typicalMassKg !== null) metrics["mass-kg"] = source.scale.typicalMassKg;
+  if (source.scale.reachMeters !== null) metrics["reach-m"] = source.scale.reachMeters;
 
-const ROLES: ArcRole[] = [
-  { id: "response", name: "Response", attributeWeights: { care: 0.05, systems: 0.15, translation: 0.05, continuity: 0.1, judgment: 0.25, resolve: 0.4 } },
-  { id: "mediation", name: "Mediation", attributeWeights: { care: 0.2, systems: 0.05, translation: 0.35, continuity: 0.1, judgment: 0.2, resolve: 0.1 } },
-  { id: "analysis", name: "Analysis", attributeWeights: { care: 0.05, systems: 0.2, translation: 0.15, continuity: 0.15, judgment: 0.4, resolve: 0.05 } },
-  { id: "maintenance", name: "Maintenance", attributeWeights: { care: 0.15, systems: 0.45, translation: 0.05, continuity: 0.15, judgment: 0.1, resolve: 0.1 } },
-  { id: "care", name: "Care", attributeWeights: { care: 0.45, systems: 0.05, translation: 0.15, continuity: 0.15, judgment: 0.1, resolve: 0.1 } },
-  { id: "continuity", name: "Continuity", attributeWeights: { care: 0.1, systems: 0.1, translation: 0.15, continuity: 0.4, judgment: 0.2, resolve: 0.05 } },
-];
+  const ranges: CompositionProfile["ranges"] = {
+    "temperature-c": { ...source.environment.temperatureC },
+    "gravity-g": { ...source.environment.gravityG },
+  };
+  if (source.environment.pressureKPa) ranges["pressure-kpa"] = { ...source.environment.pressureKPa };
 
-const TIERS: ArcTier[] = [
-  { id: "resident", name: "Ship Resident", statBudgetMin: 40, statBudgetMax: 48, upkeepCost: 1, baseEfficiencyModifier: 1.15 },
-  { id: "watch", name: "Watch Officer", statBudgetMin: 46, statBudgetMax: 54, upkeepCost: 2, baseEfficiencyModifier: 1.05 },
-  { id: "sovereign", name: "Sovereign Exception", statBudgetMin: 52, statBudgetMax: 60, upkeepCost: 3, baseEfficiencyModifier: 0.95 },
-];
-
-const FACILITIES: FoundingFacility[] = [
-  { type: "Quarters", level: 1 },
-  { type: "Production", level: 1 },
-  { type: "Recreation", level: 1 },
-  { type: "Research", level: 1 },
-  { type: "Training", level: 0 },
-  { type: "Storage", level: 1 },
-  { type: "Medical", level: 1 },
-];
-
-function mechanicFor(check: CommonShipWatchBlueprint["checks"][number]): MechanicCheck {
-  const weights = Object.entries(check.weights)
-    .filter((entry): entry is [string, number] => entry[1] !== undefined)
-    .map(([attributeId, weight]) => ({ attributeId, weight }));
   return {
-    id: check.id,
-    name: check.name,
-    description: check.description,
-    attributeWeights: weights,
-    difficultyThreshold: check.threshold,
-    scope: check.scope === "team" ? "team_aggregate" : check.scope === "role" ? "role_specific" : "per_agent",
-    ...(check.scope === "team" ? { thresholdMode: "perAssignedAgent" as const } : {}),
-    ...(check.scope === "role" ? { roleIds: check.roleIds } : {}),
-    failureConsequence: { type: check.failureType ?? "stress", severity: check.severity ?? 0.2 },
+    id: source.id,
+    name: source.name,
+    description: source.description,
+    tags: [
+      `profile:${source.id}`,
+      `scale:${source.scale.class}`,
+      `medium:${source.environment.medium}`,
+      "environment-profiled",
+      "translation-path",
+      "continuity-profiled",
+      "life-fraction-accounted",
+      ...(source.scale.class === "distributed" ? ["distributed-person"] : []),
+    ],
+    metrics,
+    ranges,
+    dependencies: [...new Set([
+      ...source.environment.dependencies,
+      ...source.lineageDependencies,
+    ])],
   };
 }
 
-function challengeFor(watch: CommonShipWatchBlueprint): Challenge {
-  const stateReceipt = watch.shipStateEffects
-    .map((effect) => `${effect.track} ${effect.delta > 0 ? "+" : ""}${effect.delta}: ${effect.reason}`)
-    .join(" · ");
+function requiredProfilesConstraint(
+  watchId: string,
+  requiredProfileIds: string[],
+  category: string,
+  label: string,
+): CompositionConstraint {
   return {
-    id: watch.id,
-    name: watch.name,
-    description: `${watch.description} Decision horizon: ${watch.horizon.closesWhen}`,
-    rosterRequirements: {
-      minAgents: watch.minAgents,
-      maxAgents: watch.maxAgents,
-      roleRequirements: watch.requiredRoles ?? [],
-    },
-    accessRequirements: {
-      orgMilestones: watch.accessAfter ? [`${watch.accessAfter}-cleared`] : [],
-      agentAttunements: [],
-      attunementThreshold: null,
-    },
-    difficultyRating: watch.difficulty,
-    mechanicChecks: watch.checks.map(mechanicFor),
-    completionCriteria: { type: "all_mechanics_passed", parameters: {} },
-    timePressure: null,
-    resourceSpend: { maxTokens: 1, steadinessPerToken: 0.25, minSteadiness: 0.7 },
-    outcomes: {
-      success: {
-        rewardTable: [],
-        narrative: `${watch.success} ${stateReceipt}`,
-        reputationGain: watch.reputationGain,
-        currencyReward: watch.currencyReward,
-        milestoneFlag: `${watch.id}-cleared`,
-      },
-      partial: {
-        rewardTable: [],
-        narrative: `${watch.partial} ${stateReceipt}`,
-        reputationGain: Math.max(0, watch.reputationGain - 1),
-        agentDowntimeCycles: 1,
-      },
-      failure: {
-        rewardTable: [],
-        narrative: `${watch.failure} ${stateReceipt}`,
-        stressPenalty: 2,
-        tokenRefund: 0.5,
-      },
-    },
+    id: `${watchId}:${category}`,
+    label,
+    category,
+    kind: "all",
+    constraints: requiredProfileIds.map((profileId) => ({
+      id: `${watchId}:${category}:${profileId}`,
+      label: `Represent ${profileId}`,
+      category,
+      kind: "profile-count" as const,
+      profileIds: [profileId],
+      min: 1,
+    })),
   };
+}
+
+function constraintsFor(
+  source: CommonShipPocketSourceV2,
+  watch: CommonShipPocketSourceV2["watches"][number],
+): CompositionConstraint[] {
+  const roleChildren: CompositionConstraint[] = (watch.requiredRoles ?? []).map((requirement) => ({
+    id: `${watch.id}:role-coverage:${requirement.roleId}`,
+    label: `Cover ${requirement.roleId}`,
+    category: "role-coverage",
+    kind: "role-count",
+    roleId: requirement.roleId,
+    min: requirement.count,
+  }));
+  const roleCoverage: CompositionConstraint = roleChildren.length > 0
+    ? {
+        id: `${watch.id}:role-coverage`,
+        label: "Role coverage",
+        category: "role-coverage",
+        kind: "all",
+        constraints: roleChildren,
+      }
+    : {
+        id: `${watch.id}:role-coverage`,
+        label: "Role coverage",
+        category: "role-coverage",
+        kind: "tag-count",
+        tag: "environment-profiled",
+        min: watch.minAgents,
+      };
+
+  const required = watch.profiles.requiredProfileIds;
+  const minimumRedundancy = Math.min(2, Math.max(1, watch.minAgents));
+  return [
+    roleCoverage,
+    requiredProfilesConstraint(watch.id, required, "temporal-overlap", "Temporal overlap"),
+    requiredProfilesConstraint(watch.id, required, "habitat-compatibility", "Habitat compatibility"),
+    {
+      id: `${watch.id}:translation-resilience`,
+      label: "Translation resilience",
+      category: "translation-resilience",
+      kind: "redundancy",
+      tag: "translation-path",
+      minDistinctProfiles: minimumRedundancy,
+    },
+    {
+      id: `${watch.id}:handoff-continuity`,
+      label: "Handoff continuity",
+      category: "handoff-continuity",
+      kind: "tag-count",
+      tag: "continuity-profiled",
+      min: watch.minAgents,
+    },
+    {
+      id: `${watch.id}:life-fraction-fairness`,
+      label: "Life-fraction fairness",
+      category: "life-fraction-fairness",
+      kind: "fraction",
+      tag: "life-fraction-accounted",
+      minFraction: 1,
+    },
+  ];
+}
+
+function stateDefinitions(source: CommonShipPocketSourceV2): CartridgeStateDefinition[] {
+  return source.shipState.map((track) => ({
+    id: track.kind,
+    label: track.kind.split("-").map((part) => part[0]!.toUpperCase() + part.slice(1)).join(" "),
+    description: track.description,
+    visibility: "public" as const,
+    kind: "number" as const,
+    initial: track.value,
+    min: 0,
+    max: 4,
+  }));
+}
+
+function stateEffects(
+  watch: CommonShipPocketSourceV2["watches"][number],
+): CartridgeStateEffect[] {
+  return watch.shipStateEffects.map((effect) => ({
+    stateId: effect.track,
+    reason: effect.reason,
+    operation: effect.delta >= 0 ? "increment" as const : "decrement" as const,
+    value: Math.abs(effect.delta),
+    overflow: "clamp" as const,
+  }));
 }
 
 export function compileCommonShipPocket(input: unknown): Arc {
   const source = parseCommonShipPocket(input);
-  const watchesByTier = (tier: CommonShipWatchBlueprint["tierId"]) =>
-    source.watches.filter((watch) => watch.tierId === tier).map((watch) => watch.id);
-  const finalWatch = source.watches[source.watches.length - 1]!;
-  const tierFor = (responsibility: CommonShipPocketSource["cast"][number]["responsibility"]): string => {
-    if (responsibility === "sovereign-exception") return "sovereign";
-    if (responsibility === "understands-maintenance-reality" || responsibility === "translates-excluded-actor") return "watch";
-    return "resident";
-  };
+  const base = compileBaseCommonShipPocket(source);
+  const castById = new Map(source.cast.map((member) => [member.id, member]));
+  const watchById = new Map(source.watches.map((watch) => [watch.id, watch]));
 
   const arc: Arc = {
-    meta: {
-      id: source.identity.id,
-      name: source.identity.title,
-      description: source.identity.description,
-      author: source.identity.author,
-      version: source.identity.version,
-      engineVersion: "1.2.0",
-      domain: "godscar-common-ship",
-      estimatedCycles: source.identity.estimatedCycles,
-    },
-    attributes: ATTRIBUTES,
-    roles: ROLES,
-    tiers: TIERS,
-    currencyName: "Common Standing",
-    materialName: "Stores",
-    tokenName: "Watch",
-    reputationName: "Trust",
-    tokensPerCycle: 2,
-    maxTokens: 6,
-    infrastructureTokenBonus: 0.1,
-    namePool: {
-      firstNames: source.cast.map((member) => member.name.split(/\s+/)[0]!).filter(Boolean),
-      lastNames: source.cast.map((member) => member.name.split(/\s+/).slice(1).join(" ")).filter(Boolean),
-    },
-    customTraits: [],
-    progressionTiers: [
-      {
-        id: "ordinary-life",
-        name: "Ordinary Life",
-        flavorText: "The school, meal, family, recovery cycle, or private habitat establishes what operation is supposed to preserve.",
-        unlockConditions: { orgMilestones: [], reputationMinimum: null },
-        challenges: watchesByTier("ordinary-life"),
-        requiredChallenges: watchesByTier("ordinary-life"),
-        optionalChallenges: [],
-      },
-      {
-        id: "compose-watch",
-        name: "Compose the Watch",
-        flavorText: "Roles, bodies, clocks, habitats, translators, reserves, and absences are assembled into a temporary polity.",
-        unlockConditions: { orgMilestones: watchesByTier("ordinary-life").slice(-1).map((id) => `${id}-cleared`), reputationMinimum: null },
-        challenges: watchesByTier("compose-watch"),
-        requiredChallenges: watchesByTier("compose-watch"),
-        optionalChallenges: [],
-      },
-      {
-        id: "resolve-pressure",
-        name: "Resolve the Pressure",
-        flavorText: "The watch acts before classification becomes certain and changes the ship state through a concrete allocation.",
-        unlockConditions: { orgMilestones: watchesByTier("compose-watch").slice(-1).map((id) => `${id}-cleared`), reputationMinimum: null },
-        challenges: watchesByTier("resolve-pressure"),
-        requiredChallenges: watchesByTier("resolve-pressure"),
-        optionalChallenges: [],
-      },
-      {
-        id: "handoff",
-        name: "Handoff and Precedent",
-        flavorText: "Dissent, injury, debt, promises, missing persons, and uncertainty become the infrastructure inherited by the next watch.",
-        unlockConditions: { orgMilestones: watchesByTier("resolve-pressure").slice(-1).map((id) => `${id}-cleared`), reputationMinimum: null },
-        challenges: watchesByTier("handoff"),
-        requiredChallenges: watchesByTier("handoff"),
-        optionalChallenges: [],
-      },
-    ],
-    attunementChains: [],
-    challenges: source.watches.map(challengeFor),
-    difficultyModes: [],
-    items: [],
-    narrativeEvents: [{
-      trigger: { type: "arc_complete", target: finalWatch.id },
-      title: "The next watch inherits the ship",
-      text: `The immediate horizon is closed, but the prior constitution cannot be restored. ${source.controlQuestion}`,
-      rewards: source.consequences.map((consequence) => consequence.label),
-      agentUnlock: null,
-    }],
-    scaling: null,
-    opening: {
-      triggerType: "common-ship-pocket-opening",
-      narrativeText: source.controlQuestion,
-      options: [
-        {
-          id: "mark-the-baseline",
-          label: "Mark the baseline",
-          description: "Name the host body, clock, interface, and adaptation tax before composing the first watch.",
-          effects: [{ scope: "all", type: "loyalty", value: 6 }],
+    ...base,
+    meta: { ...base.meta, engineVersion: "1.3.0" },
+    stateDefinitions: stateDefinitions(source),
+    compositionProfiles: source.embodimentProfiles.map(profileFor),
+    founding: base.founding
+      ? {
+          ...base.founding,
+          roster: base.founding.roster.map((slot) => {
+            const member = castById.get(slot.id);
+            if (!member) throw new Error(`Common Ship founding slot ${slot.id} has no cast profile.`);
+            return { ...slot, compositionProfileId: member.profileId };
+          }),
+        }
+      : undefined,
+    challenges: base.challenges.map((challenge) => {
+      const watch = watchById.get(challenge.id);
+      if (!watch) throw new Error(`Common Ship challenge ${challenge.id} has no watch source.`);
+      return {
+        ...challenge,
+        compositionConstraints: constraintsFor(source, watch),
+        outcomes: {
+          success: {
+            ...challenge.outcomes.success,
+            narrative: watch.success,
+            stateEffects: stateEffects(watch),
+          },
+          partial: { ...challenge.outcomes.partial, narrative: watch.partial },
+          failure: { ...challenge.outcomes.failure, narrative: watch.failure },
         },
-        {
-          id: "accept-the-emergency-baseline",
-          label: "Accept the emergency baseline",
-          description: "Use the inherited standard for the immediate horizon while preserving the obligation to audit and revise it afterward.",
-          effects: [{ scope: "all", type: "morale", value: 6 }],
-        },
-      ],
-    },
-    founding: {
-      organization: { id: `${source.identity.id}-commonship`, name: source.identity.title },
-      resources: { currency: 80, materials: 40, tokens: 4 },
-      facilities: FACILITIES,
-      distributionPolicy: "council",
-      roster: source.cast.map((member) => ({
-        id: member.id,
-        name: member.name,
-        tierId: tierFor(member.responsibility),
-        roleId: member.roleId,
-        morale: member.responsibility === "depends-on-host-baseline" ? 68 : member.responsibility === "bears-adaptation-tax" ? 52 : 62,
-      })),
-      relationships: [],
-    },
-    extensions: { [COMMON_SHIP_EXTENSION_KEY]: source as unknown as JsonValue },
+      };
+    }),
   };
-
   return validateArc(arc);
 }
 
-export function readCommonShipPocketExtension(arc: Arc): CommonShipPocketSource | null {
+export function readCommonShipPocketExtension(arc: Arc): CommonShipPocketSourceV2 | null {
   const value = arc.extensions?.[COMMON_SHIP_EXTENSION_KEY];
-  if (value === undefined) return null;
-  return parseCommonShipPocket(value);
+  return value === undefined ? null : parseCommonShipPocket(value);
 }

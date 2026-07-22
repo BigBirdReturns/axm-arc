@@ -187,9 +187,9 @@ describe("validateArc", () => {
     expect(() => validateArc(minimalArc({
       meta: {
         ...(minimalArc() as { meta: Record<string, unknown> }).meta,
-        engineVersion: "1.3.0",
+        engineVersion: "1.4.0",
       },
-    }))).toThrow(/requires engine 1\.3\.0.*provides 1\.2\.0/);
+    }))).toThrow(/requires engine 1\.4\.0.*provides 1\.3\.0/);
     expect(() => validateArc(minimalArc({
       meta: {
         ...(minimalArc() as { meta: Record<string, unknown> }).meta,

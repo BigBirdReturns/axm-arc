@@ -58,14 +58,13 @@ jobs:
           base64 --decode "${RUNNER_TEMP}/arc-parity.patch.gz.b64" > "${RUNNER_TEMP}/arc-parity.patch.gz"
           gzip -dc "${RUNNER_TEMP}/arc-parity.patch.gz" > "${RUNNER_TEMP}/arc-parity.patch"
           test "$(sha256sum "${RUNNER_TEMP}/arc-parity.patch" | cut -d' ' -f1)" = "${EXPECTED_PATCH_SHA256}"
-          git apply --check "${RUNNER_TEMP}/arc-parity.patch"
-          git apply --index "${RUNNER_TEMP}/arc-parity.patch"
+          git apply --exclude=.github/workflows/product-parity.yml --check "${RUNNER_TEMP}/arc-parity.patch"
+          git apply --exclude=.github/workflows/product-parity.yml --index "${RUNNER_TEMP}/arc-parity.patch"
 
-      - name: Remove publication machinery
+      - name: Remove payload carrier
         run: |
           rm -f .github/parity/arc-payload.part00
           rmdir .github/parity 2>/dev/null || true
-          rm -f .github/workflows/apply-arc-parity.yml
           git add -A
 
       - name: Install dependencies

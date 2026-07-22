@@ -1,0 +1,32 @@
+name: Gate 1 diagnostics
+
+on:
+  push:
+    branches: [codex/gate1-engine-13]
+
+permissions:
+  contents: read
+
+jobs:
+  diagnostics:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Capture TypeScript diagnostics
+        run: |
+          set +e
+          npx tsc --noEmit > gate1-tsc.txt 2>&1
+          code=$?
+          echo "$code" > gate1-tsc-exit.txt
+          exit 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gate1-diagnostics
+          path: |
+            gate1-tsc.txt
+            gate1-tsc-exit.txt

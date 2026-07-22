@@ -1,16 +1,26 @@
 name: Apply Arc parity publication
 
 on:
-  push:
+  pull_request:
     branches:
-      - agent/local-first-product-parity
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
 
 permissions:
   contents: write
   issues: read
+  pull-requests: read
+
+concurrency:
+  group: arc-parity-publication
+  cancel-in-progress: false
 
 jobs:
   apply:
+    if: github.head_ref == 'agent/local-first-product-parity'
     runs-on: ubuntu-latest
     steps:
       - name: Check out publication branch

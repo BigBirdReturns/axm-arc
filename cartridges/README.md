@@ -24,7 +24,10 @@ a cartridge here, validate it (e.g. by running `importArcFromJson` against
 the file text via `vite-node`, with a `localStorage` shim if running outside
 a browser) and confirm it returns `ok: true` with zero errors.
 
-
 ## Godscar reference pocket
 
 `kind-gods-of-ilyon.pocket.json` is the creator-owned six-pressure source. `kind-gods-of-ilyon.arc.json` is the exact compiled cartridge accepted by Arc and Rodoh. Rebuild both with `npm run build:godscar-reference`.
+
+## Dark Tomb source plane
+
+Book II is encoded under `src/dark-tomb/` as `dark-tomb-pocket/1`. It reuses Book I's canon tiers, evidence ledger, provenance, and faction receipts, then adds the eight-pressure Tomb Engine, seven-layer anatomy, five-dimensional depth vector, signature budget, Long Alarm, expedition ledger, Book II cast responsibilities, and ten Story Physics invariants. The private-branch `DARK_TOMB_STARTER` is a compiler fixture and authoring seed, not a canonical cartridge. See `docs/DARK_TOMB_POCKET_FORMAT.md`.

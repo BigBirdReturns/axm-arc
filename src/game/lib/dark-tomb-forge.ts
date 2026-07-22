@@ -1,4 +1,5 @@
 import type { Arc } from "../../engine/types.js";
+import { foundOrganization } from "../../engine/founding.js";
 import type { DarkTombPocketSource } from "../../dark-tomb/types.js";
 import { DARK_TOMB_STARTER } from "../../dark-tomb/templates.js";
 import { LAMP_DISTRICT_SOURCE } from "../../dark-tomb/lamp-district.js";
@@ -125,7 +126,11 @@ export function playtestDarkTombArc(
   let worstCycles = 0;
   let gateViolations = 0;
   for (const seed of seeds) {
-    const result = simulateArcRun(arc, { seed, maxCycles });
+    const initialOrganization = foundOrganization(
+      arc,
+      { format: "axm-founding-input/1", seed },
+    );
+    const result = simulateArcRun(arc, { seed, maxCycles, initialOrganization });
     if (result.outcome === "cleared") cleared++;
     else failed++;
     worstCycles = Math.max(worstCycles, result.cyclesPlayed);

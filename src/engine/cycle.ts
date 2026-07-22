@@ -8,7 +8,7 @@ import {
   type PendingRewardChoice,
   type RewardDecision,
 } from "./cycle-base.js";
-import { orderRecordKeysDeep } from "./determinism.js";
+import { compareCodepoints, orderRecordKeysDeep } from "./determinism.js";
 import { applyCartridgeStateEffects, initializeCartridgeState } from "./state.js";
 import type { Agent, Arc, Organization, RunReport } from "./types.js";
 
@@ -30,9 +30,15 @@ function eligibleAgents(org: Organization, assignment: ChallengeAssignment): Age
   return out;
 }
 
+function reportStateOrderKey(report: RunReport): string {
+  const agents = report.assignedAgents.map((agent) => agent.agentId).sort(compareCodepoints).join(",");
+  return `${report.challengeId}\u0000${agents}\u0000${report.outcome}`;
+}
+
 /** Engine-1.3 cycle wrapper. Composition is refused before token debit. State
  * effects are applied atomically after the cycle's simultaneously resolved
- * reports, in canonical report order, and are carried on the exact report. */
+ * reports, in canonical challenge-and-party order, and are carried on the exact
+ * originating report. */
 export function runCycle(opts: {
   org: Organization;
   arc: Arc;
@@ -72,12 +78,16 @@ export function runCycle(opts: {
 
   let org = base.org;
   const events: CycleEvent[] = [...base.events];
-  const reports: RunReport[] = [];
-  for (const report of base.reports) {
+  const enriched = new Map<RunReport, RunReport>();
+  const stateOrder = [...base.reports].sort((left, right) =>
+    compareCodepoints(reportStateOrderKey(left), reportStateOrderKey(right))
+  );
+
+  for (const report of stateOrder) {
     const challenge = opts.arc.challenges.find((candidate) => candidate.id === report.challengeId);
     const effects = challenge?.outcomes[report.outcome].stateEffects ?? [];
     if (effects.length === 0) {
-      reports.push(report);
+      enriched.set(report, report);
       continue;
     }
     const applied = applyCartridgeStateEffects({
@@ -87,7 +97,7 @@ export function runCycle(opts: {
       source: { challengeId: report.challengeId, outcome: report.outcome, cycle: report.cycle },
     });
     org = applied.org;
-    reports.push({ ...report, stateChanges: applied.changes });
+    enriched.set(report, { ...report, stateChanges: applied.changes });
     for (const change of applied.changes) {
       events.push({ type: "cartridge_state_change", data: change });
     }
@@ -96,7 +106,7 @@ export function runCycle(opts: {
   return orderRecordKeysDeep({
     ...base,
     org,
-    reports,
+    reports: base.reports.map((report) => enriched.get(report) ?? report),
     events,
     warnings: [...compositionWarnings, ...base.warnings],
   });

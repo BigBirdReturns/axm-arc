@@ -57,7 +57,7 @@ finished as a game; it is also not the boundary of the system.
 | **Tests** | `tests/engine/`, `tests/game/` | Complete engine, custody, authoring, campaign, localization, sensory, and product-parity suites, including deterministic full-campaign acceptance for all bundled references. |
 | **Landing page** | `docs/index.html` | AXM House Style static page. Live at [bigbirdreturns.github.io/axm-arc](https://bigbirdreturns.github.io/axm-arc/). |
 | **Game (built)** | `docs/game/` | Compiled PWA output. Live at [bigbirdreturns.github.io/axm-arc/game](https://bigbirdreturns.github.io/axm-arc/game/). |
-| **Design spec** | `DESIGN.md` | The full v1.0 design authority document covering every system, the arc schema, the Waking Tower reference arc (legacy internal id `karazhan`), schema stress tests (EQ, FFXIV, OSRS, GW1, XCOM), and the non-game applications of the engine. |
+| **Design authority** | `DESIGN.md`, `docs/WAKING_TOWER_DESIGN_AUTHORITY.md` | The system design authority plus the explicit Waking Tower player-facing, compatibility-id, World-projection, and change-control boundary. |
 
 ---
 

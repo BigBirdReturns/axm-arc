@@ -36,9 +36,7 @@ jobs:
         run: npm run build:dark-tomb-reference
       - name: TypeScript
         run: npm run typecheck 2>&1 | tee gate3-typecheck.log
-      - name: Complete tests
-        id: tests
-        continue-on-error: true
+      - name: Complete tests from authored founding law
         run: |
           set -o pipefail
           npm test 2>&1 | tee gate3-tests.log
@@ -51,9 +49,6 @@ jobs:
             gate3-typecheck.log
             gate3-tests.log
           if-no-files-found: warn
-      - name: Preserve test status
-        if: steps.tests.outcome == 'failure'
-        run: exit 1
       - run: npm run build
       - name: Publish verified application integration
         run: |

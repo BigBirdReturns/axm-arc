@@ -234,18 +234,42 @@ No executable plugin code is accepted. The extension remains JSON-safe, namespac
 
 `readDarkTombPocketExtension()` recovers and revalidates the embedded source.
 
-## Authoring seed
+## Private authoring seed
 
-`src/dark-tomb/templates.ts` exports `DARK_TOMB_STARTER`, a structurally complete **private-branch** seed. It is not a canonical setting or the first Book II campaign. Its purpose is to demonstrate every required field and provide a deterministic compiler fixture without prematurely deciding the Lamp District, Kesh, or any other reference cartridge.
+`src/dark-tomb/templates.ts` exports `DARK_TOMB_STARTER`, a structurally complete **private-branch** seed. It demonstrates every required field and remains available as the neutral starting point for a new Tomb.
+
+## Canonical reference: The Lamp District
+
+`src/dark-tomb/lamp-district.ts` is the canonical Book II reference source. It compiles into the bundled `LAMP_DISTRICT` Arc and the portable artifacts:
+
+- `cartridges/lamp-district.tomb.json`;
+- `cartridges/lamp-district.arc.json`.
+
+The eight authored movements carry the player from school-lamp rationing and reservoir authority through the drainage liturgy, sleeping market, dormant war lattice, surface-sacrifice policy, clinic heat return, and a public redrawing of the district map. A completed run leaves the Alarm awake, the signature breached, the Tomb exposed, and all eight civic consequences recorded in engine-owned state.
+
+Rebuild the artifacts with `npm run build:dark-tomb-reference`. Source, compiled Arc, artifacts, full-campaign reachability, exact named cast, and final state inheritance are permanent tests.
+
+## Dark Tomb Forge
+
+The browser product exposes a dedicated Dark Tomb Forge with guided and exact-source modes over the same `dark-tomb-pocket/1` object. It can:
+
+- start from the private Book II seed;
+- load The Lamp District;
+- edit identity, pressures, evidence, Alarm, signature budget, layers, depth, cast, consequences, delves, expedition ledgers, checks, and Story Physics;
+- preserve a local exact draft;
+- validate and compile through the canonical source-plane registry;
+- run bounded deterministic campaign sweeps;
+- install the compiled Arc;
+- export source and compiled artifacts;
+- open the cartridge in the ordinary player.
 
 ## Current boundary
 
-This source plane now compiles its persistent Tomb state through engine 1.3. It does **not** yet claim:
+Gate 3 completes the Arc-side canonical Dark Tomb reference and authoring product. It does **not** yet claim:
 
-- a canonical Dark Tomb reference campaign;
-- a dedicated guided Tomb Forge UI;
-- a World Underworld receiver or visual plane;
-- Lamp District or *The Bird Over Kesh* acceptance;
-- final art, map, wake, Alarm, or hub presentation.
+- a dedicated World Underworld receiver or visual plane;
+- the Lamp District spatial hub, layered map, and browser journey;
+- final production art, map, wake, Alarm, or resident presentation;
+- *The Bird Over Kesh* acceptance.
 
-Those become subsequent trains built on this stable creator-owned contract rather than being invented inside the receiver.
+Those are later product trains built from this source and engine authority rather than invented inside the receiver.

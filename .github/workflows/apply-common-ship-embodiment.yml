@@ -1,0 +1,44 @@
+name: Apply Common Ship embodiment migration
+
+on:
+  push:
+    branches:
+      - agent/common-ship-source-plane
+    paths:
+      - tools/apply-common-ship-embodiment.py
+      - .github/workflows/apply-common-ship-embodiment.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/common-ship-source-plane
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Apply migration
+        run: python tools/apply-common-ship-embodiment.py
+      - name: Remove one-shot carrier
+        run: rm tools/apply-common-ship-embodiment.py .github/workflows/apply-common-ship-embodiment.yml
+      - name: Install
+        run: npm ci
+      - name: Verify exact source plane
+        run: |
+          npm run typecheck
+          npm test -- --run tests/common-ship/common-ship.test.ts
+          npm test
+          npm run build
+      - name: Publish migration
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Add structured Common Ship embodiment profiles"
+          git push origin HEAD:agent/common-ship-source-plane

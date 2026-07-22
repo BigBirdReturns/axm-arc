@@ -38,3 +38,23 @@ text = p.read_text()
 if ".longAlarm" not in text:
     raise SystemExit("Dark Tomb compiler no longer contains longAlarm marker")
 p.write_text(text.replace(".longAlarm", ".alarm"))
+
+replace_once(
+    "tests/common-ship/common-ship.test.ts",
+    'expect(arc.meta.engineVersion).toBe("1.2.0");',
+    'expect(arc.meta.engineVersion).toBe("1.3.0");',
+)
+replace_once(
+    "tests/dark-tomb/dark-tomb.test.ts",
+    'expect(arc.meta.engineVersion).toBe("1.2.0");',
+    'expect(arc.meta.engineVersion).toBe("1.3.0");',
+)
+replace_once(
+    "tests/engine/schema.test.ts",
+    '''        engineVersion: "1.3.0",
+      },
+    }))).toThrow(/requires engine 1\.3\.0.*provides 1\.2\.0/);''',
+    '''        engineVersion: "1.4.0",
+      },
+    }))).toThrow(/requires engine 1\.4\.0.*provides 1\.3\.0/);''',
+)

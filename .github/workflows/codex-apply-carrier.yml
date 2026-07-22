@@ -5,13 +5,14 @@ on:
     types: [opened, reopened, synchronize]
     paths:
       - tools/codex-apply.py
+      - tools/apply-common-ship-embodiment.py
 
 permissions:
   contents: write
 
 jobs:
   apply:
-    if: startsWith(github.head_ref, 'codex/gate')
+    if: startsWith(github.head_ref, 'codex/gate') || github.head_ref == 'agent/common-ship-source-plane'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,9 +24,16 @@ jobs:
           node-version: 20
           cache: npm
       - name: Apply reviewed gate migration
-        run: python tools/codex-apply.py
+        run: |
+          if [ -f tools/codex-apply.py ]; then
+            python tools/codex-apply.py
+          else
+            python tools/apply-common-ship-embodiment.py
+          fi
       - name: Remove carrier payload
-        run: rm tools/codex-apply.py
+        run: |
+          rm -f tools/codex-apply.py tools/apply-common-ship-embodiment.py
+          rm -f .github/workflows/apply-common-ship-embodiment.yml
       - name: Install exact dependencies
         run: npm ci
       - name: Verify candidate before publication

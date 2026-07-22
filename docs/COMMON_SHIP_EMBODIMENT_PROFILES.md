@@ -26,7 +26,7 @@ Each cast member names one `profileId`. Each authored watch carries `requiredPro
 - profiles that describe no actual cast member;
 - missing environmental, interface, temporal, or lineage-dependency fields.
 
-The watch still records prose requirements for bodies, habitats, clocks, translators, reserves, and life-fraction costs. Gate 1 converts the profile references and those requirements into deterministic composition constraints. Gate 0 establishes the source authority first so the engine and receiver do not invent body law independently.
+The watch still records prose requirements for bodies, habitats, clocks, translators, reserves, and life-fraction costs. Engine 1.3 now converts the declared profile references into deterministic composition profiles and the six Common Watch viability categories into authored constraints. Arc owns that evaluation. A receiver may display the result but may not invent body law independently.
 
 ## Starter coverage
 

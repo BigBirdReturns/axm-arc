@@ -217,12 +217,15 @@ The ending resolves one decision while altering what is:
 
 ## Compilation and custody
 
-`compileDarkTombPocket()` produces an engine `1.2.0` Arc with:
+`compileDarkTombPocket()` produces an engine `1.3.0` Arc with:
 
 - domain `godscar-dark-tomb`;
 - exact creator identity and named cast;
 - the four compiled movements;
 - milestone-gated delves;
+- Long Alarm, signature credibility, and external visibility as engine-owned state;
+- one exact boolean state for every authored inherited consequence;
+- success-state effects that write the changed Alarm, signature, visibility, and consequence record with before-and-after receipts;
 - an opening choice between preserving the Alarm and authorizing a bounded breach;
 - persistent completion rewards naming the changed map;
 - the exact source under `godscar.dark-tomb@1`.
@@ -237,7 +240,7 @@ No executable plugin code is accepted. The extension remains JSON-safe, namespac
 
 ## Current boundary
 
-This source plane encodes the Codex into executable law. It does **not** yet claim:
+This source plane now compiles its persistent Tomb state through engine 1.3. It does **not** yet claim:
 
 - a canonical Dark Tomb reference campaign;
 - a dedicated guided Tomb Forge UI;

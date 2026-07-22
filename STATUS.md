@@ -33,8 +33,21 @@ in any new session or by any agent picking up cold. Updated as state changes.
   creator/record surfaces expose the same sensory and localization controls.
 - `product-parity.yml` and World's `bundled-parity.yml` make the completion
   boundary executable rather than rhetorical.
+- RODOH Gate 0 is closed: the First Charter Hall production slice is merged, the
+  Book III source carries structured embodiment and lineage profiles, and World
+  owns the frozen five-reference RODOH 1.0 acceptance contract.
+- RODOH Gate 1 is closed on the Arc side. Engine 1.3 adds bounded cartridge state,
+  exact state-change receipts, declarative composition profiles and constraints,
+  shared direct/cycle enforcement, and save-v2 to save-v3 migration.
+- Dark Tomb now compiles Long Alarm, signature, visibility, and inherited
+  consequences into engine-owned state. Common Ship now compiles its eight ship
+  tracks and six watch-viability categories into executable state and composition
+  law.
+- World remains on the accepted three-cartridge Arc pin until the separate Gate 2
+  reconciliation and receiver train. Source-plane completion does not imply a
+  bundled Lamp District or Relief Circuit runtime.
 
-See `docs/PARITY_COMPLETION.md`.
+See `docs/PARITY_COMPLETION.md` and `docs/ENGINE_1_3_STATE_COMPOSITION.md`.
 
 ---
 

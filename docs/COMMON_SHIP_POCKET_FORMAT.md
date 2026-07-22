@@ -261,12 +261,16 @@ The ending resolves one decision while making something:
 
 ## Compilation and custody
 
-`compileCommonShipPocket()` produces an engine `1.2.0` Arc with:
+`compileCommonShipPocket()` produces an engine `1.3.0` Arc with:
 
 - domain `godscar-common-ship`;
 - exact creator identity and named cast;
 - the four compiled movements;
 - milestone-gated watches;
+- all eight ship-state tracks as bounded, engine-owned state definitions;
+- every embodiment profile as a deterministic composition profile;
+- founder-to-profile bindings and the six Common Watch viability categories as authored composition constraints;
+- exact success-state effects with before-and-after receipts;
 - an opening choice between marking the baseline and accepting a bounded emergency baseline;
 - persistent completion rewards naming the changed constitution;
 - the exact source under `godscar.common-ship@1`.
@@ -281,7 +285,7 @@ No executable plugin code is accepted. The extension remains JSON-safe, namespac
 
 ## Current boundary
 
-This source plane encodes the Codex into executable law. It does **not** yet claim:
+This source plane now compiles its state and composition law through engine 1.3. It does **not** yet claim:
 
 - a canonical Common Ship reference campaign;
 - a dedicated guided Watch Forge UI;

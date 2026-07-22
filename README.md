@@ -18,9 +18,12 @@ The first arc is a guild management game. The bundled campaigns are **The First 
 The current browser product is governed by `docs/PARITY_COMPLETION.md`: engine,
 custody, complete reference campaigns, authoring, responsive World expression,
 local pixel/vector assets, bilingual chrome, sensory preferences, and access
-fallbacks are protected by dedicated Arc and World parity workflows. Multiplayer,
-cloud sync, marketplace, publisher signing, cinematic media, and authored-content
-translation packs are separate future products rather than hidden prerequisites.
+fallbacks are protected by dedicated Arc and World parity workflows. Engine 1.3
+adds bounded creator-authored state and declarative composition law for Dark Tomb
+and Common Ship source planes; see `docs/ENGINE_1_3_STATE_COMPOSITION.md`.
+Multiplayer, cloud sync, marketplace, publisher signing, cinematic media, and
+authored-content translation packs are separate future products rather than
+hidden prerequisites.
 
 ---
 
@@ -49,8 +52,9 @@ finished as a game; it is also not the boundary of the system.
 
 | Layer | Path | What it does |
 |---|---|---|
-| **Engine** | `src/engine/` | Generic deterministic simulation. Resolver, stress/morale/affliction cascade, relationship state machine, drama event cards, reward distribution (Council mode), infrastructure tick, recruitment, save/load. Content-free — zero imports from `src/arcs/`. |
+| **Engine** | `src/engine/` | Generic deterministic simulation. Resolver, stress/morale/affliction cascade, relationship state machine, drama event cards, bounded cartridge state, declarative composition, recruitment, save/load, and exact receipts. Content-free — zero imports from `src/arcs/`. |
 | **Arc format** | `src/arcs/` | Portable JSON scenario definitions. The tutorial arc "The First Charter" ships here: 4 attributes, 3 roles, 3 tiers, 6 challenges across 2 progression tiers, 8 items, 6-agent starting roster with a seeded rivalrous pair. |
+| **Godscar source planes** | `src/godscar/`, `src/dark-tomb/`, `src/common-ship/` | Creator-owned Pocket, Dark Tomb, and Common Ship source grammars and compilers. Book II and Book III project their persistent state and roster constraints through engine 1.3 rather than receiver law. |
 | **Authoring + custody** | `src/game/`, `docs/RFC_WORKSHOP.md`, `docs/RFC_CARTRIDGE_LIBRARY.md` | Library, Workshop, writable Designer, guided/source Godscar Forge, validation, authoring QA, digest/profile, import/export, simulation, and explicit custody receipts. |
 | **Institutional record** | `src/game/lib/ledger.ts`, `docs/RFC_TIER2_LEDGER_SCHEMA.md` | Append-only committed consequences, compatibility projection, Guild Hall, and Expansion Archive. |
 | **Reference game UI** | `src/game/` | React PWA and proof cartridges used to finish a compelling game while exercising the general model and record contract. |
@@ -82,9 +86,13 @@ No accounts, no keys, no cloud. Or just [play in the browser](https://bigbirdret
 
 **Schema validation.** Arcs are validated at load via Zod. Attribute weights must sum to 1.0. Drop rates clamped to [0, 1]. Unknown attribute references throw. The arc either runs or fails loudly — never half-correct.
 
-**Content-free engine.** No domain knowledge is hardcoded. The engine processes agents, attributes, challenges, and relationships. The arc and the game layer provide all domain specifics.
+**Content-free engine.** No challenge, role, lineage, state-track, or domain vocabulary is hardcoded. The engine processes authored actors, attributes, challenges, bounded state, and declarative composition profiles. The Arc and optional game policy provide domain specifics.
 
-**Offline-first save.** Versioned JSON in localStorage (`axm-arc:save:v1` for game state, `axm-arc:intent:v1` for the player's cycle intent note). Migration dictionary for future versions. Arc-ID mismatch throws. Your decisions persist across sessions and survive indefinitely.
+**Cartridge state.** Engine 1.3 initializes creator-declared number, enum, and boolean state, validates bounded effects, and writes exact before-and-after receipts into the run report and cycle event stream.
+
+**Composition law.** Engine 1.3 evaluates bounded role, profile, tag, metric, range, fraction, redundancy, `all`, and `any` constraints through one deterministic authority used by both direct resolution and the full cycle.
+
+**Offline-first save.** Versioned, digest-bound JSON persists locally. Save v3 migrates exact-identity v2 saves and deterministically backfills any state declared by the bound cartridge; pre-digest v1 saves remain refused rather than relabelled. Arc-ID or digest mismatch throws. Your decisions persist across sessions and remain exportable.
 
 ---
 

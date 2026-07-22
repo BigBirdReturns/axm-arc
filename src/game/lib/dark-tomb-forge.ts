@@ -8,7 +8,7 @@ import {
   validateRegisteredSourcePlane,
 } from "../../source-planes/index.js";
 import { simulateArcRun } from "../../sim/cartridge-conformance.js";
-import { storageWriteFailure, type StorageWriteResult } from "./storage-result.js";
+import { storageWriteFailure, type StorageWriteResult } from "./storage.js";
 
 const DRAFT_KEY = "axm-arc:dark-tomb-forge-draft:v1";
 

@@ -3,7 +3,7 @@ import {
   compileGodscarPocket,
   GODSCAR_EXTENSION_KEY,
   GODSCAR_POCKET_FORMAT,
-  KIND_GODS_OF_ILYON_BLUEPRINT,
+  newGodscarPocketSkeleton,
   readGodscarPocketExtension,
   validateGodscarPocket,
 } from "../godscar/index.js";
@@ -87,7 +87,7 @@ const DEFINITIONS: readonly SourcePlaneDefinition[] = Object.freeze([
     description: "Book I pocket stories built from the six-pressure Story Engine and the shared evidence ledger.",
     sourceFileExtension: ".pocket.json",
     arcFileExtension: ".arc.json",
-    starter: () => clone(KIND_GODS_OF_ILYON_BLUEPRINT),
+    starter: () => newGodscarPocketSkeleton(),
     validate: (input) => normalizeValidation(validateGodscarPocket(input)),
     compile: compileGodscarPocket,
     recover: readGodscarPocketExtension,

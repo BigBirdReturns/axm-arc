@@ -19,14 +19,14 @@ jobs:
         uses: actions/checkout@v4
       - name: Package exact source
         run: |
-          tar --exclude=.git -czf axm-arc-source.tgz .
-          sha256sum axm-arc-source.tgz > axm-arc-source.sha256
+          tar --exclude=.git -czf "$RUNNER_TEMP/axm-arc-source.tgz" .
+          sha256sum "$RUNNER_TEMP/axm-arc-source.tgz" > "$RUNNER_TEMP/axm-arc-source.sha256"
       - name: Upload source
         uses: actions/upload-artifact@v4
         with:
           name: axm-arc-source
           path: |
-            axm-arc-source.tgz
-            axm-arc-source.sha256
+            ${{ runner.temp }}/axm-arc-source.tgz
+            ${{ runner.temp }}/axm-arc-source.sha256
           if-no-files-found: error
           retention-days: 1

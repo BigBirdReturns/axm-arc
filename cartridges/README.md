@@ -31,3 +31,7 @@ a browser) and confirm it returns `ok: true` with zero errors.
 ## Dark Tomb source plane
 
 Book II is encoded under `src/dark-tomb/` as `dark-tomb-pocket/1`. It reuses Book I's canon tiers, evidence ledger, provenance, and faction receipts, then adds the eight-pressure Tomb Engine, seven-layer anatomy, five-dimensional depth vector, signature budget, Long Alarm, expedition ledger, Book II cast responsibilities, and ten Story Physics invariants. The private-branch `DARK_TOMB_STARTER` is a compiler fixture and authoring seed, not a canonical cartridge. See `docs/DARK_TOMB_POCKET_FORMAT.md`.
+
+## Common Ship source plane
+
+Book III is encoded under `src/common-ship/` as `common-ship-pocket/1`. It preserves the prior canon and evidence law, then adds the nine-pressure Watch Engine, seven-system vessel anatomy, six-dimensional temporal profile, seven-layer translation stack, six Common Watch viability tests, eight ship-state tracks, full operational and handoff ledgers, Book III cast responsibilities, and ten Mission Physics invariants. The private-branch `COMMON_SHIP_STARTER` is a compiler fixture and authoring seed, not a canonical cartridge or a bundled World release. See `docs/COMMON_SHIP_POCKET_FORMAT.md`.

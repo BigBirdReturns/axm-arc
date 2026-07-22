@@ -20,7 +20,7 @@ jobs:
       - name: Package exact Arc source
         run: |
           mkdir -p source-receipt
-          tar --exclude=.git --exclude=node_modules -czf source-receipt/axm-arc-source.tgz .
+          tar --exclude=.git --exclude=node_modules --exclude=source-receipt -czf source-receipt/axm-arc-source.tgz .
           sha256sum source-receipt/axm-arc-source.tgz > source-receipt/axm-arc-source.sha256
           git rev-parse HEAD > source-receipt/branch-head.txt
       - uses: actions/upload-artifact@v4

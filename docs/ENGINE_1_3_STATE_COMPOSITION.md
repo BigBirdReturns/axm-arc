@@ -34,7 +34,7 @@ Effects are validated against state definitions before play. At runtime they pro
 
 ### Cycle ordering and atomicity
 
-The existing cycle resolves accepted assignments simultaneously under the established game policy. Engine 1.3 applies authored state effects after that resolution in canonical report order. This prevents one assignment's newly written state from silently changing another assignment that was already accepted for the same cycle.
+The existing cycle resolves accepted assignments simultaneously under the established game policy. Engine 1.3 applies authored state effects after that resolution in canonical challenge-and-party order while preserving the original report order for presentation. This prevents assignment order from changing the final cartridge state and prevents one assignment's newly written state from silently changing another assignment that was already accepted for the same cycle.
 
 Each report carries its own state changes. The cycle event stream also receives `cartridge_state_change` entries. If any effect in a report is invalid, the state application throws before a result is returned. The supplied organization is never mutated in place.
 

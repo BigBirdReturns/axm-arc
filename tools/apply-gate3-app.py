@@ -71,10 +71,10 @@ reserve_replacement = '''  const tierFor = (responsibility: DarkTombPocketSource
     return "local";
   };
   // Quiet Tonnage must carry the exact founding cast through retries without
-  // turning ordinary upkeep into a silent campaign softlock. Reserve four
+  // turning ordinary upkeep into a silent campaign softlock. Reserve six
   // authored campaign horizons at the maximum tier cost per resident; actual
   // lower tiers and authored rewards remain ordinary surplus.
-  const foundingCurrency = Math.max(80, source.identity.estimatedCycles * source.cast.length * 3 * 4);
+  const foundingCurrency = Math.max(80, source.identity.estimatedCycles * source.cast.length * 3 * 6);
 
   const arc: Arc = {
 '''

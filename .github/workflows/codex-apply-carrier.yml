@@ -2,7 +2,7 @@ name: Codex gate application carrier
 
 on:
   pull_request:
-    types: [opened, reopened, synchronize]
+    types: [opened, reopened, synchronize, ready_for_review]
     paths:
       - tools/codex-apply.py
       - tools/apply-common-ship-embodiment.py

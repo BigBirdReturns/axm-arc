@@ -177,6 +177,35 @@ export function saveWorkshopDraft(text: string): void {
   }
 }
 
+export type WorkshopDraftOrigin = "selected-arc" | "stored-draft" | "skeleton";
+
+export interface WorkshopDraftSelection {
+  text: string;
+  origin: WorkshopDraftOrigin;
+  arcName: string | null;
+}
+
+/** Select the one source the Workshop may edit at mount. A Designer-selected
+ * Arc is explicit custody and therefore outranks any older browser draft.
+ * Without an explicit selection, the existing stored-draft and skeleton
+ * behavior remains unchanged. */
+export function selectWorkshopDraft(
+  selectedArc: Arc | null,
+  storedDraft: string | null,
+): WorkshopDraftSelection {
+  if (selectedArc) {
+    return {
+      text: JSON.stringify(selectedArc, null, 2),
+      origin: "selected-arc",
+      arcName: selectedArc.meta.name,
+    };
+  }
+  if (storedDraft !== null) {
+    return { text: storedDraft, origin: "stored-draft", arcName: null };
+  }
+  return { text: workshopSkeleton(), origin: "skeleton", arcName: null };
+}
+
 export interface ArcSummary {
   challenges: number;
   roles: number;

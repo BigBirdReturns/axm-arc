@@ -637,6 +637,7 @@ export type MessageId =
   | "workshop.firstStalls"
   | "workshop.exportMatches"
   | "workshop.exportMismatch"
+  | "workshop.seededFromDesigner"
   | "workshop.draftRestored"
   | "workshop.draftPersists"
   // ── accessibility / sensory presentation ──
@@ -1523,6 +1524,7 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "workshop.exportMismatch": "Does not match the validated draft — do not distribute",
     // Draft custody honesty (RFC_WORKSHOP PR 065) — display-only surfacing of
     // existing, unchanged loadWorkshopDraft/saveWorkshopDraft behavior.
+    "workshop.seededFromDesigner": (p) => `Workshop seeded from Designer: exact source for “${str(p, "name")}” is now the working draft`,
     "workshop.draftRestored": "Draft restored from your last session",
     "workshop.draftPersists": "Drafts autosave to this browser's local storage — nothing leaves your machine until you export",
 
@@ -2315,6 +2317,7 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "workshop.firstStalls": "首次停滯",
     "workshop.exportMatches": "與已驗證草稿一致",
     "workshop.exportMismatch": "與已驗證草稿不一致——請勿散布",
+    "workshop.seededFromDesigner": (p) => `工坊已從設計器載入：「${str(p, "name")}」的完整原始碼現在是工作草稿`,
     "workshop.draftRestored": "已還原你上次的草稿",
     "workshop.draftPersists": "草稿會自動儲存在此瀏覽器的本機儲存空間——匯出前不會離開你的裝置",
 

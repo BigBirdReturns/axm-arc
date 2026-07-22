@@ -45,6 +45,30 @@ describe("guided Godscar source editing", () => {
     expect(newGodscarCheck(beat).scope).toBe("team");
   });
 
+  it("keeps semantically unfinished but structurally renderable drafts in Guided mode", () => {
+    const draft = structuredClone(newGodscarPocketSkeleton()) as unknown as Record<string, any>;
+    draft.identity.canonRelation = "author-is-still-deciding";
+    draft.pressures = [];
+    draft.beats[0].difficulty = -40;
+    const parsed = parseEditableGodscarSource(JSON.stringify(draft));
+    expect(parsed.ok).toBe(true);
+  });
+
+  it.each([
+    ["nested evidence receipt", (draft: any) => { draft.evidence.receipts = [null]; }, "evidence.receipts[0]"],
+    ["beat checks collection", (draft: any) => { draft.beats[0].checks = "not-an-array"; }, "beats[0].checks"],
+    ["check weights object", (draft: any) => { draft.beats[0].checks[0].weights = null; }, "beats[0].checks[0].weights"],
+    ["cast scalar", (draft: any) => { draft.cast[0].name = 42; }, "cast[0].name"],
+    ["Story Physics boolean", (draft: any) => { draft.storyPhysics.noCleanReset = "yes"; }, "storyPhysics.noCleanReset"],
+  ])("refuses malformed %s before Guided rendering", (_label, mutate, path) => {
+    const draft = structuredClone(newGodscarPocketSkeleton()) as unknown as Record<string, any>;
+    mutate(draft);
+    expect(() => parseEditableGodscarSource(JSON.stringify(draft))).not.toThrow();
+    const parsed = parseEditableGodscarSource(JSON.stringify(draft));
+    expect(parsed.ok).toBe(false);
+    if (!parsed.ok) expect(parsed.message).toContain(path);
+  });
+
   it("keeps malformed source in Source mode instead of inventing missing law", () => {
     expect(parseEditableGodscarSource("{")).toMatchObject({ ok: false });
     expect(parseEditableGodscarSource(JSON.stringify({ format: "godscar-pocket/1" }))).toMatchObject({ ok: false });

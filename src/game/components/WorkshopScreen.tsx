@@ -4,7 +4,7 @@
 // Layout mirrors LibraryScreen: same title-screen/title-content shell, same
 // textarea-paste + Validate idiom, same export-download side effect.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Arc } from "../../engine/types.js";
 import { cartridgeDigest } from "../../engine/cartridge-digest.js";
 import { compatibilityProfile } from "../lib/ledger.js";
@@ -20,6 +20,7 @@ import {
   loadWorkshopDraft,
   playtestPreview,
   saveWorkshopDraft,
+  selectWorkshopDraft,
   summarizeArc,
   workshopSkeleton,
   type ArcSummary,
@@ -31,20 +32,23 @@ import { AuthoringAuditPanel } from "./AuthoringAuditPanel.js";
 interface Props {
   onBack: () => void;
   onOpenLibrary: () => void;
+  seedArc?: Arc | null;
 }
 
-export function WorkshopScreen({ onBack, onOpenLibrary }: Props): JSX.Element {
+export function WorkshopScreen({ onBack, onOpenLibrary, seedArc = null }: Props): JSX.Element {
   useLocale(); // this screen renders outside App's play shell — subscribe directly
-  const [text, setText] = useState<string>(() => loadWorkshopDraft() ?? workshopSkeleton());
-  // Draft custody honesty (RFC_WORKSHOP PR 065): whether THIS session's
-  // editor was seeded from a stored draft, captured once at mount so it
-  // describes how the session started and never live-updates as the author
-  // edits, loads a skeleton, or duplicates from the library. A second
-  // loadWorkshopDraft() read here (rather than threading the first read
-  // through a combined initializer) is the cleaner shape for this file —
-  // both lazy initializers run exactly once per mount, so it costs one
-  // extra localStorage.getItem at startup, never a behavior difference.
-  const [restoredFromStorage] = useState<boolean>(() => loadWorkshopDraft() !== null);
+  const [initialDraft] = useState(() => selectWorkshopDraft(seedArc, loadWorkshopDraft()));
+  const [text, setText] = useState<string>(initialDraft.text);
+  const restoredFromStorage = initialDraft.origin === "stored-draft";
+  const seededFromDesigner = initialDraft.origin === "selected-arc";
+
+  // An explicit Designer handoff becomes the held browser draft immediately,
+  // so reload, validation, save, and export all continue from the selected Arc
+  // rather than an unrelated older draft. The editor text was already seeded
+  // synchronously above; this effect only records that exact source for custody.
+  useEffect(() => {
+    if (seededFromDesigner) saveWorkshopDraft(initialDraft.text);
+  }, [initialDraft.text, seededFromDesigner]);
   const [entries] = useState<ArcLibraryEntry[]>(() => loadArcLibrary());
   const [duplicateId, setDuplicateId] = useState("");
 
@@ -241,12 +245,24 @@ export function WorkshopScreen({ onBack, onOpenLibrary }: Props): JSX.Element {
           </div>
         )}
 
+        {seededFromDesigner && seedArc && (
+          <div
+            className="agent-meta workshop-draft-restored"
+            data-testid="workshop-seeded-arc"
+            role="status"
+            style={{ marginTop: 12 }}
+          >
+            <strong>{t("workshop.seededFromDesigner", { name: initialDraft.arcName ?? seedArc.meta.name })}</strong>
+            {" · "}
+            <code title={cartridgeDigest(seedArc)}>{cartridgeDigest(seedArc).slice(0, 18)}…</code>
+          </div>
+        )}
         {restoredFromStorage && (
           <div className="agent-meta workshop-draft-restored" role="status" style={{ marginTop: 12 }}>
             {t("workshop.draftRestored")}
           </div>
         )}
-        <div className="agent-meta workshop-draft-notice" style={{ marginTop: restoredFromStorage ? 4 : 12 }}>
+        <div className="agent-meta workshop-draft-notice" style={{ marginTop: seededFromDesigner || restoredFromStorage ? 4 : 12 }}>
           {t("workshop.draftPersists")}
         </div>
 

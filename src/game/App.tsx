@@ -154,6 +154,7 @@ export function App(): JSX.Element {
   const [cycleTransition, setCycleTransition] = useState<{ fromCycle: number; toCycle: number } | null>(null);
   const [codexOpen, setCodexOpen] = useState(false);
   const [whatsNewOpen, setWhatsNewOpen] = useState(false);
+  const [workshopSeedArc, setWorkshopSeedArc] = useState<Arc | null>(null);
 
   // Intent — player-authored pull-quote, persisted separately from game state
   const [intent, setIntent] = useState<string>(() => {
@@ -512,6 +513,11 @@ export function App(): JSX.Element {
     </div>
   );
 
+  const openWorkshop = (selectedArc: Arc | null): void => {
+    setWorkshopSeedArc(selectedArc);
+    setMode("workshop");
+  };
+
   if (mode === "title") {
     return (
       <TitleScreen
@@ -532,7 +538,7 @@ export function App(): JSX.Element {
         onExportRun={exportCurrentRun}
         onOpenLibrary={() => setMode("library")}
         onOpenDesigner={() => setMode("designer")}
-        onOpenWorkshop={() => setMode("workshop")}
+        onOpenWorkshop={() => openWorkshop(null)}
         onOpenGodscar={() => setMode("godscar")}
         onOpenRaidNight={() => setMode("raidnight")}
         onOpenGuildHall={() => setMode("guildhall")}
@@ -542,11 +548,11 @@ export function App(): JSX.Element {
   }
 
   if (mode === "designer") {
-    return <>{standaloneControls}<DesignerScreen arc={arc} onBack={() => setMode("title")} onOpenWorkshop={() => setMode("workshop")} /></>;
+    return <>{standaloneControls}<DesignerScreen arc={arc} onBack={() => setMode("title")} onOpenWorkshop={() => openWorkshop(arc)} /></>;
   }
 
   if (mode === "workshop") {
-    return <>{standaloneControls}<WorkshopScreen onBack={() => setMode("title")} onOpenLibrary={() => setMode("library")} /></>;
+    return <>{standaloneControls}<WorkshopScreen seedArc={workshopSeedArc} onBack={() => setMode("title")} onOpenLibrary={() => setMode("library")} /></>;
   }
 
   if (mode === "godscar") {
@@ -582,7 +588,7 @@ export function App(): JSX.Element {
         arc={arc}
         onBack={() => setMode("title")}
         onOpenArchive={() => setMode("archive")}
-        onOpenWorkshop={() => setMode("workshop")}
+        onOpenWorkshop={() => openWorkshop(null)}
         onLoadArc={(nextArc) => {
           const active = saveActiveArc(nextArc);
           if (!active.ok) {

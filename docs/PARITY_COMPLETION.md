@@ -18,6 +18,7 @@ intentional difference is authored rather than accidental.
 | Player loop | cold entry; authored opening; real engine-honored action; legible result; persistent consequence; return/resume |
 | Representations | Board, Map, Hall, Encounter, Aperture, and Globe all read one run and remain reachable on desktop/mobile |
 | Cartridge identity | owned role bodies/portraits, challenge motifs, emblem, material treatment, and procedural globe palette for every bundled cartridge |
+| Waking Tower authority | player-facing name and original fiction; compatibility-only `karazhan` id; Arc and World pointers governed by `docs/WAKING_TOWER_DESIGN_AUTHORITY.md` |
 | Authoring | Library, Workshop, functional Designer sections, Godscar guided/source editor, validation, simulation, install, export |
 | Authoring QA | role/check coverage surfaced; specialist attributes explicit; cosmetic/dead attributes treated as structural warnings |
 | Accessibility | keyboard-visible focus, 44px mobile target floor, EN/zh-Hant chrome, reduced motion, forced-color/high-contrast fallback |
@@ -49,6 +50,8 @@ and both normal suites pass on their reviewed heads, when every bundled
 cartridge carries original player-facing fiction, and when World pins the
 accepted Arc source exactly. A missing external service cannot be smuggled into
 that claim because this scope deliberately requires no external service.
+
+The Waking Tower name, compatibility id, source pointers, accepted World projection, and Dark Tomb exclusion are governed by `docs/WAKING_TOWER_DESIGN_AUTHORITY.md`.
 
 ## 4. Explicit future products
 

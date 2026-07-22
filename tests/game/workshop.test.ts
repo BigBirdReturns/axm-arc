@@ -10,12 +10,14 @@ import { fileURLToPath } from "node:url";
 import {
   loadWorkshopDraft,
   saveWorkshopDraft,
+  selectWorkshopDraft,
   summarizeArc,
   workshopSkeleton,
 } from "../../src/game/lib/workshop.js";
 import { validateArcJson } from "../../src/game/lib/arc-library.js";
 import { cartridgeDigest } from "../../src/engine/cartridge-digest.js";
 import { validateArc } from "../../src/engine/schema.js";
+import { FIRST_CHARTER } from "../../src/arcs/first-charter.js";
 
 // workshop.ts reads/writes the ambient `localStorage` global directly (same
 // pattern as src/game/lib/storage.ts and arc-library.ts). Vitest's node
@@ -94,6 +96,30 @@ describe("workshop draft round-trip", () => {
     expect(() => saveWorkshopDraft("x")).not.toThrow();
     expect(() => loadWorkshopDraft()).not.toThrow();
     expect(loadWorkshopDraft()).toBeNull();
+  });
+});
+
+describe("Workshop source custody", () => {
+  it("gives the Designer-selected Arc precedence over an unrelated stored draft", () => {
+    const selected = selectWorkshopDraft(FIRST_CHARTER, '{"meta":{"id":"stale"}}');
+    expect(selected.origin).toBe("selected-arc");
+    expect(selected.arcName).toBe(FIRST_CHARTER.meta.name);
+    expect(JSON.parse(selected.text)).toEqual(FIRST_CHARTER);
+  });
+
+  it("restores the stored draft when no Arc was explicitly selected", () => {
+    const selected = selectWorkshopDraft(null, "stored exact bytes");
+    expect(selected).toEqual({
+      text: "stored exact bytes",
+      origin: "stored-draft",
+      arcName: null,
+    });
+  });
+
+  it("uses the teaching skeleton only when neither explicit nor stored source exists", () => {
+    const selected = selectWorkshopDraft(null, null);
+    expect(selected.origin).toBe("skeleton");
+    expect(selected.text).toBe(workshopSkeleton());
   });
 });
 

@@ -63,6 +63,25 @@ describe("Arc product parity contract", () => {
     expect(source).not.toContain("Available in a later step");
   });
 
+  it("hands the exact Designer Arc to Workshop ahead of stale browser drafts", () => {
+    const app = read("src/game/App.tsx");
+    const workshop = read("src/game/components/WorkshopScreen.tsx");
+    expect(app).toContain("onOpenWorkshop={() => openWorkshop(arc)}");
+    expect(app).toContain("seedArc={workshopSeedArc}");
+    expect(workshop).toContain('data-testid="workshop-seeded-arc"');
+    expect(workshop).toContain("selectWorkshopDraft(seedArc, loadWorkshopDraft())");
+  });
+
+  it("records the Waking Tower source and projection authority without renaming its compatibility id", () => {
+    const authority = read("docs/WAKING_TOWER_DESIGN_AUTHORITY.md");
+    expect(authority).toContain("The Waking Tower");
+    expect(authority).toContain("compatibility id");
+    expect(authority).toContain("24d238302d659264552bc002b73aaf3592c1f84e");
+    expect(authority).toContain("ac3c4f620cf5df802567c7dd10d3ee972cabfa46");
+    expect(authority).toContain("Dark Tomb");
+    expect(read("README.md")).toContain("docs/WAKING_TOWER_DESIGN_AUTHORITY.md");
+  });
+
   it("gives Godscar one creator-owned source with guided and exact-source modes", () => {
     const source = read("src/game/components/GodscarForgeScreen.tsx");
     expect(source).toContain('data-testid="godscar-guided-editor"');

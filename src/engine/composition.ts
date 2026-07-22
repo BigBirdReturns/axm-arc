@@ -155,7 +155,7 @@ function evaluateConstraint(constraint: CompositionConstraint, ctx: EvaluationCo
     );
   }
 
-  if (constraint.kind != "redundancy") throw new Error(`Unsupported composition constraint ${constraint.kind}.`);
+  if (constraint.kind !== "redundancy") throw new Error(`Unsupported composition constraint ${constraint.kind}.`);
   const matching = ctx.agents.filter((agent) => profileFor(agent, ctx)?.tags.includes(constraint.tag) ?? false);
   const profileIds = new Set(matching.flatMap((agent) => agent.compositionProfileId ? [agent.compositionProfileId] : []));
   return leafResult(
@@ -174,6 +174,15 @@ function collectLeafResults(results: CompositionConstraintResult[]): Composition
   };
   results.forEach(visit);
   return out;
+}
+
+/** A failed child inside a passing `any` is an explored alternative, not a
+ * rejection of the composed watch. Rejection receipts descend only through a
+ * top-level condition that itself failed. */
+function collectRejectionReasons(result: CompositionConstraintResult): string[] {
+  if (result.passed) return [];
+  if (!result.children?.length) return [`${result.label}: ${result.reason}`];
+  return result.children.flatMap(collectRejectionReasons);
 }
 
 export function evaluateComposition(opts: {
@@ -203,7 +212,7 @@ export function evaluateComposition(opts: {
   const ctx: EvaluationContext = { agents, profilesById };
   const results = constraints.map((constraint) => evaluateConstraint(constraint, ctx));
   const leaves = collectLeafResults(results);
-  const rejectionReasons = leaves.filter((result) => !result.passed).map((result) => `${result.label}: ${result.reason}`);
+  const rejectionReasons = results.flatMap(collectRejectionReasons);
 
   const dependencyCounts = new Map<string, number>();
   for (const agent of agents) {

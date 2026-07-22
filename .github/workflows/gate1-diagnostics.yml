@@ -6,6 +6,7 @@ on:
       - 'src/engine/**'
       - 'src/common-ship/**'
       - 'src/dark-tomb/**'
+      - 'tools/codex-apply.py'
       - '.github/workflows/gate1-diagnostics.yml'
 
 permissions:
@@ -23,12 +24,16 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Capture TypeScript diagnostics
+      - name: Apply pending patch in the diagnostic worktree
+        run: |
+          if [ -f tools/codex-apply.py ]; then python tools/codex-apply.py; fi
+      - name: Capture diagnostics
         run: |
           set +e
           npx tsc --noEmit > gate1-tsc.txt 2>&1
-          code=$?
-          echo "$code" > gate1-tsc-exit.txt
+          echo "$?" > gate1-tsc-exit.txt
+          npx vitest run > gate1-vitest.txt 2>&1
+          echo "$?" > gate1-vitest-exit.txt
           exit 0
       - uses: actions/upload-artifact@v4
         with:
@@ -36,3 +41,5 @@ jobs:
           path: |
             gate1-tsc.txt
             gate1-tsc-exit.txt
+            gate1-vitest.txt
+            gate1-vitest-exit.txt

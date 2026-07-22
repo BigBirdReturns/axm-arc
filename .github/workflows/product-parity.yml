@@ -13,6 +13,8 @@ on:
       - 'src/source-planes/**'
       - 'src/arcs/**'
       - 'cartridges/**'
+      - 'tools/build-godscar-reference.ts'
+      - 'tools/build-dark-tomb-reference.ts'
       - 'tests/game/**'
       - 'tests/i18n/**'
       - 'tests/sim/**'
@@ -21,6 +23,8 @@ on:
       - 'tests/common-ship/**'
       - 'tests/source-planes/**'
       - 'docs/**'
+      - 'README.md'
+      - 'STATUS.md'
       - 'RECONCILIATION.md'
       - '.github/workflows/product-parity.yml'
 
@@ -30,7 +34,7 @@ permissions:
 jobs:
   parity:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
@@ -43,13 +47,23 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run typecheck
-      - name: Authoring and source-plane parity
+      - name: Rebuild canonical creator artifacts
+        run: |
+          npm run build:godscar-reference
+          npm run build:dark-tomb-reference
+          git diff --exit-code -- \
+            cartridges/kind-gods-of-ilyon.pocket.json \
+            cartridges/kind-gods-of-ilyon.arc.json \
+            cartridges/lamp-district.tomb.json \
+            cartridges/lamp-district.arc.json
+      - name: Authoring, campaign, and source-plane parity
         run: >-
           npm test --
           tests/game/product-parity.test.ts
           tests/game/authoring-audit.test.ts
           tests/game/godscar-guided.test.ts
           tests/game/godscar-forge.test.ts
+          tests/game/dark-tomb-forge.test.ts
           tests/game/sensory-prefs.test.ts
           tests/game/designer-edit.test.ts
           tests/game/designer-storage.test.ts
@@ -59,8 +73,10 @@ jobs:
           tests/sim/first-charter-campaign.test.ts
           tests/sim/karazhan-sim.test.ts
           tests/sim/ilyon-campaign.test.ts
+          tests/sim/lamp-district-campaign.test.ts
           tests/godscar/godscar.test.ts
           tests/dark-tomb/dark-tomb.test.ts
+          tests/dark-tomb/lamp-district.test.ts
           tests/common-ship/common-ship.test.ts
           tests/source-planes/registry.test.ts
       - run: npm test

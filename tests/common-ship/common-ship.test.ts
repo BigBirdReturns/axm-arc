@@ -216,6 +216,7 @@ describe("The Godscar Codex Book III source contract", () => {
         "requiredTranslators",
         "requiredReserves",
         "lifeFractionCosts",
+        "requiredProfileIds",
       ]);
       expect(Object.keys(watch.composition)).toEqual(["absentActor", "excludedBody", "dependency"]);
       expect(Object.keys(watch.allocation)).toEqual([

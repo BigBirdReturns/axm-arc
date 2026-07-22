@@ -10,13 +10,18 @@ on:
       - 'src/godscar/**'
       - 'src/dark-tomb/**'
       - 'src/common-ship/**'
+      - 'src/source-planes/**'
       - 'src/arcs/**'
+      - 'cartridges/**'
       - 'tests/game/**'
       - 'tests/i18n/**'
       - 'tests/sim/**'
+      - 'tests/godscar/**'
       - 'tests/dark-tomb/**'
       - 'tests/common-ship/**'
+      - 'tests/source-planes/**'
       - 'docs/**'
+      - 'RECONCILIATION.md'
       - '.github/workflows/product-parity.yml'
 
 permissions:
@@ -38,7 +43,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run typecheck
-      - name: Authoring and presentation parity
+      - name: Authoring and source-plane parity
         run: >-
           npm test --
           tests/game/product-parity.test.ts
@@ -54,7 +59,9 @@ jobs:
           tests/sim/first-charter-campaign.test.ts
           tests/sim/karazhan-sim.test.ts
           tests/sim/ilyon-campaign.test.ts
+          tests/godscar/godscar.test.ts
           tests/dark-tomb/dark-tomb.test.ts
           tests/common-ship/common-ship.test.ts
+          tests/source-planes/registry.test.ts
       - run: npm test
       - run: npm run build

@@ -62,6 +62,14 @@ const RESPONSIBILITIES = [
   "benefits-from-delay",
   "sovereign-exception",
 ];
+const EMBODIMENT_PROFILES = [
+  "dry-humanoid-response",
+  "aquatic-care-lineage",
+  "heavy-maintainer-lineage",
+  "manyborn-mediator-cloud",
+  "nine-year-analyst-lineage",
+  "counterborn-vessel-fork",
+];
 
 function errorsFor(input: unknown): string[] {
   const result = validateCommonShipPocket(input);
@@ -78,6 +86,8 @@ describe("The Godscar Codex Book III source contract", () => {
     expect(COMMON_SHIP_STARTER.translationStack.map((layer) => layer.kind)).toEqual(TRANSLATION);
     expect(COMMON_SHIP_STARTER.watchTests.map((test) => test.kind)).toEqual(WATCH_TESTS);
     expect(COMMON_SHIP_STARTER.shipState.map((track) => track.kind)).toEqual(SHIP_STATE);
+    expect(COMMON_SHIP_STARTER.embodimentProfiles.map((profile) => profile.id)).toEqual(EMBODIMENT_PROFILES);
+    expect(COMMON_SHIP_STARTER.cast.map((member) => member.profileId).sort()).toEqual([...EMBODIMENT_PROFILES].sort());
     expect(COMMON_SHIP_STARTER.cast.map((member) => member.responsibility).sort()).toEqual([...RESPONSIBILITIES].sort());
   });
 
@@ -172,6 +182,26 @@ describe("The Godscar Codex Book III source contract", () => {
     ]));
   });
 
+  it("requires cast and watches to reference declared embodiment profiles", () => {
+    const source = structuredClone(COMMON_SHIP_STARTER);
+    source.cast[0]!.profileId = "missing-profile";
+    source.watches[0]!.profiles.requiredProfileIds[0] = "missing-profile";
+    expect(errorsFor(source)).toEqual(expect.arrayContaining([
+      expect.stringContaining("Unknown embodiment profile missing-profile"),
+    ]));
+  });
+
+  it("preserves somatic scale, environmental, interface, and temporal difference", () => {
+    const aquatic = COMMON_SHIP_STARTER.embodimentProfiles.find((profile) => profile.id === "aquatic-care-lineage")!;
+    const giant = COMMON_SHIP_STARTER.embodimentProfiles.find((profile) => profile.id === "heavy-maintainer-lineage")!;
+    const shortLived = COMMON_SHIP_STARTER.embodimentProfiles.find((profile) => profile.id === "nine-year-analyst-lineage")!;
+    const distributed = COMMON_SHIP_STARTER.embodimentProfiles.find((profile) => profile.id === "counterborn-vessel-fork")!;
+    expect(aquatic.environment.medium).toBe("liquid");
+    expect(giant.scale.minimumPassageMeters).toBeGreaterThan(2);
+    expect(shortLived.temporal.expectedLifespan).toContain("Nine external years");
+    expect(distributed.scale.class).toBe("distributed");
+  });
+
   it("requires every incompatible Book III cast responsibility", () => {
     const source = structuredClone(COMMON_SHIP_STARTER);
     source.cast = source.cast.filter((member) => member.responsibility !== "bears-adaptation-tax");
@@ -210,6 +240,7 @@ describe("The Godscar Codex Book III source contract", () => {
         "manufacturedUrgency",
       ]);
       expect(Object.keys(watch.profiles)).toEqual([
+        "requiredProfileIds",
         "requiredBodies",
         "requiredHabitats",
         "requiredClocks",

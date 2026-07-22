@@ -68,6 +68,73 @@ export interface TemporalDimension {
   captureRisk: string;
 }
 
+export type SomaticScaleClass =
+  | "micro"
+  | "small"
+  | "human-scale"
+  | "large"
+  | "colossal"
+  | "distributed";
+
+export type EmbodimentMedium =
+  | "gas"
+  | "liquid"
+  | "vacuum"
+  | "solid-substrate"
+  | "field"
+  | "mixed";
+
+export interface CommonShipNumericRange {
+  min: number;
+  max: number;
+}
+
+/** A lineage/body profile describes conditions of participation without
+ * assigning an occupation or treating the body as an administrative destiny. */
+export interface CommonShipEmbodimentProfile {
+  id: string;
+  name: string;
+  description: string;
+  scale: {
+    class: SomaticScaleClass;
+    typicalHeightMeters: number | null;
+    typicalMassKg: number | null;
+    occupiedVolumeCubicMeters: number;
+    minimumPassageMeters: number;
+    reachMeters: number | null;
+    locomotion: string[];
+    manipulationScale: string;
+  };
+  environment: {
+    medium: EmbodimentMedium;
+    pressureKPa: CommonShipNumericRange | null;
+    temperatureC: CommonShipNumericRange;
+    gravityG: CommonShipNumericRange;
+    radiationTolerance: string;
+    dependencies: string[];
+  };
+  sensorium: {
+    channels: string[];
+    communication: string[];
+    hazards: string[];
+  };
+  interface: {
+    directModes: string[];
+    mediatedModes: string[];
+    forbiddenAssumptions: string[];
+  };
+  temporal: {
+    externalInterval: string;
+    subjectiveResolution: string;
+    developmentalTempo: string;
+    recoveryCycle: string;
+    continuitySpan: string;
+    expectedLifespan: string;
+    lifeFractionAccounting: string;
+  };
+  lineageDependencies: string[];
+}
+
 export type TranslationLayerKind =
   | "meaning"
   | "tempo"
@@ -137,6 +204,7 @@ export interface CommonShipCastMember {
   id: string;
   name: string;
   roleId: CommonShipRoleId;
+  profileId: string;
   responsibility: CommonShipCastResponsibility;
   description: string;
   factionId?: string;
@@ -212,6 +280,7 @@ export interface DecisionHorizonLedger {
 }
 
 export interface ProfileLedger {
+  requiredProfileIds: string[];
   requiredBodies: string[];
   requiredHabitats: string[];
   requiredClocks: string[];
@@ -301,6 +370,7 @@ export interface CommonShipPocketSource {
   ];
   evidence: CommonShipEvidenceLedger;
   factionReceipts: CommonShipFactionReceipt[];
+  embodimentProfiles: CommonShipEmbodimentProfile[];
   cast: CommonShipCastMember[];
   anatomy: [
     CommonShipSystem,

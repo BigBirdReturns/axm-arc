@@ -51,6 +51,12 @@ const ShipStateKind = z.enum([
   "visibility",
   "compatibility-debt",
 ]);
+const SomaticScaleClass = z.enum(["micro", "small", "human-scale", "large", "colossal", "distributed"]);
+const EmbodimentMedium = z.enum(["gas", "liquid", "vacuum", "solid-substrate", "field", "mixed"]);
+const NumericRange = z.object({
+  min: z.number().finite(),
+  max: z.number().finite(),
+}).strict().refine((range) => range.min <= range.max, "Range minimum cannot exceed maximum.");
 
 const Pressure = z.object({
   kind: z.enum([
@@ -107,6 +113,50 @@ const ShipStateTrack = z.object({
   crisisCondition: NonEmpty,
 }).strict();
 
+const EmbodimentProfile = z.object({
+  id: Slug,
+  name: NonEmpty,
+  description: NonEmpty,
+  scale: z.object({
+    class: SomaticScaleClass,
+    typicalHeightMeters: z.number().positive().nullable(),
+    typicalMassKg: z.number().positive().nullable(),
+    occupiedVolumeCubicMeters: z.number().positive(),
+    minimumPassageMeters: z.number().positive(),
+    reachMeters: z.number().positive().nullable(),
+    locomotion: z.array(NonEmpty).min(1),
+    manipulationScale: NonEmpty,
+  }).strict(),
+  environment: z.object({
+    medium: EmbodimentMedium,
+    pressureKPa: NumericRange.nullable(),
+    temperatureC: NumericRange,
+    gravityG: NumericRange,
+    radiationTolerance: NonEmpty,
+    dependencies: z.array(NonEmpty).min(1),
+  }).strict(),
+  sensorium: z.object({
+    channels: z.array(NonEmpty).min(1),
+    communication: z.array(NonEmpty).min(1),
+    hazards: z.array(NonEmpty).min(1),
+  }).strict(),
+  interface: z.object({
+    directModes: z.array(NonEmpty).min(1),
+    mediatedModes: z.array(NonEmpty).min(1),
+    forbiddenAssumptions: z.array(NonEmpty).min(1),
+  }).strict(),
+  temporal: z.object({
+    externalInterval: NonEmpty,
+    subjectiveResolution: NonEmpty,
+    developmentalTempo: NonEmpty,
+    recoveryCycle: NonEmpty,
+    continuitySpan: NonEmpty,
+    expectedLifespan: NonEmpty,
+    lifeFractionAccounting: NonEmpty,
+  }).strict(),
+  lineageDependencies: z.array(NonEmpty).min(1),
+}).strict();
+
 const JsonPrimitive: z.ZodType<unknown> = z.union([z.string(), z.number().finite(), z.boolean(), z.null()]);
 const JsonValue: z.ZodType<unknown> = z.lazy(() => z.union([JsonPrimitive, z.array(JsonValue), z.record(JsonValue)]));
 
@@ -147,10 +197,12 @@ const CommonShipPocketSchemaBase = z.object({
     publicGood: NonEmpty,
     characteristicFailure: NonEmpty,
   }).strict()).min(2),
+  embodimentProfiles: z.array(EmbodimentProfile).min(2),
   cast: z.array(z.object({
     id: Slug,
     name: NonEmpty,
     roleId: RoleId,
+    profileId: Slug,
     responsibility: z.enum([
       "depends-on-host-baseline",
       "bears-adaptation-tax",
@@ -242,6 +294,7 @@ const CommonShipPocketSchemaBase = z.object({
       manufacturedUrgency: NonEmpty,
     }).strict(),
     profiles: z.object({
+      requiredProfileIds: z.array(Slug).min(1),
       requiredBodies: z.array(NonEmpty).min(1),
       requiredHabitats: z.array(NonEmpty).min(1),
       requiredClocks: z.array(NonEmpty).min(1),
@@ -399,6 +452,7 @@ export const CommonShipPocketSchema = CommonShipPocketSchemaBase.superRefine((so
   };
 
   unique(source.pressures.map((value) => value.id), ["pressures"], "pressure id");
+  unique(source.embodimentProfiles.map((value) => value.id), ["embodimentProfiles"], "embodiment profile id");
   unique(source.cast.map((value) => value.id), ["cast"], "cast id");
   unique(source.watches.map((value) => value.id), ["watches"], "watch id");
   unique(source.consequences.map((value) => value.id), ["consequences"], "consequence id");
@@ -420,7 +474,11 @@ export const CommonShipPocketSchema = CommonShipPocketSchemaBase.superRefine((so
   }
 
   const factionIds = new Set(source.factionReceipts.map((faction) => faction.factionId));
+  const profileIds = new Set(source.embodimentProfiles.map((profile) => profile.id));
   source.cast.forEach((member, memberIndex) => {
+    if (!profileIds.has(member.profileId)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["cast", memberIndex, "profileId"], message: `Unknown embodiment profile ${member.profileId}.` });
+    }
     if (member.factionId && !factionIds.has(member.factionId)) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["cast", memberIndex, "factionId"], message: `Unknown faction ${member.factionId}.` });
     }
@@ -453,6 +511,11 @@ export const CommonShipPocketSchema = CommonShipPocketSchemaBase.superRefine((so
     if (!systemIds.has(watch.system)) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["watches", watchIndex, "system"], message: `Unknown ship system ${watch.system}.` });
     }
+    watch.profiles.requiredProfileIds.forEach((profileId, profileIndex) => {
+      if (!profileIds.has(profileId)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["watches", watchIndex, "profiles", "requiredProfileIds", profileIndex], message: `Unknown embodiment profile ${profileId}.` });
+      }
+    });
     const requiredCount = (watch.requiredRoles ?? []).reduce((sum, requirement) => sum + requirement.count, 0);
     if (requiredCount > watch.maxAgents) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["watches", watchIndex, "requiredRoles"], message: "Required role count cannot exceed maxAgents." });

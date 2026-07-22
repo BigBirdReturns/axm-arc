@@ -39,6 +39,14 @@ Book III adds one audit question to every claimed standard: **which body, clock,
 
 Local proof does not force universal consensus. Demonstrating that one ship can support several native users does not prove every baseline avoidable. Exposing one coercive translator does not prove mediation illegitimate. Showing that one emergency proxy exceeded authority does not establish that all delegated action is domination.
 
+## Embodiment and lineage profiles
+
+The source records bodies as operational facts rather than cosmetic species labels. `embodimentProfiles` names the scale, occupied volume, minimum passage, reach, locomotion, environmental envelope, sensorium, communication channels, interface paths, temporal structure, and lineage dependencies through which a person can participate. Cast members reference one profile through `profileId`, and each authored watch names the profiles whose presence or equivalent capacity the situation requires.
+
+Profiles do not assign work. A large body is not automatically maintenance labor, a small body is not a vent-crawler, an aquatic person is not confined to care, and a fast or short-lived lineage is not permanent emergency staff. Roles state what the vessel needs; profiles state the conditions under which actual persons can perform, contest, or refuse that work.
+
+Somatic scale is mechanically relevant source data. A profile can be micro-scale, small, human-scale, large, colossal, or distributed. The source records passage, volume, reach, manipulation scale, medium, pressure, temperature, gravity, radiation, and direct versus mediated interface paths so a later runtime can distinguish public access from a private workaround. The profile also carries the six Book III temporal dimensions in lineage-specific form, including explicit life-fraction accounting.
+
 ## Seven-system anatomy
 
 A source carries the seven recurrent systems in order. These are operational jurisdictions rather than mandatory deck locations:
@@ -284,6 +292,7 @@ No executable plugin code is accepted. The extension remains JSON-safe, namespac
 This source plane encodes the Codex into executable law. It does **not** yet claim:
 
 - a canonical Common Ship reference campaign;
+- deterministic runtime evaluation of profile compatibility and watch viability;
 - a dedicated guided Watch Forge UI;
 - a World Common Ship receiver or vessel-management plane;
 - a new bundled World cartridge;

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { LAMP_DISTRICT } from "../../src/arcs/lamp-district.js";
+import { LAMP_DISTRICT_SOURCE } from "../../src/dark-tomb/lamp-district.js";
 import { runCycle } from "../../src/engine/cycle.js";
 import { foundOrganization } from "../../src/engine/founding.js";
 import type { Organization } from "../../src/engine/types.js";
@@ -42,6 +43,13 @@ function completeDeterministically(): Organization {
     org = result.org;
   }
   return org;
+}
+
+function consequenceState(): Record<string, true> {
+  return Object.fromEntries(LAMP_DISTRICT_SOURCE.consequences.map((consequence) => [
+    `consequence:${consequence.kind}:${consequence.id}`,
+    true,
+  ]));
 }
 
 describe("Lamp District full campaign", () => {
@@ -88,14 +96,7 @@ describe("Lamp District full campaign", () => {
       "alarm-phase": "wake",
       "signature-status": "breached",
       "visibility-status": "exposed",
-      "consequence-school-lamp-ledger": true,
-      "consequence-bounded-reservoir-charter": true,
-      "consequence-drainage-route-reopened": true,
-      "consequence-sealed-market-witnesses": true,
-      "consequence-alarm-audit-opened": true,
-      "consequence-surface-households-recognized": true,
-      "consequence-clinic-heat-commons": true,
-      "consequence-public-depth-map": true,
+      ...consequenceState(),
     });
   });
 });

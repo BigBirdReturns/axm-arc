@@ -12,7 +12,7 @@ The Lamp District is the first canonical `dark-tomb-pocket/1` reference. Gate 3 
 - `cartridges/lamp-district.arc.json` is the exact portable compiled artifact.
 - `npm run build:dark-tomb-reference` deterministically rebuilds both JSON artifacts.
 
-The source and compiled artifact must remain exact under tests. Same-id replacement, receiver-authored defaults, and lossy recovery are not permitted.
+The source and compiled artifact must remain exact under tests. Product parity rebuilds them from code authority and requires a clean Git diff before campaign or production-build claims can pass. Same-id replacement, receiver-authored defaults, and lossy recovery are not permitted.
 
 ## Campaign path
 

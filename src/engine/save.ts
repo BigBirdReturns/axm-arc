@@ -6,6 +6,14 @@ import { initializeCartridgeState } from "./state.js";
 
 export const SAVE_VERSION = 3;
 
+export function mapToArray<K, V>(map: Map<K, V>): [K, V][] {
+  return [...map.entries()];
+}
+
+export function arrayToMap<K, V>(entries: [K, V][]): Map<K, V> {
+  return new Map(entries);
+}
+
 interface SaveFileV3 {
   version: typeof SAVE_VERSION;
   savedAt: string;

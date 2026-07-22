@@ -364,7 +364,7 @@ function buildArc(input: unknown): { arc?: Arc; errors: string[] } {
   return { arc, errors: [] };
 }
 
-export const ArcSchema: z.ZodType<Arc> = z.unknown().superRefine((input, ctx) => {
+export const ArcSchema: z.ZodType<Arc, z.ZodTypeDef, unknown> = z.unknown().superRefine((input, ctx) => {
   const result = buildArc(input);
   for (const message of result.errors) ctx.addIssue({ code: z.ZodIssueCode.custom, message });
 }).transform((input) => buildArc(input).arc!);

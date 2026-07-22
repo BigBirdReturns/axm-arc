@@ -155,6 +155,7 @@ function evaluateConstraint(constraint: CompositionConstraint, ctx: EvaluationCo
     );
   }
 
+  if (constraint.kind != "redundancy") throw new Error(`Unsupported composition constraint ${constraint.kind}.`);
   const matching = ctx.agents.filter((agent) => profileFor(agent, ctx)?.tags.includes(constraint.tag) ?? false);
   const profileIds = new Set(matching.flatMap((agent) => agent.compositionProfileId ? [agent.compositionProfileId] : []));
   return leafResult(

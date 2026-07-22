@@ -11,15 +11,15 @@ function consequenceStateId(source: DarkTombPocketSource["consequences"][number]
 }
 
 function stateDefinitions(source: DarkTombPocketSource): CartridgeStateDefinition[] {
-  const alarmValues = source.longAlarm.phases.map((record) => record.phase);
+  const alarmValues = source.alarm.phases.map((record) => record.phase);
   return [
     {
       id: "alarm-phase",
       label: "Long Alarm phase",
-      description: source.longAlarm.auditProblem,
+      description: source.alarm.auditProblem,
       visibility: "operator",
       kind: "enum",
-      initial: source.longAlarm.currentPhase,
+      initial: source.alarm.currentPhase,
       values: alarmValues,
     },
     {

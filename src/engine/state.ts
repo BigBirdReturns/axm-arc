@@ -129,6 +129,7 @@ export function applyCartridgeStateEffects(opts: {
       }
       after = numericAfter(definition, before, effect);
     } else {
+      if (effect.operation !== "transition") throw new CartridgeStateError(`Unsupported state operation ${effect.operation}.`);
       if (definition.kind !== "enum" || typeof before !== "string") {
         throw new CartridgeStateError(`transition requires enum state "${effect.stateId}".`);
       }

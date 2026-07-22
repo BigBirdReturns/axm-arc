@@ -63,7 +63,7 @@ describe("The Godscar Codex Book II source contract", () => {
     const arc = compileDarkTombPocket(source);
 
     expect(arc.meta.domain).toBe("godscar-dark-tomb");
-    expect(arc.meta.engineVersion).toBe("1.2.0");
+    expect(arc.meta.engineVersion).toBe("1.3.0");
     expect(arc.attributes.map((attribute) => attribute.id)).toEqual([
       "care",
       "evidence",

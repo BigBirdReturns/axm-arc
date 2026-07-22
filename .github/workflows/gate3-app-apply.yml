@@ -32,8 +32,26 @@ jobs:
       - run: python tools/apply-gate3-app.py
       - run: rm tools/apply-gate3-app.py .github/workflows/gate3-app-apply.yml
       - run: npm ci
-      - run: npm run typecheck
-      - run: npm test
+      - name: TypeScript
+        run: npm run typecheck 2>&1 | tee gate3-typecheck.log
+      - name: Complete tests
+        id: tests
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee gate3-tests.log
+      - name: Upload Gate 3 diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gate3-app-diagnostics
+          path: |
+            gate3-typecheck.log
+            gate3-tests.log
+          if-no-files-found: warn
+      - name: Preserve test status
+        if: steps.tests.outcome == 'failure'
+        run: exit 1
       - run: npm run build
       - name: Publish verified application integration
         run: |

@@ -70,11 +70,11 @@ reserve_replacement = '''  const tierFor = (responsibility: DarkTombPocketSource
     if (responsibility === "holds-map-changing-evidence" || responsibility === "understands-quiet-works") return "layer";
     return "local";
   };
-  // Quiet Tonnage must carry the exact founding cast through the authored
-  // campaign horizon without turning ordinary upkeep into a silent softlock.
-  // Reserve at the maximum authored tier cost per resident for every estimated
-  // cycle; authored rewards and actual lower tiers remain ordinary surplus.
-  const foundingCurrency = Math.max(80, source.identity.estimatedCycles * source.cast.length * 3);
+  // Quiet Tonnage must carry the exact founding cast through retries without
+  // turning ordinary upkeep into a silent campaign softlock. Reserve four
+  // authored campaign horizons at the maximum tier cost per resident; actual
+  // lower tiers and authored rewards remain ordinary surplus.
+  const foundingCurrency = Math.max(80, source.identity.estimatedCycles * source.cast.length * 3 * 4);
 
   const arc: Arc = {
 '''

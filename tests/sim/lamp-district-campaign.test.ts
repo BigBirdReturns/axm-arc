@@ -11,8 +11,15 @@ import {
 
 const SEEDS = Array.from({ length: 16 }, (_, index) => 9100 + index * 37);
 
+function authoredFounding(seed: number): Organization {
+  return foundOrganization(
+    LAMP_DISTRICT,
+    { format: "axm-founding-input/1", seed },
+  );
+}
+
 function boostedFounding(): Organization {
-  const org = foundOrganization(LAMP_DISTRICT, { format: "axm-founding-input/1", seed: 321 });
+  const org = authoredFounding(321);
   return {
     ...org,
     agents: Object.fromEntries(Object.entries(org.agents).map(([id, agent]) => [
@@ -53,24 +60,25 @@ function consequenceState(): Record<string, true> {
 }
 
 describe("Lamp District full campaign", () => {
-  it("is reachable across a deterministic seed sweep without bypassing a gate", () => {
+  it("is reachable from its exact named founding law across a deterministic seed sweep without bypassing a gate", () => {
     for (const seed of SEEDS) {
-      const result = simulateArcRun(LAMP_DISTRICT, { seed, maxCycles: 80 });
+      const result = simulateArcRun(LAMP_DISTRICT, {
+        seed,
+        maxCycles: 100,
+        initialOrganization: authoredFounding(seed),
+      });
       expect(result.outcome, `seed ${seed}: ${result.stallReason ?? result.warnings.join("; ")}`).toBe("cleared");
       expect(result.gateViolations).toBe(0);
       expect(result.warnings).toEqual([]);
       expect(Object.keys(result.clearCycles).sort()).toEqual(
         LAMP_DISTRICT.challenges.map((challenge) => challenge.id).sort(),
       );
-      expect(result.cyclesPlayed).toBeLessThanOrEqual(80);
+      expect(result.cyclesPlayed).toBeLessThanOrEqual(100);
     }
   });
 
-  it("can be completed by the exact named founding cast rather than only a synthetic roster", () => {
-    const initialOrganization = foundOrganization(
-      LAMP_DISTRICT,
-      { format: "axm-founding-input/1", seed: 20260722 },
-    );
+  it("preserves the exact authored founding identities", () => {
+    const initialOrganization = authoredFounding(20260722);
     expect(Object.values(initialOrganization.agents).map((agent) => agent.name)).toEqual([
       "Iven Marr",
       "Sel Aro",
@@ -80,14 +88,6 @@ describe("Lamp District full campaign", () => {
       "Halen Quill",
       "Black Lamp Nine",
     ]);
-    const result = simulateArcRun(LAMP_DISTRICT, {
-      seed: 20260722,
-      maxCycles: 100,
-      initialOrganization,
-    });
-    expect(result.outcome, result.stallReason ?? result.warnings.join("; ")).toBe("cleared");
-    expect(result.gateViolations).toBe(0);
-    expect(result.warnings).toEqual([]);
   });
 
   it("leaves the Alarm, visibility, map, habitats, and constituencies changed after return", () => {

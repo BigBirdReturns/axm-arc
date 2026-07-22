@@ -61,3 +61,10 @@ No executable plugin code is accepted. Extensions are recursive JSON and namespa
 - `cartridges/kind-gods-of-ilyon.pocket.json` — editable creator source.
 - `cartridges/kind-gods-of-ilyon.arc.json` — compiled standalone cartridge.
 - `npm run build:godscar-reference` — rebuild both from the checked-in compiler.
+
+## Reference acceptance
+
+- `docs/ILYON_ACCEPTANCE.md` records the model-based narrative acceptance of **The Kind Gods of Ilyon** against the Codex, executable campaign, and World receiver evidence.
+- `tests/sim/ilyon-narrative-acceptance.test.ts` guards the control question, causal beat order, evidence discipline, faction receipts, incompatible responsibilities, distinct outcomes, Story Physics, and inherited consequences against drift.
+
+Human sessions remain valuable telemetry and regression discovery. They are not a release prerequisite for the accepted reference campaign.

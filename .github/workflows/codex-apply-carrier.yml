@@ -1,0 +1,42 @@
+name: Codex gate application carrier
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+    paths:
+      - tools/codex-apply.py
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: startsWith(github.head_ref, 'codex/gate')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Apply reviewed gate migration
+        run: python tools/codex-apply.py
+      - name: Remove carrier payload
+        run: rm tools/codex-apply.py
+      - name: Install exact dependencies
+        run: npm ci
+      - name: Verify candidate before publication
+        run: |
+          npm run typecheck
+          npm test
+          npm run build
+      - name: Publish candidate to the pull-request branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Apply reviewed Codex gate migration"
+          git push origin HEAD:${{ github.head_ref }}

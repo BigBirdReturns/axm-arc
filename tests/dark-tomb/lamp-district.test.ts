@@ -13,6 +13,12 @@ async function readJson(path: string): Promise<unknown> {
   return JSON.parse(await readFile(new URL(path, ROOT), "utf8")) as unknown;
 }
 
+function consequenceStateId(id: string): string {
+  const consequence = LAMP_DISTRICT_SOURCE.consequences.find((candidate) => candidate.id === id);
+  if (!consequence) throw new Error(`Missing Lamp District consequence ${id}`);
+  return `consequence:${consequence.kind}:${consequence.id}`;
+}
+
 describe("The Lamp District canonical Dark Tomb reference", () => {
   it("is a complete canonical Book II source with eight linked civic and expedition movements", () => {
     expect(validateDarkTombPocket(LAMP_DISTRICT_SOURCE)).toEqual({ ok: true, source: LAMP_DISTRICT_SOURCE });
@@ -81,12 +87,12 @@ describe("The Lamp District canonical Dark Tomb reference", () => {
     expect(definitions.get("signature-status")).toMatchObject({ kind: "enum", initial: "credible" });
     expect(definitions.get("visibility-status")).toMatchObject({ kind: "enum", initial: "hidden" });
     for (const consequence of LAMP_DISTRICT_SOURCE.consequences) {
-      expect(definitions.get(`consequence-${consequence.id}`)).toMatchObject({ kind: "boolean", initial: false });
+      expect(definitions.get(consequenceStateId(consequence.id))).toMatchObject({ kind: "boolean", initial: false });
     }
 
     const wake = LAMP_DISTRICT.challenges.find((challenge) => challenge.id === "wake-the-war-lattice")!;
     expect(wake.outcomes.success.stateEffects).toEqual(expect.arrayContaining([
-      expect.objectContaining({ stateId: "consequence-alarm-audit-opened", operation: "set", value: true }),
+      expect.objectContaining({ stateId: consequenceStateId("alarm-audit-opened"), operation: "set", value: true }),
       expect.objectContaining({ stateId: "alarm-phase", operation: "set", value: "wake" }),
       expect.objectContaining({ stateId: "signature-status", operation: "set", value: "strained" }),
       expect.objectContaining({ stateId: "visibility-status", operation: "set", value: "suspected" }),
@@ -94,7 +100,7 @@ describe("The Lamp District canonical Dark Tomb reference", () => {
 
     const surface = LAMP_DISTRICT.challenges.find((challenge) => challenge.id === "interrupt-the-surface-sacrifice")!;
     expect(surface.outcomes.success.stateEffects).toEqual(expect.arrayContaining([
-      expect.objectContaining({ stateId: "consequence-surface-households-recognized", operation: "set", value: true }),
+      expect.objectContaining({ stateId: consequenceStateId("surface-households-recognized"), operation: "set", value: true }),
       expect.objectContaining({ stateId: "signature-status", operation: "set", value: "breached" }),
       expect.objectContaining({ stateId: "visibility-status", operation: "set", value: "exposed" }),
     ]));

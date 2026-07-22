@@ -1,0 +1,50 @@
+name: Arc product parity
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - 'src/game/**'
+      - 'src/i18n/**'
+      - 'src/godscar/**'
+      - 'src/arcs/**'
+      - 'tests/game/**'
+      - 'tests/i18n/**'
+      - 'tests/sim/**'
+      - 'docs/**'
+      - '.github/workflows/product-parity.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - name: Authoring and presentation parity
+        run: >-
+          npm test --
+          tests/game/product-parity.test.ts
+          tests/game/authoring-audit.test.ts
+          tests/game/godscar-guided.test.ts
+          tests/game/godscar-forge.test.ts
+          tests/game/sensory-prefs.test.ts
+          tests/game/designer-edit.test.ts
+          tests/game/designer-storage.test.ts
+          tests/game/workshop.test.ts
+          tests/game/workshop-playtest.test.ts
+          tests/i18n/locale.test.ts
+          tests/sim/first-charter-campaign.test.ts
+          tests/sim/karazhan-sim.test.ts
+          tests/sim/ilyon-campaign.test.ts
+      - run: npm test
+      - run: npm run build

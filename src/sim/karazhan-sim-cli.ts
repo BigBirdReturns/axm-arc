@@ -1,4 +1,4 @@
-// CLI for the Karazhan completion simulation.
+// CLI for The Waking Tower completion simulation (legacy module id `karazhan`).
 //
 //   npm run sim:karazhan -- [--seeds N] [--max-cycles A,B] [--heroic] [--json]
 //
@@ -22,14 +22,14 @@ function pct(n: number): string {
 }
 
 function printAggregate(agg: SimAggregate): void {
-  console.log(`\n== Karazhan sim — seeds 1..${agg.seeds}, maxCycles ${agg.maxCycles}${agg.heroic ? ", HEROIC" : ""} ==`);
+  console.log(`\n== The Waking Tower sim — seeds 1..${agg.seeds}, maxCycles ${agg.maxCycles}${agg.heroic ? ", HEROIC" : ""} ==`);
   console.log(`clear ${pct(agg.clearRate)} · stall ${pct(agg.stallRate)} · out-of-cycles ${pct(agg.maxCycleRate)} · gate violations ${agg.totalGateViolations}`);
   console.log(`median cycles to wing clear:`);
   for (const tier of KARAZHAN.progressionTiers) {
     const v = agg.medianWingClear[tier.id];
     console.log(`  ${tier.id.padEnd(8)} ${tier.name.padEnd(32)} ${v === null ? "—" : v}`);
   }
-  console.log(`attunement timing (median cycle): first key ${agg.medianMastersKey ?? "—"} · half-raid keyed ${agg.medianHalfRaidKey ?? "—"} · urn ${agg.medianUrn ?? "—"} · nightbane access ${agg.medianNightbaneAccess ?? "—"}`);
+  console.log(`attunement timing (median cycle): first key ${agg.medianMastersKey ?? "—"} · half-raid keyed ${agg.medianHalfRaidKey ?? "—"} · urn ${agg.medianUrn ?? "—"} · bell-woken access ${agg.medianNightbaneAccess ?? "—"}`);
   if (Object.keys(agg.firstStalls).length > 0) {
     console.log(`first-stall distribution:`);
     for (const [id, n] of Object.entries(agg.firstStalls)) console.log(`  ${id}: ${n}`);

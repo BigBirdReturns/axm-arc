@@ -26,6 +26,7 @@ import {
   type PlaytestReport,
 } from "../lib/workshop.js";
 import { t, useLocale } from "../../i18n/index.js";
+import { AuthoringAuditPanel } from "./AuthoringAuditPanel.js";
 
 interface Props {
   onBack: () => void;
@@ -348,6 +349,8 @@ export function WorkshopScreen({ onBack, onOpenLibrary }: Props): JSX.Element {
                 </div>
               );
             })()}
+
+            <AuthoringAuditPanel arc={validateResult.arc} />
 
             <div style={{ marginTop: 8 }}>
               <button className="secondary" onClick={handlePlaytest}>

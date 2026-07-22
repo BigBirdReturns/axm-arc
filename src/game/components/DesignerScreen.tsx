@@ -21,11 +21,15 @@ import {
   type RosterDraft,
   type DesignerSection,
 } from "../lib/designer-storage.js";
-import { isKarazhan } from "../karazhan-theme.js";
+import { exportArcToJson } from "../lib/arc-library.js";
+import { AuthoringAuditPanel } from "./AuthoringAuditPanel.js";
+import { CartridgePortrait } from "./CartridgePortrait.js";
+import { CartridgeEmblem, cartridgeThemeScope } from "../cartridge-theme.js";
 
 interface Props {
   arc: Arc;
   onBack: () => void;
+  onOpenWorkshop: () => void;
 }
 
 // Designer port — Step 3: the editor sections (identity, standing, attributes,
@@ -71,7 +75,7 @@ function generateForDraft(arc: Arc, indexInDraft: number, seedSalt: string): Age
   return generateAgent({ rng, tier, arc, cycle: 0 });
 }
 
-export function DesignerScreen({ arc, onBack }: Props): JSX.Element {
+export function DesignerScreen({ arc, onBack, onOpenWorkshop }: Props): JSX.Element {
   const [draft, setDraft] = useState<RosterDraft>(() => loadRosterDraft(arc.meta.id));
   const [hoverTraitId, setHoverTraitId] = useState<string | null>(null);
 
@@ -187,17 +191,40 @@ export function DesignerScreen({ arc, onBack }: Props): JSX.Element {
   const activeTraitDesc =
     hoverTrait ?? (selected ? traitPool.find((t) => selected.traits.includes(t.id)) : undefined);
 
+  const exportActiveArc = (): void => {
+    const result = exportArcToJson(arc);
+    if (!result.ok) return;
+    const blob = new Blob([result.payload.json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = result.payload.filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const recordValue: unknown = draft.section === "roster"
+    ? (selected ?? { note: "Select an agent to see its live engine record.", agents: draft.agents.length })
+    : draft.section === "items"
+      ? arc.items
+      : draft.section === "challenges"
+        ? arc.challenges
+        : arc;
+
   return (
     <div
       className="designer-screen"
       data-designer-step="3"
-      data-arc={isKarazhan(arc.meta.id) ? "karazhan" : undefined}
+      data-arc={cartridgeThemeScope(arc.meta.id) ?? undefined}
     >
       <header className="d-topbar">
         <button className="d-back" onClick={onBack} aria-label="Back to title">
           ‹ Back
         </button>
         <div className="d-title">
+          <CartridgeEmblem arcId={arc.meta.id} size={28} />
           <span className="d-title-kicker">Designer</span>
           <span className="d-title-arc">{arc.meta.name}</span>
         </div>
@@ -207,8 +234,6 @@ export function DesignerScreen({ arc, onBack }: Props): JSX.Element {
               key={s}
               className={s === draft.section ? "on" : ""}
               onClick={() => setSection(s)}
-              disabled={s !== "roster"}
-              title={s !== "roster" ? "Available in a later step" : undefined}
             >
               {SECTION_LABEL[s]}
             </button>
@@ -243,7 +268,7 @@ export function DesignerScreen({ arc, onBack }: Props): JSX.Element {
                   tabIndex={0}
                   onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") selectAgent(a.id); }}
                 >
-                  <span className="rail-mono">{agentInitials(a.name)}</span>
+                  <CartridgePortrait arcId={arc.meta.id} roleId={a.role} name={a.name} size={34} className="rail-mono" />
                   <span className="rail-info">
                     <span className="rail-name">{a.name}</span>
                     <span className="rail-sub">{role} · {tierName}</span>
@@ -281,7 +306,7 @@ export function DesignerScreen({ arc, onBack }: Props): JSX.Element {
 
         {/* ── CENTER EDITOR ─────────────────────────────────────── */}
         <main className="d-editor">
-          {!selected && (
+          {draft.section === "roster" && !selected && (
             <div className="d-panel d-panel-muted">
               <div className="d-muted">
                 {draft.agents.length === 0
@@ -291,11 +316,11 @@ export function DesignerScreen({ arc, onBack }: Props): JSX.Element {
             </div>
           )}
 
-          {selected && (
+          {draft.section === "roster" && selected && (
             <>
               <div className="d-panel">
                 <div className="d-identity">
-                  <span className="d-portrait" aria-hidden="true">{agentInitials(selected.name)}</span>
+                  <CartridgePortrait arcId={arc.meta.id} roleId={selected.role} name={selected.name} size={62} className="d-portrait" />
                   <div className="d-id-fields">
                     <input
                       className="d-name-input"
@@ -507,6 +532,52 @@ export function DesignerScreen({ arc, onBack }: Props): JSX.Element {
               </div>
             </>
           )}
+          {draft.section === "items" && (
+            <>
+              <div className="d-panel"><div className="d-section-label">Item catalog · {arc.items.length}</div><p className="d-muted">The cartridge owns these slots, tier gates, bonuses, and flavor. Roster equipment reads this exact catalog.</p></div>
+              {arc.items.length === 0 ? <div className="d-panel d-panel-muted">This cartridge intentionally defines no items.</div> : arc.items.map((item) => (
+                <article className="d-panel" key={item.id} data-testid={`designer-item-${item.id}`}>
+                  <div className="row between"><strong>{item.name}</strong><span className="badge">{item.slot}</span></div>
+                  <div className="agent-meta">id {item.id} · requires {item.tierRequirement}</div>
+                  <p>{item.flavorText}</p>
+                  <div className="d-chips">{Object.entries(item.statBonuses).map(([attributeId, value]) => <span className="d-chip d-chip-on" key={attributeId}>+{value} {attributeId}</span>)}</div>
+                </article>
+              ))}
+              <div className="d-panel"><button className="primary" onClick={onOpenWorkshop}>Edit item law in Workshop</button></div>
+            </>
+          )}
+
+          {draft.section === "challenges" && (
+            <>
+              <div className="d-panel"><div className="d-section-label">Challenge grammar · {arc.challenges.length}</div><p className="d-muted">Every row below is executable Arc law: roster gate, access gate, mechanic checks, and three continuations.</p></div>
+              {arc.challenges.map((challenge) => (
+                <article className="d-panel" key={challenge.id} data-testid={`designer-challenge-${challenge.id}`}>
+                  <div className="row between"><strong>{challenge.name}</strong><span className="badge">difficulty {challenge.difficultyRating}</span></div>
+                  <div className="agent-meta">{challenge.id} · party {challenge.rosterRequirements.minAgents}–{challenge.rosterRequirements.maxAgents}</div>
+                  <p>{challenge.description}</p>
+                  <div className="d-section-label">Checks</div>
+                  {challenge.mechanicChecks.map((check) => <div className="d-budget" key={check.id}><span><b>{check.name}</b> · {check.scope}</span><span>{check.attributeWeights.map((weight) => `${weight.attributeId} ${weight.weight}`).join(" · ")} · target {check.difficultyThreshold}</span></div>)}
+                  <div className="d-section-label" style={{ marginTop: 10 }}>Continuations</div>
+                  <div className="agent-meta">success — {challenge.outcomes.success.narrative}</div>
+                  <div className="agent-meta">partial — {challenge.outcomes.partial.narrative}</div>
+                  <div className="agent-meta">failure — {challenge.outcomes.failure.narrative}</div>
+                </article>
+              ))}
+              <div className="d-panel"><button className="primary" onClick={onOpenWorkshop}>Edit challenge law in Workshop</button></div>
+            </>
+          )}
+
+          {draft.section === "arc" && (
+            <>
+              <div className="d-panel">
+                <div className="d-section-label">Authored cartridge</div><h2 style={{ margin: "4px 0" }}>{arc.meta.name}</h2><p>{arc.meta.description}</p>
+                <div className="agent-meta">{arc.meta.id} · {arc.meta.domain} · v{arc.meta.version} · engine {arc.meta.engineVersion}</div>
+                <div className="d-chips" style={{ marginTop: 10 }}><span className="d-chip d-chip-on">{arc.roles.length} roles</span><span className="d-chip d-chip-on">{arc.attributes.length} attributes</span><span className="d-chip d-chip-on">{arc.challenges.length} challenges</span><span className="d-chip d-chip-on">{arc.progressionTiers.length} progression tiers</span></div>
+              </div>
+              <AuthoringAuditPanel arc={arc} />
+              <div className="d-panel"><div className="d-section-label">Custody actions</div><div className="row" style={{ flexWrap: "wrap", gap: 8 }}><button className="primary" onClick={onOpenWorkshop}>Open full source in Workshop</button><button className="secondary" onClick={exportActiveArc}>Export exact .arc.json</button></div></div>
+            </>
+          )}
         </main>
 
         {/* ── RIGHT ENGINE RECORD ───────────────────────────────── */}
@@ -514,17 +585,9 @@ export function DesignerScreen({ arc, onBack }: Props): JSX.Element {
           <div className="d-record-head">
             Engine record {selected ? `· ${selected.id}` : ""}
           </div>
-          <pre className="d-record-json">
-            {selected
-              ? JSON.stringify(selected, null, 2)
-              : JSON.stringify(
-                  { note: "Select an agent to see its live engine record.", agents: draft.agents.length },
-                  null,
-                  2,
-                )}
-          </pre>
+          <pre className="d-record-json">{JSON.stringify(recordValue, null, 2)}</pre>
           <div className="d-record-note d-muted">
-            Live — what the engine sees. Every editor field above writes straight into this record.
+            Live — the exact record behind the active Designer section. Full cartridge-law edits route to the validated Workshop source.
           </div>
         </aside>
       </div>

@@ -3,6 +3,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { App } from "./App.js";
 import "./styles.css";
+import "./styles/cartridge-themes.css";
 
 // PWA: register the service worker (production builds only — dev serves
 // modules straight from memory and has no emitted sw.js).

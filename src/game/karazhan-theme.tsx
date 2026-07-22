@@ -1,13 +1,13 @@
-// Karazhan cartridge theming — presentation only.
+// The Waking Tower presentation theme (legacy cartridge id `karazhan`).
 //
 // Everything here is gated on the arc id "karazhan"; nothing in this module
 // restyles a shared class globally. Callers key off arc.meta.id === KARAZHAN_ARC_ID
 // (or set data-arc="karazhan" on a container) so The First Charter and any
 // imported/unknown arc keep their default look.
 //
-// The "violet night" palette (design review): violet night #574A7A,
-// arcane blue #4F7D9E, ember gold #D19A3D, fel green #6F8F3F,
-// cold stone #746F7C, parchment #E9DDC4, board ink #1A1420.
+// The violet-night palette: violet #574A7A, observatory blue #4F7D9E,
+// ember gold #D19A3D, moss green #6F8F3F, cold stone #746F7C,
+// parchment #E9DDC4, and board ink #1A1420.
 
 import type { JSX } from "react";
 
@@ -27,8 +27,7 @@ export function isKarazhan(arcId: string): boolean {
 // currentColor so a parent can tint it (violet night); the windows are an
 // explicit ember-gold glow.
 //
-// Source: Karazhan theme asset sheet (design review) — redrawn derivative;
-// sheet not yet committed to references.
+// Source: the governed Waking Tower white-label reference — redrawn derivative.
 export function KarazhanEmblem({ size = 20 }: { size?: number }): JSX.Element {
   return (
     <svg
@@ -36,7 +35,7 @@ export function KarazhanEmblem({ size = 20 }: { size?: number }): JSX.Element {
       height={size}
       viewBox="0 0 24 24"
       role="img"
-      aria-label="Karazhan — the cursed tower"
+      aria-label="The Waking Tower"
       style={{ display: "block", flexShrink: 0 }}
     >
       {/* Crenellated tower silhouette (currentColor = violet night). */}

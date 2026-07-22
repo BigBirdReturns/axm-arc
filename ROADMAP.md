@@ -5,6 +5,29 @@ backlog in `HANDOFF.md` (that backlog is still accurate as a task list; this
 doc reframes *why* and *in what order*). If you're an agent or contributor
 picking up cold, read this first.
 
+## Current completion overlay — 2026-07-22
+
+The local-first product parity train closes the previous unevenness between the
+reference game, authoring tools, and World expression:
+
+- Library, Workshop, all four Designer sections, and Godscar guided/source
+  authoring now operate as one validated custody path;
+- authoring QA explicitly classifies covered, specialist, cosmetic, and dead
+  attributes without silently changing authored balance;
+- persistent sound/reduced-motion controls and access fallbacks are available
+  in play and every standalone tool;
+- the three bundled cartridges carry equal white-label dignity in World, with
+  cartridge-owned role appearances and identity across Board, Map, Hall,
+  Encounter, Aperture, and Globe;
+- dedicated Arc and World parity gates protect campaign, custody, presentation,
+  accessibility, and build evidence.
+
+See `docs/PARITY_COMPLETION.md`. Multiplayer, cloud sync, marketplace,
+publisher signing, cinematic media, and authored-content translation packs are
+separate expansion products rather than unfinished local-first plumbing.
+
+---
+
 ## Thesis — one engine, two audiences, no fork
 
 axm-arc is a **content-free deterministic simulation engine** plus a
@@ -50,16 +73,16 @@ run. Every win here is dual-use for free.
 - ✅ **Liveness primitive #1** — count-up on resource bar
 - ✅ **Liveness primitives #2–5** (keyframes lifted from digest-prototype):
   wordSet on digest masthead, digestIn on digest root, barPulse on
-  threshold crossings, pressSweep on cycle transition. `<AttendedStamp>`
-  available; drama-resolution wire-up future.
+  threshold crossings, pressSweep on cycle transition, and `<AttendedStamp>`
+  on accepted drama-resolution receipts.
 - ✅ **Light/dark theme toggle** (lifted from designer-prototype) — token
   map under `:root[data-theme="dark"]`, `☾`/`☀` toggle in the top bar,
   persisted to `axm-arc:theme:v1`, first load honors `prefers-color-scheme`.
 - ✅ **Release notes + deploy pipeline** — ends stale-build drift
-- 🔜 Hook work (`HOOK.md`): 60-sec-to-first-win, more liveness primitives,
-  per-arc skin layer
-- 🔜 Sprint-2 gaps: Auto-Resolve Policy (#5), full Drama Decision Feedback
-  with provenance tags (#7)
+- ✅ **Bundled expression parity** — cartridge-owned role portraits, emblems,
+  material skins, local sensory controls, and a 60-second resolution receipt
+- ✅ **Authoring parity** — Library, Workshop, complete Designer sections,
+  guided/source Godscar Forge, structural coverage audit, and exact export
 - 🔜 Engine debt: explicit `resolveEvent` on RunReport (kill the heuristic)
 
 ### Thread 2 — Arc-as-artifact (the shipped bridge)
@@ -103,14 +126,18 @@ The cartridge Workshop's validate/preview/save/export loop is shipped. The
 separate roster Designer below remains a proposed deeper authoring workbench;
 do not confuse its status with the existing Workshop.
 
-- 🔜 **Designer port** (`DESIGNER_PORT.md`) — multi-agent roster workshop as
-  a real authoring mode. 8 sequenced steps, none started. Prototype lives at
-  `docs/designer-prototype/`.
+- ✅ **Designer port** (`DESIGNER_PORT.md`) — the roster editor is writable and
+  persistent; Items, Challenges, and Arc sections expose exact authored law and
+  route structural edits through the validated Workshop rather than dead nav.
 - ✅ **Codex-as-QA** (`BALANCE.md`) — the manual's arc-data backlinks double
   as an authoring audit (found the Wits role-orphan). Free QA surface for any
   authored arc.
-- 🔜 A `validateArc` extension could assert the role/check coverage audit from
-  `BALANCE.md` automatically.
+- ✅ **Role/check coverage audit** — the Designer and Workshop classify every
+  attribute as covered, specialist, cosmetic, or dead. Specialist use is made
+  explicit; cosmetic/dead use blocks the authoring-quality pass without changing
+  executable Arc validation.
+- ✅ **Godscar guided authoring** — guided fields and exact JSON source edit one
+  creator-owned Pocket object and compile through the canonical validator.
 
 ## Sequencing recommendation (owner decides)
 

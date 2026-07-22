@@ -11,15 +11,13 @@ import type {
   ProgressionTier,
 } from "../engine/types.js";
 
-// Karazhan: the haunted tower. The second bundled cartridge, and deliberately
-// NOT a reskin of The First Charter — different attribute set (5), different
-// role grammar (raid trinity + support), rank-pip tiers, wing-based
-// progression, live attunement chains, and a heroic difficulty mode. This is
-// the "one famous complex proof cartridge" from docs/POSITIONING.md.
-//
-// Encounter ids follow the working ids in the theme reference sheet
-// (karazhan_theme_asset_pack_overview.png §1); the sheet's icon/palette work
-// keys by these ids, never by display name.
+// The Waking Tower retains the historical cartridge id `karazhan` so existing
+// held runs and imported revisions remain addressable. All player-facing names,
+// fiction, and artwork are original. It is deliberately NOT a reskin of The
+// First Charter: five attributes, a raid-trinity-plus-support role grammar,
+// rank-pip tiers, wing progression, live attunement chains, and a heroic mode.
+// Encounter ids are also retained as compatibility keys; presentation always
+// uses the authored display names below.
 
 // ── Attributes (asset sheet §3) ───────────────────────────────────────────────
 
@@ -80,7 +78,7 @@ const ITEMS: Item[] = [
   },
   {
     id: "moroes-pocket-watch",
-    name: "Moroes' Pocket Watch",
+    name: "Last Steward's Pocket Watch",
     slot: "trinket",
     statBonuses: { adaptability: 2 },
     tierRequirement: "recruit",
@@ -100,7 +98,7 @@ const ITEMS: Item[] = [
     slot: "trinket",
     statBonuses: { adaptability: 3 },
     tierRequirement: "member",
-    flavorText: "Comedy on one face, tragedy on the other. The Opera never plays the same show twice.",
+    flavorText: "Comedy on one face, tragedy on the other. The Night Stage never plays the same show twice.",
   },
   {
     id: "orrery-core",
@@ -108,7 +106,7 @@ const ITEMS: Item[] = [
     slot: "trinket",
     statBonuses: { precision: 3, focus: 1 },
     tierRequirement: "veteran",
-    flavorText: "The Curator's heart: a model of the heavens, ticking with arcane charge.",
+    flavorText: "The Orrery Warden's heart: a public model of the heavens, still ticking after its keeper forgot the sky.",
   },
   {
     id: "construct-plating",
@@ -116,15 +114,15 @@ const ITEMS: Item[] = [
     slot: "chest",
     statBonuses: { resilience: 3 },
     tierRequirement: "veteran",
-    flavorText: "Menagerie-grade armor. It has already survived one master's fall.",
+    flavorText: "Orrery-gallery armor. It has already survived one surveyor's fall.",
   },
   {
     id: "demon-chain-links",
-    name: "Demon Chain Links",
+    name: "Rift Chain Links",
     slot: "chest",
     statBonuses: { resilience: 2, power: 1 },
     tierRequirement: "veteran",
-    flavorText: "Kil'rek wore them first. They fit better on the willing.",
+    flavorText: "Cinderling wore them first. They fit better on the willing.",
   },
   {
     id: "runed-focus",
@@ -132,7 +130,7 @@ const ITEMS: Item[] = [
     slot: "weapon",
     statBonuses: { precision: 3, focus: 2 },
     tierRequirement: "veteran",
-    flavorText: "Aran's off-center star, ground into a lens. Do not move while it settles.",
+    flavorText: "Ember Tutor's off-center star, ground into a lens. Do not move while it settles.",
   },
   {
     id: "kings-gambit",
@@ -152,15 +150,15 @@ const ITEMS: Item[] = [
   },
   {
     id: "infernal-spike",
-    name: "Infernal Spike",
+    name: "Cinder Spike",
     slot: "weapon",
     statBonuses: { power: 4, precision: 2 },
     tierRequirement: "veteran",
-    flavorText: "Snapped from the Prince's tilted crown. Still smoldering.",
+    flavorText: "Snapped from the Cinder Prince's tilted crown. Still smoldering.",
   },
   {
     id: "blackened-urn",
-    name: "The Blackened Urn",
+    name: "The Bell-Blackened Urn",
     slot: "key",
     statBonuses: { focus: 1 },
     tierRequirement: "veteran",
@@ -168,19 +166,19 @@ const ITEMS: Item[] = [
   },
   {
     id: "dragonbone-greaves",
-    name: "Dragonbone Greaves",
+    name: "Wyrmbone Greaves",
     slot: "legs",
     statBonuses: { resilience: 4, power: 1 },
     tierRequirement: "veteran",
-    flavorText: "Carved from Nightbane's own remains. He will not need them twice.",
+    flavorText: "Carved from The Bell-Woken Wyrm's own remains. He will not need them twice.",
   },
   {
     id: "ogre-warlord-totem",
-    name: "Ogre Warlord Totem",
+    name: "Council War Totem",
     slot: "trinket",
     statBonuses: { power: 3, resilience: 2 },
     tierRequirement: "veteran",
-    flavorText: "The High King's council is dead. Their authority travels light.",
+    flavorText: "The Fivefold King's council is dead. Their authority travels light.",
   },
   {
     id: "shattered-mountain-core",
@@ -188,15 +186,15 @@ const ITEMS: Item[] = [
     slot: "trinket",
     statBonuses: { power: 4, resilience: 2 },
     tierRequirement: "veteran",
-    flavorText: "Gruul grew until the cave could not hold him. This is what was left of the cave.",
+    flavorText: "Growing Titan grew until the cave could not hold him. This is what was left of the cave.",
   },
   {
     id: "fel-manacle",
-    name: "Fel Manacle",
+    name: "Furnace Manacle",
     slot: "trinket",
     statBonuses: { focus: 4, adaptability: 2 },
     tierRequirement: "veteran",
-    flavorText: "One of the five that held the Pit Lord. Broken open, still binding.",
+    flavorText: "One of the five that held the Bound Furnace. Broken open, still binding.",
   },
 ];
 
@@ -206,7 +204,7 @@ const CHALLENGES: Challenge[] = [
   // ── Wing 1: The Servants' Quarters ─────────────────────────────────────────
   {
     id: "attumen",
-    name: "Attumen the Huntsman",
+    name: "The Ashen Huntsman",
     description:
       "The stables never emptied; the huntsman never dismounted. Break the spectral rider and his steed before the rest of the tower learns you are here.",
     rosterRequirements: { minAgents: 6, maxAgents: 10, roleRequirements: [{ roleId: "tank", count: 1 }] },
@@ -216,7 +214,7 @@ const CHALLENGES: Challenge[] = [
       {
         id: "attumen-charge",
         name: "Intercept the Charge",
-        description: "The tank must catch Midnight's charge before it scatters the back line.",
+        description: "The tank must catch Gloamhoof's charge before it scatters the back line.",
         attributeWeights: [{ attributeId: "resilience", weight: 0.8 }, { attributeId: "adaptability", weight: 0.2 }],
         difficultyThreshold: 12,
         scope: "role_specific",
@@ -251,7 +249,7 @@ const CHALLENGES: Challenge[] = [
       },
       failure: {
         rewardTable: [],
-        narrative: "Midnight's charge breaks your line. The tower's first door stays shut.",
+        narrative: "Gloamhoof's charge breaks your line. The tower's first door stays shut.",
         stressPenalty: 2,
         tokenRefund: 0.5,
       },
@@ -260,17 +258,17 @@ const CHALLENGES: Challenge[] = [
 
   {
     id: "moroes",
-    name: "Moroes",
+    name: "The Last Steward",
     description:
-      "The steward still keeps the master's table, and his dinner guests do not appreciate interruptions. Someone will be garroted. Plan for it.",
+      "The steward still keeps the surveyor's table, and the guest circle does not appreciate interruptions. Someone will be caught in a silk noose. Plan for it.",
     rosterRequirements: { minAgents: 6, maxAgents: 10, roleRequirements: [{ roleId: "tank", count: 1 }, { roleId: "healer", count: 1 }] },
     accessRequirements: { orgMilestones: [], agentAttunements: [], attunementThreshold: null },
     difficultyRating: 25,
     mechanicChecks: [
       {
         id: "moroes-garrote",
-        name: "Garrote Triage",
-        description: "Healers keep the garroted alive through the whole fight — there is no removing it.",
+        name: "Cut the Silk Noose",
+        description: "Healers keep the marked raider alive while the silk noose tightens — it cannot be cut from inside the circle.",
         attributeWeights: [{ attributeId: "focus", weight: 0.8 }, { attributeId: "adaptability", weight: 0.2 }],
         difficultyThreshold: 13,
         scope: "role_specific",
@@ -300,12 +298,12 @@ const CHALLENGES: Challenge[] = [
       },
       partial: {
         rewardTable: [],
-        narrative: "Moroes falls but his guests fight on. Your raiders limp out through the servant's passage.",
+        narrative: "The Last Steward falls but his guests fight on. Your raiders limp out through the servant's passage.",
         agentDowntimeCycles: 1,
       },
       failure: {
         rewardTable: [],
-        narrative: "The garrote count climbs faster than your healers can answer. The banquet hall holds.",
+        narrative: "The silk nooses tighten faster than your healers can answer. The banquet hall holds.",
         stressPenalty: 3,
         tokenRefund: 0.5,
       },
@@ -314,9 +312,9 @@ const CHALLENGES: Challenge[] = [
 
   {
     id: "maiden",
-    name: "Maiden of Virtue",
+    name: "The Chained Saint",
     description:
-      "She was built to punish sin, and your raid qualifies. Survive her repentance and the tower's lower halls are yours.",
+      "She was built to enforce a vanished creed, and your raid qualifies as an exception. Survive her litany and the tower's lower halls are yours.",
     rosterRequirements: { minAgents: 6, maxAgents: 10, roleRequirements: [{ roleId: "healer", count: 1 }] },
     accessRequirements: { orgMilestones: [], agentAttunements: [], attunementThreshold: null },
     difficultyRating: 28,
@@ -333,7 +331,7 @@ const CHALLENGES: Challenge[] = [
       },
       {
         id: "maiden-repentance",
-        name: "Recover from Repentance",
+        name: "Wake from the Litany",
         description: "When the whole raid drops to its knees, the healers must be the first ones up.",
         attributeWeights: [{ attributeId: "focus", weight: 0.7 }, { attributeId: "adaptability", weight: 0.3 }],
         difficultyThreshold: 14,
@@ -347,14 +345,14 @@ const CHALLENGES: Challenge[] = [
     outcomes: {
       success: {
         rewardTable: [{ itemId: "chained-holy-sigil", dropRate: 1.0 }],
-        narrative: "The Maiden's light gutters out. Whatever she was guarding the guests from, it is loose upstairs — and so are you.",
+        narrative: "The Chained Saint's light gutters out. Whatever she was holding below the chapel is loose upstairs — and so are you.",
         reputationGain: 3,
         currencyReward: 80,
         milestoneFlag: "maiden-cleared",
       },
       partial: {
         rewardTable: [],
-        narrative: "She falls, but her last repentance leaves half the raid on the chapel floor.",
+        narrative: "She falls, but her last litany leaves half the raid on the chapel floor.",
         agentDowntimeCycles: 2,
       },
       failure: {
@@ -366,10 +364,10 @@ const CHALLENGES: Challenge[] = [
     },
   },
 
-  // ── Wing 2: The Opera House & the Menagerie ───────────────────────────────
+  // ── Wing 2: The Night Stage & the Orrery Galleries ───────────────────────────────
   {
     id: "opera",
-    name: "The Opera Event",
+    name: "The Night Stage",
     description:
       "The curtain rises on a show no one chose. Wolf, wizard, or romance — the script changes nightly and the audience does not accept refunds.",
     rosterRequirements: { minAgents: 6, maxAgents: 10, roleRequirements: [{ roleId: "support", count: 1 }] },
@@ -378,7 +376,7 @@ const CHALLENGES: Challenge[] = [
     mechanicChecks: [
       {
         id: "opera-script",
-        name: "Improvise the Script",
+        name: "Rewrite the Living Script",
         description: "Nobody knows which show it is until the curtain is up. Everyone adapts, immediately.",
         attributeWeights: [{ attributeId: "adaptability", weight: 0.8 }, { attributeId: "precision", weight: 0.2 }],
         difficultyThreshold: 8,
@@ -388,7 +386,7 @@ const CHALLENGES: Challenge[] = [
       },
       {
         id: "opera-stage",
-        name: "Stage Direction",
+        name: "Survive the Turning Stage",
         description: "Support calls the mechanics as they come — curtains, cyclones, moonlight.",
         attributeWeights: [{ attributeId: "adaptability", weight: 0.6 }, { attributeId: "focus", weight: 0.4 }],
         difficultyThreshold: 12,
@@ -423,16 +421,16 @@ const CHALLENGES: Challenge[] = [
 
   {
     id: "curator",
-    name: "The Curator",
+    name: "The Orrery Warden",
     description:
-      "The Menagerie's warden channels the tower's arcane grid through its own chassis. Burn it during evocation or be worn down by an endless gallery of flares.",
+      "The Orrery Galleries' warden channels the tower's star-grid through its own chassis. Break its recharge cycle or be worn down by an endless gallery of star motes.",
     rosterRequirements: { minAgents: 7, maxAgents: 10, roleRequirements: [{ roleId: "tank", count: 1 }, { roleId: "ranged", count: 1 }] },
     accessRequirements: { orgMilestones: ["opera-cleared"], agentAttunements: [], attunementThreshold: 0.5 },
     difficultyRating: 38,
     mechanicChecks: [
       {
         id: "curator-evocation",
-        name: "Evocation Burn",
+        name: "Break the Orrery Cycle",
         description: "Twenty seconds of double damage. Miss the window and the fight does not end.",
         attributeWeights: [{ attributeId: "power", weight: 0.5 }, { attributeId: "precision", weight: 0.5 }],
         difficultyThreshold: 8,
@@ -442,8 +440,8 @@ const CHALLENGES: Challenge[] = [
       },
       {
         id: "curator-flares",
-        name: "Flare Discipline",
-        description: "Ranged assassinate each astral flare the moment it spawns, before it reaches the healers.",
+        name: "Contain the Star Motes",
+        description: "Ranged destroy each star mote the moment it forms, before it reaches the healers.",
         attributeWeights: [{ attributeId: "precision", weight: 0.8 }, { attributeId: "focus", weight: 0.2 }],
         difficultyThreshold: 14,
         scope: "role_specific",
@@ -456,20 +454,20 @@ const CHALLENGES: Challenge[] = [
     outcomes: {
       success: {
         rewardTable: [{ itemId: "orrery-core", dropRate: 1.0 }, { itemId: "construct-plating", dropRate: 0.5 }],
-        narrative: "The Curator's chassis vents its last charge. Behind it, the stair to the upper tower stands unguarded.",
+        narrative: "The Orrery Warden's chassis vents its last charge. Behind it, the stair to the upper tower stands unguarded.",
         reputationGain: 4,
         currencyReward: 110,
         milestoneFlag: "curator-cleared",
       },
       partial: {
         rewardTable: [{ itemId: "construct-plating", dropRate: 1.0 }],
-        narrative: "The construct collapses, but its flares chased your raiders out of the gallery first.",
+        narrative: "The construct collapses, but its star motes chased your raiders out of the gallery first.",
         reputationGain: 2,
         agentDowntimeCycles: 2,
       },
       failure: {
         rewardTable: [],
-        narrative: "Flare after flare after flare. The Menagerie remains curated.",
+        narrative: "Mote after mote after mote. The Orrery Galleries remain closed.",
         stressPenalty: 4,
         tokenRefund: 0.25,
       },
@@ -479,16 +477,16 @@ const CHALLENGES: Challenge[] = [
   // ── Wing 3: The Broken Stair ──────────────────────────────────────────────
   {
     id: "chess",
-    name: "The Chess Event",
+    name: "The Legacy Board",
     description:
-      "Medivh still plays against himself in the gallery, and the pieces are life-sized. Take the board — by his rules.",
+      "The Last Surveyor still plays against his own record in the gallery, and the pieces are life-sized. Take the board — by its inherited rules.",
     rosterRequirements: { minAgents: 6, maxAgents: 10, roleRequirements: [{ roleId: "support", count: 1 }] },
     accessRequirements: { orgMilestones: ["curator-cleared"], agentAttunements: [], attunementThreshold: null },
     difficultyRating: 35,
     mechanicChecks: [
       {
         id: "chess-board",
-        name: "Play the Board",
+        name: "Outmaneuver the Legacy Board",
         description: "Every raider pilots a piece. Move like it matters, because it does.",
         attributeWeights: [{ attributeId: "adaptability", weight: 0.7 }, { attributeId: "focus", weight: 0.3 }],
         difficultyThreshold: 8,
@@ -498,7 +496,7 @@ const CHALLENGES: Challenge[] = [
       },
       {
         id: "chess-king",
-        name: "Protect the King",
+        name: "Preserve the Crown Piece",
         description: "Support reads the Legacy's cheating moves and calls the counter before it lands.",
         attributeWeights: [{ attributeId: "adaptability", weight: 0.5 }, { attributeId: "precision", weight: 0.5 }],
         difficultyThreshold: 14,
@@ -512,7 +510,7 @@ const CHALLENGES: Challenge[] = [
     outcomes: {
       success: {
         rewardTable: [{ itemId: "kings-gambit", dropRate: 1.0 }],
-        narrative: "Checkmate — against a dead Guardian's echo, on his own board. The gallery doors unlock themselves in respect.",
+        narrative: "The final crown piece is cornered against the Last Surveyor's echo. The gallery doors unlock themselves in recognition.",
         reputationGain: 3,
         currencyReward: 100,
         milestoneFlag: "chess-cleared",
@@ -533,7 +531,7 @@ const CHALLENGES: Challenge[] = [
 
   {
     id: "illhoof",
-    name: "Terestian Illhoof",
+    name: "The Horned Reader",
     description:
       "In a study lined with the wrong kind of books, a satyr feeds the tower's guests to something on the other side. Cut the sacrifices down fast, or join them.",
     rosterRequirements: { minAgents: 7, maxAgents: 10, roleRequirements: [{ roleId: "melee", count: 1 }, { roleId: "healer", count: 1 }] },
@@ -552,8 +550,8 @@ const CHALLENGES: Challenge[] = [
       },
       {
         id: "illhoof-imps",
-        name: "Hold Back the Imp Tide",
-        description: "Kil'rek's swarm never stops. The raid grinds it down without drowning.",
+        name: "Contain the Cinderlings",
+        description: "Cinderling's swarm never stops. The raid grinds it down without drowning.",
         attributeWeights: [{ attributeId: "power", weight: 0.8 }, { attributeId: "adaptability", weight: 0.2 }],
         difficultyThreshold: 8,
         thresholdMode: "perAssignedAgent",
@@ -566,14 +564,14 @@ const CHALLENGES: Challenge[] = [
     outcomes: {
       success: {
         rewardTable: [{ itemId: "demon-chain-links", dropRate: 1.0 }],
-        narrative: "The summoning circle gutters out with its master. Whatever was on the other side goes hungry tonight.",
+        narrative: "The reading circle gutters out with its keeper. Whatever listened from the other side goes hungry tonight.",
         reputationGain: 4,
         currencyReward: 120,
         milestoneFlag: "illhoof-cleared",
       },
       partial: {
         rewardTable: [],
-        narrative: "Illhoof falls, but not before the circle took its toll from your roster.",
+        narrative: "Horned Reader falls, but not before the circle took its toll from your roster.",
         agentDowntimeCycles: 2,
       },
       failure: {
@@ -587,17 +585,17 @@ const CHALLENGES: Challenge[] = [
 
   {
     id: "aran",
-    name: "Shade of Aran",
+    name: "The Ember Tutor",
     description:
-      "Medivh's father does not remember dying, only teaching. His lessons are flame wreath, blizzard, and arcane explosion — and the penalty for moving during the wrong one is total.",
+      "The Last Surveyor's tutor does not remember dying, only teaching. His lessons are ember ring, whiteout, and furnace pulse — and the penalty for moving during the wrong one is total.",
     rosterRequirements: { minAgents: 7, maxAgents: 10, roleRequirements: [{ roleId: "ranged", count: 1 }] },
     accessRequirements: { orgMilestones: ["curator-cleared"], agentAttunements: [], attunementThreshold: null },
     difficultyRating: 44,
     mechanicChecks: [
       {
         id: "aran-stillness",
-        name: "DON'T MOVE",
-        description: "Flame wreath is up. Every raider holds position through the instinct to run.",
+        name: "Hold Through the Ember Cant",
+        description: "The ember ring is up. Every raider holds position through the instinct to run.",
         attributeWeights: [{ attributeId: "focus", weight: 0.8 }, { attributeId: "resilience", weight: 0.2 }],
         difficultyThreshold: 9,
         thresholdMode: "perAssignedAgent",
@@ -606,8 +604,8 @@ const CHALLENGES: Challenge[] = [
       },
       {
         id: "aran-counterspell",
-        name: "Counterspell Windows",
-        description: "Ranged interrupt the shade's casts in rotation — miss two in a row and the blizzard walks the room.",
+        name: "Interrupt the Tutor's Lesson",
+        description: "Ranged interrupt the tutor's casts in rotation — miss two in a row and the whiteout walks the room.",
         attributeWeights: [{ attributeId: "precision", weight: 0.7 }, { attributeId: "focus", weight: 0.3 }],
         difficultyThreshold: 15,
         scope: "role_specific",
@@ -627,12 +625,12 @@ const CHALLENGES: Challenge[] = [
       },
       partial: {
         rewardTable: [],
-        narrative: "Aran dissipates, but his last blizzard put half your raid on the infirmary list.",
+        narrative: "Ember Tutor dissipates, but his last blizzard put half your raid on the infirmary list.",
         agentDowntimeCycles: 2,
       },
       failure: {
         rewardTable: [],
-        narrative: "Someone moved. The flame wreath explained why that was a mistake.",
+        narrative: "Someone moved. The ember ring explained why that was a mistake.",
         stressPenalty: 4,
         tokenRefund: 0.25,
       },
@@ -642,16 +640,16 @@ const CHALLENGES: Challenge[] = [
   // ── Wing 4: The Spire ─────────────────────────────────────────────────────
   {
     id: "netherspite",
-    name: "Netherspite",
+    name: "The Rift Wyrm",
     description:
-      "A nether dragon feeds on three beams of portal energy, and each beam must be intercepted by exactly the right body. The rotation is the fight.",
+      "A rift dragon feeds on three beams of portal energy, and each beam must be intercepted by exactly the right body. The rotation is the fight.",
     rosterRequirements: { minAgents: 8, maxAgents: 10, roleRequirements: [{ roleId: "tank", count: 1 }, { roleId: "healer", count: 2 }] },
     accessRequirements: { orgMilestones: ["aran-cleared"], agentAttunements: [], attunementThreshold: null },
     difficultyRating: 50,
     mechanicChecks: [
       {
         id: "netherspite-beams",
-        name: "Beam Rotation",
+        name: "Rotate the Rift Lenses",
         description: "Red, green, blue — every beam blocked, every rotation, with debuffs tracked across the whole raid.",
         attributeWeights: [{ attributeId: "adaptability", weight: 0.7 }, { attributeId: "focus", weight: 0.3 }],
         difficultyThreshold: 9,
@@ -661,7 +659,7 @@ const CHALLENGES: Challenge[] = [
       },
       {
         id: "netherspite-banish",
-        name: "Survive the Banish Phase",
+        name: "Cross the Vanishing Interval",
         description: "When the dragon phases out, void zones rain in. Stack, move, breathe, reset.",
         attributeWeights: [{ attributeId: "focus", weight: 0.5 }, { attributeId: "resilience", weight: 0.5 }],
         difficultyThreshold: 8,
@@ -671,7 +669,7 @@ const CHALLENGES: Challenge[] = [
       },
       {
         id: "netherspite-tank",
-        name: "Hold the Nether Breath",
+        name: "Hold the Rift Breath",
         description: "The tank eats the breath rotation while the red beam burns their mitigation away.",
         attributeWeights: [{ attributeId: "resilience", weight: 0.9 }, { attributeId: "focus", weight: 0.1 }],
         difficultyThreshold: 16,
@@ -692,7 +690,7 @@ const CHALLENGES: Challenge[] = [
       },
       partial: {
         rewardTable: [],
-        narrative: "Netherspite retreats through its portal, gorged but wounded. The beams dim.",
+        narrative: "The Rift Wyrm retreats through its portal, gorged but wounded. The beams dim.",
         reputationGain: 2,
         agentDowntimeCycles: 2,
       },
@@ -707,16 +705,16 @@ const CHALLENGES: Challenge[] = [
 
   {
     id: "prince",
-    name: "Prince Malchezaar",
+    name: "The Cinder Prince",
     description:
-      "At the top of the tower, an eredar prince tosses infernals like dice and holds all the aces. The roof is small, the fire is not, and the enfeeble does not care who you were.",
+      "At the top of the tower, a riftborn prince tosses cinder stars like dice and holds all the aces. The roof is small, the fire is not, and the hollowing mark does not care who you were.",
     rosterRequirements: { minAgents: 8, maxAgents: 10, roleRequirements: [{ roleId: "tank", count: 1 }, { roleId: "healer", count: 2 }] },
     accessRequirements: { orgMilestones: ["aran-cleared"], agentAttunements: [], attunementThreshold: null },
     difficultyRating: 55,
     mechanicChecks: [
       {
         id: "prince-enfeeble",
-        name: "Enfeeble Spacing",
+        name: "Space the Hollowing Mark",
         description: "Five raiders at one health, every thirty seconds. Spacing is the only mitigation.",
         attributeWeights: [{ attributeId: "focus", weight: 0.5 }, { attributeId: "adaptability", weight: 0.5 }],
         difficultyThreshold: 9,
@@ -726,8 +724,8 @@ const CHALLENGES: Challenge[] = [
       },
       {
         id: "prince-infernals",
-        name: "Infernal Weather",
-        description: "The roof fills with falling infernals. The raid re-positions around each impact — mid-fight, every time.",
+        name: "Cinderfall Weather",
+        description: "The roof fills with falling cinder stars. The raid repositions around each impact — mid-fight, every time.",
         attributeWeights: [{ attributeId: "adaptability", weight: 0.8 }, { attributeId: "precision", weight: 0.2 }],
         difficultyThreshold: 9,
         thresholdMode: "perAssignedAgent",
@@ -736,8 +734,8 @@ const CHALLENGES: Challenge[] = [
       },
       {
         id: "prince-nova",
-        name: "Shadow Nova Triage",
-        description: "Healers cover the enfeebled through each nova, phase after phase.",
+        name: "Survive the Crown Burst",
+        description: "Healers cover the hollow-marked through each crown burst, phase after phase.",
         attributeWeights: [{ attributeId: "focus", weight: 0.8 }, { attributeId: "adaptability", weight: 0.2 }],
         difficultyThreshold: 17,
         scope: "role_specific",
@@ -750,20 +748,20 @@ const CHALLENGES: Challenge[] = [
     outcomes: {
       success: {
         rewardTable: [{ itemId: "infernal-spike", dropRate: 1.0 }, { itemId: "blackened-urn", dropRate: 1.0 }],
-        narrative: "The prince falls among his own infernals, crown tilted, hands finally empty. In the wreckage: a blackened urn, cold and heavy.",
+        narrative: "The prince falls among his own cinder stars, crown tilted, hands finally empty. In the wreckage: a bell-blackened urn, cold and heavy.",
         reputationGain: 6,
         currencyReward: 170,
         milestoneFlag: "prince-cleared",
       },
       partial: {
         rewardTable: [{ itemId: "infernal-spike", dropRate: 0.5 }],
-        narrative: "Malchezaar staggers back through his summoning rift. The roof is yours; the prince is not.",
+        narrative: "The Cinder Prince staggers back through his summoning rift. The roof is yours; the prince is not.",
         reputationGain: 3,
         agentDowntimeCycles: 3,
       },
       failure: {
         rewardTable: [],
-        narrative: "An infernal lands on the healers during enfeeble. The rest is arithmetic.",
+        narrative: "A cinderfall mass lands on the healers during the hollowing mark. The rest is arithmetic.",
         stressPenalty: 5,
         tokenRefund: 0.25,
       },
@@ -772,16 +770,16 @@ const CHALLENGES: Challenge[] = [
 
   {
     id: "nightbane",
-    name: "Nightbane",
+    name: "The Bell-Woken Wyrm",
     description:
-      "Ring the bell on the master's balcony and the urn's owner answers: a skeletal dragon that was promised rest and got you instead. Summoned bosses do not forgive.",
+      "Ring the bell on the surveyor's balcony and the urn's owner answers: a skeletal wyrm that was promised rest and got you instead. Summoned adversaries do not forgive.",
     rosterRequirements: { minAgents: 8, maxAgents: 10, roleRequirements: [{ roleId: "tank", count: 1 }, { roleId: "healer", count: 2 }] },
     accessRequirements: { orgMilestones: ["prince-cleared"], agentAttunements: [], attunementThreshold: 0.1 },
     difficultyRating: 58,
     mechanicChecks: [
       {
         id: "nightbane-smolder",
-        name: "Smoldering Breath",
+        name: "Bellfire Breath",
         description: "The tank holds a dragon that ignites the ground it stands on.",
         attributeWeights: [{ attributeId: "resilience", weight: 0.9 }, { attributeId: "adaptability", weight: 0.1 }],
         difficultyThreshold: 18,
@@ -791,7 +789,7 @@ const CHALLENGES: Challenge[] = [
       },
       {
         id: "nightbane-bones",
-        name: "Rain of Bones",
+        name: "Bonefall",
         description: "Air phase: skeletons pour down while the dragon strafes. Burn them before it lands.",
         attributeWeights: [{ attributeId: "power", weight: 0.7 }, { attributeId: "precision", weight: 0.3 }],
         difficultyThreshold: 9,
@@ -801,7 +799,7 @@ const CHALLENGES: Challenge[] = [
       },
       {
         id: "nightbane-earth",
-        name: "Charred Earth",
+        name: "Wakefire Ground",
         description: "The balcony shrinks as the ground burns. Everyone tracks the safe squares.",
         attributeWeights: [{ attributeId: "adaptability", weight: 0.8 }, { attributeId: "focus", weight: 0.2 }],
         difficultyThreshold: 9,
@@ -815,7 +813,7 @@ const CHALLENGES: Challenge[] = [
     outcomes: {
       success: {
         rewardTable: [{ itemId: "dragonbone-greaves", dropRate: 1.0 }],
-        narrative: "Nightbane crashes through the balcony rail and does not rise. This time, the rest is real.",
+        narrative: "The Bell-Woken Wyrm crashes through the balcony rail and does not rise. This time, the rest is real.",
         reputationGain: 6,
         currencyReward: 190,
         milestoneFlag: "nightbane-cleared",
@@ -828,7 +826,7 @@ const CHALLENGES: Challenge[] = [
       },
       failure: {
         rewardTable: [],
-        narrative: "The charred earth closes like a fist. The urn sits on the balcony, ready to be rung again — braver, next time.",
+        narrative: "The wakefire closes like a fist. The urn sits on the balcony, ready to be rung again — braver, next time.",
         stressPenalty: 5,
         tokenRefund: 0.25,
       },
@@ -838,16 +836,16 @@ const CHALLENGES: Challenge[] = [
   // ── Wing 5: Beyond the Tower ──────────────────────────────────────────────
   {
     id: "maulgar",
-    name: "High King Maulgar",
+    name: "The Fivefold King",
     description:
-      "Beyond the tower, the ogre council of Gruul's Lair: five targets, five simultaneous problems, one pull. The tower taught you rotations — this is the exam.",
+      "Beyond the tower, the giant council of Stonewake Lair: five targets, five simultaneous problems, one pull. The tower taught you rotations — this is the exam.",
     rosterRequirements: { minAgents: 8, maxAgents: 10, roleRequirements: [{ roleId: "tank", count: 2 }, { roleId: "healer", count: 2 }] },
     accessRequirements: { orgMilestones: ["prince-cleared"], agentAttunements: [], attunementThreshold: null },
     difficultyRating: 60,
     mechanicChecks: [
       {
         id: "maulgar-council",
-        name: "Split the Council",
+        name: "Divide the Fivefold Court",
         description: "Five bosses claimed in the opening seconds, each by the right group, or the pull collapses.",
         attributeWeights: [{ attributeId: "adaptability", weight: 0.6 }, { attributeId: "precision", weight: 0.4 }],
         difficultyThreshold: 9,
@@ -857,8 +855,8 @@ const CHALLENGES: Challenge[] = [
       },
       {
         id: "maulgar-tanks",
-        name: "Hold Two Fronts",
-        description: "Both tanks anchor separate kill orders — the High King and the Blindeye line.",
+        name: "Hold the Twin Thrones",
+        description: "Both tanks anchor separate kill orders — the Fivefold King and the seer line.",
         attributeWeights: [{ attributeId: "resilience", weight: 0.8 }, { attributeId: "power", weight: 0.2 }],
         difficultyThreshold: 16,
         scope: "role_specific",
@@ -871,7 +869,7 @@ const CHALLENGES: Challenge[] = [
     outcomes: {
       success: {
         rewardTable: [{ itemId: "ogre-warlord-totem", dropRate: 1.0 }],
-        narrative: "The High King dies last, bellowing at a council that can no longer hear him.",
+        narrative: "The Fivefold King dies last, bellowing at a council that can no longer hear him.",
         reputationGain: 7,
         currencyReward: 220,
         milestoneFlag: "maulgar-cleared",
@@ -893,7 +891,7 @@ const CHALLENGES: Challenge[] = [
 
   {
     id: "gruul",
-    name: "Gruul the Dragonkiller",
+    name: "The Growing Titan",
     description:
       "He killed dragons for sport and grows stronger every second the fight lasts. There is a timer on this one, and it is made of his patience.",
     rosterRequirements: { minAgents: 8, maxAgents: 10, roleRequirements: [{ roleId: "tank", count: 1 }, { roleId: "healer", count: 2 }] },
@@ -902,7 +900,7 @@ const CHALLENGES: Challenge[] = [
     mechanicChecks: [
       {
         id: "gruul-grow",
-        name: "Beat the Growth",
+        name: "Outpace the Titan's Growth",
         description: "Every wave of growth makes him hit harder. Kill him before the math turns.",
         attributeWeights: [{ attributeId: "power", weight: 0.8 }, { attributeId: "precision", weight: 0.2 }],
         difficultyThreshold: 10,
@@ -912,7 +910,7 @@ const CHALLENGES: Challenge[] = [
       },
       {
         id: "gruul-shatter",
-        name: "Shatter Spread",
+        name: "Break the Stone Echo",
         description: "Ground slam freezes the raid; shatter punishes anyone standing together. Spread while petrified — plan it before.",
         attributeWeights: [{ attributeId: "adaptability", weight: 0.9 }, { attributeId: "focus", weight: 0.1 }],
         difficultyThreshold: 9,
@@ -922,7 +920,7 @@ const CHALLENGES: Challenge[] = [
       },
       {
         id: "gruul-hurtful",
-        name: "Eat the Hurtful Strike",
+        name: "Catch the Crushing Blow",
         description: "The tank line absorbs strikes that would delete anyone else.",
         attributeWeights: [{ attributeId: "resilience", weight: 1.0 }],
         difficultyThreshold: 18,
@@ -936,7 +934,7 @@ const CHALLENGES: Challenge[] = [
     outcomes: {
       success: {
         rewardTable: [{ itemId: "shattered-mountain-core", dropRate: 1.0 }],
-        narrative: "Gruul falls while still growing, and the mountain shakes twice — once for the impact, once in relief.",
+        narrative: "Growing Titan falls while still growing, and the mountain shakes twice — once for the impact, once in relief.",
         reputationGain: 8,
         currencyReward: 260,
         milestoneFlag: "gruul-cleared",
@@ -958,17 +956,17 @@ const CHALLENGES: Challenge[] = [
 
   {
     id: "magtheridon",
-    name: "Magtheridon",
+    name: "The Bound Furnace",
     description:
-      "Beneath Hellfire Citadel, a Pit Lord strains against five fel manacles. The channelers keeping him bound are the fight; the moment they die, so is he. Do not confuse the order.",
+      "Beneath the Furnace Vault, the Bound Furnace strains against five iron manacles. The furnace choir keeping it bound is the fight; the moment its last voice breaks, so does the order of the room. Do not confuse the sequence.",
     rosterRequirements: { minAgents: 8, maxAgents: 10, roleRequirements: [{ roleId: "tank", count: 1 }, { roleId: "healer", count: 2 }, { roleId: "support", count: 1 }] },
     accessRequirements: { orgMilestones: ["gruul-cleared"], agentAttunements: [], attunementThreshold: null },
     difficultyRating: 70,
     mechanicChecks: [
       {
         id: "magtheridon-cubes",
-        name: "Cube Discipline",
-        description: "Five manacle cubes, clicked in perfect unison to interrupt the blast nova. Support owns the count.",
+        name: "Manacle Discipline",
+        description: "Five manacles, struck in perfect unison to interrupt the furnace wave. Support owns the count.",
         attributeWeights: [{ attributeId: "adaptability", weight: 0.5 }, { attributeId: "focus", weight: 0.5 }],
         difficultyThreshold: 15,
         scope: "role_specific",
@@ -977,8 +975,8 @@ const CHALLENGES: Challenge[] = [
       },
       {
         id: "magtheridon-channelers",
-        name: "Burn the Channelers",
-        description: "Five channelers fall together, or their master rises angry and early.",
+        name: "Break the Furnace Choir",
+        description: "Five binders fall together, or the Furnace rises angry and early.",
         attributeWeights: [{ attributeId: "power", weight: 0.7 }, { attributeId: "precision", weight: 0.3 }],
         difficultyThreshold: 9,
         thresholdMode: "perAssignedAgent",
@@ -987,8 +985,8 @@ const CHALLENGES: Challenge[] = [
       },
       {
         id: "magtheridon-quake",
-        name: "Weather the Quakes",
-        description: "The chamber collapses in stages. Everyone survives the ceiling as well as the Pit Lord.",
+        name: "Endure the Chamber Quakes",
+        description: "The chamber collapses in stages. Everyone survives the ceiling as well as the Bound Furnace.",
         attributeWeights: [{ attributeId: "resilience", weight: 0.7 }, { attributeId: "adaptability", weight: 0.3 }],
         difficultyThreshold: 9,
         thresholdMode: "perAssignedAgent",
@@ -1001,20 +999,20 @@ const CHALLENGES: Challenge[] = [
     outcomes: {
       success: {
         rewardTable: [{ itemId: "fel-manacle", dropRate: 1.0 }],
-        narrative: "The last manacle snaps shut around nothing. Magtheridon is finally, entirely still — and your roster has run out of tower.",
+        narrative: "The last manacle snaps shut around nothing. The Bound Furnace is finally, entirely still — and your roster has run out of tower.",
         reputationGain: 10,
         currencyReward: 320,
         milestoneFlag: "magtheridon-cleared",
       },
       partial: {
         rewardTable: [],
-        narrative: "The Pit Lord slumps back into his bonds, diminished. The citadel above still stands.",
+        narrative: "The Bound Furnace slumps back into its bonds, diminished. The vault above still stands.",
         reputationGain: 4,
         agentDowntimeCycles: 3,
       },
       failure: {
         rewardTable: [],
-        narrative: "One cube clicked late. The blast nova writes the raid report for you.",
+        narrative: "One manacle sounded late. The furnace wave writes the raid report for you.",
         stressPenalty: 6,
         tokenRefund: 0.25,
       },
@@ -1036,8 +1034,8 @@ const PROGRESSION_TIERS: ProgressionTier[] = [
   },
   {
     id: "wing-2",
-    name: "The Opera House & the Menagerie",
-    flavorText: "The guests came for a show. The Curator has kept the exhibits fed ever since.",
+    name: "The Night Stage & the Orrery Galleries",
+    flavorText: "The guests came for a show. The Orrery Warden has kept the exhibits fed ever since.",
     unlockConditions: { orgMilestones: ["moroes-cleared"], reputationMinimum: 4 },
     challenges: ["opera", "curator"],
     requiredChallenges: ["curator"],
@@ -1046,7 +1044,7 @@ const PROGRESSION_TIERS: ProgressionTier[] = [
   {
     id: "wing-3",
     name: "The Broken Stair",
-    flavorText: "Libraries, galleries, a chess set that plays back. The Guardian's private floors do not welcome students.",
+    flavorText: "Libraries, galleries, a legacy board that plays back. The Last Surveyor's private floors do not welcome students.",
     unlockConditions: { orgMilestones: ["curator-cleared"], reputationMinimum: 10 },
     challenges: ["chess", "illhoof", "aran"],
     requiredChallenges: ["aran"],
@@ -1055,7 +1053,7 @@ const PROGRESSION_TIERS: ProgressionTier[] = [
   {
     id: "wing-4",
     name: "The Spire",
-    flavorText: "Above the observatory the tower stops pretending to be a building. Portals, princes, and a bell you should not ring — yet.",
+    flavorText: "Above the observatory the tower stops pretending to be a building. Rifts, crowns, and a bell you should not ring — yet.",
     unlockConditions: { orgMilestones: ["aran-cleared"], reputationMinimum: 18 },
     challenges: ["netherspite", "prince", "nightbane"],
     requiredChallenges: ["prince"],
@@ -1064,7 +1062,7 @@ const PROGRESSION_TIERS: ProgressionTier[] = [
   {
     id: "wing-5",
     name: "Beyond the Tower",
-    flavorText: "Karazhan was the classroom. Gruul's Lair and the Pit Lord's chamber are what it was preparing you for.",
+    flavorText: "The Waking Tower was the classroom. Stonewake Lair and the Furnace Vault are what it was preparing you for.",
     unlockConditions: { orgMilestones: ["prince-cleared"], reputationMinimum: 28 },
     challenges: ["maulgar", "gruul", "magtheridon"],
     requiredChallenges: ["magtheridon"],
@@ -1074,16 +1072,15 @@ const PROGRESSION_TIERS: ProgressionTier[] = [
 
 // ── Attunement Chains ─────────────────────────────────────────────────────────
 // Two chains, exercising both grant styles the engine supports:
-// - the-masters-key: earned by playing (clear the lower halls with the agent).
-//   Gates the Curator via grantsAccessTo + curator's attunementThreshold 0.5 —
-//   half the raid must be tower-proven.
-// - the-blackened-urn: item-borne. One urn-bearer (threshold 0.1) who is also
-//   key-attuned may ring the balcony bell (nightbane).
+// - the-masters-key (legacy id): earned by playing through the lower halls.
+//   It grants the Surveyor's Key; half the raid must be tower-proven.
+// - the-blackened-urn (legacy id): item-borne. One urn-bearer who also carries
+//   the Surveyor's Key may ring the balcony bell.
 
 const ATTUNEMENT_CHAINS: AttunementChain[] = [
   {
     id: "the-masters-key",
-    name: "The Master's Key",
+    name: "The Surveyor's Key",
     steps: [
       { type: "challenge_clear", target: "attumen" },
       { type: "challenge_clear", target: "moroes" },
@@ -1093,7 +1090,7 @@ const ATTUNEMENT_CHAINS: AttunementChain[] = [
   },
   {
     id: "the-blackened-urn",
-    name: "The Blackened Urn",
+    name: "The Bell-Blackened Urn",
     steps: [
       { type: "item_acquire", target: "blackened-urn" },
       { type: "chain_complete", target: "the-masters-key" },
@@ -1115,7 +1112,7 @@ const DIFFICULTY_MODES: DifficultyMode[] = [
         {
           id: "heroic-unraveling",
           name: "The Tower Unravels",
-          description: "On heroic, Karazhan itself works against you: shifting halls, hostile echoes, no safe pulls.",
+          description: "On heroic, the Waking Tower itself works against you: shifting halls, hostile echoes, no safe pulls.",
           attributeWeights: [{ attributeId: "adaptability", weight: 0.6 }, { attributeId: "resilience", weight: 0.4 }],
           difficultyThreshold: 8,
           thresholdMode: "perAssignedAgent",
@@ -1133,35 +1130,35 @@ const NARRATIVE_EVENTS: NarrativeEvent[] = [
   {
     trigger: { type: "first_clear", target: "attumen" },
     title: "The Stables Fall Silent",
-    text: "Your raiders stand in a stable that has not been quiet since the Guardian died. Somewhere above, the tower notices.",
+    text: "Your raiders stand in a stable that has not been quiet since the Last Surveyor vanished. Somewhere above, the tower notices.",
     rewards: [],
     agentUnlock: null,
   },
   {
     trigger: { type: "tier_complete", target: "wing-1" },
     title: "The Lower Halls Are Yours",
-    text: "Staff quarters cleared, chapel silenced. The raiders who walked every hall now carry the Master's Key — the Menagerie will open for them.",
+    text: "Staff quarters cleared, chapel silenced. The raiders who walked every hall now carry the Surveyor's Key — the Orrery Galleries will open for them.",
     rewards: [],
     agentUnlock: null,
   },
   {
     trigger: { type: "first_clear", target: "prince" },
     title: "The Urn on the Balcony",
-    text: "In the wreckage of the prince's court, a blackened urn. The bell on the master's balcony has a shape carved beside it: a dragon, wings folded, waiting to be woken.",
+    text: "In the wreckage of the prince's court, a bell-blackened urn. The bell on the surveyor's balcony has a shape carved beside it: a wyrm, wings folded, waiting to be woken.",
     rewards: [],
     agentUnlock: null,
   },
   {
     trigger: { type: "first_clear", target: "nightbane" },
     title: "The Summoned Rest",
-    text: "You rang the bell, and you answered for it. Nightbane's ashes settle for the last time. Very few rosters can claim a kill they chose to summon.",
+    text: "You rang the bell, and you answered for it. The Bell-Woken Wyrm's ashes settle for the last time. Very few rosters can claim a kill they chose to summon.",
     rewards: [],
     agentUnlock: null,
   },
   {
     trigger: { type: "arc_complete", target: "karazhan" },
-    title: "Beyond the Violet Eye",
-    text: "Tower, lair, and citadel chamber — cleared. The Violet Eye has no rank left to give you. Somewhere, a new raid instance is being drawn on someone's map.",
+    title: "Beyond the Lamplit Survey",
+    text: "Tower, lair, and citadel chamber — cleared. The Lamplit Survey has no rank left to give you. Somewhere, a new raid instance is being drawn on someone's map.",
     rewards: [],
     agentUnlock: null,
   },
@@ -1172,11 +1169,11 @@ const NARRATIVE_EVENTS: NarrativeEvent[] = [
 export const KARAZHAN: Arc = {
   meta: {
     id: "karazhan",
-    name: "Karazhan",
+    name: "The Waking Tower",
     description:
-      "The haunted tower of the last Guardian, run as a raid campaign: fourteen encounters across five wings, gated by attunement chains, wing progression, and a heroic mode. Prove a full roster — tanks, healers, melee, ranged, support — from the stables to the Pit Lord's chamber.",
+      "A haunted observatory-fortress run as a raid campaign: fourteen encounters across five wings, gated by attunement chains, wing progression, and a heroic mode. Prove a full roster — tanks, healers, melee, ranged, support — from the ash stables to the Furnace Vault.",
     author: "axm-arc team",
-    version: "1.1.0",
+    version: "1.2.0",
     engineVersion: "1.1.0",
     domain: "haunted-fantasy",
     estimatedCycles: 40,
@@ -1187,7 +1184,7 @@ export const KARAZHAN: Arc = {
   currencyName: "Gold",
   materialName: "Arcane Residue",
   tokenName: "Raid Nights",
-  reputationName: "Violet Eye Standing",
+  reputationName: "Survey Standing",
   tokensPerCycle: 2,
   maxTokens: 4,
   infrastructureTokenBonus: 0.25,
@@ -1203,11 +1200,11 @@ export const KARAZHAN: Arc = {
   opening: {
     triggerType: "warding-oath",
     narrativeText:
-      "The last Guardian is dead, and his tower has not gone quiet. Wards that held for a lifetime are thinning, and what they held is stirring — stables, halls, and the master's ruined court, all waking at once. The Violet Eye grants your raid the key and the tally both: clear Karazhan, and every wing you reclaim is counted against the order's name. The raiders wait at the door for your word.",
+      "The Last Surveyor vanished, and his observatory-fortress has not gone quiet. Wards that held for a lifetime are thinning, and what they held is stirring — stables, halls, and the ruined court, all waking at once. The Lamplit Survey grants your raid the key and the tally both: clear the Waking Tower, and every wing you reclaim is counted against the order's name. The raiders wait at the door for your word.",
     options: [
       {
         id: "sworn-to-the-eye",
-        label: "Answer to the Violet Eye",
+        label: "Answer to the Lamplit Survey",
         description:
           "You take the tower as the order's sanctioned raid — its key, its rules, its tally. The raiders stand a little straighter under a name worth answering to.",
         effects: [
@@ -1219,7 +1216,7 @@ export const KARAZHAN: Arc = {
         id: "for-the-standing",
         label: "Go in for the standing",
         description:
-          "The Eye's ranks are climbed by those who clear what others cannot. You take the tower to prove the roster — drive ahead of devotion.",
+          "The Survey's ranks are climbed by those who clear what others cannot. You take the tower to prove the roster — drive ahead of devotion.",
         effects: [
           { scope: "all", type: "morale", value: 3 },
           { scope: "all", type: "stress", value: 1 },
@@ -1229,7 +1226,7 @@ export const KARAZHAN: Arc = {
         id: "for-the-vaults",
         label: "Strip the tower's vaults",
         description:
-          "A dead Guardian's hoard outweighs an order's name. The raid goes in for what it can carry out — and knows it.",
+          "The Last Surveyor's sealed vaults outweigh an order's name. The raid goes in for what it can carry out — and knows it.",
         effects: [
           { scope: "all", type: "morale", value: -4 },
           { scope: "all", type: "stress", value: 2 },
@@ -1238,7 +1235,7 @@ export const KARAZHAN: Arc = {
     ],
   },
   founding: {
-    organization: { id: "player-raid", name: "The Violet Eye Expedition" },
+    organization: { id: "player-raid", name: "The Lamplit Expedition" },
     resources: { currency: 150, materials: 0, tokens: 2 },
     facilities: [
       { type: "Quarters", level: 1 },

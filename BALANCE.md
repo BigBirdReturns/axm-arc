@@ -26,6 +26,21 @@ that surfaces orphaned attributes, dead traits, and uncovered checks the moment
 an arc is authored. Same components, three audiences. When the designer port
 ships, this QA view is free.
 
+## Current resolution — specialist status is explicit
+
+The authored First Charter weights remain unchanged. The authoring parity pass
+closes the *invisibility* defect by classifying Wits as a **specialist**
+attribute: executable checks lead with it, no role does, and the Designer /
+Workshop now say so directly. Cosmetic or dead attributes are separately
+flagged as structural authoring failures.
+
+This is the previously costed option 3. It makes the design actionable and
+regression-tested without silently rebalancing deterministic outcomes. A future
+content revision may still add a Wits-led role, but that would be an authored
+balance event rather than missing UI truth.
+
+---
+
 ## Finding 1 — Wits is orphaned at the role level
 
 A playtester (cycle 8) asked, in effect, "what does Wits even do?" The data
@@ -86,7 +101,7 @@ check homes but no role home. It is the only asymmetric attribute.
    feel-bad even when explained.
 
 4. **Do nothing yet** — log it, ship the codex (which at least *explains* Wits),
-   and revisit alongside the Karazhan arc, where a fresh attribute map is being
+   and revisit alongside the Waking Tower arc, where a fresh attribute map is being
    authored anyway and the role/check symmetry can be designed in from the start.
 
 ### Recommendation (owner decides)
@@ -100,7 +115,7 @@ the deterministic tests and playtest the shift.
 
 Balance is not legibility (the codex, shipping now) and not the hook
 (`HOOK.md`). It's the arc-design layer: whether the *content* the engine runs is
-internally coherent. As more arcs are authored (Karazhan, enterprise), this doc
+internally coherent. As more arcs are authored (The Waking Tower, enterprise), this doc
 is where the codex-as-QA findings accumulate — each new arc gets a backlink
 audit before it ships.
 

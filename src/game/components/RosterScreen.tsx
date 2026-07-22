@@ -1,7 +1,6 @@
 import { useState } from "react";
 import type { Agent, Arc } from "../../engine/types.js";
 import {
-  agentInitials,
   visibleAttrs,
   isTraitVisible,
   hiddenAttrVisibleCount,
@@ -10,6 +9,7 @@ import {
 import { ThresholdBar } from "./ThresholdBar.js";
 import { t, type MessageId } from "../../i18n/index.js";
 import { useModalDialog } from "../../lib/use-modal-dialog.js";
+import { CartridgePortrait } from "./CartridgePortrait.js";
 
 // ── Bark library ──────────────────────────────────────────────────────────────
 // App-authored flavor lines (chrome, not arc data) — catalogued as bark.* ids.
@@ -81,10 +81,9 @@ function AgentRow({ agent, arc, onClick }: { agent: Agent; arc: Arc; onClick: ()
   return (
     <div className={`card clickable${nearThreshold ? " danger" : ""}`} onClick={onClick}>
       <div className="row">
-        <div className={`portrait ${stateClass}`}>
-          {agentInitials(agent.name)}
+        <CartridgePortrait arcId={arc.meta.id} roleId={agent.role} name={agent.name} className={stateClass}>
           {glyphInfo && <span className={`corner-glyph ${glyphInfo.kind}`}>{glyphInfo.glyph}</span>}
-        </div>
+        </CartridgePortrait>
         <div style={{ flex: 1 }}>
           <div className="row between">
             <span className="agent-name">{agent.name}</span>

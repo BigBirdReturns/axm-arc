@@ -122,6 +122,11 @@ export function compileDarkTombPocket(input: unknown): Arc {
     if (responsibility === "holds-map-changing-evidence" || responsibility === "understands-quiet-works") return "layer";
     return "local";
   };
+  // Quiet Tonnage must carry the exact founding cast through retries without
+  // turning ordinary upkeep into a silent campaign softlock. Reserve six
+  // authored campaign horizons at the maximum tier cost per resident; actual
+  // lower tiers and authored rewards remain ordinary surplus.
+  const foundingCurrency = Math.max(80, source.identity.estimatedCycles * source.cast.length * 3 * 6);
 
   const arc: Arc = {
     meta: {
@@ -219,7 +224,7 @@ export function compileDarkTombPocket(input: unknown): Arc {
     },
     founding: {
       organization: { id: `${source.identity.id}-council`, name: `${source.identity.title} Council` },
-      resources: { currency: 80, materials: 40, tokens: 4 },
+      resources: { currency: foundingCurrency, materials: 40, tokens: 4 },
       facilities: FACILITIES,
       distributionPolicy: "council",
       roster: source.cast.map((member) => ({

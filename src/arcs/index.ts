@@ -8,3 +8,4 @@ export { KARAZHAN } from "./karazhan.js";
 export { KARAZHAN_STARTING_ROSTER } from "./karazhan.starting-roster.js";
 
 export { KIND_GODS_OF_ILYON } from "./kind-gods-of-ilyon.js";
+export { LAMP_DISTRICT } from "./lamp-district.js";

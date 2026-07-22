@@ -12,42 +12,41 @@ in any new session or by any agent picking up cold. Updated as state changes.
 
 ## Current overlay — 2026-07-22
 
-**Local-first product parity train:**
+**RODOH Gates 0 through 3: exact current boundary**
 
-- Arc's authoring lane now has functional Roster, Items, Challenges, and Arc
-  Designer sections, exact export, shared Workshop editing, and a visible
-  role/check coverage audit.
-- Godscar Forge now offers guided and exact-source modes over the same Pocket
-  object, including identity, six pressures, evidence provenance, faction
-  receipts, incompatible cast responsibilities, persistent consequences,
-  playable beats, checks, and Story Physics.
-- Entry, play, and standalone tools share persistent local sound and reduced
-  motion controls, visible keyboard focus, mobile target floors, and contrast
-  fallbacks.
-- World carries the three bundled cartridges through the same full-campaign,
-  custody, representation, responsive, and white-label visual parity contract.
-- The second cartridge now ships as **The Waking Tower**: original names,
-  fiction, steward copy, motifs, role art, and material treatment. The historical
-  `karazhan` id remains only as a compatibility key for held runs.
-- `<AttendedStamp>` is wired to accepted drama decisions, and all standalone
-  creator/record surfaces expose the same sensory and localization controls.
-- `product-parity.yml` and World's `bundled-parity.yml` make the completion
-  boundary executable rather than rhetorical.
-- RODOH Gate 0 is closed: the First Charter Hall production slice is merged, the
-  Book III source carries structured embodiment and lineage profiles, and World
-  owns the frozen five-reference RODOH 1.0 acceptance contract.
-- RODOH Gate 1 is closed on the Arc side. Engine 1.3 adds bounded cartridge state,
-  exact state-change receipts, declarative composition profiles and constraints,
-  shared direct/cycle enforcement, and save-v2 to save-v3 migration.
-- Dark Tomb now compiles Long Alarm, signature, visibility, and inherited
-  consequences into engine-owned state. Common Ship now compiles its eight ship
-  tracks and six watch-viability categories into executable state and composition
-  law.
-- World remains on the accepted three-cartridge Arc pin until the separate Gate 2
-  reconciliation and receiver train. Source-plane completion does not imply a
-  bundled Lamp District or Relief Circuit runtime.
+- The accepted local-first base remains The First Charter, The Waking Tower, and
+  The Kind Gods of Ilyon in World, with complete campaign, custody,
+  representation, responsive, accessibility, and production-parity receipts.
+- Gate 0 is closed. The First Charter Hall production slice is merged, Book III
+  carries structured embodiment and lineage profiles, and World owns the frozen
+  five-reference RODOH 1.0 acceptance contract.
+- Gate 1 is closed. Engine 1.3 owns bounded creator state, exact before-and-after
+  receipts, declarative composition law, shared direct and cycle enforcement,
+  and exact-digest save-v2 to save-v3 migration.
+- Gate 2 is closed in both repositories. Arc publishes one canonical registry for
+  Book I Pocket, Book II Dark Tomb, and Book III Common Ship source planes.
+  World vendors the exact complete source and execution plane, checks drift
+  across it, and exposes only a read-only registry-backed inspection seam.
+- Gate 3 is closed on the Arc product line. **The Lamp District** is the first
+  canonical Book II campaign, with editable `.tomb.json` source, exact compiled
+  `.arc.json`, eight movements through Ordinary Life, Descent, Breach, and
+  Return, and persistent Alarm, signature, visibility, habitat, map, and
+  constituency state.
+- Dark Tomb Forge now provides guided and exact-source views over the same
+  `dark-tomb-pocket/1` object, local draft custody, registered compilation,
+  bounded authored-founding campaign sweeps, installation, source and Arc export,
+  and direct opening in the ordinary player.
+- Arc product parity deterministically rebuilds Ilyon and Lamp District artifacts,
+  proves their source custody, runs the focused Book I through Book III source
+  contracts, executes complete campaign regressions, and builds the production
+  browser product from one exact head.
+- World deliberately remains on its accepted three-cartridge player release.
+  It now carries Lamp District source and engine authority, but a dedicated
+  Underworld hub, layered map, production art set, and desktop/mobile Lamp
+  District journey remain Gate 4 rather than inferred completion.
 
-See `docs/PARITY_COMPLETION.md` and `docs/ENGINE_1_3_STATE_COMPOSITION.md`.
+See `docs/PARITY_COMPLETION.md`, `docs/ENGINE_1_3_STATE_COMPOSITION.md`,
+`docs/SOURCE_PLANE_REGISTRY.md`, and `docs/LAMP_DISTRICT_ACCEPTANCE.md`.
 
 ---
 

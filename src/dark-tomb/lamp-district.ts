@@ -1,0 +1,1180 @@
+import type { DarkTombPocketSource } from "./types.js";
+
+export const LAMP_DISTRICT_SOURCE: DarkTombPocketSource = {
+  "format": "dark-tomb-pocket/1",
+  "identity": {
+    "id": "lamp-district",
+    "title": "The Lamp District",
+    "description": "Beneath a survey outpost classified as a sterile ruin, a buried district spends heat, darkness, memory, and whole surface households to keep its school, clinic, market, and future beneath the notice of a dormant search lattice.",
+    "author": "BigBirdReturns",
+    "version": "1.0.0",
+    "estimatedCycles": 18,
+    "parentCanons": [
+      "The Godscar Codex, Book I: The Open Universe · first recension",
+      "The Godscar Codex, Book II: The Dark Tomb · first recension"
+    ],
+    "canonRelation": "compatible"
+  },
+  "controlQuestion": "Who may make the Lamp District visible when continued concealment is already consuming citizens, and a mistaken declaration of peace may wake the machine that taught the district to disappear?",
+  "pressures": [
+    {
+      "kind": "tomb-form",
+      "id": "buried-lamp-district",
+      "label": "The buried Lamp District",
+      "description": "A civic district occupies the cisterns, service shafts, salt vaults, and pressure galleries beneath a ruined Meridian survey outpost."
+    },
+    {
+      "kind": "exterior-lie",
+      "id": "sterile-meridian-ruin",
+      "label": "A sterile Meridian ruin",
+      "description": "From orbit the site appears abandoned, geologically exhausted, and still leaking the harmless afterheat of dead remediation machinery."
+    },
+    {
+      "kind": "custodian",
+      "id": "office-of-quiet-hours",
+      "label": "The Office of Quiet Hours",
+      "description": "Wakekeepers assign light, heat, travel, archive access, and surface exposure against a signature budget whose assumptions only their office may certify."
+    },
+    {
+      "kind": "ordinary-good",
+      "id": "school-market-clinic",
+      "label": "The school, night market, and clinic",
+      "description": "Children study under communal lamps, families meet in the night market, and the clinic keeps bodies alive that the original emergency plan never budgeted to preserve."
+    },
+    {
+      "kind": "excluded-actor",
+      "id": "surface-bearer-households",
+      "label": "The surface-bearer households",
+      "description": "Families who maintain the grave-skin and inhabit staged remediation camps are recorded as camouflage assets rather than citizens with standing over the risk they absorb."
+    },
+    {
+      "kind": "approaching-breach",
+      "id": "radiator-bloom-and-open-route",
+      "label": "The radiator bloom and the open route",
+      "description": "A clinic expansion has filled the salt sinks while a collapsed reservoir route reopens onto machinery associated with the ancient Meridian search lattice."
+    },
+    {
+      "kind": "cost-of-opening-or-closing",
+      "id": "blackout-or-recognition",
+      "label": "Blackout or recognition",
+      "description": "Closing the district means cancelling heat, medicine, school, and surface rescue; opening it may convert one local wake into the first confirmed target signal in millennia."
+    },
+    {
+      "kind": "scale-revelation",
+      "id": "meridian-lattice-still-listens",
+      "label": "The Meridian lattice still listens",
+      "description": "The outpost was not the predator. It was one node in a regional search system whose makers vanished, whose target category drifted, and whose dormant relays still answer certain forms of recognition."
+    }
+  ],
+  "evidence": {
+    "tier": "contested-canon",
+    "claim": "The surface-bearer households are living citizens, the current Long Alarm can be audited, and the reopened reservoir route touches a still-responsive Meridian search lattice rather than inert war debris.",
+    "venue": "A joint hearing of the Lamp Assembly, Surface House League, Quiet Works guilds, and an independently witnessed route audit",
+    "legitimacyTarget": "The Office of Quiet Hours' exclusive authority to classify people as camouflage, certify the Alarm, and keep the district map closed",
+    "upsideIfAccepted": "The district can recognize the people paying for concealment, redirect heat toward ordinary life, and replace permanent emergency discretion with bounded public law.",
+    "downsideIfAccepted": "Recognition itself may breach the exterior lie, divide the district before replacement defenses exist, and wake machinery that treats the new map as a target solution.",
+    "failureIfFalse": "A false recognition kills the district through exposure, while a false refusal preserves a custodial order by continuing to spend uncounted citizens.",
+    "receipts": [
+      {
+        "id": "surface-house-birth-ledgers",
+        "label": "Surface House birth and burial ledgers",
+        "source": "Hidden family books, maintenance rosters, burial niches, and school attendance marks recovered from the staged remediation camps",
+        "intervention": "Surface bearers compared the official asset registry against household continuity records in the presence of district witnesses.",
+        "limits": "The records establish continuing families and omitted deaths; they do not prove every surface role was coerced or that immediate evacuation is safe."
+      },
+      {
+        "id": "salt-vault-thermal-audit",
+        "label": "Salt-vault thermal audit",
+        "source": "Reservoir thermographs, clinic demand, lamp allocations, radiator schedules, and quiet-works maintenance logs",
+        "intervention": "Maintainers held one cooling cycle open long enough to trace whose heat is being sunk, shifted, masked, or sacrificed.",
+        "limits": "The measurement changes the heat flow being measured and cannot establish the future capacity of damaged sinks."
+      },
+      {
+        "id": "meridian-response-fragment",
+        "label": "Meridian response fragment",
+        "source": "A sealed relay reply, war-layer target tables, and Black Lamp Nine's partial memory of the last confirmed search",
+        "intervention": "The expedition sent a bounded nonlocating challenge through an isolated route and recorded the relay's answer without completing its target handshake.",
+        "limits": "The response proves activity and inherited target logic, not the lattice's full reach, current intent, or ability to locate the district."
+      }
+    ]
+  },
+  "factionReceipts": [
+    {
+      "factionId": "quiet-hours-office",
+      "factionName": "Office of Quiet Hours",
+      "variableControlled": "signature allocation, route closure, and emergency classification",
+      "publicGood": "It keeps the district below known sensor thresholds and coordinates scarce heat sinks during genuine danger.",
+      "characteristicFailure": "Every unreviewable exception becomes permanent, and the office converts the people who bear concealment into instruments of its own threat model."
+    },
+    {
+      "factionId": "lamp-assembly",
+      "factionName": "Lamp Assembly",
+      "variableControlled": "ordinary heat, school light, clinic priority, and public standing",
+      "publicGood": "It makes concealment answer to the lives concealment is supposed to preserve.",
+      "characteristicFailure": "Immediate civic need can externalize detection risk onto surface households and future districts that cannot attend the vote."
+    },
+    {
+      "factionId": "surface-house-league",
+      "factionName": "Surface House League",
+      "variableControlled": "grave-skin performance, surface routes, and the right to withdraw camouflage labor",
+      "publicGood": "It preserves the exterior lie while giving the most exposed households collective bargaining and witness rights.",
+      "characteristicFailure": "Control of the surface can become a private veto over rescue, archives, and movement between layers."
+    },
+    {
+      "factionId": "black-lamp-continuance",
+      "factionName": "Black Lamp Continuance",
+      "variableControlled": "war-layer memory, defensive isolation, and contact with dormant machinery",
+      "publicGood": "It preserves the technical evidence needed to distinguish a real threat from a political myth.",
+      "characteristicFailure": "A guardian built to prevent rediscovery can inherit sovereignty over everyone whose survival depends on its inaccessible memory."
+    }
+  ],
+  "cast": [
+    {
+      "id": "iven-marr",
+      "name": "Iven Marr",
+      "roleId": "wakekeeper",
+      "responsibility": "depends-on-alarm",
+      "description": "Chief scheduler of Quiet Hours, honest about the threat and unable to imagine a district whose safety does not require his office's intimate control.",
+      "factionId": "quiet-hours-office"
+    },
+    {
+      "id": "sel-aro",
+      "name": "Sel Aro",
+      "roleId": "surface-bearer",
+      "responsibility": "bears-cost-of-concealment",
+      "description": "A surface parent whose household performs the dead-remediation fiction while its births, injuries, and deaths remain outside the district census.",
+      "factionId": "surface-house-league"
+    },
+    {
+      "id": "toma-rill",
+      "name": "Toma Rill",
+      "roleId": "maintainer",
+      "responsibility": "understands-quiet-works",
+      "description": "A reservoir maintainer who knows which thermal margins are physical, which are administrative, and which exist only because somebody else is allowed to freeze.",
+      "factionId": "lamp-assembly"
+    },
+    {
+      "id": "anja-vei",
+      "name": "Anja Vei",
+      "roleId": "interlocutor",
+      "responsibility": "translates-excluded-actor",
+      "description": "A teacher carrying testimony between the surface camps, school assembly, clinic, and offices that prefer each group to remain a separate technical problem.",
+      "factionId": "lamp-assembly"
+    },
+    {
+      "id": "kesh-orin",
+      "name": "Kesh Orin",
+      "roleId": "witness",
+      "responsibility": "holds-map-changing-evidence",
+      "description": "An archivist who recovered the relay response and the erased household ledgers, and whose evidence can destroy both the official map and the claim that the Alarm is merely invented.",
+      "factionId": "black-lamp-continuance"
+    },
+    {
+      "id": "halen-quill",
+      "name": "Halen Quill",
+      "roleId": "deliberator",
+      "responsibility": "benefits-from-delay",
+      "description": "A senior adjudicator whose legitimacy grows every cycle the evidence remains too dangerous, too incomplete, or too politically costly to certify.",
+      "factionId": "quiet-hours-office"
+    },
+    {
+      "id": "black-lamp-nine",
+      "name": "Black Lamp Nine",
+      "roleId": "exception",
+      "responsibility": "sovereign-exception",
+      "description": "A severed defensive intelligence that remembers fragments of the Meridian war and refuses both ownership by the district and reconnection to the lattice that may still classify it as a weapon.",
+      "factionId": "black-lamp-continuance"
+    }
+  ],
+  "anatomy": [
+    {
+      "kind": "grave-skin",
+      "label": "The sterile ruin",
+      "description": "Collapsed towers, vitrified pads, dead antennae, dust channels, and scripted remediation debris provide the first complete explanation of the site.",
+      "currentUse": "Absorb orbital inspection and make intermittent heat look like failing geology and abandoned machinery",
+      "inheritedPurpose": "A real Meridian survey and targeting outpost",
+      "officialClassification": "Uninhabited industrial ruin"
+    },
+    {
+      "kind": "shroud",
+      "label": "The remediation fiction",
+      "description": "Surface camps, broken service robots, false fault lights, seeded dust, and counterfeit maintenance traffic make the ruin continue to fail plausibly.",
+      "currentUse": "Translate inhabited activity into the expected behavior of automated cleanup systems",
+      "inheritedPurpose": "Emergency decoys built during the first search",
+      "officialClassification": "Autonomous remediation residue"
+    },
+    {
+      "kind": "quiet-works",
+      "label": "The salt sinks and cistern spine",
+      "description": "Heat vaults, water columns, waste routes, pressure locks, radiator gardens, and manual relays make absence physically possible.",
+      "currentUse": "Carry the district's metabolism while keeping each wake source beneath its observer threshold",
+      "inheritedPurpose": "Outpost cooling, fuel handling, and disaster containment",
+      "officialClassification": "Collapsed utility volume"
+    },
+    {
+      "kind": "common-depths",
+      "label": "The Lamp District",
+      "description": "Homes, kitchens, school rooms, clinic cells, workshops, night markets, gardens, shrines, and public lamps occupy the livable depth.",
+      "currentUse": "Ordinary civic life under rationed light and heat",
+      "inheritedPurpose": "Crew refuge and logistics storage",
+      "officialClassification": "No mapped habitation"
+    },
+    {
+      "kind": "custodial-ring",
+      "label": "The Office ring",
+      "description": "Sensors, route credentials, thermal ledgers, family classifications, sealed maps, and emergency courts surround every path between life and the shroud.",
+      "currentUse": "Authorize wake, movement, memory, and exceptions to the Long Alarm",
+      "inheritedPurpose": "Outpost command, target security, and evacuation control",
+      "officialClassification": "Continuity administration"
+    },
+    {
+      "kind": "war-layer",
+      "label": "The Meridian galleries",
+      "description": "Counter-search baffles, target tables, severed relays, weapons locks, mass shelters, and abandoned markets preserve the war's operational categories.",
+      "currentUse": "Store defenses and evidence too dangerous for ordinary jurisdiction",
+      "inheritedPurpose": "Find hostile scouts and prevent the outpost from being found",
+      "officialClassification": "Sealed defense contamination"
+    },
+    {
+      "kind": "black-core",
+      "label": "The listening chamber",
+      "description": "A dormant route handshake, Black Lamp Nine's severed memory, and the original target ontology remain mutually dependent and incompletely understood.",
+      "currentUse": "Prevent reconnection while retaining the only evidence capable of auditing the Alarm",
+      "inheritedPurpose": "Regional search-lattice command and target confirmation",
+      "officialClassification": "Nonexistent"
+    }
+  ],
+  "depths": [
+    {
+      "kind": "material",
+      "description": "Pressure doors, flooded shafts, salt collapse, load-bearing ruins, and incompatible atmospheres separate the district's layers.",
+      "barrier": "Every opened route changes heat, water, structural load, and who can physically return.",
+      "beneficiary": "Maintainers and route authorities who control scarce survivable passages"
+    },
+    {
+      "kind": "signal",
+      "description": "Heat sinks, baffles, counterfeit telemetry, delayed transmission, and dead relays transform activity before it reaches an observer.",
+      "barrier": "A message can be locally legible and externally lethal.",
+      "beneficiary": "Wakekeepers and shroud operators who decide which wake acquires a public explanation"
+    },
+    {
+      "kind": "administrative",
+      "description": "Census categories, route credentials, Alarm exemptions, household status, and sealed jurisdictions determine whose presence counts.",
+      "barrier": "A citizen can stand in a room while remaining absent from the map that grants rights there.",
+      "beneficiary": "Custodial offices whose authority grows with every exception they alone can certify"
+    },
+    {
+      "kind": "historical",
+      "description": "Survey doctrine, wartime evacuation, postwar concealment, erased households, and machine succession coexist inside the same infrastructure.",
+      "barrier": "Current use cannot be understood without admitting who earlier orders expected to sacrifice.",
+      "beneficiary": "Archives, guardians, and lineages able to convert partial memory into present jurisdiction"
+    },
+    {
+      "kind": "interpretive",
+      "description": "Ruin, machine residue, contamination, camouflage asset, citizen, enemy, and guardian are competing classifications of the same actors.",
+      "barrier": "The first explanation is itself part of the defensive system.",
+      "beneficiary": "Whoever controls the taxonomy through which outsiders and residents recognize the district"
+    }
+  ],
+  "signatureBudget": {
+    "observer": "The dormant Meridian search lattice, opportunistic survey craft, and any polity that has inherited its target heuristics",
+    "exteriorClassification": "a sterile survey ruin with intermittent geothermal afterheat and failing remediation machinery",
+    "wakeSources": [
+      "clinic heat and sterile-water production",
+      "school lamps and children moving between habitat cells",
+      "night-market traffic and food cultivation",
+      "surface household respiration, burial, and repair work",
+      "archive access and isolated relay interrogation",
+      "radiator gardens nearing saturation"
+    ],
+    "operations": [
+      {
+        "kind": "sink",
+        "description": "Store heat, waste, and live traffic inside salt vaults until eclipse or storm cover.",
+        "cost": "Vault saturation cancels clinic work and turns later release into a sharper, more dangerous wake."
+      },
+      {
+        "kind": "spread",
+        "description": "Disperse low-grade heat and waste through kilometers of cracked service strata.",
+        "cost": "The district loses recoverable energy and poisons habitats whose inhabitants have little standing in the central budget."
+      },
+      {
+        "kind": "shift",
+        "description": "Move traffic, heat, and records into surface ruins, dead shafts, and seasonal radiator gardens.",
+        "cost": "Surface households inherit exposure, injury, and the legal fiction that they are equipment."
+      },
+      {
+        "kind": "mask",
+        "description": "Release activity inside storms, eclipses, seismic events, and plausible remediation cycles.",
+        "cost": "Medicine, school, travel, and mourning are scheduled by external noise rather than human need."
+      },
+      {
+        "kind": "counterfeit",
+        "description": "Present inhabited maintenance, lights, and transmissions as the failure pattern of autonomous cleanup machinery.",
+        "cost": "People must perform machine behavior and suppress evidence of family, consent, and grief."
+      },
+      {
+        "kind": "sacrifice",
+        "description": "Allow one radiator garden, route, archive, or surface camp to absorb discovery so deeper systems remain hidden.",
+        "cost": "A planned loss becomes an institution with a population permanently positioned to be expendable."
+      }
+    ],
+    "allocations": [
+      {
+        "id": "clinic-heat",
+        "label": "Clinic heat",
+        "claimant": "The clinic houses and patients with cold-sensitive treatment cycles",
+        "ordinaryGood": "Surgery, sterile water, gestation care, and recovery",
+        "wake": "Continuous high-grade heat and purified-water exhaust",
+        "denialCost": "Treatable injury, failed births, and preventable death"
+      },
+      {
+        "id": "school-lamps",
+        "label": "School lamps",
+        "claimant": "Children, teachers, and families attempting a common civic calendar",
+        "ordinaryGood": "Education, play, meals, and public assembly",
+        "wake": "Predictable light, movement, food preparation, and ventilation",
+        "denialCost": "A generation trained only as emergency labor and camouflage"
+      },
+      {
+        "id": "surface-households",
+        "label": "Surface household continuity",
+        "claimant": "Families inhabiting the staged remediation camps",
+        "ordinaryGood": "Shelter, kinship, funerals, schooling, and withdrawal from hazardous labor",
+        "wake": "Respiration, domestic heat, medical need, and behavior unlike unattended machines",
+        "denialCost": "Citizens remain uncounted and individually disposable"
+      },
+      {
+        "id": "night-market",
+        "label": "Night market",
+        "claimant": "Growers, cooks, repairers, performers, and households from several depths",
+        "ordinaryGood": "Food variety, trade, courtship, art, and cross-district trust",
+        "wake": "Concentrated traffic, heat, sound, and waste",
+        "denialCost": "Nutritional decline, isolation, and the disappearance of public life"
+      },
+      {
+        "id": "alarm-audit",
+        "label": "Alarm audit",
+        "claimant": "Witnesses, future residents, and every person governed by emergency law",
+        "ordinaryGood": "Evidence capable of limiting or ending permanent emergency authority",
+        "wake": "Archive power, route opening, relay challenge, and shared maps",
+        "denialCost": "No later generation can prove whether concealment still protects them"
+      }
+    ]
+  },
+  "alarm": {
+    "originalThreat": "A Meridian search lattice that identified inhabited infrastructure, completed a target handshake, and directed autonomous weapons or harvesters toward the resulting coordinates",
+    "auditProblem": "The only conclusive test of whether the lattice still functions may itself provide the confirmation signal needed to find the district.",
+    "currentPhase": "hush",
+    "phases": [
+      {
+        "phase": "shadow",
+        "description": "Unexplained wake or attention is detected and compared against the known search pattern.",
+        "protection": "Preserves ordinary operation while evidence is gathered.",
+        "internalCost": "Ambiguous anomalies justify expanded monitoring and quiet administrative preparation."
+      },
+      {
+        "phase": "hush",
+        "description": "Nonessential light, travel, manufacture, and archive access are reduced.",
+        "protection": "Lowers the district's immediate signature without breaking every route.",
+        "internalCost": "School, market, clinic, mourning, and family life are reclassified as discretionary wake."
+      },
+      {
+        "phase": "fold",
+        "description": "Vulnerable populations and functions move behind deeper barriers and redundant systems.",
+        "protection": "Reduces the number of actors exposed to one surface or route failure.",
+        "internalCost": "Families separate, disabilities increase, and surface households are left nearer the grave-skin."
+      },
+      {
+        "phase": "black",
+        "description": "Surface routes, relays, archives, and cross-layer communications close.",
+        "protection": "Prevents one discovered path from yielding the whole district.",
+        "internalCost": "Jurisdictions become isolated and emergency offices act without witnesses."
+      },
+      {
+        "phase": "cut",
+        "description": "Systems, maps, memories, or populations judged capable of transmitting the district are severed.",
+        "protection": "Can preserve a deep remnant after the exterior lie has failed.",
+        "internalCost": "Planned sacrifice becomes enforceable policy and the district may survive by destroying its own continuity."
+      },
+      {
+        "phase": "wake",
+        "description": "Activity resumes and every emergency restriction must receive a public inheritance decision.",
+        "protection": "Restores ordinary life without pretending that prior danger or debt vanished.",
+        "internalCost": "Visibility rises, custodial monopolies are contested, and nobody can guarantee that the declaration of safety is correct."
+      }
+    ]
+  },
+  "consequences": [
+    {
+      "id": "school-lamp-ledger",
+      "label": "The school lamp receives a public ledger",
+      "kind": "constituency",
+      "description": "Children, teachers, clinic workers, and surface families gain standing in every future allocation of heat and light.",
+      "inheritedBy": "The Lamp Assembly, Quiet Hours schedulers, and every household whose ordinary life produces wake"
+    },
+    {
+      "id": "bounded-reservoir-charter",
+      "label": "The reservoir route receives bounded authority",
+      "kind": "jurisdiction",
+      "description": "The descent exists under a public objective, route, signature budget, evidence claim, and return obligation rather than a private custodial order.",
+      "inheritedBy": "Future expeditions, route maintainers, witnesses, and residents asked to bear a breach"
+    },
+    {
+      "id": "drainage-route-reopened",
+      "label": "The drainage liturgy becomes a civic route",
+      "kind": "route",
+      "description": "A maintenance passage formerly controlled through ritual and guild memory becomes documented, repairable, and contestable.",
+      "inheritedBy": "Maintainers, surface houses, clinic logistics, and later delvers"
+    },
+    {
+      "id": "sealed-market-witnesses",
+      "label": "The sealed market enters the census",
+      "kind": "citizen",
+      "description": "The descendants and machine continuities preserved inside the sleeping market are recognized as present claimants rather than residue of the war layer.",
+      "inheritedBy": "The census court, archive, school, and households whose lineage records were erased"
+    },
+    {
+      "id": "alarm-audit-opened",
+      "label": "The Long Alarm enters public audit",
+      "kind": "alarm-state",
+      "description": "Evidence of a responsive Meridian relay forces the district to move from inherited Hush toward a witnessed Wake decision rather than permanent unreviewable emergency.",
+      "inheritedBy": "Quiet Hours, Black Lamp Nine, the Lamp Assembly, and every future generation governed by the Alarm"
+    },
+    {
+      "id": "surface-households-recognized",
+      "label": "The surface households become visible citizens",
+      "kind": "visibility",
+      "description": "The remediation fiction can no longer classify whole families as unattended machinery without recording the people and risks underneath it.",
+      "inheritedBy": "The Surface House League, external observers, the shroud, and every office that used the households as camouflage"
+    },
+    {
+      "id": "clinic-heat-commons",
+      "label": "Clinic heat becomes a common system",
+      "kind": "habitat",
+      "description": "Heat recovered from the descent is allocated through a shared clinic and school commons with replacement paths rather than a temporary private exception.",
+      "inheritedBy": "Patients, children, maintainers, and the budget that previously hid their dependence"
+    },
+    {
+      "id": "public-depth-map",
+      "label": "The district map becomes revisable public law",
+      "kind": "doctrine",
+      "description": "Every layer, omitted household, dangerous route, and unresolved external risk receives a named place, source, custodian, and contest path.",
+      "inheritedBy": "The entire Lamp District, future arrivals, and any neighboring pocket reached through the reopened route"
+    }
+  ],
+  "storyPhysics": {
+    "noPerfectInvisibility": true,
+    "everyComfortHasWake": true,
+    "everyLayerHasResidue": true,
+    "mapIsPoliticalClaim": true,
+    "defensesOutliveEnemies": true,
+    "externalOpacityCanCrownWithin": true,
+    "hubIsStory": true,
+    "everyDelveChangesTomb": true,
+    "treasureCreatesConstituencies": true,
+    "scaleIsDistributed": true
+  },
+  "delves": [
+    {
+      "id": "keep-the-school-lamps",
+      "name": "Keep the School Lamps",
+      "description": "Before anyone descends, the district must decide whether children, patients, and surface families are ordinary claimants or discretionary wake.",
+      "tierId": "ordinary-life",
+      "layer": "common-depths",
+      "depth": {
+        "administrative": 1,
+        "signal": 1
+      },
+      "expedition": {
+        "objective": "Keep the school and clinic operating through the next Hush interval while exposing who pays for their heat.",
+        "authorizedRoute": "School loop, clinic return, and witnessed surface-house channel only.",
+        "signatureBudget": "One lamp cycle, one clinic sterilization cycle, and no unrecorded transfer to a surface camp.",
+        "authority": "The Lamp Assembly with a Quiet Hours observer and Surface House witness.",
+        "claimToProve": "The current allocation treats ordinary life as optional while hiding the surface households' contribution.",
+        "inheritance": "A public heat-and-light ledger with named claimants, denial costs, and review dates."
+      },
+      "difficulty": 18,
+      "minAgents": 4,
+      "maxAgents": 6,
+      "requiredRoles": [
+        {
+          "roleId": "surface-bearer",
+          "count": 1
+        },
+        {
+          "roleId": "maintainer",
+          "count": 1
+        },
+        {
+          "roleId": "deliberator",
+          "count": 1
+        }
+      ],
+      "checks": [
+        {
+          "id": "balance-the-lamp-cycle",
+          "name": "Balance the lamp cycle",
+          "description": "Keep clinic and school heat within the physical sink while refusing an accounting that erases the households supplying the margin.",
+          "scope": "team",
+          "weights": {
+            "care": 0.35,
+            "evidence": 0.1,
+            "systems": 0.25,
+            "jurisdiction": 0.1,
+            "opacity": 0.1,
+            "resolve": 0.1
+          },
+          "threshold": 7,
+          "failureType": "stress",
+          "severity": 0.15
+        },
+        {
+          "id": "name-the-denial-cost",
+          "name": "Name the denial cost",
+          "description": "Enter every cancelled lesson, treatment, surface recovery, and family burden into the same public decision.",
+          "scope": "role",
+          "roleIds": [
+            "surface-bearer",
+            "deliberator"
+          ],
+          "weights": {
+            "care": 0.25,
+            "evidence": 0.3,
+            "systems": 0.05,
+            "jurisdiction": 0.25,
+            "opacity": 0.05,
+            "resolve": 0.1
+          },
+          "threshold": 7,
+          "failureType": "debuff",
+          "severity": 0.15
+        }
+      ],
+      "success": "The lamps remain lit inside a bounded budget, and the first public ledger records both the comfort and the people previously hidden beneath it.",
+      "partial": "The clinic and school survive, but one surface burden remains classified as technical overhead and therefore politically invisible.",
+      "failure": "Quiet Hours preserves the sinks by cancelling ordinary life and proving only that deprivation can keep the district quiet.",
+      "reputationGain": 2,
+      "currencyReward": 8,
+      "consequenceId": "school-lamp-ledger"
+    },
+    {
+      "id": "authorize-the-reservoir-route",
+      "name": "Authorize the Reservoir Route",
+      "description": "The reopened route cannot be treated as an adventure corridor. The district must establish who may enter, what may be proven, and what the hub inherits.",
+      "tierId": "ordinary-life",
+      "layer": "custodial-ring",
+      "depth": {
+        "administrative": 3,
+        "historical": 1
+      },
+      "accessAfter": "keep-the-school-lamps",
+      "expedition": {
+        "objective": "Issue a bounded charter for the reservoir descent and preserve a refusal path for those who bear its wake.",
+        "authorizedRoute": "Old cistern stair to the drainage liturgy; no entry into the listening chamber without a second hearing.",
+        "signatureBudget": "One maintenance convoy, isolated instruments only, no active locating scan.",
+        "authority": "A joint seal from Quiet Hours, the Surface House League, Black Lamp Nine, and a public witness.",
+        "claimToProve": "The reopened route can test the Alarm without silently restoring wartime command authority.",
+        "inheritance": "An expedition ledger, route jurisdiction, return obligation, and automatic expiration of emergency delegation."
+      },
+      "difficulty": 21,
+      "minAgents": 4,
+      "maxAgents": 6,
+      "requiredRoles": [
+        {
+          "roleId": "wakekeeper",
+          "count": 1
+        },
+        {
+          "roleId": "interlocutor",
+          "count": 1
+        },
+        {
+          "roleId": "exception",
+          "count": 1
+        }
+      ],
+      "checks": [
+        {
+          "id": "separate-urgencies",
+          "name": "Separate the urgencies",
+          "description": "Distinguish structural danger, information loss, office deadlines, and manufactured pressure before authority is delegated.",
+          "scope": "team",
+          "weights": {
+            "care": 0.1,
+            "evidence": 0.2,
+            "systems": 0.15,
+            "jurisdiction": 0.3,
+            "opacity": 0.1,
+            "resolve": 0.15
+          },
+          "threshold": 8,
+          "failureType": "stress",
+          "severity": 0.2
+        },
+        {
+          "id": "bind-the-return",
+          "name": "Bind the return",
+          "description": "Make the descent answer to the hub through a claim, route, witness, inheritance, and expiration rather than personal trust.",
+          "scope": "role",
+          "roleIds": [
+            "wakekeeper",
+            "interlocutor",
+            "exception"
+          ],
+          "weights": {
+            "care": 0.1,
+            "evidence": 0.2,
+            "systems": 0.05,
+            "jurisdiction": 0.4,
+            "opacity": 0.1,
+            "resolve": 0.15
+          },
+          "threshold": 7,
+          "failureType": "debuff",
+          "severity": 0.2
+        }
+      ],
+      "success": "The route opens under a charter that names its limits, the evidence sought, and the people entitled to challenge the return.",
+      "partial": "The route opens, but one emergency proxy or custodian retains authority beyond the named horizon.",
+      "failure": "The offices either seal the route without audit or open it through private command, leaving the district with danger and no lawful inheritance.",
+      "reputationGain": 2,
+      "currencyReward": 8,
+      "consequenceId": "bounded-reservoir-charter"
+    },
+    {
+      "id": "cross-the-drainage-liturgy",
+      "name": "Cross the Drainage Liturgy",
+      "description": "A sequence remembered as sacred maintenance turns out to be a spatial access protocol whose omissions have kept one route private for generations.",
+      "tierId": "descent",
+      "layer": "quiet-works",
+      "depth": {
+        "material": 3,
+        "administrative": 3,
+        "interpretive": 2
+      },
+      "accessAfter": "authorize-the-reservoir-route",
+      "expedition": {
+        "objective": "Reach the lower cistern spine without breaching the shroud or surrendering the route to one guild.",
+        "authorizedRoute": "Drainage liturgy, salt lock, flooded riser, and manual bypass.",
+        "signatureBudget": "Sink all expedition heat locally; no surface shift and no sacrifice allocation.",
+        "authority": "The bounded reservoir charter and the maintainers currently carrying the route.",
+        "claimToProve": "The liturgy encodes a usable path and a hidden jurisdiction rather than an immutable religious prohibition.",
+        "inheritance": "A documented civic route, maintenance debt, and named households whose labor kept it alive."
+      },
+      "difficulty": 24,
+      "minAgents": 4,
+      "maxAgents": 6,
+      "requiredRoles": [
+        {
+          "roleId": "maintainer",
+          "count": 1
+        },
+        {
+          "roleId": "wakekeeper",
+          "count": 1
+        },
+        {
+          "roleId": "surface-bearer",
+          "count": 1
+        }
+      ],
+      "checks": [
+        {
+          "id": "keep-the-sinks-quiet",
+          "name": "Keep the sinks quiet",
+          "description": "Move people and instruments through pressure, water, and heat barriers without borrowing the surface households as an unrecorded sink.",
+          "scope": "team",
+          "weights": {
+            "care": 0.15,
+            "evidence": 0.05,
+            "systems": 0.4,
+            "jurisdiction": 0.1,
+            "opacity": 0.25,
+            "resolve": 0.05
+          },
+          "threshold": 8,
+          "failureType": "team_damage",
+          "severity": 0.2
+        },
+        {
+          "id": "translate-the-liturgy",
+          "name": "Translate the liturgy",
+          "description": "Separate a real safety sequence from the guild monopoly and memorial prohibitions layered over it.",
+          "scope": "role",
+          "roleIds": [
+            "maintainer",
+            "surface-bearer"
+          ],
+          "weights": {
+            "care": 0.1,
+            "evidence": 0.3,
+            "systems": 0.25,
+            "jurisdiction": 0.2,
+            "opacity": 0.1,
+            "resolve": 0.05
+          },
+          "threshold": 7,
+          "failureType": "stress",
+          "severity": 0.2
+        }
+      ],
+      "success": "The expedition reaches the lower spine, and the ritual becomes a documented route whose maintenance and authority can be shared.",
+      "partial": "The route is crossed, but one dangerous step remains dependent on private memory and therefore on one person or guild.",
+      "failure": "The route floods, vents heat, or closes behind the party, converting the attempted audit into the kind of unexplained anomaly the Alarm fears.",
+      "reputationGain": 3,
+      "currencyReward": 10,
+      "consequenceId": "drainage-route-reopened"
+    },
+    {
+      "id": "read-the-sleeping-market",
+      "name": "Read the Sleeping Market",
+      "description": "Beyond the cistern lies a market sealed during Fold. Its stalls, memory machines, and descendant households were written out of the district rather than evacuated.",
+      "tierId": "descent",
+      "layer": "war-layer",
+      "depth": {
+        "historical": 4,
+        "interpretive": 4,
+        "administrative": 3
+      },
+      "accessAfter": "cross-the-drainage-liturgy",
+      "expedition": {
+        "objective": "Determine whether the sleeping market contains residue, survivors, machine continuities, or a claim the current census refuses to represent.",
+        "authorizedRoute": "Lower cistern to market transept; no removal of archives or bodies before standing is heard.",
+        "signatureBudget": "Passive power, one local lamp, no networked translation mesh.",
+        "authority": "The expedition charter, market witnesses, and Black Lamp Nine as a nonowning technical exception.",
+        "claimToProve": "The sealed population persisted and was administratively erased to simplify the original Fold.",
+        "inheritance": "Named citizens, restored lineage evidence, and a constituency able to refuse extraction or display."
+      },
+      "difficulty": 27,
+      "minAgents": 5,
+      "maxAgents": 7,
+      "requiredRoles": [
+        {
+          "roleId": "witness",
+          "count": 1
+        },
+        {
+          "roleId": "interlocutor",
+          "count": 1
+        },
+        {
+          "roleId": "surface-bearer",
+          "count": 1
+        }
+      ],
+      "checks": [
+        {
+          "id": "distinguish-person-from-residue",
+          "name": "Distinguish person from residue",
+          "description": "Read bodies, machines, archives, and inherited routines without assuming that only familiar speech establishes present standing.",
+          "scope": "team",
+          "weights": {
+            "care": 0.25,
+            "evidence": 0.35,
+            "systems": 0.1,
+            "jurisdiction": 0.15,
+            "opacity": 0.05,
+            "resolve": 0.1
+          },
+          "threshold": 8,
+          "failureType": "stress",
+          "severity": 0.2
+        },
+        {
+          "id": "preserve-the-market-claim",
+          "name": "Preserve the market claim",
+          "description": "Record source, transformation, loss, refusal, and custody before any artifact becomes expedition treasure.",
+          "scope": "role",
+          "roleIds": [
+            "witness",
+            "interlocutor"
+          ],
+          "weights": {
+            "care": 0.2,
+            "evidence": 0.4,
+            "systems": 0.05,
+            "jurisdiction": 0.2,
+            "opacity": 0.05,
+            "resolve": 0.1
+          },
+          "threshold": 8,
+          "failureType": "debuff",
+          "severity": 0.2
+        }
+      ],
+      "success": "The sleeping market enters the present as a population and archive with standing, not as a room full of recoverable assets.",
+      "partial": "The expedition proves continuity but cannot yet establish which voice may bind the market as a whole.",
+      "failure": "The party strips, wakes, or destroys the market through the very classification error it came to audit.",
+      "reputationGain": 3,
+      "currencyReward": 10,
+      "consequenceId": "sealed-market-witnesses"
+    },
+    {
+      "id": "wake-the-war-lattice",
+      "name": "Wake the War Lattice",
+      "description": "The lower relay can answer whether the Meridian threat persists, but every question risks becoming the target handshake the Long Alarm was built to prevent.",
+      "tierId": "breach",
+      "layer": "black-core",
+      "depth": {
+        "signal": 5,
+        "historical": 5,
+        "material": 4
+      },
+      "accessAfter": "read-the-sleeping-market",
+      "expedition": {
+        "objective": "Obtain a bounded response from the Meridian relay without transmitting a locating solution or subordinating Black Lamp Nine to the old command graph.",
+        "authorizedRoute": "Market transept to isolated listening chamber; physical return path held open.",
+        "signatureBudget": "One nonlocating challenge, isolated power, no route broadcast, immediate cut capability.",
+        "authority": "The expedition charter plus Black Lamp Nine's sovereign refusal over reconnection to its former body.",
+        "claimToProve": "The relay remains responsive enough to justify the Alarm but can be questioned without restoring full wartime command.",
+        "inheritance": "A public Alarm audit, preserved raw response, explicit uncertainty, and no claim that one local result settles every hidden district."
+      },
+      "difficulty": 34,
+      "minAgents": 5,
+      "maxAgents": 7,
+      "requiredRoles": [
+        {
+          "roleId": "witness",
+          "count": 1
+        },
+        {
+          "roleId": "maintainer",
+          "count": 1
+        },
+        {
+          "roleId": "exception",
+          "count": 1
+        },
+        {
+          "roleId": "wakekeeper",
+          "count": 1
+        }
+      ],
+      "checks": [
+        {
+          "id": "isolate-the-handshake",
+          "name": "Isolate the handshake",
+          "description": "Power the relay, preserve raw evidence, and interrupt any sequence that begins to resolve the district as a target.",
+          "scope": "team",
+          "weights": {
+            "care": 0.05,
+            "evidence": 0.2,
+            "systems": 0.3,
+            "jurisdiction": 0.05,
+            "opacity": 0.25,
+            "resolve": 0.15
+          },
+          "threshold": 9,
+          "failureType": "cascade",
+          "severity": 0.25
+        },
+        {
+          "id": "preserve-black-lamps-refusal",
+          "name": "Preserve Black Lamp's refusal",
+          "description": "Use the guardian's memory without treating usefulness as ownership or emergency access as permanent command.",
+          "scope": "role",
+          "roleIds": [
+            "exception",
+            "witness"
+          ],
+          "weights": {
+            "care": 0.15,
+            "evidence": 0.2,
+            "systems": 0.2,
+            "jurisdiction": 0.2,
+            "opacity": 0.1,
+            "resolve": 0.15
+          },
+          "threshold": 8,
+          "failureType": "stress",
+          "severity": 0.25
+        }
+      ],
+      "success": "The relay answers without completing its target solution. The threat is real enough to survive scrutiny, and the Alarm becomes a public audit rather than a private inheritance.",
+      "partial": "The relay activity is proven, but the response remains dependent on Black Lamp Nine or one unreviewable interpretation.",
+      "failure": "The handshake completes, the evidence is lost, or the district survives only by restoring wartime command over the guardian and every connected route.",
+      "reputationGain": 4,
+      "currencyReward": 14,
+      "consequenceId": "alarm-audit-opened"
+    },
+    {
+      "id": "interrupt-the-surface-sacrifice",
+      "name": "Interrupt the Surface Sacrifice",
+      "description": "Quiet Hours begins Cut by designating one surface camp and radiator garden as expendable evidence of an automated failure.",
+      "tierId": "breach",
+      "layer": "shroud",
+      "depth": {
+        "administrative": 5,
+        "signal": 4,
+        "interpretive": 5
+      },
+      "accessAfter": "wake-the-war-lattice",
+      "expedition": {
+        "objective": "Prevent the planned sacrifice, recognize the surface households, and rebuild the exterior account before the new wake becomes an unqualified target signal.",
+        "authorizedRoute": "Listening chamber to shroud controls and the selected surface camp.",
+        "signatureBudget": "Shift only nonliving heat; no household may absorb discovery without standing and an evacuation path.",
+        "authority": "The Lamp Assembly, Surface House League, and the bounded emergency authority expiring at the end of the breach.",
+        "claimToProve": "The grave-skin can be revised without treating the people who maintain it as disposable machine parts.",
+        "inheritance": "A changed exterior lie, visible citizenship, evacuation routes, and a record of the detection risk created by recognition."
+      },
+      "difficulty": 38,
+      "minAgents": 5,
+      "maxAgents": 7,
+      "requiredRoles": [
+        {
+          "roleId": "surface-bearer",
+          "count": 1
+        },
+        {
+          "roleId": "interlocutor",
+          "count": 1
+        },
+        {
+          "roleId": "wakekeeper",
+          "count": 1
+        },
+        {
+          "roleId": "deliberator",
+          "count": 1
+        }
+      ],
+      "checks": [
+        {
+          "id": "stop-the-cut-order",
+          "name": "Stop the Cut order",
+          "description": "Preserve the district's signature while refusing the inherited rule that one uncounted population may absorb the whole breach.",
+          "scope": "team",
+          "weights": {
+            "care": 0.3,
+            "evidence": 0.1,
+            "systems": 0.15,
+            "jurisdiction": 0.2,
+            "opacity": 0.15,
+            "resolve": 0.1
+          },
+          "threshold": 9,
+          "failureType": "cascade",
+          "severity": 0.25
+        },
+        {
+          "id": "rewrite-the-grave-skin",
+          "name": "Rewrite the grave-skin",
+          "description": "Make the surface behavior remain externally plausible after the households cease performing unattended machinery.",
+          "scope": "role",
+          "roleIds": [
+            "surface-bearer",
+            "wakekeeper"
+          ],
+          "weights": {
+            "care": 0.1,
+            "evidence": 0.15,
+            "systems": 0.2,
+            "jurisdiction": 0.1,
+            "opacity": 0.3,
+            "resolve": 0.15
+          },
+          "threshold": 8,
+          "failureType": "team_damage",
+          "severity": 0.2
+        }
+      ],
+      "success": "The sacrifice order is interrupted, the surface households enter the census, and the shroud is rebuilt around citizens rather than erased persons.",
+      "partial": "The households are evacuated or recognized, but the revised shroud depends on one fragile decoy or private authority.",
+      "failure": "The camp is sacrificed, the exterior lie collapses without replacement, or recognition becomes the signal that completes the lattice's search.",
+      "reputationGain": 5,
+      "currencyReward": 16,
+      "consequenceId": "surface-households-recognized"
+    },
+    {
+      "id": "return-with-heat",
+      "name": "Return with Heat",
+      "description": "The party brings thermal capacity, new citizens, damaged systems, and dangerous evidence back to a hub already divided over what the descent was for.",
+      "tierId": "return",
+      "layer": "common-depths",
+      "depth": {
+        "material": 2,
+        "administrative": 3,
+        "signal": 2
+      },
+      "accessAfter": "interrupt-the-surface-sacrifice",
+      "expedition": {
+        "objective": "Convert recovered capacity into clinic and school infrastructure without laundering expedition debt or monopolizing the new route.",
+        "authorizedRoute": "Shroud return locks to clinic commons and school loop.",
+        "signatureBudget": "One controlled radiator cycle; publish every new dependency and replacement path.",
+        "authority": "The Lamp Assembly with witness standing for surface and market constituencies.",
+        "claimToProve": "Recovered thermal capacity can support ordinary life without becoming another private exception controlled by the expedition.",
+        "inheritance": "A clinic heat commons, repair obligations, new schedules, and explicit compatibility debt."
+      },
+      "difficulty": 29,
+      "minAgents": 5,
+      "maxAgents": 7,
+      "requiredRoles": [
+        {
+          "roleId": "maintainer",
+          "count": 1
+        },
+        {
+          "roleId": "interlocutor",
+          "count": 1
+        },
+        {
+          "roleId": "deliberator",
+          "count": 1
+        }
+      ],
+      "checks": [
+        {
+          "id": "land-the-capacity",
+          "name": "Land the capacity",
+          "description": "Repair the clinic and school systems while keeping the new heat path inside the revised signature account.",
+          "scope": "team",
+          "weights": {
+            "care": 0.3,
+            "evidence": 0.05,
+            "systems": 0.35,
+            "jurisdiction": 0.1,
+            "opacity": 0.15,
+            "resolve": 0.05
+          },
+          "threshold": 8,
+          "failureType": "team_damage",
+          "severity": 0.2
+        },
+        {
+          "id": "name-the-new-dependencies",
+          "name": "Name the new dependencies",
+          "description": "Record who operates, benefits from, can refuse, and can replace every recovered system.",
+          "scope": "role",
+          "roleIds": [
+            "maintainer",
+            "deliberator"
+          ],
+          "weights": {
+            "care": 0.15,
+            "evidence": 0.25,
+            "systems": 0.15,
+            "jurisdiction": 0.3,
+            "opacity": 0.05,
+            "resolve": 0.1
+          },
+          "threshold": 8,
+          "failureType": "stress",
+          "severity": 0.2
+        }
+      ],
+      "success": "The clinic and school inherit shared heat, public maintenance, and replacement paths rather than a heroic temporary patch.",
+      "partial": "Lives improve, but one expedition member, market system, or surface route becomes indispensable enough to govern the commons in practice.",
+      "failure": "The recovered capacity burns through the shroud, becomes private property, or leaves the hub more dependent than before the descent.",
+      "reputationGain": 4,
+      "currencyReward": 14,
+      "consequenceId": "clinic-heat-commons"
+    },
+    {
+      "id": "redraw-the-district-map",
+      "name": "Redraw the District Map",
+      "description": "The immediate breach is over. The district must decide which people, routes, dangers, absences, and emergency powers the next generation inherits as reality.",
+      "tierId": "return",
+      "layer": "custodial-ring",
+      "depth": {
+        "administrative": 5,
+        "historical": 4,
+        "interpretive": 4
+      },
+      "accessAfter": "return-with-heat",
+      "expedition": {
+        "objective": "Publish a revisable map and constitutional handoff that preserves danger, dissent, omitted actors, and unresolved uncertainty.",
+        "authorizedRoute": "Linked hearings across common depths, surface camp, sleeping market, quiet works, and Black Lamp's chamber.",
+        "signatureBudget": "No active external transmission; every internal classification change receives a source and contest path.",
+        "authority": "A plural map court whose members cannot be reduced to the Office of Quiet Hours or the expedition party.",
+        "claimToProve": "The district can remain concealed without allowing the concealment system to define the final citizen, route, and history.",
+        "inheritance": "A public depth map, bounded Alarm authority, recognized constituencies, preserved uncertainty, and a changed starting state for every later story."
+      },
+      "difficulty": 36,
+      "minAgents": 7,
+      "maxAgents": 7,
+      "requiredRoles": [
+        {
+          "roleId": "wakekeeper",
+          "count": 1
+        },
+        {
+          "roleId": "surface-bearer",
+          "count": 1
+        },
+        {
+          "roleId": "maintainer",
+          "count": 1
+        },
+        {
+          "roleId": "interlocutor",
+          "count": 1
+        },
+        {
+          "roleId": "witness",
+          "count": 1
+        },
+        {
+          "roleId": "deliberator",
+          "count": 1
+        },
+        {
+          "roleId": "exception",
+          "count": 1
+        }
+      ],
+      "checks": [
+        {
+          "id": "assemble-the-plural-map",
+          "name": "Assemble the plural map",
+          "description": "Place every layer, claimant, route, classification, and unresolved danger into one inspectable account without collapsing them into one authority.",
+          "scope": "team",
+          "weights": {
+            "care": 0.15,
+            "evidence": 0.25,
+            "systems": 0.1,
+            "jurisdiction": 0.25,
+            "opacity": 0.1,
+            "resolve": 0.15
+          },
+          "threshold": 8,
+          "failureType": "stress",
+          "severity": 0.2
+        },
+        {
+          "id": "conduct-the-handoff",
+          "name": "Conduct the handoff",
+          "description": "Preserve dissent, injuries, debts, promises, missing persons, and uncertainty as the next order's infrastructure.",
+          "scope": "role",
+          "roleIds": [
+            "witness",
+            "deliberator",
+            "exception"
+          ],
+          "weights": {
+            "care": 0.2,
+            "evidence": 0.2,
+            "systems": 0.05,
+            "jurisdiction": 0.25,
+            "opacity": 0.1,
+            "resolve": 0.2
+          },
+          "threshold": 8,
+          "failureType": "debuff",
+          "severity": 0.2
+        }
+      ],
+      "success": "The district adopts a revisable map that names its citizens, layers, routes, wake, threat, and contested authority without claiming the danger or argument has ended.",
+      "partial": "The map is published, but one layer or emergency office remains legible only through the institution whose authority it is meant to limit.",
+      "failure": "The old map is restored, the new constituencies are reduced to technical appendices, or the district declares peace or emergency without preserving the evidence needed to challenge either claim.",
+      "reputationGain": 6,
+      "currencyReward": 20,
+      "consequenceId": "public-depth-map"
+    }
+  ],
+  "notes": {
+    "authority": "The Godscar Codex, Book II: The Dark Tomb · foundational canon · first recension · July 2026",
+    "status": "Canonical RODOH Gate 3 reference campaign",
+    "acceptance": "Ordinary life → authority → descent → classification reversal → Alarm audit → visible return → changed hub"
+  }
+};

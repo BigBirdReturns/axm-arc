@@ -1,37 +1,57 @@
 # cartridges/
 
-Importable arc cartridges — JSON files that pass `src/engine/schema.ts`'s
-`ArcSchema` and can be loaded through the game's import seam
-(`importArcFromJson` in `src/game/lib/arc-library.ts`). This is the
-counterpart to the arcs bundled directly into the build under `src/arcs/`
-(e.g. `first-charter.ts`, `karazhan.ts`): same schema, same engine, just
-delivered as a standalone file instead of compiled into the app.
+Importable Arc cartridges and their creator-owned source objects. Compiled
+`.arc.json` files pass the same engine schema and import seam used by the
+browser product. Source-plane files remain editable authority and compile into
+ordinary Arcs without executable plugin code.
 
 ## Loading a cartridge
 
-In the running game: **Library → Import Arc**, then paste or upload the
-`.arc.json` file. Import validates against the schema and never throws —
-failures come back as a list of per-field errors. A successful import is
-added to the arc library as `trust: "imported-unsigned"`; bundled arcs are
-never overwritten by an import with the same id.
+In the running game choose **Library → Import Arc**, then paste or upload the
+`.arc.json` file. Import validates against the schema and never throws. A
+successful import is recorded as `trust: "imported-unsigned"`; bundled revisions
+are never overwritten by a same-id import.
 
 ## Conformance
 
-Every cartridge in this directory must pass the same validation the game
-runs at import time (`validateArc` / `ArcSchema.safeParse`), i.e. it must be
-a real, importable arc — not just well-formed JSON. Before adding or editing
-a cartridge here, validate it (e.g. by running `importArcFromJson` against
-the file text via `vite-node`, with a `localStorage` shim if running outside
-a browser) and confirm it returns `ok: true` with zero errors.
+Every compiled cartridge in this directory must validate through `ArcSchema`
+and match the artifact generated from its adjacent creator source. Source-plane
+round-trip, exact digest, full-campaign reachability, state inheritance, and
+gate honesty are permanent tests rather than release notes.
 
-## Godscar reference pocket
+## Book I reference
 
-`kind-gods-of-ilyon.pocket.json` is the creator-owned six-pressure source. `kind-gods-of-ilyon.arc.json` is the exact compiled cartridge accepted by Arc and Rodoh. Rebuild both with `npm run build:godscar-reference`.
+- `kind-gods-of-ilyon.pocket.json` is the creator-owned six-pressure Book I source.
+- `kind-gods-of-ilyon.arc.json` is its exact compiled cartridge.
+- Rebuild both with `npm run build:godscar-reference`.
+
+## Book II reference: The Lamp District
+
+- `lamp-district.tomb.json` is the canonical `dark-tomb-pocket/1` source.
+- `lamp-district.arc.json` is the exact engine-1.3 cartridge compiled from it.
+- Rebuild both with `npm run build:dark-tomb-reference`.
+
+The Lamp District carries eight movements through Ordinary Life, Descent,
+Breach, and Return. Its Long Alarm, signature credibility, visibility, and
+inherited civic consequences are engine-owned state. The Dark Tomb Forge can
+load the canonical source, edit the same object in guided or exact-source mode,
+run bounded deterministic completion sweeps, install the compiled cartridge,
+and export both artifacts.
 
 ## Dark Tomb source plane
 
-Book II is encoded under `src/dark-tomb/` as `dark-tomb-pocket/1`. It reuses Book I's canon tiers, evidence ledger, provenance, and faction receipts, then adds the eight-pressure Tomb Engine, seven-layer anatomy, five-dimensional depth vector, signature budget, Long Alarm, expedition ledger, Book II cast responsibilities, and ten Story Physics invariants. The private-branch `DARK_TOMB_STARTER` is a compiler fixture and authoring seed, not a canonical cartridge. See `docs/DARK_TOMB_POCKET_FORMAT.md`.
+Book II is encoded under `src/dark-tomb/` as `dark-tomb-pocket/1`. It reuses
+Book I's evidence and provenance discipline, then adds the eight Tomb Engine
+pressures, seven-layer anatomy, five-dimensional depth, signature budget, Long
+Alarm, expedition ledger, incompatible cast responsibilities, and ten Story
+Physics invariants. `DARK_TOMB_STARTER` remains a private authoring seed. The
+Lamp District is the first canonical reference.
 
 ## Common Ship source plane
 
-Book III is encoded under `src/common-ship/` as `common-ship-pocket/1`. It preserves the prior canon and evidence law, then adds the nine-pressure Watch Engine, seven-system vessel anatomy, six-dimensional temporal profile, seven-layer translation stack, six Common Watch viability tests, eight ship-state tracks, full operational and handoff ledgers, Book III cast responsibilities, and ten Mission Physics invariants. The private-branch `COMMON_SHIP_STARTER` is a compiler fixture and authoring seed, not a canonical cartridge or a bundled World release. See `docs/COMMON_SHIP_POCKET_FORMAT.md`.
+Book III is encoded under `src/common-ship/` as `common-ship-pocket/1`. It adds
+the nine-pressure Watch Engine, seven-system vessel anatomy, structured
+embodiment profiles, six-dimensional temporal profile, translation stack,
+Common Watch viability tests, ship-state tracks, handoff ledgers, and Mission
+Physics. `COMMON_SHIP_STARTER` remains a private authoring seed and does not yet
+expand the accepted World release.

@@ -77,6 +77,13 @@ function normalizeValidation<T>(result: { ok: true; source: T } | { ok: false; e
   return result.ok ? { ok: true, source: result.source } : result;
 }
 
+function unknownFormatError(input: unknown): { ok: false; errors: string[] } {
+  const format = input && typeof input === "object" && !Array.isArray(input)
+    ? String((input as { format?: unknown }).format ?? "missing")
+    : "missing";
+  return { ok: false, errors: [`Unknown creator source-plane format "${format}".`] };
+}
+
 const DEFINITIONS: readonly SourcePlaneDefinition[] = Object.freeze([
   {
     id: "godscar-pocket",
@@ -161,18 +168,12 @@ export function sourcePlaneIdentity(source: unknown): SourcePlaneIdentity {
 
 export function validateRegisteredSourcePlane(input: unknown): SourcePlaneValidation {
   const definition = sourcePlaneForSource(input);
-  if (!definition) {
-    const format = input && typeof input === "object" && !Array.isArray(input)
-      ? String((input as { format?: unknown }).format ?? "missing")
-      : "missing";
-    return { ok: false, errors: [`Unknown creator source-plane format "${format}".`] };
-  }
-  return definition.validate(input);
+  return definition ? definition.validate(input) : unknownFormatError(input);
 }
 
 export function compileRegisteredSourcePlane(input: unknown): SourcePlaneCompileResult {
   const definition = sourcePlaneForSource(input);
-  if (!definition) return validateRegisteredSourcePlane(input);
+  if (!definition) return unknownFormatError(input);
   const validation = definition.validate(input);
   if (!validation.ok) return validation;
   try {

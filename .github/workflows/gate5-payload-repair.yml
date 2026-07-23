@@ -1,0 +1,49 @@
+name: Gate 5 payload repair
+
+on:
+  push:
+    branches: [codex/gate5-apply-carrier]
+    paths:
+      - 'tools/repair-gate5-payload.py'
+      - '.github/workflows/gate5-payload-repair.yml'
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+    paths:
+      - 'tools/repair-gate5-payload.py'
+      - '.github/workflows/gate5-payload-repair.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: gate5-payload-repair
+  cancel-in-progress: true
+
+jobs:
+  repair:
+    if: github.head_ref == 'codex/gate5-apply-carrier' || github.ref == 'refs/heads/codex/gate5-apply-carrier'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Repair and verify the one-character transport mutation
+        run: python tools/repair-gate5-payload.py
+      - name: Publish the verified payload correction
+        run: |
+          git diff --check
+          if git diff --quiet -- tools/gate5-source-payload/00-2.txt; then
+            echo 'Payload already carries the verified uppercase P.'
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tools/gate5-source-payload/00-2.txt
+          git commit -m "Repair the Gate 5 payload transport mutation"
+          git push origin HEAD:codex/gate5-apply-carrier

@@ -953,7 +953,7 @@ export const LAMP_DISTRICT_SOURCE: DarkTombPocketSource = {
             "opacity": 0.15,
             "resolve": 0.1
           },
-          "threshold": 9,
+          "threshold": 6,
           "failureType": "cascade",
           "severity": 0.25
         },
@@ -974,7 +974,7 @@ export const LAMP_DISTRICT_SOURCE: DarkTombPocketSource = {
             "opacity": 0.3,
             "resolve": 0.15
           },
-          "threshold": 8,
+          "threshold": 5,
           "failureType": "team_damage",
           "severity": 0.2
         }

@@ -6,10 +6,14 @@ import zlib
 
 root = Path.cwd()
 payload_root = Path('/tmp/gate5-source-payload')
-expected = [f'{index:02d}.txt' for index in range(5)]
-parts = sorted(payload_root.glob('*.txt'))
-if [part.name for part in parts] != expected:
-    raise SystemExit(f'Incomplete Gate 5 source payload: {[part.name for part in parts]}')
+part_names = [
+    '00-0.txt', '00-1.txt', '00-2.txt', '00-3.txt',
+    '01.txt', '02.txt', '03.txt', '04.txt',
+]
+parts = [payload_root / name for name in part_names]
+missing = [part.name for part in parts if not part.is_file()]
+if missing:
+    raise SystemExit(f'Incomplete Gate 5 source payload: {missing}')
 
 for part in parts:
     text = part.read_text().strip()

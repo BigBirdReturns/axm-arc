@@ -134,7 +134,9 @@ function gearBonusFor(agent: Agent, attrId: string | undefined, arc: Arc): numbe
     const item = arc.items.find((it) => it.id === itemId);
     if (item) g += item.statBonuses[attrId] ?? 0;
   }
-  return g;
+  // Keep projections on the resolver's scale: getGearBonus applies half of
+  // the summed primary-attribute item bonus.
+  return g * 0.5;
 }
 
 /** The deterministic mean of an agent's score on a check — raw attribute pull +
@@ -253,20 +255,41 @@ function generateFixes(
     const gearCandidate = arc.items
       .filter((it) => !equipped.has(it.id) && (it.statBonuses[attr] ?? 0) > 0)
       .filter((it) => arc.tiers.findIndex((t) => t.id === it.tierRequirement) <= tierIdx)
-      .sort((a, b) => (b.statBonuses[attr] ?? 0) - (a.statBonuses[attr] ?? 0))[0];
+      .map((item) => {
+        const displacedId = culprit.equippedItems[item.slot];
+        const displaced = displacedId
+          ? arc.items.find((candidate) => candidate.id === displacedId)
+          : undefined;
+        const candidateBonus = item.statBonuses[attr] ?? 0;
+        const displacedBonus = displaced?.statBonuses[attr] ?? 0;
+        return {
+          item,
+          displaced,
+          candidateBonus,
+          displacedBonus,
+          scoreImpact: 0.5 * (candidateBonus - displacedBonus),
+        };
+      })
+      .filter((candidate) => candidate.scoreImpact > 0)
+      .sort((a, b) =>
+        b.scoreImpact - a.scoreImpact ||
+        (a.item.id < b.item.id ? -1 : a.item.id > b.item.id ? 1 : 0),
+      )[0];
     if (gearCandidate) {
-      const bonus = gearCandidate.statBonuses[attr] ?? 0;
+      const replacement = gearCandidate.displaced
+        ? `, replacing +${gearCandidate.displacedBonus}`
+        : "";
       fixes.push({
         lever: "gear",
-        description: `Equip ${gearCandidate.name} on ${culprit.name} (+${bonus} ${attr})`,
-        target: gearCandidate.name,
+        description: `Equip ${gearCandidate.item.name} on ${culprit.name} (+${gearCandidate.candidateBonus}${replacement} ${attr})`,
+        target: gearCandidate.item.name,
         cost: "spend a drop / bank stock; someone else waits on that item",
-        impact: bonus,
+        impact: gearCandidate.scoreImpact,
         agentId: culprit.id,
-        itemId: gearCandidate.id,
+        itemId: gearCandidate.item.id,
         attrId: attr,
         checkId,
-        projectedEffect: closes(bonus),
+        projectedEffect: closes(gearCandidate.scoreImpact),
       });
     }
   }
@@ -397,7 +420,9 @@ export function diagnoseWipe(
     // Culprits: for a team check, the weakest of the agents the check is BUILT
     // to lean on (the strikers on a damage wall) — not the tank who was never
     // going to carry it; for per-agent/role, the agents who fell under the line.
-    const contributions = [...cd.contributions].sort((a, b) => a.score - b.score);
+    const contributions = [...cd.contributions].sort(
+      (a, b) => a.score - b.score || (a.agentId < b.agentId ? -1 : a.agentId > b.agentId ? 1 : 0),
+    );
     let failing: typeof contributions;
     if (cd.scope === "team_aggregate") {
       const intended = intendedRoleId(check, arc);
@@ -413,7 +438,11 @@ export function diagnoseWipe(
         ? cd.threshold - (cd.teamScore ?? 0)
         : Math.max(...failing.map((c) => cd.threshold - c.score), 0);
 
-    const culprits: Culprit[] = failing.map((c) => {
+    const representedShortfall = round(shortfall);
+    const teamShares = check.scope === "team_aggregate"
+      ? reconcileShortfall(representedShortfall, failing.length)
+      : [];
+    const culprits: Culprit[] = failing.map((c, index) => {
       const agent = org.agents[c.agentId];
       return {
         agentId: c.agentId,
@@ -421,7 +450,13 @@ export function diagnoseWipe(
         role: agent?.role ?? null,
         score: round(c.score),
         threshold: round(cd.threshold),
-        shortfall: round(cd.threshold - c.score),
+        // Team culprits partition the represented team gap exactly. An
+        // individual row is only an addend, so comparing it with the whole
+        // threshold exaggerates the miss; duplicating the team gap across all
+        // rows also corrupts bottleneck totals.
+        shortfall: check.scope === "team_aggregate"
+          ? teamShares[index]!
+          : round(cd.threshold - c.score),
         stress: agent?.stress ?? 0,
         morale: agent?.morale ?? 0,
         factors: agent ? factorsFor(agent, c.breakdown, check, challenge, arc) : [],
@@ -434,7 +469,7 @@ export function diagnoseWipe(
       scope: cd.scope,
       threshold: round(cd.threshold),
       teamScore: cd.teamScore !== undefined ? round(cd.teamScore) : undefined,
-      shortfall: round(shortfall),
+      shortfall: representedShortfall,
       culprits,
     });
   }
@@ -535,6 +570,21 @@ function round(n: number): number {
   return Math.round(n * 10) / 10;
 }
 
+/** Partition a represented one-decimal total without duplicating it per row.
+ * Integer tenths are the source of truth: the returned shares' tenths sum
+ * exactly to the represented check shortfall's tenths. Any indivisible
+ * remainder goes to the already-deterministically-ordered earliest culprits. */
+function reconcileShortfall(total: number, count: number): number[] {
+  if (count <= 0) return [];
+  const totalTenths = Math.max(0, Math.round(total * 10));
+  const baseTenths = Math.floor(totalTenths / count);
+  const remainder = totalTenths % count;
+  return Array.from(
+    { length: count },
+    (_, index) => (baseTenths + (index < remainder ? 1 : 0)) / 10,
+  );
+}
+
 // ── readable console render (the "not pretty yet" first pass) ──────────────────
 
 export function renderDiagnosis(d: WipeDiagnosis): string {
@@ -553,7 +603,10 @@ export function renderDiagnosis(d: WipeDiagnosis): string {
         : `  • "${fc.mechanicName}" [${fc.scope === "role_specific" ? "role" : "each"}] — needed ${fc.threshold}, ${fc.culprits.length} fell short (worst by ${fc.shortfall})`;
     L.push(head);
     for (const c of fc.culprits.slice(0, 3)) {
-      L.push(`      ${c.name} (${c.role ?? "—"}): ${c.score} vs ${c.threshold}  [stress ${c.stress}, morale ${c.morale}]`);
+      const scoreLine = fc.scope === "team_aggregate"
+        ? `contributed ${c.score}; attributed gap ${c.shortfall}`
+        : `${c.score} vs ${c.threshold}`;
+      L.push(`      ${c.name} (${c.role ?? "—"}): ${scoreLine}  [stress ${c.stress}, morale ${c.morale}]`);
       for (const f of c.factors) L.push(`        └ ${f.note}`);
     }
   }

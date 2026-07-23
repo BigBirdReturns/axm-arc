@@ -17,7 +17,7 @@ import { resolveChallenge } from "../../src/engine/resolver.js";
 import { Rng } from "../../src/engine/prng.js";
 import { buildStartingOrg } from "../../src/sim/cartridge-conformance.js";
 import { diagnoseWipe, renderDiagnosis } from "../../src/sim/wipe-diagnosis.js";
-import type { Agent, Arc, Challenge, Organization, RunReport } from "../../src/engine/types.js";
+import type { Agent, Arc, Challenge, Organization, RunReport, ScoreBreakdown } from "../../src/engine/types.js";
 
 const CHOIR = "the-hollow-choir"; // the wall (survival_check; wipes ~47%)
 
@@ -43,6 +43,20 @@ function loadArc(): Arc {
 }
 function boss(arc: Arc, id: string): Challenge {
   return arc.challenges.find((c) => c.id === id)!;
+}
+
+function breakdown(total: number): ScoreBreakdown {
+  return {
+    rawScore: total,
+    gearBonus: 0,
+    relMod: 0,
+    moraleMod: 0,
+    afflictionMod: 0,
+    variance: 0,
+    volatilitySwing: 0,
+    traitBonus: 0,
+    total,
+  };
 }
 
 /** A legal-by-roster party (role requirements + size), assigned directly — the
@@ -147,6 +161,50 @@ describe("wipe diagnosis", () => {
     expect([...scores].sort((a, b) => a - b)).toEqual(scores);
   });
 
+  it("partitions a stored 0.1 team gap exactly across two named culprits", () => {
+    const arc = loadArc();
+    const at = attempt(arc, 1, CHOIR);
+    const check = at.challenge.mechanicChecks.find((candidate) => candidate.id === "break-the-dirge")!;
+    const dominant = [...check.attributeWeights].sort((a, b) => b.weight - a.weight)[0]!.attributeId;
+    const intendedRole = arc.roles.find((role) =>
+      Object.entries(role.attributeWeights).sort((a, b) => b[1] - a[1])[0]?.[0] === dominant,
+    )!.id;
+    const agents = Object.values(at.org.agents)
+      .filter((agent) => agent.role === intendedRole)
+      .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+      .slice(0, 2);
+    expect(agents).toHaveLength(2);
+    agents[0]!.name = "Ada";
+    agents[1]!.name = "Bram";
+
+    const report: RunReport = {
+      ...at.report,
+      outcome: "failure",
+      diagnostics: {
+        challengeId: at.challenge.id,
+        checks: [{
+          mechanicId: check.id,
+          scope: "team_aggregate",
+          threshold: 20.1,
+          teamScore: 20,
+          passed: false,
+          contributions: [
+            { agentId: agents[0]!.id, score: 9, breakdown: breakdown(9) },
+            { agentId: agents[1]!.id, score: 11, breakdown: breakdown(11) },
+          ],
+        }],
+      },
+    };
+
+    const failed = diagnoseWipe(report, at.challenge, at.org, arc).failedChecks[0]!;
+    expect(failed.shortfall).toBe(0.1);
+    expect(failed.culprits.map((culprit) => culprit.name)).toEqual(["Ada", "Bram"]);
+    expect(failed.culprits.map((culprit) => culprit.shortfall)).toEqual([0.1, 0]);
+    expect(failed.culprits.reduce((sum, culprit) => sum + culprit.shortfall, 0)).toBe(failed.shortfall);
+    expect(failed.culprits.reduce((sum, culprit) => sum + Math.round(culprit.shortfall * 10), 0))
+      .toBe(Math.round(failed.shortfall * 10));
+  });
+
   // ── modifiers surface when they matter ──────────────────────────────────────
   it("gear/morale modifiers appear in the diagnosis when they affect the result", () => {
     const arc = loadArc();
@@ -192,6 +250,79 @@ describe("wipe diagnosis", () => {
     }
     // distinct levers — not three identical "train" cop-outs
     expect(new Set(d.fixes.map((f) => f.lever)).size).toBe(d.fixes.length);
+  });
+
+  function occupiedSlotDiagnosis(candidateBonus: number) {
+    const arc = loadArc();
+    const at = attempt(arc, 1, CHOIR);
+    const targetId = at.report.assignedAgents[0]!.agentId;
+    const target = at.org.agents[targetId]!;
+    const attrId = arc.attributes[0]!.id;
+    const slot = "fixture-weapon";
+    const template = arc.items[0]!;
+    const occupied = {
+      ...template,
+      id: "occupied-item",
+      name: "Occupied +4",
+      slot,
+      tierRequirement: target.tier,
+      statBonuses: { [attrId]: 4 },
+    };
+    const candidate = {
+      ...template,
+      id: "candidate-item",
+      name: `Candidate +${candidateBonus}`,
+      slot,
+      tierRequirement: target.tier,
+      statBonuses: { [attrId]: candidateBonus },
+    };
+    target.equippedItems = { [slot]: occupied.id };
+    const fixtureArc: Arc = { ...arc, items: [occupied, candidate] };
+    const check = {
+      ...at.challenge.mechanicChecks[0]!,
+      id: "occupied-slot-check",
+      name: "Occupied slot check",
+      scope: "per_agent" as const,
+      attributeWeights: [{ attributeId: attrId, weight: 1 }],
+      difficultyThreshold: 20,
+    };
+    const challenge: Challenge = {
+      ...at.challenge,
+      id: "occupied-slot-fixture",
+      mechanicChecks: [check],
+    };
+    const report: RunReport = {
+      ...at.report,
+      challengeId: challenge.id,
+      outcome: "failure",
+      assignedAgents: [at.report.assignedAgents[0]!],
+      diagnostics: {
+        challengeId: challenge.id,
+        checks: [{
+          mechanicId: check.id,
+          scope: "per_agent",
+          threshold: 20,
+          passed: false,
+          contributions: [{ agentId: target.id, score: 10, breakdown: breakdown(10) }],
+        }],
+      },
+    };
+    return diagnoseWipe(report, challenge, at.org, fixtureArc);
+  }
+
+  it("projects an occupied-slot gear upgrade by its net resolver impact", () => {
+    const diagnosis = occupiedSlotDiagnosis(5);
+    const gearFix = diagnosis.fixes.find((fix) => fix.lever === "gear");
+    expect(gearFix).toBeDefined();
+    expect(gearFix!.itemId).toBe("candidate-item");
+    expect(gearFix!.impact).toBe(0.5 * (5 - 4));
+    expect(gearFix!.impact).toBeLessThan(0.5 * 5);
+    expect(gearFix!.projectedEffect).toContain("≈ +0.5");
+  });
+
+  it("does not recommend a worse same-slot replacement as positive impact", () => {
+    const diagnosis = occupiedSlotDiagnosis(3);
+    expect(diagnosis.fixes.some((fix) => fix.lever === "gear")).toBe(false);
   });
 
   it("the render is a real readout, not 'you failed'", () => {

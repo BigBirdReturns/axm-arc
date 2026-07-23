@@ -1,0 +1,54 @@
+name: Gate 4 Lamp District calibration
+
+on:
+  pull_request:
+    types: [ready_for_review, reopened]
+    paths:
+      - '.github/workflows/gate4-lamp-calibration.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: gate4-lamp-district-calibration
+  cancel-in-progress: true
+
+jobs:
+  calibrate:
+    if: github.head_ref == 'codex/gate4-lamp-calibration'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/gate4-lamp-calibration
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: python tools/apply-gate4-lamp-calibration.py
+      - run: rm tools/apply-gate4-lamp-calibration.py .github/workflows/gate4-lamp-calibration.yml
+      - run: npm ci
+      - name: Rebuild exact Lamp District artifacts
+        run: npm run build:dark-tomb-reference
+      - run: npm run typecheck
+      - name: Focused calibration and campaign contracts
+        run: >-
+          npm test --
+          tests/dark-tomb/lamp-district-gate4-calibration.test.ts
+          tests/dark-tomb/lamp-district.test.ts
+          tests/sim/lamp-district-campaign.test.ts
+      - run: npm test
+      - run: npm run build
+      - name: Publish verified source calibration
+        run: |
+          git diff --check
+          test ! -e tools/apply-gate4-lamp-calibration.py
+          test ! -e .github/workflows/gate4-lamp-calibration.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Calibrate the Lamp District breach for direct play"
+          git push origin HEAD:codex/gate4-lamp-calibration

@@ -6,6 +6,7 @@ import {
   KARAZHAN,
   KIND_GODS_OF_ILYON,
   LAMP_DISTRICT,
+  RELIEF_CIRCUIT,
 } from "../arcs/index.js";
 import { foundOrganization } from "../engine/founding.js";
 import { cartridgeDigest } from "../engine/cartridge-digest.js";
@@ -34,6 +35,7 @@ import { DesignerScreen } from "./components/DesignerScreen.js";
 import { WorkshopScreen } from "./components/WorkshopScreen.js";
 import { GodscarForgeScreen } from "./components/GodscarForgeScreen.js";
 import { DarkTombForgeScreen } from "./components/DarkTombForgeScreen.js";
+import { CommonShipForgeScreen } from "./components/CommonShipForgeScreen.js";
 import { RaidNightScreen } from "./components/RaidNightScreen.js";
 import { GuildHallScreen } from "./components/GuildHallScreen.js";
 import { ExpansionArchiveScreen } from "./components/ExpansionArchiveScreen.js";
@@ -78,6 +80,7 @@ function resolveActiveArc(): typeof FIRST_CHARTER {
   ensureBundledArc(KARAZHAN);
   ensureBundledArc(KIND_GODS_OF_ILYON);
   ensureBundledArc(LAMP_DISTRICT);
+  ensureBundledArc(RELIEF_CIRCUIT);
   const selection = loadActiveArcSelection();
   if (selection) {
     const match = loadArcLibrary().find(
@@ -122,7 +125,7 @@ function buildNewOrg(activeArc: typeof FIRST_CHARTER): Organization {
 }
 
 export function App(): JSX.Element {
-  const [mode, setMode] = useState<"title" | "play" | "library" | "designer" | "workshop" | "godscar" | "darktomb" | "raidnight" | "guildhall" | "archive">("title");
+  const [mode, setMode] = useState<"title" | "play" | "library" | "designer" | "workshop" | "godscar" | "darktomb" | "commonship" | "raidnight" | "guildhall" | "archive">("title");
   // Subscribe to the module-level locale so every t() call below re-renders on
   // switch; `locale` is also a dependency of the memos that bake t() output.
   const [locale] = useLocale();
@@ -544,6 +547,7 @@ export function App(): JSX.Element {
         onOpenWorkshop={() => openWorkshop(null)}
         onOpenGodscar={() => setMode("godscar")}
         onOpenDarkTomb={() => setMode("darktomb")}
+        onOpenCommonShip={() => setMode("commonship")}
         onOpenRaidNight={() => setMode("raidnight")}
         onOpenGuildHall={() => setMode("guildhall")}
         onOpenArchive={() => setMode("archive")}
@@ -577,6 +581,21 @@ export function App(): JSX.Element {
   if (mode === "darktomb") {
     return (
       <>{standaloneControls}<DarkTombForgeScreen
+        onBack={() => setMode("title")}
+        onOpenLibrary={() => setMode("library")}
+        onPlayArc={(nextArc) => {
+          const active = saveActiveArc(nextArc);
+          if (!active.ok) { setSaveFailure(active.message); return; }
+          restoreClientState(nextArc);
+          setMode("title");
+        }}
+      /></>
+    );
+  }
+
+  if (mode === "commonship") {
+    return (
+      <>{standaloneControls}<CommonShipForgeScreen
         onBack={() => setMode("title")}
         onOpenLibrary={() => setMode("library")}
         onPlayArc={(nextArc) => {

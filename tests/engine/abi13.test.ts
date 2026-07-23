@@ -339,7 +339,7 @@ describe("Book II and Book III compiler projections", () => {
   it("turns Common Ship profiles, viability tests, and ship tracks into executable Arc law", () => {
     const arc = compileCommonShipPocket(COMMON_SHIP_STARTER);
     expect(arc.meta.engineVersion).toBe("1.3.0");
-    expect(arc.stateDefinitions?.map((definition) => definition.id)).toEqual([
+    expect(arc.stateDefinitions?.filter((definition) => definition.kind === "number").map((definition) => definition.id)).toEqual([
       "compatibility-debt",
       "continuity",
       "habitat-integrity",
@@ -349,6 +349,7 @@ describe("Book II and Book III compiler projections", () => {
       "translation-trust",
       "visibility",
     ]);
+    expect(arc.stateDefinitions?.some((definition) => definition.id.startsWith("consequence:"))).toBe(true);
     expect(arc.compositionProfiles).toHaveLength(COMMON_SHIP_STARTER.embodimentProfiles.length);
     expect(arc.founding?.roster.every((slot) => Boolean(slot.compositionProfileId))).toBe(true);
     for (const challenge of arc.challenges) {

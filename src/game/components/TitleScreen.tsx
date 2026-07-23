@@ -23,12 +23,13 @@ interface Props {
   onOpenWorkshop: () => void;
   onOpenGodscar: () => void;
   onOpenDarkTomb: () => void;
+  onOpenCommonShip: () => void;
   onOpenRaidNight: () => void;
   onOpenGuildHall: () => void;
   onOpenArchive: () => void;
 }
 
-export function TitleScreen({ arc, onContinue, onNewGame, onExportRun, saveFailure, exportMessage, onOpenLibrary, onOpenDesigner, onOpenWorkshop, onOpenGodscar, onOpenDarkTomb, onOpenRaidNight, onOpenGuildHall, onOpenArchive }: Props): JSX.Element {
+export function TitleScreen({ arc, onContinue, onNewGame, onExportRun, saveFailure, exportMessage, onOpenLibrary, onOpenDesigner, onOpenWorkshop, onOpenGodscar, onOpenDarkTomb, onOpenCommonShip, onOpenRaidNight, onOpenGuildHall, onOpenArchive }: Props): JSX.Element {
   useLocale();
   const existing = loadSave(arc);
   const hasSave = existing !== null;
@@ -68,6 +69,7 @@ export function TitleScreen({ arc, onContinue, onNewGame, onExportRun, saveFailu
           <button className="secondary" onClick={onOpenWorkshop}>{t("title.workshop")}</button>
           <button className="secondary" onClick={onOpenGodscar}>Godscar Pocket Forge</button>
           <button className="secondary" onClick={onOpenDarkTomb}>Dark Tomb Forge</button>
+          <button className="secondary" onClick={onOpenCommonShip}>Common Ship Forge</button>
           <button className="secondary" onClick={onOpenRaidNight}>{t("title.raidNight")}</button>
           <button className="secondary" onClick={onOpenGuildHall}>{t("title.guildHall")}</button>
           <button className="secondary" onClick={onOpenArchive}>{t("archive.title")}</button>

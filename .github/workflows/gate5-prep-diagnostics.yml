@@ -1,0 +1,41 @@
+name: Gate 5 preparation diagnostics
+
+on:
+  push:
+    branches: [codex/gate5-relief-circuit-prep]
+    paths:
+      - 'src/common-ship/relief-circuit.ts'
+      - 'tests/common-ship/relief-circuit-prep.test.ts'
+      - '.github/workflows/gate5-prep-diagnostics.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/gate5-relief-circuit-prep
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Focused Relief Circuit preparation contract
+        id: focused
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          npm test -- tests/common-ship/relief-circuit-prep.test.ts --reporter=verbose 2>&1 | tee gate5-prep.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gate5-prep-diagnostics
+          path: gate5-prep.log
+          if-no-files-found: error
+      - if: steps.focused.outcome == 'failure'
+        run: exit 1

@@ -21,7 +21,7 @@ permissions:
 jobs:
   diagnose:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
@@ -37,11 +37,19 @@ jobs:
         run: |
           set -o pipefail
           npm test -- tests/common-ship/relief-circuit-prep.test.ts --reporter=verbose 2>&1 | tee gate5-prep.log
+      - name: Complete Arc regression suite
+        id: full
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee gate5-full.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: gate5-prep-diagnostics
-          path: gate5-prep.log
+          path: |
+            gate5-prep.log
+            gate5-full.log
           if-no-files-found: error
-      - if: steps.focused.outcome == 'failure'
+      - if: ${{ steps.focused.outcome == 'failure' || steps.full.outcome == 'failure' }}
         run: exit 1

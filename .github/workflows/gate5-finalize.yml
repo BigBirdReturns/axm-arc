@@ -1,0 +1,68 @@
+name: Gate 5 Relief Circuit finalization
+
+on:
+  push:
+    branches: [codex/gate5-apply-carrier]
+    paths:
+      - '.github/workflows/gate5-finalize.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: gate5-relief-circuit-finalization
+  cancel-in-progress: true
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/gate5-apply-carrier
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Preserve the reviewed source payload outside the target tree
+        run: |
+          cp -R tools/gate5-source-payload /tmp/gate5-source-payload
+          cp tools/apply-gate5-final.py /tmp/apply-gate5-final.py
+      - name: Check out the Gate 5 target branch
+        run: |
+          git fetch origin codex/gate5-relief-circuit-prep
+          git checkout -B codex/gate5-relief-circuit-prep origin/codex/gate5-relief-circuit-prep
+      - name: Apply the Relief Circuit implementation
+        run: python /tmp/apply-gate5-final.py
+      - run: npm ci
+      - name: Build exact Common Ship source and Arc artifacts
+        run: npm run build:common-ship-reference
+      - name: Build exact connected Lamp District run fixture
+        run: npm run build:relief-connected-fixture
+      - name: TypeScript
+        run: npm run typecheck
+      - name: Focused Gate 5 contracts
+        run: >-
+          npm test --
+          tests/common-ship/relief-circuit.test.ts
+          tests/engine/connected-operation.test.ts
+          tests/engine/connected-operation-fixture.test.ts
+          tests/game/common-ship-forge.test.ts
+          tests/sim/relief-circuit-campaign.test.ts
+      - name: Complete Arc regression suite
+        run: npm test
+      - name: Production build
+        run: npm run build
+      - name: Keep generated deployment output outside source authority
+        run: git restore --source=HEAD --staged --worktree docs/game || true
+      - name: Publish the verified Gate 5 candidate
+        run: |
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Ship Gate 5 Relief Circuit and connected Lamp District operation"
+          git push origin HEAD:codex/gate5-relief-circuit-prep

@@ -5,6 +5,10 @@ on:
     branches: [codex/gate5-apply-carrier]
     paths:
       - '.github/workflows/gate5-finalize.yml'
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+    paths:
+      - '.github/workflows/gate5-finalize.yml'
   workflow_dispatch:
 
 permissions:

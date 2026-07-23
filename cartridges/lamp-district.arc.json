@@ -1104,7 +1104,7 @@
               "weight": 0.1
             }
           ],
-          "difficultyThreshold": 9,
+          "difficultyThreshold": 6,
           "thresholdMode": "perAssignedAgent",
           "scope": "team_aggregate",
           "failureConsequence": {
@@ -1142,7 +1142,7 @@
               "weight": 0.15
             }
           ],
-          "difficultyThreshold": 8,
+          "difficultyThreshold": 5,
           "scope": "role_specific",
           "roleIds": [
             "surface-bearer",
@@ -2634,7 +2634,7 @@
                 "opacity": 0.15,
                 "resolve": 0.1
               },
-              "threshold": 9,
+              "threshold": 6,
               "failureType": "cascade",
               "severity": 0.25
             },
@@ -2655,7 +2655,7 @@
                 "opacity": 0.3,
                 "resolve": 0.15
               },
-              "threshold": 8,
+              "threshold": 5,
               "failureType": "team_damage",
               "severity": 0.2
             }

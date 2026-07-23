@@ -5,6 +5,10 @@ on:
     branches: [codex/gate5-relief-circuit-prep]
     paths:
       - '.github/workflows/gate5-source-export.yml'
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+    paths:
+      - '.github/workflows/gate5-source-export.yml'
   workflow_dispatch:
 
 permissions:
@@ -17,7 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: codex/gate5-relief-circuit-prep
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
       - name: Record exact source identity
         run: git rev-parse HEAD > gate5-source-sha.txt

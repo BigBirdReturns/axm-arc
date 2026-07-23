@@ -7,6 +7,12 @@ on:
       - 'src/common-ship/relief-circuit.ts'
       - 'tests/common-ship/relief-circuit-prep.test.ts'
       - '.github/workflows/gate5-prep-diagnostics.yml'
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+    paths:
+      - 'src/common-ship/relief-circuit.ts'
+      - 'tests/common-ship/relief-circuit-prep.test.ts'
+      - '.github/workflows/gate5-prep-diagnostics.yml'
   workflow_dispatch:
 
 permissions:
@@ -19,7 +25,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: codex/gate5-relief-circuit-prep
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22

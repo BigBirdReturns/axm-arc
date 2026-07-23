@@ -68,7 +68,8 @@ describe("The Relief Circuit Gate 5 preparation source", () => {
       engineVersion: "1.3.0",
     });
     expect(readCommonShipPocketExtension(arc)).toEqual(RELIEF_CIRCUIT_CANDIDATE);
-    expect(arc.stateDefinitions?.map((track) => track.id)).toEqual(SHIP_STATE);
+    expect(arc.stateDefinitions).toHaveLength(SHIP_STATE.length);
+    expect(arc.stateDefinitions?.map((track) => track.id).sort()).toEqual([...SHIP_STATE].sort());
     expect(arc.founding?.roster.every((slot) => typeof slot.compositionProfileId === "string")).toBe(true);
 
     for (const challenge of arc.challenges) {

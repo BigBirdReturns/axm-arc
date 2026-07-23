@@ -33,7 +33,7 @@ describe("The Relief Circuit Gate 5 preparation source", () => {
       id: "relief-circuit",
       title: "The Relief Circuit",
       author: "BigBirdReturns",
-      version: "0.5.0-prep",
+      version: "0.5.0",
       canonRelation: "compatible",
     });
     expect(RELIEF_CIRCUIT_CANDIDATE.pressures[1]).toMatchObject({

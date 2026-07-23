@@ -11,6 +11,10 @@ parts = sorted(payload_root.glob('*.txt'))
 if [part.name for part in parts] != expected:
     raise SystemExit(f'Incomplete Gate 5 source payload: {[part.name for part in parts]}')
 
+for part in parts:
+    text = part.read_text().strip()
+    print(f'{part.name} chars={len(text)} sha256={hashlib.sha256(text.encode()).hexdigest()}')
+
 encoded = ''.join(part.read_text().strip() for part in parts)
 encoded_sha = hashlib.sha256(encoded.encode()).hexdigest()
 print(f'Gate 5 payload chars={len(encoded)} sha256={encoded_sha}')

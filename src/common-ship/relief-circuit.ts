@@ -18,7 +18,7 @@ candidate.identity = {
   description:
     "A mixed Common Ship carries medicine, specialists, continuity stores, and incompatible forms of life toward the Lamp District while a failing translation mesh turns every roster, habitat allocation, and delay into constitutional law.",
   author: "BigBirdReturns",
-  version: "0.5.0-prep",
+  version: "0.5.0",
   estimatedCycles: 20,
   parentCanons: [
     "The Godscar Codex, Book I: The Open Universe · first recension",

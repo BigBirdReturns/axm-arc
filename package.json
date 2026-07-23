@@ -13,7 +13,9 @@
     "check": "npm run typecheck && npm test",
     "sim:karazhan": "vite-node src/sim/karazhan-sim-cli.ts --",
     "build:godscar-reference": "vite-node tools/build-godscar-reference.ts",
-    "build:dark-tomb-reference": "vite-node tools/build-dark-tomb-reference.ts"
+    "build:dark-tomb-reference": "vite-node tools/build-dark-tomb-reference.ts",
+    "build:common-ship-reference": "vite-node tools/build-common-ship-reference.ts",
+    "build:relief-connected-fixture": "vite-node tools/build-relief-connected-fixture.ts"
   },
   "dependencies": {
     "react": "^18.3.1",

@@ -1,6 +1,6 @@
 # The Relief Circuit acceptance contract
 
-**Status:** Gate 5 preparation. This document freezes the target and dependency order; it does not claim the canonical cartridge, Common Ship Forge, connected Lamp District run, or World receiver have shipped.
+**Status:** Gate 5 implementation complete in the candidate branch. The canonical source, artifacts, Forge, deterministic campaign, and versioned connected Lamp District fixture are present. World Gate 6 remains separate.
 
 **Authority:** *The Godscar Codex, Book III: The Common Ship*, first recension; `common-ship-pocket/1`; engine 1.3 state and composition law; and the frozen RODOH 1.0 acceptance contract.
 
@@ -8,7 +8,7 @@ The Relief Circuit is accepted only when one creator-owned Common Ship source ca
 
 ## Canonical custody target
 
-Gate 5 will establish this exact chain:
+Gate 5 establishes this exact chain:
 
 ```text
 src/common-ship/relief-circuit.ts
@@ -20,7 +20,7 @@ src/arcs/relief-circuit.ts
 cartridges/relief-circuit.arc.json
 ```
 
-The current `RELIEF_CIRCUIT_CANDIDATE` is a preparation source derived from the complete Book III starter. It fixes identity, destination, control question, and cross-run obligations while preserving the starter's authored mixed crew, embodiment profiles, Watch Engine, ship anatomy, translation stack, six viability tests, eight ship-state tracks, and ten Mission Physics invariants. It remains pre-canon until Gate 5 publishes exact artifacts and acceptance receipts.
+The canonical `RELIEF_CIRCUIT_SOURCE` preserves the Book III mixed crew, embodiment profiles, Watch Engine, ship anatomy, translation stack, six viability tests, eight ship-state tracks, and ten Mission Physics invariants. It adds a complete nine-watch route through ordinary life, stores, watch composition, transit, mesh failure, silent docking, connected descent, inquiry, and returning constitution.
 
 ## Required crew ecology
 
@@ -65,7 +65,7 @@ Every successful operation must record exact before-and-after values, authored r
 
 ## Campaign path
 
-Gate 5 must author a complete sequence covering the Book III operational cycle:
+The accepted campaign covers the Book III operational cycle:
 
 ```text
 ordinary life aboard the ship
@@ -81,7 +81,7 @@ ordinary life aboard the ship
 → return with changed ship and Tomb state
 ```
 
-The exact number and names of watches remain a Gate 5 authoring decision. The sequence must contain enough distinct operations that changing the roster, allocation, or precedent produces materially different state and later options.
+The sequence contains nine linked watches. Roster, allocation, and precedent alter engine-owned state and later access while partial and failure outcomes remain consequence-bearing.
 
 ## Lamp District connection contract
 
@@ -108,7 +108,7 @@ The authoring product must provide guided and exact-source views over the same `
 
 ## Gate 5 automated acceptance
 
-Gate 5 is complete only when one exact Arc head passes:
+Gate 5 acceptance requires one exact Arc head to pass:
 
 - strict source validation and exact source recovery;
 - equality among code authority, portable source, and compiled artifact;
@@ -129,3 +129,7 @@ World Gate 6 may begin read-only receiver preparation against the registered Com
 ## Control question
 
 Can the Relief Circuit reach the Lamp District without making one body, clock, interface, or emergency doctrine the native form through which every passenger must survive?
+
+## Implemented candidate
+
+The candidate publishes `relief-circuit.ship.json`, `relief-circuit.arc.json`, and `relief-circuit-lamp-district.run.json`; adds the Common Ship Forge; executes all six composition categories through Arc; records consequence booleans and partial/failure state effects; clears sixteen exact-founding seeds within 120 cycles without gate violations or warnings; and preserves both ship and Tomb state in `axm-connected-operation/v1`.

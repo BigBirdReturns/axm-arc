@@ -61,7 +61,6 @@ function mechanicFor(check: CommonShipWatchBlueprint["checks"][number]): Mechani
     attributeWeights: weights,
     difficultyThreshold: check.threshold,
     scope: check.scope === "team" ? "team_aggregate" : check.scope === "role" ? "role_specific" : "per_agent",
-    ...(check.scope === "team" ? { thresholdMode: "perAssignedAgent" as const } : {}),
     ...(check.scope === "role" ? { roleIds: check.roleIds } : {}),
     failureConsequence: { type: check.failureType ?? "stress", severity: check.severity ?? 0.2 },
   };
@@ -221,7 +220,7 @@ export function compileCommonShipPocket(input: unknown): Arc {
     },
     founding: {
       organization: { id: `${source.identity.id}-commonship`, name: source.identity.title },
-      resources: { currency: 80, materials: 40, tokens: 4 },
+      resources: { currency: 180, materials: 80, tokens: 6 },
       facilities: FACILITIES,
       distributionPolicy: "council",
       roster: source.cast.map((member) => ({

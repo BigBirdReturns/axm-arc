@@ -136,29 +136,78 @@ function constraintsFor(
   ];
 }
 
+function consequenceStateId(source: CommonShipPocketSourceV2["consequences"][number]): string {
+  return `consequence:${source.kind}:${source.id}`;
+}
+
 function stateDefinitions(source: CommonShipPocketSourceV2): CartridgeStateDefinition[] {
-  return source.shipState.map((track) => ({
-    id: track.kind,
-    label: track.kind.split("-").map((part) => part[0]!.toUpperCase() + part.slice(1)).join(" "),
-    description: track.description,
-    visibility: "public" as const,
-    kind: "number" as const,
-    initial: track.value,
-    min: 0,
-    max: 4,
-  }));
+  return [
+    ...source.shipState.map((track) => ({
+      id: track.kind,
+      label: track.kind.split("-").map((part) => part[0]!.toUpperCase() + part.slice(1)).join(" "),
+      description: track.description,
+      visibility: "public" as const,
+      kind: "number" as const,
+      initial: track.value,
+      min: 0,
+      max: 4,
+    })),
+    ...source.consequences.map((consequence) => ({
+      id: consequenceStateId(consequence),
+      label: consequence.label,
+      description: `${consequence.description} Inherited by ${consequence.inheritedBy}.`,
+      visibility: "public" as const,
+      kind: "boolean" as const,
+      initial: false,
+    })),
+  ];
 }
 
 function stateEffects(
+  source: CommonShipPocketSourceV2,
   watch: CommonShipPocketSourceV2["watches"][number],
 ): CartridgeStateEffect[] {
-  return watch.shipStateEffects.map((effect) => ({
-    stateId: effect.track,
-    reason: effect.reason,
-    operation: effect.delta >= 0 ? "increment" as const : "decrement" as const,
-    value: Math.abs(effect.delta),
+  const consequence = source.consequences.find((candidate) => candidate.id === watch.consequenceId);
+  if (!consequence) throw new Error(`Common Ship watch ${watch.id} references missing consequence ${watch.consequenceId}.`);
+  return [
+    ...watch.shipStateEffects.map((effect) => ({
+      stateId: effect.track,
+      reason: effect.reason,
+      operation: effect.delta >= 0 ? "increment" as const : "decrement" as const,
+      value: Math.abs(effect.delta),
+      overflow: "clamp" as const,
+    })),
+    {
+      stateId: consequenceStateId(consequence),
+      operation: "set" as const,
+      value: true,
+      reason: consequence.description,
+    },
+  ];
+}
+
+function partialStateEffects(
+  watch: CommonShipPocketSourceV2["watches"][number],
+): CartridgeStateEffect[] {
+  const first = watch.shipStateEffects[0];
+  if (!first) return [];
+  return [{
+    stateId: first.track,
+    reason: `Partial inheritance: ${first.reason}`,
+    operation: first.delta >= 0 ? "increment" as const : "decrement" as const,
+    value: 1,
     overflow: "clamp" as const,
-  }));
+  }];
+}
+
+function failureStateEffects(): CartridgeStateEffect[] {
+  return [{
+    stateId: "compatibility-debt",
+    reason: "The failed watch leaves another private workaround or indispensable intermediary in place.",
+    operation: "increment",
+    value: 1,
+    overflow: "clamp",
+  }];
 }
 
 export function compileCommonShipPocket(input: unknown): Arc {
@@ -192,10 +241,10 @@ export function compileCommonShipPocket(input: unknown): Arc {
           success: {
             ...challenge.outcomes.success,
             narrative: watch.success,
-            stateEffects: stateEffects(watch),
+            stateEffects: stateEffects(source, watch),
           },
-          partial: { ...challenge.outcomes.partial, narrative: watch.partial },
-          failure: { ...challenge.outcomes.failure, narrative: watch.failure },
+          partial: { ...challenge.outcomes.partial, narrative: watch.partial, stateEffects: partialStateEffects(watch) },
+          failure: { ...challenge.outcomes.failure, narrative: watch.failure, stateEffects: failureStateEffects() },
         },
       };
     }),

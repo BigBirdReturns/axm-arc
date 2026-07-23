@@ -45,11 +45,11 @@ describe("The Relief Circuit Gate 5 preparation source", () => {
   it("carries a materially plural founding ecology without assigning bodies to roles", () => {
     const profiles = RELIEF_CIRCUIT_CANDIDATE.embodimentProfiles;
     expect(profiles.length).toBeGreaterThanOrEqual(6);
-    expect(new Set(profiles.map((profile) => profile.scale.class))).toEqual(
-      expect.objectContaining(new Set(["small", "human-scale", "large", "distributed"])),
+    expect([...new Set(profiles.map((profile) => profile.scale.class))]).toEqual(
+      expect.arrayContaining(["small", "human-scale", "large", "distributed"]),
     );
-    expect(new Set(profiles.map((profile) => profile.environment.medium))).toEqual(
-      expect.objectContaining(new Set(["gas", "liquid", "mixed", "solid-substrate"])),
+    expect([...new Set(profiles.map((profile) => profile.environment.medium))]).toEqual(
+      expect.arrayContaining(["gas", "liquid", "mixed", "solid-substrate"]),
     );
 
     const profileIds = new Set(profiles.map((profile) => profile.id));

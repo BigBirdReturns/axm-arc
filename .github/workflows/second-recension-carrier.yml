@@ -47,28 +47,37 @@ jobs:
         run: |
           set -o pipefail
           npm run typecheck 2>&1 | tee second-recension-typecheck.log
+      - name: Preserve TypeScript failure
+        if: steps.typecheck.outcome == 'failure'
+        run: exit 1
+      - name: Second Recension and custody contracts
+        id: focused
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          npm test -- \
+            tests/godscar/second-recension.test.ts \
+            tests/godscar/godscar.test.ts \
+            tests/dark-tomb/dark-tomb.test.ts \
+            tests/common-ship/common-ship.test.ts \
+            tests/common-ship/relief-circuit.test.ts \
+            tests/engine/connected-operation.test.ts \
+            tests/engine/connected-operation-fixture.test.ts \
+            tests/source-planes/registry.test.ts \
+            2>&1 | tee second-recension-focused.log
       - name: Upload Second Recension diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: second-recension-diagnostics
-          path: second-recension-typecheck.log
-          if-no-files-found: error
+          path: |
+            second-recension-typecheck.log
+            second-recension-focused.log
+          if-no-files-found: warn
           retention-days: 7
-      - name: Preserve TypeScript failure
-        if: steps.typecheck.outcome == 'failure'
+      - name: Preserve focused contract failure
+        if: steps.focused.outcome == 'failure'
         run: exit 1
-      - name: Second Recension and custody contracts
-        run: >-
-          npm test --
-          tests/godscar/second-recension.test.ts
-          tests/godscar/godscar.test.ts
-          tests/dark-tomb/dark-tomb.test.ts
-          tests/common-ship/common-ship.test.ts
-          tests/common-ship/relief-circuit.test.ts
-          tests/engine/connected-operation.test.ts
-          tests/engine/connected-operation-fixture.test.ts
-          tests/source-planes/registry.test.ts
       - name: Complete Arc regression suite
         run: npm test
       - name: Production build

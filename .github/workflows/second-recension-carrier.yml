@@ -66,6 +66,15 @@ jobs:
             tests/engine/connected-operation-fixture.test.ts \
             tests/source-planes/registry.test.ts \
             2>&1 | tee second-recension-focused.log
+      - name: Preserve focused contract failure
+        if: steps.focused.outcome == 'failure'
+        run: exit 1
+      - name: Complete Arc regression suite
+        id: complete
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee second-recension-complete.log
       - name: Upload Second Recension diagnostics
         if: always()
         uses: actions/upload-artifact@v4
@@ -74,13 +83,12 @@ jobs:
           path: |
             second-recension-typecheck.log
             second-recension-focused.log
+            second-recension-complete.log
           if-no-files-found: warn
           retention-days: 7
-      - name: Preserve focused contract failure
-        if: steps.focused.outcome == 'failure'
+      - name: Preserve complete regression failure
+        if: steps.complete.outcome == 'failure'
         run: exit 1
-      - name: Complete Arc regression suite
-        run: npm test
       - name: Production build
         run: npm run build
       - name: Publish the verified candidate

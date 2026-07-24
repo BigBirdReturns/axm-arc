@@ -34,6 +34,7 @@ jobs:
         run: |
           python tools/second-recension/apply.py
           python tools/second-recension/fix.py
+          python tools/second-recension/fix-tests.py
       - run: npm ci
       - name: Rebuild reviewed reference artifacts
         run: |

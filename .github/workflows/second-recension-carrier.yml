@@ -31,7 +31,9 @@ jobs:
           node-version: 22
           cache: npm
       - name: Apply the reviewed Second Recension
-        run: python tools/second-recension/apply.py
+        run: |
+          python tools/second-recension/apply.py
+          python tools/second-recension/fix.py
       - run: npm ci
       - name: Rebuild reviewed reference artifacts
         run: |

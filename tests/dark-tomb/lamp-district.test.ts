@@ -20,12 +20,12 @@ function consequenceStateId(id: string): string {
 }
 
 describe("The Lamp District canonical Dark Tomb reference", () => {
-  it("is a complete canonical Book II source with eight linked civic and expedition movements", () => {
+  it("is a complete canonical Book II Second Recension source with eight linked civic and expedition movements", () => {
     expect(validateDarkTombPocket(LAMP_DISTRICT_SOURCE)).toEqual({ ok: true, source: LAMP_DISTRICT_SOURCE });
     expect(LAMP_DISTRICT_SOURCE.identity).toMatchObject({
       id: "lamp-district",
       title: "The Lamp District",
-      version: "1.0.0",
+      version: "1.1.0",
       canonRelation: "compatible",
     });
     expect(LAMP_DISTRICT_SOURCE.delves.map((delve) => delve.tierId)).toEqual([

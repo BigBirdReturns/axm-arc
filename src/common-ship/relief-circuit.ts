@@ -4,6 +4,7 @@ import type {
 } from "./embodiment.js";
 import { COMMON_SHIP_STARTER } from "./templates.js";
 import type { CommonShipConsequence } from "./types.js";
+import { RELIEF_CIRCUIT_EXPANDED_LEDGER, withSecondRecensionNote } from "../godscar/second-recension.js";
 
 const source = structuredClone(COMMON_SHIP_STARTER) as CommonShipPocketSourceV2;
 
@@ -13,12 +14,13 @@ source.identity = {
   description:
     "A mixed Common Ship carries medicine, heat-transfer capacity, witnesses, and continuity stores toward the Lamp District while a failing translation mesh turns every roster, habitat allocation, and delay into constitutional law.",
   author: "BigBirdReturns",
-  version: "1.0.0",
+  version: "1.1.0",
   estimatedCycles: 24,
   parentCanons: [
     "The Godscar Codex, Book I: The Open Universe · first recension",
     "The Godscar Codex, Book II: The Dark Tomb · first recension",
     "The Godscar Codex, Book III: The Common Ship · first recension",
+    "The Godscar Codex, Second Recension Addenda · Book III: The Expanded Commonship",
   ],
   canonRelation: "compatible",
 };
@@ -528,7 +530,7 @@ source.watches = [
   inquiry,
   returnConstitution,
 ];
-source.notes = {
+source.notes = withSecondRecensionNote({
   status: "canonical-reference",
   destinationCartridgeId: "lamp-district",
   connectedOperationFormat: "axm-connected-operation/v1",
@@ -541,7 +543,7 @@ source.notes = {
     "Lamp District Alarm, visibility, map, habitat, and constituency changes",
     "return-state effects inherited by the ship",
   ],
-};
+}, "book-iii", RELIEF_CIRCUIT_EXPANDED_LEDGER);
 
 export const RELIEF_CIRCUIT_SOURCE: CommonShipPocketSourceV2 = source;
 /** Compatibility alias for the Gate 5 preparation branch. */

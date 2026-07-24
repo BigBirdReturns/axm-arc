@@ -4,7 +4,7 @@
     "name": "The Lamp District",
     "description": "Beneath a survey outpost classified as a sterile ruin, a buried district spends heat, darkness, memory, and whole surface households to keep its school, clinic, market, and future beneath the notice of a dormant search lattice.",
     "author": "BigBirdReturns",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "engineVersion": "1.3.0",
     "domain": "godscar-dark-tomb",
     "estimatedCycles": 18
@@ -1688,11 +1688,12 @@
         "title": "The Lamp District",
         "description": "Beneath a survey outpost classified as a sterile ruin, a buried district spends heat, darkness, memory, and whole surface households to keep its school, clinic, market, and future beneath the notice of a dormant search lattice.",
         "author": "BigBirdReturns",
-        "version": "1.0.0",
+        "version": "1.1.0",
         "estimatedCycles": 18,
         "parentCanons": [
           "The Godscar Codex, Book I: The Open Universe · first recension",
-          "The Godscar Codex, Book II: The Dark Tomb · first recension"
+          "The Godscar Codex, Book II: The Dark Tomb · first recension",
+          "The Godscar Codex, Second Recension Addenda · Book II: The Living Tomb"
         ],
         "canonRelation": "compatible"
       },
@@ -2856,7 +2857,139 @@
       "notes": {
         "authority": "The Godscar Codex, Book II: The Dark Tomb · foundational canon · first recension · July 2026",
         "status": "Canonical RODOH Gate 3 reference campaign",
-        "acceptance": "Ordinary life → authority → descent → classification reversal → Alarm audit → visible return → changed hub"
+        "acceptance": "Ordinary life → authority → descent → classification reversal → Alarm audit → visible return → changed hub",
+        "godscar.second-recension@1": {
+          "format": "godscar-second-recension/1",
+          "edition": "second-recension",
+          "preservesFirstRecension": true,
+          "bookId": "book-ii",
+          "bookIVExcluded": true,
+          "ledger": {
+            "lineageScars": [
+              {
+                "id": "surface-house-continuity",
+                "missingFunction": "Recognized citizenship and lawful succession for the households maintaining the grave skin",
+                "cause": "Quiet Hours classified the households as camouflage rather than people.",
+                "currentDependency": "Birth and burial ledgers kept outside the official census",
+                "coercionRisk": "The Office can preserve the shroud by denying care, evacuation, and standing to whole families.",
+                "alternatives": [
+                  "surface-house sovereignty",
+                  "joint shroud revision",
+                  "evacuation routes",
+                  "public census with bounded visibility"
+                ],
+                "evidenceTier": "contested-canon"
+              }
+            ],
+            "reproductiveOverhead": [
+              {
+                "id": "lamp-district-future",
+                "population": "Children, school households, clinic patients, and future surface generations",
+                "ordinaryGood": "Education, treatment, food, kinship, and a future not defined by the original emergency plan",
+                "wake": "Clinic heat, school lamps, public light, movement, birth demand, food demand, and archival transmission",
+                "denialCost": "The Long Alarm survives by cancelling the ordinary life it claims to protect.",
+                "allocationAuthority": "Lamp Assembly, Surface House League, maintainers, and public witnesses"
+              }
+            ],
+            "surfaceSovereignty": [
+              {
+                "id": "surface-house-league",
+                "population": "Surface-bearer households",
+                "inheritedClassification": "Camouflage assets inside an automated remediation story",
+                "sovereigntyClaim": "Standing over sacrifice orders, evacuation, exterior labor, and the revised grave-skin account",
+                "currentControl": "Office of Quiet Hours credentials and Cut authority",
+                "revisionAuthority": "Surface House League with the Lamp Assembly and bounded emergency review"
+              }
+            ],
+            "negativeConfederation": {
+              "status": "candidate",
+              "boundedMembers": [
+                "Lamp District",
+                "surface camps",
+                "sleeping market witnesses",
+                "possible inhabited sites on the Meridian lattice"
+              ],
+              "verificationProtocol": "Route-specific testimony, sealed witness maps, and reciprocal warning without complete coordinates",
+              "mapBoundary": "The public district map ends before it becomes a Meridian target solution.",
+              "obligations": [
+                "warn of lattice response",
+                "preserve omitted households",
+                "return borrowed routes and evidence with provenance"
+              ],
+              "captureRisk": "The same map that permits mutual aid can complete the listening lattice's classification."
+            },
+            "host": {
+              "kind": "fixed",
+              "hostOrInterval": "A Meridian survey outpost and regional search lattice",
+              "hostClaim": "The lattice is inherited infrastructure with uncertain agency rather than a settled person.",
+              "continuityRisk": "Recognition can wake systems whose target category drifted after their makers vanished.",
+              "observerRelation": "The Tomb is misclassified by orbit while the deeper lattice listens for certain forms of recognition."
+            },
+            "opening": [
+              {
+                "layer": "grave-skin",
+                "status": "bounded",
+                "authority": "Surface House League and Lamp Assembly",
+                "protectedUnknowns": [
+                  "district population",
+                  "silent civic lock",
+                  "Meridian response sequence"
+                ],
+                "exposureCost": "Surface citizenship changes the exterior lie and spends strategic ambiguity.",
+                "reviewTrigger": "Any new sacrifice order, observer pass, or evacuation need"
+              },
+              {
+                "layer": "common-depths",
+                "status": "open",
+                "authority": "Lamp Assembly and recognized constituencies",
+                "protectedUnknowns": [
+                  "private care records",
+                  "routes whose disclosure would identify households"
+                ],
+                "exposureCost": "Ordinary life becomes part of the signature and jurisdiction ledger.",
+                "reviewTrigger": "Heat, care, route, or census changes"
+              },
+              {
+                "layer": "war-layer",
+                "status": "bounded",
+                "authority": "Black Lamp Nine, route witnesses, and an expiring expedition charter",
+                "protectedUnknowns": [
+                  "full lattice geometry",
+                  "unverified target logic"
+                ],
+                "exposureCost": "The listening system gains new evidence while residents gain the means to audit it.",
+                "reviewTrigger": "Any response from the Meridian lattice"
+              },
+              {
+                "layer": "black-core",
+                "status": "contested",
+                "authority": "Plural map court; no exclusive Quiet Hours claim",
+                "protectedUnknowns": [
+                  "evidence whose publication would reveal unrelated inhabited absences"
+                ],
+                "exposureCost": "The district may gain truth by endangering societies absent from its map.",
+                "reviewTrigger": "A claim that deeper disclosure is necessary for survival"
+              }
+            ]
+          },
+          "crossBookProtocol": {
+            "carries": [
+              "source and destination identities",
+              "state before and after",
+              "named people and selected actors",
+              "evidence and provenance",
+              "decisions, dissent, and uncertainty",
+              "obligations and consequences"
+            ],
+            "preservesUnknownMemory": true,
+            "prohibited": [
+              "inventing an outcome in the receiving book",
+              "normalizing unfamiliar people into local vocabulary",
+              "claiming a map or authority the source did not grant",
+              "discarding uninterpreted namespaced memory"
+            ]
+          }
+        }
       }
     }
   },

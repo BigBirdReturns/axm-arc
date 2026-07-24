@@ -1,4 +1,5 @@
 import type { DarkTombPocketSource } from "./types.js";
+import { DARK_TOMB_STARTER_LIVING_TOMB_LEDGER, withSecondRecensionNote } from "../godscar/second-recension.js";
 
 /**
  * A structurally complete, deliberately non-canon starter for the Book II
@@ -11,11 +12,12 @@ export const DARK_TOMB_STARTER: DarkTombPocketSource = {
     title: "Untitled Dark Tomb",
     description: "A private-branch authoring seed for an inhabited place whose survival depends on remaining misclassified.",
     author: "Creator",
-    version: "0.1.0",
+    version: "0.2.0",
     estimatedCycles: 8,
     parentCanons: [
       "The Godscar Codex, Book I: The Open Universe · first recension",
       "The Godscar Codex, Book II: The Dark Tomb · first recension",
+      "The Godscar Codex, Second Recension Addenda · Book II: The Living Tomb",
     ],
     canonRelation: "private-branch",
   },
@@ -470,8 +472,8 @@ export const DARK_TOMB_STARTER: DarkTombPocketSource = {
       consequenceId: "changed-jurisdiction",
     },
   ],
-  notes: {
+  notes: withSecondRecensionNote({
     status: "private authoring seed",
     instruction: "Replace every local particular. Preserve the eight-pressure mechanism, evidence discipline, incompatible responsibilities, classification-changing escalation, and inherited consequence.",
-  },
+  }, "book-ii", DARK_TOMB_STARTER_LIVING_TOMB_LEDGER),
 };

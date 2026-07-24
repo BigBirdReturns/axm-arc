@@ -5,10 +5,11 @@
     "title": "The Kind Gods of Ilyon",
     "description": "An ocean world must decide whether salvation remains a gift after its cures, food systems, and peace are revealed as the first layer of a planetary integration program.",
     "author": "BigBirdReturns",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "estimatedCycles": 12,
     "parentCanons": [
-      "The Godscar Codex, Book I: The Open Universe · first recension"
+      "The Godscar Codex, Book I: The Open Universe · first recension",
+      "The Godscar Codex, Second Recension Addenda · Book I: The Consequence Plane"
     ],
     "canonRelation": "compatible"
   },
@@ -527,6 +528,116 @@
   ],
   "notes": {
     "foundation": "The Godscar Codex, Book I: The Open Universe",
-    "intent": "Reference cartridge demonstrating the six-pressure Story Engine, disciplined canon uncertainty, faction receipts, and persistent consequences."
+    "intent": "Reference cartridge demonstrating the six-pressure Story Engine, disciplined canon uncertainty, faction receipts, and persistent consequences.",
+    "godscar.second-recension@1": {
+      "format": "godscar-second-recension/1",
+      "edition": "second-recension",
+      "preservesFirstRecension": true,
+      "bookId": "book-i",
+      "bookIVExcluded": true,
+      "ledger": {
+        "scales": [
+          {
+            "scale": "pocket",
+            "operationalQuestion": "What changed inside the immediate world, vessel, Tomb, or institution?",
+            "authorityBoundary": "The local receipt remains authoritative about local state.",
+            "transitionTrigger": "A bounded consequence changes a resident, dependency, archive, route, doctrine, or capacity."
+          },
+          {
+            "scale": "route",
+            "operationalQuestion": "How did access, migration, quarantine, traffic, trust, or exposure change between pockets?",
+            "authorityBoundary": "Route actors may interpret contact but may not rewrite the source receipt.",
+            "transitionTrigger": "A local change alters who or what can cross a boundary."
+          },
+          {
+            "scale": "sector",
+            "operationalQuestion": "How do several routes and claimants reinterpret the bounded event?",
+            "authorityBoundary": "Sector standing records faction claims separately from source evidence.",
+            "transitionTrigger": "Several pockets, routes, or factions begin acting on the same receipt."
+          },
+          {
+            "scale": "cascade",
+            "operationalQuestion": "Does the event accelerate, delay, redirect, conceal, or reveal a civilizational transition?",
+            "authorityBoundary": "Cascade classification remains a contested interpretation rather than automatic omniscience.",
+            "transitionTrigger": "The mechanism of change alters Crowning, Counterform, Answer, or large-scale convergence conditions."
+          }
+        ],
+        "sectorLedger": {
+          "changedPockets": [
+            "Ilyon retains forkable medicine, food, navigation, and political systems."
+          ],
+          "changedRoutes": [
+            "The route to the dead neighboring star becomes public and politically dangerous."
+          ],
+          "classificationShifts": [
+            "The unmanaged ocean changes from environmental remainder to several actors capable of refusal.",
+            "Benefactor aid changes from neutral salvation to an indispensable system with an ownership structure."
+          ],
+          "factionStanding": [
+            "Final Humanity retains credit for lives saved while its integration mandate loses presumed legitimacy.",
+            "The Uncrowned Compact gains standing as a redundancy and exteriority claimant.",
+            "Local dynasties retain sovereignty claims but must disclose the dependencies hidden inside them."
+          ],
+          "evidence": [
+            "cure ledger",
+            "dead-star geometry",
+            "deep-tide testimony"
+          ],
+          "dissent": [
+            "No single reef nation speaks for the whole ocean.",
+            "Benefactor intent remains contested."
+          ],
+          "uncertainty": [
+            "The dead-star archive establishes sequence more securely than motive."
+          ],
+          "nextPressure": "Every faction approaching through the reopened route can now contest custody of the evidence and the pace of Ilyon's integration."
+        },
+        "legitimacyAfterContact": {
+          "claimants": [
+            "Ilyon physicians",
+            "thalassic houses",
+            "reef nations",
+            "Benefactor maintainers",
+            "Uncrowned auditors"
+          ],
+          "authorityLimits": [
+            "Aid does not grant integration authority.",
+            "Local sovereignty does not erase nonhuman nations or dependency receipts.",
+            "Evidence recovery does not grant one observatory ownership of the sector narrative."
+          ],
+          "review": "The Confluence of Tides reopens the mandate whenever a dependency, route, or claimant changes."
+        },
+        "greatformLatency": {
+          "observer": "Any Greatform or sector institution receiving the dead-star and ocean receipts",
+          "noticeInterval": "Longer than the immediate Ilyon crisis and potentially longer than several local administrations",
+          "localAuthority": "Ilyon may act on bounded evidence before a slow observer completes a universal classification.",
+          "antiCapture": "No slow observer may use delayed recognition to retroactively erase local decisions or declare itself the original author."
+        },
+        "consequenceTurn": [
+          "receive-bounded-receipt",
+          "update-route-and-classification",
+          "record-faction-interpretations",
+          "preserve-dissent-and-uncertainty",
+          "declare-next-pressure"
+        ]
+      },
+      "crossBookProtocol": {
+        "carries": [
+          "source and destination identities",
+          "state before and after",
+          "named people and selected actors",
+          "evidence and provenance",
+          "decisions, dissent, and uncertainty",
+          "obligations and consequences"
+        ],
+        "preservesUnknownMemory": true,
+        "prohibited": [
+          "inventing an outcome in the receiving book",
+          "normalizing unfamiliar people into local vocabulary",
+          "claiming a map or authority the source did not grant",
+          "discarding uninterpreted namespaced memory"
+        ]
+      }
+    }
   }
 }

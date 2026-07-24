@@ -17,10 +17,10 @@ const WATCH_CATEGORIES = [
 ];
 
 describe("The Relief Circuit canonical Common Ship source", () => {
-  it("is a canon-compatible 1.0 source with a complete Lamp District circuit", () => {
+  it("is a canon-compatible Second Recension source with a complete Lamp District circuit", () => {
     expect(validateCommonShipPocket(RELIEF_CIRCUIT_SOURCE)).toEqual({ ok: true, source: RELIEF_CIRCUIT_SOURCE });
     expect(RELIEF_CIRCUIT_SOURCE.identity).toMatchObject({
-      id: "relief-circuit", title: "The Relief Circuit", author: "BigBirdReturns", version: "1.0.0", canonRelation: "compatible",
+      id: "relief-circuit", title: "The Relief Circuit", author: "BigBirdReturns", version: "1.1.0", canonRelation: "compatible",
     });
     expect(RELIEF_CIRCUIT_SOURCE.watches.map((watch) => watch.id)).toEqual([
       "recognize-the-school-loop",

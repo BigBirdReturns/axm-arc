@@ -44,6 +44,12 @@ describe("versioned connected cartridge operation", () => {
         translationPaths: ["raw relay evidence", "surface testimony", "ship handoff memory"],
         environmentalLoads: ["pressure cell", "thermal mask", "mixed-carrier route"],
         exposureConsequences: ["surface-house radiation", "spent visibility", "new route dependency"],
+        provenance: ["ship watch receipt", "Tomb expedition ledger"],
+        decisions: ["authorize bounded relief"],
+        dissent: ["Some residents classify the operation as exposure."],
+        uncertainty: ["The lattice response is not a motive record."],
+        obligations: ["return the route and preserve local review"],
+        unknownMemory: { "test.opaque@1": { preserved: true } },
       },
       returnLedger: {
         sourceStateBefore: { "continuity": 3 },
@@ -51,6 +57,10 @@ describe("versioned connected cartridge operation", () => {
         destinationStateBefore: { "alarm-phase": "hush", "visibility-status": "hidden" },
         destinationStateAfter: { "alarm-phase": "wake", "visibility-status": "exposed" },
         inheritedFacts: ["Two source planes remain separate.", "The connected relief ledger is retained by both polities."],
+        dissent: ["The same contact carries incompatible classifications."],
+        uncertainty: ["Intent remains contested."],
+        obligations: ["Preserve both review forums."],
+        unknownMemory: { "test.return-opaque@1": ["raw", "uninterpreted"] },
       },
       status: "returned",
     });
@@ -59,6 +69,9 @@ describe("versioned connected cartridge operation", () => {
     const connected = connectedOperationFromRun(restoredSource);
     expect(connected?.operation).toEqual(operation);
     expect(connected?.operation.status).toBe("returned");
+    expect(connected?.operation.transfer.dissent).toEqual(["Some residents classify the operation as exposure."]);
+    expect(connected?.operation.transfer.unknownMemory).toEqual({ "test.opaque@1": { preserved: true } });
+    expect(connected?.operation.returnLedger.obligations).toEqual(["Preserve both review forums."]);
     expect(connected?.destination.arc.meta.id).toBe("lamp-district");
     expect(connected?.destination.org.cartridgeState).toMatchObject({
       "alarm-phase": "wake",
@@ -82,6 +95,8 @@ describe("versioned connected cartridge operation", () => {
         translationPaths: ["raw evidence"], environmentalLoads: ["pressure"], exposureConsequences: ["visibility"],
       },
     });
+    expect(operation.transfer.dissent).toBeUndefined();
+    expect(operation.returnLedger.uncertainty).toBeUndefined();
     expect(() => parseConnectedOperation({ ...operation, destinationCartridgeDigest: "cart1_" + "0".repeat(64) }, RELIEF_CIRCUIT)).toThrow(/destination digest/i);
   });
 });

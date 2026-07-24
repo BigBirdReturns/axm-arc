@@ -5,12 +5,13 @@
     "title": "The Relief Circuit",
     "description": "A mixed Common Ship carries medicine, heat-transfer capacity, witnesses, and continuity stores toward the Lamp District while a failing translation mesh turns every roster, habitat allocation, and delay into constitutional law.",
     "author": "BigBirdReturns",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "estimatedCycles": 24,
     "parentCanons": [
       "The Godscar Codex, Book I: The Open Universe · first recension",
       "The Godscar Codex, Book II: The Dark Tomb · first recension",
-      "The Godscar Codex, Book III: The Common Ship · first recension"
+      "The Godscar Codex, Book III: The Common Ship · first recension",
+      "The Godscar Codex, Second Recension Addenda · Book III: The Expanded Commonship"
     ],
     "canonRelation": "compatible"
   },
@@ -1774,7 +1775,117 @@
       "precedent established aboard the ship",
       "Lamp District Alarm, visibility, map, habitat, and constituency changes",
       "return-state effects inherited by the ship"
-    ]
+    ],
+    "godscar.second-recension@1": {
+      "format": "godscar-second-recension/1",
+      "edition": "second-recension",
+      "preservesFirstRecension": true,
+      "bookId": "book-iii",
+      "bookIVExcluded": true,
+      "ledger": {
+        "profileAuthority": {
+          "operationalFields": [
+            "scale and occupied volume",
+            "minimum passage and reach",
+            "medium, pressure, temperature, gravity, chemistry, radiation, and ecology",
+            "sensorium and communication",
+            "direct and mediated interfaces",
+            "decision, recovery, development, continuity, and life-fraction constraints",
+            "lineage dependencies"
+          ],
+          "revisionAuthority": "The claimant and common polity revise the profile with provenance and a preserved prior state.",
+          "forbiddenUse": [
+            "assigning occupation by embodiment",
+            "treating a profile as a complete person",
+            "declaring host-normal requirements neutral"
+          ]
+        },
+        "profileMultiplicity": {
+          "rule": "Several people may share one embodiment profile, and one person may require several simultaneous carriers.",
+          "rosterRequirement": "The watch selects exact people and preserves name, role, relationship, experience, and refusal.",
+          "antiCasteRule": "Repeated capacity assignment must not harden embodiment into hereditary labor."
+        },
+        "publicGeometry": {
+          "bodyEnvelopeFields": [
+            "mass",
+            "occupied volume",
+            "minimum passage",
+            "reach",
+            "turning radius",
+            "load",
+            "acceleration tolerance",
+            "safe proximity"
+          ],
+          "accessFloor": [
+            "care",
+            "deliberation",
+            "work",
+            "refuge",
+            "exit"
+          ],
+          "emergencyAudit": "Emergency configuration records which bodies become passengers, cargo, hazards, or terrain."
+        },
+        "preparationLaw": {
+          "lawfulActions": [
+            "rest",
+            "train",
+            "repair interfaces",
+            "allocate systems",
+            "rehearse handoff",
+            "advance one ordinary cycle"
+          ],
+          "requiredReceipt": [
+            "facility",
+            "cycle",
+            "people",
+            "resources",
+            "readiness change",
+            "state change",
+            "burden"
+          ],
+          "politicalRisk": "Preparation can create redundancy or repeatedly prepare one lineage into a permanent emergency caste."
+        },
+        "connectedOperation": {
+          "requiredFacts": [
+            "source and destination identities",
+            "state before and after",
+            "selected watch and excluded actor",
+            "people, stores, evidence, translation paths, and environmental loads",
+            "dissent, uncertainty, obligations, provenance, and consequences"
+          ],
+          "authorityBoundary": "The destination remains authoritative about its own layers, residents, Alarm, routes, and state.",
+          "returnRequirement": "The return preserves both state sets and records what each world inherited."
+        },
+        "vesselContinuityClaim": {
+          "currentStatus": "contested",
+          "evidenceRequired": [
+            "Cinder Continuing's divergent machine bodies and continuity core",
+            "the transit body's accumulated handoff and repair memory",
+            "claims made by residents whose lives depend on the vessel",
+            "evidence that ship and crew futures can diverge"
+          ],
+          "ownershipRefusal": "The Relief Circuit may hold a continuity claim while remaining common infrastructure rather than sovereign owner of the crew."
+        },
+        "referenceCampaign": "The Relief Circuit, including the connected Lamp District relief descent and returning constitution."
+      },
+      "crossBookProtocol": {
+        "carries": [
+          "source and destination identities",
+          "state before and after",
+          "named people and selected actors",
+          "evidence and provenance",
+          "decisions, dissent, and uncertainty",
+          "obligations and consequences"
+        ],
+        "preservesUnknownMemory": true,
+        "prohibited": [
+          "inventing an outcome in the receiving book",
+          "normalizing unfamiliar people into local vocabulary",
+          "claiming a map or authority the source did not grant",
+          "discarding uninterpreted namespaced memory"
+        ]
+      }
+    }
   },
   "embodimentProfiles": [
     {

@@ -23,5 +23,9 @@ describe("Relief Circuit connected run fixture", () => {
     });
     expect(connected?.operation.transfer.people).toContain("Sel Aro");
     expect(connected?.operation.returnLedger.inheritedFacts).toHaveLength(4);
+    expect(connected?.operation.transfer.provenance).toHaveLength(3);
+    expect(connected?.operation.transfer.dissent).toHaveLength(1);
+    expect(connected?.operation.returnLedger.obligations).toHaveLength(1);
+    expect(connected?.operation.transfer.unknownMemory).toHaveProperty("meridian.unparsed@1");
   });
 });

@@ -57,6 +57,12 @@ const { sourceRun } = buildConnectedOperation({
     translationPaths: ["raw relay evidence", "surface testimony", "ship handoff memory"],
     environmentalLoads: ["pressure descent cell", "thermal mask", "mixed-carrier route"],
     exposureConsequences: ["surface-house radiation", "spent strategic ambiguity", "new silent-lock dependency"],
+    provenance: ["Relief Circuit watch receipt", "Lamp District expedition ledger", "Meridian response fragment"],
+    decisions: ["authorize bounded descent", "preserve separate state authority", "expire emergency approach authority after return"],
+    dissent: ["Some Lamp residents classify the relief as exposure rather than rescue."],
+    uncertainty: ["The Meridian lattice response does not establish the intent or survival of its makers."],
+    obligations: ["return borrowed routes", "preserve surface-house standing", "carry uninterpreted lattice memory"],
+    unknownMemory: { "meridian.unparsed@1": { status: "preserved", bytes: "opaque-reference" } },
   },
   returnLedger: {
     sourceStateBefore: { "continuity": 3, "compatibility-debt": 2, "visibility": 2 },
@@ -69,6 +75,10 @@ const { sourceRun } = buildConnectedOperation({
       "The silent civic lock remains a dependency with joint refusal authority.",
       "Emergency approach authority expires after return.",
     ],
+    dissent: ["Relief and exposure remain attached to the same operation as separate claims."],
+    uncertainty: ["The lattice target category remains only partially recovered."],
+    obligations: ["The ship returns the route with provenance and preserves Lamp District review authority."],
+    unknownMemory: { "lamp-district.uninterpreted@1": { custody: "joint", meaning: null } },
   },
 });
 

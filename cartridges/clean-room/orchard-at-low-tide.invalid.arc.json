@@ -1,0 +1,1005 @@
+{
+  "meta": {
+    "id": "orchard-at-low-tide-malformed",
+    "name": "Malformed Orchard Fixture",
+    "description": "A brackish civic orchard must survive a failed moon-cistern, a private graft monopoly, and a season charter that treats shared memory as somebody else's property.",
+    "author": "Clean-room reference author",
+    "version": "1.0.0",
+    "engineVersion": "1.3.0",
+    "domain": "civic-orchard",
+    "estimatedCycles": 18
+  },
+  "attributes": [
+    {
+      "id": "graft",
+      "name": "Graft",
+      "description": "Join living systems without collapsing their differences."
+    },
+    {
+      "id": "current",
+      "name": "Current",
+      "description": "Read water, weather, route, and timing under pressure."
+    },
+    {
+      "id": "memory",
+      "name": "Memory",
+      "description": "Preserve provenance, testimony, and the reasons a settlement changed."
+    },
+    {
+      "id": "patience",
+      "name": "Patience",
+      "description": "Hold a public process together when urgency rewards private command."
+    }
+  ],
+  "roles": [
+    {
+      "id": "graftwright",
+      "name": "Graftwright",
+      "attributeWeights": {
+        "graft": 0.55,
+        "current": 0.1,
+        "memory": 0.15,
+        "patience": 0.2
+      }
+    },
+    {
+      "id": "tide-diver",
+      "name": "Tide Diver",
+      "attributeWeights": {
+        "graft": 0.15,
+        "current": 0.6,
+        "memory": 0.1,
+        "patience": 0.15
+      }
+    },
+    {
+      "id": "lantern-clerk",
+      "name": "Lantern Clerk",
+      "attributeWeights": {
+        "graft": 0.1,
+        "current": 0.15,
+        "memory": 0.5,
+        "patience": 0.25
+      }
+    },
+    {
+      "id": "rain-custodian",
+      "name": "Rain Custodian",
+      "attributeWeights": {
+        "graft": 0.15,
+        "current": 0.2,
+        "memory": 0.15,
+        "patience": 0.5
+      }
+    }
+  ],
+  "tiers": [
+    {
+      "id": "seasoner",
+      "name": "Seasoner",
+      "statBudgetMin": 44,
+      "statBudgetMax": 52,
+      "upkeepCost": 1,
+      "baseEfficiencyModifier": 1.1
+    },
+    {
+      "id": "old-root",
+      "name": "Old Root",
+      "statBudgetMin": 56,
+      "statBudgetMax": 64,
+      "upkeepCost": 2,
+      "baseEfficiencyModifier": 1
+    }
+  ],
+  "currencyName": "Civic Credit",
+  "materialName": "Rootstock",
+  "tokenName": "Lanterns",
+  "reputationName": "Season Standing",
+  "tokensPerCycle": 2,
+  "maxTokens": 6,
+  "infrastructureTokenBonus": 0.1,
+  "namePool": {
+    "firstNames": [
+      "Sol",
+      "Edda",
+      "Malk",
+      "Pera",
+      "Ruun",
+      "Tavi",
+      "Nera",
+      "Olan"
+    ],
+    "lastNames": [
+      "Vey",
+      "Loom",
+      "Ir",
+      "Moss",
+      "Vale",
+      "Reed",
+      "Silt",
+      "Rain"
+    ]
+  },
+  "customTraits": [],
+  "progressionTiers": [
+    {
+      "id": "survey",
+      "name": "Survey",
+      "flavorText": "The orchard learns what is failing and who has been excluded from the count.",
+      "unlockConditions": {
+        "orgMilestones": [],
+        "reputationMinimum": null
+      },
+      "challenges": [
+        "count-the-brackish-wells",
+        "negotiate-the-graft-exchange"
+      ],
+      "requiredChallenges": [
+        "count-the-brackish-wells",
+        "negotiate-the-graft-exchange"
+      ],
+      "optionalChallenges": []
+    },
+    {
+      "id": "descent",
+      "name": "Descent",
+      "flavorText": "The settlement enters the moon-cistern and tests the ownership story attached to it.",
+      "unlockConditions": {
+        "orgMilestones": [
+          "negotiate-the-graft-exchange-cleared"
+        ],
+        "reputationMinimum": null
+      },
+      "challenges": [
+        "dive-the-moon-cistern"
+      ],
+      "requiredChallenges": [
+        "dive-the-moon-cistern"
+      ],
+      "optionalChallenges": []
+    },
+    {
+      "id": "renewal",
+      "name": "Renewal",
+      "flavorText": "The orchard decides which living systems and records the next season inherits.",
+      "unlockConditions": {
+        "orgMilestones": [
+          "dive-the-moon-cistern-cleared"
+        ],
+        "reputationMinimum": null
+      },
+      "challenges": [
+        "replant-the-ninth-orchard",
+        "publish-the-next-season"
+      ],
+      "requiredChallenges": [
+        "replant-the-ninth-orchard",
+        "publish-the-next-season"
+      ],
+      "optionalChallenges": []
+    }
+  ],
+  "attunementChains": [],
+  "challenges": [
+    {
+      "id": "count-the-brackish-wells",
+      "name": "Count the Brackish Wells",
+      "description": "Survey every public and private well before the low-tide window closes, including the households the old water map treats as temporary.",
+      "rosterRequirements": {
+        "minAgents": 5,
+        "maxAgents": 4,
+        "roleRequirements": []
+      },
+      "accessRequirements": {
+        "orgMilestones": [],
+        "agentAttunements": [],
+        "attunementThreshold": null
+      },
+      "difficultyRating": 12,
+      "mechanicChecks": [
+        {
+          "id": "read-the-waterline",
+          "name": "Read the Waterline",
+          "description": "Distinguish seasonal salt from structural failure without declaring every unfamiliar well contaminated.",
+          "attributeWeights": [
+            {
+              "attributeId": "current",
+              "weight": 0.65
+            },
+            {
+              "attributeId": "memory",
+              "weight": 0.35
+            }
+          ],
+          "difficultyThreshold": 6,
+          "thresholdMode": "perAssignedAgent",
+          "scope": "team_aggregate",
+          "failureConsequence": {
+            "type": "stress",
+            "severity": 0.1
+          }
+        }
+      ],
+      "completionCriteria": {
+        "type": "all_mechanics_passed",
+        "parameters": {}
+      },
+      "timePressure": null,
+      "outcomes": {
+        "success": {
+          "rewardTable": [],
+          "narrative": "The public count includes the hidden wells and the people who maintain them.",
+          "reputationGain": 1,
+          "currencyReward": 18,
+          "milestoneFlag": "count-the-brackish-wells-cleared",
+          "stateEffects": [
+            {
+              "stateId": "water-reserve",
+              "reason": "The census reveals usable reserve.",
+              "operation": "increment",
+              "value": 1,
+              "overflow": "clamp"
+            },
+            {
+              "stateId": "field-census-published",
+              "reason": "The complete count enters public custody.",
+              "operation": "set",
+              "value": true
+            }
+          ]
+        },
+        "partial": {
+          "rewardTable": [],
+          "narrative": "The count reaches the main basins but leaves one household's well inside the private annex.",
+          "agentDowntimeCycles": 1,
+          "stateEffects": [
+            {
+              "stateId": "public-memory",
+              "reason": "The omission is recorded rather than erased.",
+              "operation": "increment",
+              "value": 1,
+              "overflow": "clamp"
+            }
+          ]
+        },
+        "failure": {
+          "rewardTable": [],
+          "narrative": "The tide returns before the map can be contested, preserving the private count as operational truth.",
+          "stressPenalty": 2,
+          "stateEffects": [
+            {
+              "stateId": "monopoly-debt",
+              "reason": "The private map becomes more indispensable.",
+              "operation": "increment",
+              "value": 1,
+              "overflow": "clamp"
+            }
+          ]
+        }
+      },
+      "resourceSpend": {
+        "maxTokens": 1,
+        "steadinessPerToken": 0.25,
+        "minSteadiness": 0.72
+      }
+    },
+    {
+      "id": "negotiate-the-graft-exchange",
+      "name": "Negotiate the Graft Exchange",
+      "description": "Open the private graft catalogue without destroying the expertise and living cultures on which the orchard already depends.",
+      "rosterRequirements": {
+        "minAgents": 3,
+        "maxAgents": 5,
+        "roleRequirements": [
+          {
+            "roleId": "graftwright",
+            "count": 1
+          },
+          {
+            "roleId": "lantern-clerk",
+            "count": 1
+          }
+        ]
+      },
+      "accessRequirements": {
+        "orgMilestones": [
+          "count-the-brackish-wells-cleared"
+        ],
+        "agentAttunements": [],
+        "attunementThreshold": null
+      },
+      "difficultyRating": 18,
+      "mechanicChecks": [
+        {
+          "id": "separate-custody-from-ownership",
+          "name": "Separate Custody from Ownership",
+          "description": "Document who keeps cultures alive, who can copy them, and which claims exist only because no alternative was funded.",
+          "attributeWeights": [
+            {
+              "attributeId": "graft",
+              "weight": 0.45
+            },
+            {
+              "attributeId": "memory",
+              "weight": 0.35
+            },
+            {
+              "attributeId": "patience",
+              "weight": 0.2
+            }
+          ],
+          "difficultyThreshold": 7,
+          "thresholdMode": "perAssignedAgent",
+          "scope": "team_aggregate",
+          "failureConsequence": {
+            "type": "debuff",
+            "severity": 0.15
+          }
+        }
+      ],
+      "completionCriteria": {
+        "type": "all_mechanics_passed",
+        "parameters": {}
+      },
+      "timePressure": null,
+      "outcomes": {
+        "success": {
+          "rewardTable": [],
+          "narrative": "The catalogue remains maintained, but its cultures and methods become forkable under public custody.",
+          "reputationGain": 2,
+          "currencyReward": 20,
+          "milestoneFlag": "negotiate-the-graft-exchange-cleared",
+          "stateEffects": [
+            {
+              "stateId": "seed-diversity",
+              "reason": "Several graft lines enter lawful circulation.",
+              "operation": "increment",
+              "value": 1,
+              "overflow": "clamp"
+            },
+            {
+              "stateId": "monopoly-debt",
+              "reason": "The orchard gains a replacement path.",
+              "operation": "decrement",
+              "value": 1,
+              "overflow": "clamp"
+            },
+            {
+              "stateId": "season-charter",
+              "reason": "The exchange accepts bounded public review.",
+              "operation": "transition",
+              "from": "private",
+              "to": "provisional"
+            }
+          ]
+        },
+        "partial": {
+          "rewardTable": [],
+          "narrative": "The catalogue opens, but one living culture remains tied to a single custodian.",
+          "reputationGain": 1,
+          "stateEffects": [
+            {
+              "stateId": "seed-diversity",
+              "reason": "Some graft lines circulate.",
+              "operation": "increment",
+              "value": 1,
+              "overflow": "clamp"
+            }
+          ]
+        },
+        "failure": {
+          "rewardTable": [],
+          "narrative": "The hearing becomes a seizure; custodians hide their cultures and the orchard loses both trust and redundancy.",
+          "stressPenalty": 2,
+          "stateEffects": [
+            {
+              "stateId": "public-memory",
+              "reason": "The custody record fragments.",
+              "operation": "decrement",
+              "value": 1,
+              "overflow": "clamp"
+            }
+          ]
+        }
+      },
+      "resourceSpend": {
+        "maxTokens": 2,
+        "steadinessPerToken": 0.18,
+        "minSteadiness": 0.7
+      }
+    },
+    {
+      "id": "dive-the-moon-cistern",
+      "name": "Dive the Moon Cistern",
+      "description": "Enter the flooded cistern that once balanced the orchard and recover its route memory before another tide seals it.",
+      "rosterRequirements": {
+        "minAgents": 4,
+        "maxAgents": 6,
+        "roleRequirements": [
+          {
+            "roleId": "tide-diver",
+            "count": 1
+          },
+          {
+            "roleId": "lantern-clerk",
+            "count": 1
+          }
+        ]
+      },
+      "accessRequirements": {
+        "orgMilestones": [
+          "negotiate-the-graft-exchange-cleared"
+        ],
+        "agentAttunements": [],
+        "attunementThreshold": null
+      },
+      "difficultyRating": 25,
+      "mechanicChecks": [
+        {
+          "id": "cross-the-silt-clock",
+          "name": "Cross the Silt Clock",
+          "description": "Move through current, darkness, and sediment while keeping route observations attributable to the people who made them.",
+          "attributeWeights": [
+            {
+              "attributeId": "current",
+              "weight": 0.55
+            },
+            {
+              "attributeId": "memory",
+              "weight": 0.25
+            },
+            {
+              "attributeId": "patience",
+              "weight": 0.2
+            }
+          ],
+          "difficultyThreshold": 7,
+          "thresholdMode": "perAssignedAgent",
+          "scope": "team_aggregate",
+          "failureConsequence": {
+            "type": "team_damage",
+            "severity": 0.15
+          }
+        }
+      ],
+      "completionCriteria": {
+        "type": "all_mechanics_passed",
+        "parameters": {}
+      },
+      "timePressure": {
+        "rounds": 8,
+        "aggregateThreshold": 60,
+        "attributeId": "current"
+      },
+      "outcomes": {
+        "success": {
+          "rewardTable": [],
+          "narrative": "The cistern route is reopened with its old maintenance testimony and its present danger intact.",
+          "reputationGain": 2,
+          "currencyReward": 22,
+          "milestoneFlag": "dive-the-moon-cistern-cleared",
+          "stateEffects": [
+            {
+              "stateId": "water-reserve",
+              "reason": "The restored route reaches a second basin.",
+              "operation": "increment",
+              "value": 1,
+              "overflow": "clamp"
+            },
+            {
+              "stateId": "public-memory",
+              "reason": "The route returns with provenance.",
+              "operation": "increment",
+              "value": 1,
+              "overflow": "clamp"
+            }
+          ]
+        },
+        "partial": {
+          "rewardTable": [],
+          "narrative": "The route opens, but the deepest observations survive only through one diver's memory.",
+          "agentDowntimeCycles": 1,
+          "stateEffects": [
+            {
+              "stateId": "water-reserve",
+              "reason": "The basin is reachable.",
+              "operation": "increment",
+              "value": 1,
+              "overflow": "clamp"
+            },
+            {
+              "stateId": "monopoly-debt",
+              "reason": "One witness becomes indispensable.",
+              "operation": "increment",
+              "value": 1,
+              "overflow": "clamp"
+            }
+          ]
+        },
+        "failure": {
+          "rewardTable": [],
+          "narrative": "The tide seals the descent and the orchard must ration against a map it still cannot audit.",
+          "stressPenalty": 3,
+          "stateEffects": [
+            {
+              "stateId": "water-reserve",
+              "reason": "The reachable reserve narrows.",
+              "operation": "decrement",
+              "value": 1,
+              "overflow": "clamp"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "replant-the-ninth-orchard",
+      "name": "Replant the Ninth Orchard",
+      "description": "Use the recovered water and opened graft catalogue to establish a field no single household can close.",
+      "rosterRequirements": {
+        "minAgents": 4,
+        "maxAgents": 6,
+        "roleRequirements": [
+          {
+            "roleId": "graftwright",
+            "count": 1
+          },
+          {
+            "roleId": "tide-diver",
+            "count": 1
+          },
+          {
+            "roleId": "rain-custodian",
+            "count": 1
+          }
+        ]
+      },
+      "accessRequirements": {
+        "orgMilestones": [
+          "dive-the-moon-cistern-cleared"
+        ],
+        "agentAttunements": [],
+        "attunementThreshold": null
+      },
+      "difficultyRating": 31,
+      "mechanicChecks": [
+        {
+          "id": "join-water-root-and-charter",
+          "name": "Join Water, Root, and Charter",
+          "description": "Plant for ecological survival while retaining several lawful ways to maintain, copy, refuse, and revise the field.",
+          "attributeWeights": [
+            {
+              "attributeId": "graft",
+              "weight": 0.35
+            },
+            {
+              "attributeId": "current",
+              "weight": 0.25
+            },
+            {
+              "attributeId": "patience",
+              "weight": 0.4
+            }
+          ],
+          "difficultyThreshold": 7,
+          "thresholdMode": "perAssignedAgent",
+          "scope": "team_aggregate",
+          "failureConsequence": {
+            "type": "cascade",
+            "severity": 0.2
+          }
+        }
+      ],
+      "completionCriteria": {
+        "type": "all_mechanics_passed",
+        "parameters": {}
+      },
+      "timePressure": null,
+      "outcomes": {
+        "success": {
+          "rewardTable": [],
+          "narrative": "The ninth field takes root under plural maintenance and a published replacement plan.",
+          "reputationGain": 3,
+          "currencyReward": 26,
+          "milestoneFlag": "replant-the-ninth-orchard-cleared",
+          "stateEffects": [
+            {
+              "stateId": "seed-diversity",
+              "reason": "Several living lines survive together.",
+              "operation": "increment",
+              "value": 2,
+              "overflow": "clamp"
+            },
+            {
+              "stateId": "monopoly-debt",
+              "reason": "No single household owns the maintenance path.",
+              "operation": "decrement",
+              "value": 1,
+              "overflow": "clamp"
+            }
+          ]
+        },
+        "partial": {
+          "rewardTable": [],
+          "narrative": "The field lives, but one water gate or graft culture remains private.",
+          "reputationGain": 1,
+          "stateEffects": [
+            {
+              "stateId": "seed-diversity",
+              "reason": "The field is viable but narrow.",
+              "operation": "increment",
+              "value": 1,
+              "overflow": "clamp"
+            }
+          ]
+        },
+        "failure": {
+          "rewardTable": [],
+          "narrative": "The planting hardens scarcity into a new monopoly and consumes the reserve meant to create alternatives.",
+          "stressPenalty": 3,
+          "stateEffects": [
+            {
+              "stateId": "monopoly-debt",
+              "reason": "The failed solution narrows future choice.",
+              "operation": "increment",
+              "value": 1,
+              "overflow": "clamp"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "publish-the-next-season",
+      "name": "Publish the Next Season",
+      "description": "Write the changed water, graft, memory, and maintenance order into a charter later residents can inspect and refuse.",
+      "rosterRequirements": {
+        "minAgents": 4,
+        "maxAgents": 6,
+        "roleRequirements": [
+          {
+            "roleId": "lantern-clerk",
+            "count": 1
+          },
+          {
+            "roleId": "rain-custodian",
+            "count": 1
+          }
+        ]
+      },
+      "accessRequirements": {
+        "orgMilestones": [
+          "replant-the-ninth-orchard-cleared"
+        ],
+        "agentAttunements": [],
+        "attunementThreshold": null
+      },
+      "difficultyRating": 38,
+      "mechanicChecks": [
+        {
+          "id": "write-a-revisable-season",
+          "name": "Write a Revisable Season",
+          "description": "Record evidence, dissent, replacement paths, and review dates without turning the emergency settlement into timeless law.",
+          "attributeWeights": [
+            {
+              "attributeId": "memory",
+              "weight": 0.5
+            },
+            {
+              "attributeId": "patience",
+              "weight": 0.35
+            },
+            {
+              "attributeId": "graft",
+              "weight": 0.15
+            }
+          ],
+          "difficultyThreshold": 8,
+          "thresholdMode": "perAssignedAgent",
+          "scope": "team_aggregate",
+          "failureConsequence": {
+            "type": "stress",
+            "severity": 0.2
+          }
+        }
+      ],
+      "completionCriteria": {
+        "type": "all_mechanics_passed",
+        "parameters": {}
+      },
+      "timePressure": null,
+      "outcomes": {
+        "success": {
+          "rewardTable": [],
+          "narrative": "The season charter names its evidence, limits, dissent, and expiration. The orchard enters the next tide without a hidden owner.",
+          "reputationGain": 4,
+          "currencyReward": 30,
+          "milestoneFlag": "next-season-published",
+          "stateEffects": [
+            {
+              "stateId": "season-charter",
+              "reason": "The charter enters plural custody.",
+              "operation": "transition",
+              "from": "provisional",
+              "to": "shared"
+            },
+            {
+              "stateId": "public-memory",
+              "reason": "The changed order is recorded with provenance.",
+              "operation": "increment",
+              "value": 1,
+              "overflow": "clamp"
+            }
+          ]
+        },
+        "partial": {
+          "rewardTable": [],
+          "narrative": "The charter is published, but one review power remains attached to the emergency custodians.",
+          "reputationGain": 2,
+          "stateEffects": [
+            {
+              "stateId": "public-memory",
+              "reason": "The record exists despite unresolved authority.",
+              "operation": "increment",
+              "value": 1,
+              "overflow": "clamp"
+            }
+          ]
+        },
+        "failure": {
+          "rewardTable": [],
+          "narrative": "The orchard survives, but its new order remains private practice rather than reviewable law.",
+          "stressPenalty": 3,
+          "stateEffects": [
+            {
+              "stateId": "monopoly-debt",
+              "reason": "Unwritten custom becomes another gate.",
+              "operation": "increment",
+              "value": 1,
+              "overflow": "clamp"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "difficultyModes": [],
+  "items": [],
+  "narrativeEvents": [
+    {
+      "trigger": {
+        "type": "arc_complete",
+        "target": "publish-the-next-season"
+      },
+      "title": "The next tide is public",
+      "text": "The orchard survives with a changed map of water, rootstock, memory, and authority. Later holders inherit the receipt rather than a clean founding myth.",
+      "rewards": [
+        "Shared season charter",
+        "Published field census",
+        "Forkable graft catalogue"
+      ],
+      "agentUnlock": null
+    }
+  ],
+  "scaling": null,
+  "opening": {
+    "triggerType": "orchard-opening",
+    "narrativeText": "Low tide exposes the cracked wells and the locked graft annex at the same hour. The first priority will shape what the settlement calls urgent.",
+    "options": [
+      {
+        "id": "open-the-wells",
+        "label": "Open the wells first",
+        "description": "Protect immediate water access while accepting that the private catalogue may close.",
+        "effects": [
+          {
+            "scope": "all",
+            "type": "morale",
+            "value": 4
+          }
+        ]
+      },
+      {
+        "id": "open-the-ledgers",
+        "label": "Open the ledgers first",
+        "description": "Preserve evidence and replacement paths while accepting a tighter rationing window.",
+        "effects": [
+          {
+            "scope": "all",
+            "type": "loyalty",
+            "value": 4
+          }
+        ]
+      }
+    ]
+  },
+  "founding": {
+    "organization": {
+      "id": "low-tide-orchard-council",
+      "name": "Low Tide Orchard Council"
+    },
+    "resources": {
+      "currency": 120,
+      "materials": 36,
+      "tokens": 4
+    },
+    "facilities": [
+      {
+        "type": "Quarters",
+        "level": 1
+      },
+      {
+        "type": "Production",
+        "level": 1
+      },
+      {
+        "type": "Recreation",
+        "level": 1
+      },
+      {
+        "type": "Research",
+        "level": 1
+      },
+      {
+        "type": "Training",
+        "level": 1
+      },
+      {
+        "type": "Storage",
+        "level": 1
+      },
+      {
+        "type": "Medical",
+        "level": 1
+      }
+    ],
+    "distributionPolicy": "council",
+    "roster": [
+      {
+        "id": "sol-vey",
+        "name": "Sol Vey",
+        "tierId": "old-root",
+        "roleId": "graftwright",
+        "morale": 78
+      },
+      {
+        "id": "tavi-reed",
+        "name": "Tavi Reed",
+        "tierId": "seasoner",
+        "roleId": "graftwright",
+        "morale": 72
+      },
+      {
+        "id": "edda-loom",
+        "name": "Edda Loom",
+        "tierId": "old-root",
+        "roleId": "tide-diver",
+        "morale": 78
+      },
+      {
+        "id": "malk-ir",
+        "name": "Malk Ir",
+        "tierId": "old-root",
+        "roleId": "lantern-clerk",
+        "morale": 76
+      },
+      {
+        "id": "pera-moss",
+        "name": "Pera Moss",
+        "tierId": "seasoner",
+        "roleId": "lantern-clerk",
+        "morale": 72
+      },
+      {
+        "id": "ruun-vale",
+        "name": "Ruun Vale",
+        "tierId": "old-root",
+        "roleId": "rain-custodian",
+        "morale": 76
+      }
+    ],
+    "relationships": [
+      {
+        "rosterSlotIds": [
+          "sol-vey",
+          "tavi-reed"
+        ],
+        "state": "Mentorship",
+        "affinity": 18
+      },
+      {
+        "rosterSlotIds": [
+          "edda-loom",
+          "malk-ir"
+        ],
+        "state": "Allied",
+        "affinity": 12
+      }
+    ]
+  },
+  "extensions": {
+    "cleanroom.orchard@1": {
+      "status": "unbundled-clean-room-proof",
+      "createdAfterProgramsOfRecord": true,
+      "programNumber": null,
+      "sourceKind": "exact-generic-arc"
+    },
+    "unfamiliar.garden-memory@7": {
+      "opaque": true,
+      "keeper": "an unaffiliated tool",
+      "values": [
+        "silt-note",
+        17,
+        {
+          "route": "moon-cistern",
+          "unparsed": [
+            "x",
+            "y"
+          ]
+        }
+      ]
+    }
+  },
+  "stateDefinitions": [
+    {
+      "id": "field-census-published",
+      "label": "Field Census Published",
+      "description": "Whether every known well and field has entered public custody.",
+      "visibility": "public",
+      "kind": "boolean",
+      "initial": false
+    },
+    {
+      "id": "monopoly-debt",
+      "label": "Monopoly Debt",
+      "description": "Present survival tied to one private map, culture, gate, or custodian.",
+      "visibility": "public",
+      "kind": "number",
+      "initial": 2,
+      "min": 0,
+      "max": 4
+    },
+    {
+      "id": "public-memory",
+      "label": "Public Memory",
+      "description": "Provenance, testimony, and revision history in shared custody.",
+      "visibility": "public",
+      "kind": "number",
+      "initial": 1,
+      "min": 0,
+      "max": 4
+    },
+    {
+      "id": "season-charter",
+      "label": "Season Charter",
+      "description": "The current custody status of the orchard's operating order.",
+      "visibility": "public",
+      "kind": "enum",
+      "initial": "private",
+      "values": [
+        "private",
+        "provisional",
+        "shared"
+      ]
+    },
+    {
+      "id": "seed-diversity",
+      "label": "Seed Diversity",
+      "description": "Independent living lines and replacement paths.",
+      "visibility": "public",
+      "kind": "number",
+      "initial": 1,
+      "min": 0,
+      "max": 4
+    },
+    {
+      "id": "water-reserve",
+      "label": "Water Reserve",
+      "description": "Reachable and auditable fresh-water capacity.",
+      "visibility": "public",
+      "kind": "number",
+      "initial": 2,
+      "min": 0,
+      "max": 4
+    }
+  ]
+}

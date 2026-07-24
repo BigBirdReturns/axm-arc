@@ -7,11 +7,12 @@ import { cartridgeDigest } from "../src/engine/cartridge-digest.js";
 import { foundOrganization } from "../src/engine/founding.js";
 import { runCycle } from "../src/engine/cycle.js";
 import { bestParty } from "../src/sim/cartridge-conformance.js";
-import { buildPortableRun, portableRunPayloadDigest } from "../src/engine/portable-run.js";
+import { buildPortableRun, portableRunPayloadDigest, type PortableRunV3 } from "../src/engine/portable-run.js";
 import type { Arc, Organization } from "../src/engine/types.js";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const dir = resolve(root, "cartridges", "clean-room");
+const FIXTURE_SAVED_AT = "2026-07-24T00:00:00.000Z";
 await mkdir(dir, { recursive: true });
 
 function json(value: unknown): string {
@@ -45,6 +46,25 @@ function complete(arc: Arc, seed: number): Organization {
   return org;
 }
 
+function stabilizeRun(run: PortableRunV3): PortableRunV3 {
+  const saved = JSON.parse(run.engine.game) as { savedAt?: unknown };
+  saved.savedAt = FIXTURE_SAVED_AT;
+  const core = {
+    format: run.format,
+    authoredArcDigest: run.authoredArcDigest,
+    arc: run.arc,
+    engine: { ...run.engine, game: JSON.stringify(saved) },
+    extensions: run.extensions,
+  };
+  return {
+    ...core,
+    integrity: {
+      algorithm: run.integrity.algorithm,
+      digest: portableRunPayloadDigest(core),
+    },
+  };
+}
+
 const exactSource = structuredClone(ORCHARD_AT_LOW_TIDE);
 const compiled = structuredClone(ORCHARD_AT_LOW_TIDE);
 const malformed = structuredClone(ORCHARD_AT_LOW_TIDE);
@@ -53,7 +73,7 @@ malformed.meta.name = "Malformed Orchard Fixture";
 malformed.challenges[0]!.rosterRequirements.minAgents = malformed.challenges[0]!.rosterRequirements.maxAgents + 1;
 
 const completedOrg = complete(ORCHARD_AT_LOW_TIDE, 2707);
-const run = buildPortableRun({
+const run = stabilizeRun(buildPortableRun({
   arc: ORCHARD_AT_LOW_TIDE,
   org: completedOrg,
   extensions: {
@@ -63,7 +83,7 @@ const run = buildPortableRun({
       arbitraryUnknown: { code: 71, nested: [true, "silt"] },
     },
   },
-});
+}));
 
 const sourcePath = resolve(dir, "orchard-at-low-tide.source.arc.json");
 const compiledPath = resolve(dir, "orchard-at-low-tide.arc.json");
@@ -94,6 +114,7 @@ const manifest = {
   programOfRecord: null,
   sourceKind: "exact-generic-arc",
   generator: "npm run build:clean-room-reference",
+  deterministicSavedAt: FIXTURE_SAVED_AT,
   engineVersion: ORCHARD_AT_LOW_TIDE.meta.engineVersion,
   cartridgeDigest: cartridgeDigest(ORCHARD_AT_LOW_TIDE),
   runIntegrityDigest: run.integrity.digest,

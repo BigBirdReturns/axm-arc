@@ -26,6 +26,12 @@ export interface ConnectedTransferLedger {
   translationPaths: string[];
   environmentalLoads: string[];
   exposureConsequences: string[];
+  provenance?: string[];
+  decisions?: string[];
+  dissent?: string[];
+  uncertainty?: string[];
+  obligations?: string[];
+  unknownMemory?: Record<string, JsonValue>;
 }
 
 export interface ConnectedReturnLedger {
@@ -34,6 +40,10 @@ export interface ConnectedReturnLedger {
   destinationStateBefore: Record<string, string | number | boolean | null>;
   destinationStateAfter: Record<string, string | number | boolean | null>;
   inheritedFacts: string[];
+  dissent?: string[];
+  uncertainty?: string[];
+  obligations?: string[];
+  unknownMemory?: Record<string, JsonValue>;
 }
 
 export interface ConnectedOperationV1 {
@@ -76,6 +86,35 @@ function plainObject(value: unknown, label: string): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
+function optionalStringArray(raw: Record<string, unknown>, key: string, label: string): string[] | undefined {
+  return raw[key] === undefined ? undefined : assertStringArray(raw[key], label);
+}
+
+function jsonValueFrom(value: unknown, label: string): JsonValue {
+  if (value === null || typeof value === "string" || typeof value === "boolean") return value;
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (Array.isArray(value)) return value.map((entry, index) => jsonValueFrom(entry, `${label}[${index}]`));
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([key, entry]) => [key, jsonValueFrom(entry, `${label}.${key}`)]),
+    );
+  }
+  throw new Error(`${label} must be valid JSON.`);
+}
+
+function optionalJsonRecord(
+  raw: Record<string, unknown>,
+  key: string,
+  label: string,
+): Record<string, JsonValue> | undefined {
+  if (raw[key] === undefined) return undefined;
+  const value = jsonValueFrom(raw[key], label);
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`${label} must be a JSON object.`);
+  return value as Record<string, JsonValue>;
+}
+
 function transferFrom(value: unknown): ConnectedTransferLedger {
   const raw = plainObject(value, "Connected operation transfer");
   for (const key of ["id", "title", "selectedWatchId", "excludedActor", "dependency", "precedentId"] as const) {
@@ -96,6 +135,24 @@ function transferFrom(value: unknown): ConnectedTransferLedger {
     translationPaths: assertStringArray(raw.translationPaths, "Connected operation transfer.translationPaths"),
     environmentalLoads: assertStringArray(raw.environmentalLoads, "Connected operation transfer.environmentalLoads"),
     exposureConsequences: assertStringArray(raw.exposureConsequences, "Connected operation transfer.exposureConsequences"),
+    ...(optionalStringArray(raw, "provenance", "Connected operation transfer.provenance") !== undefined
+      ? { provenance: optionalStringArray(raw, "provenance", "Connected operation transfer.provenance") }
+      : {}),
+    ...(optionalStringArray(raw, "decisions", "Connected operation transfer.decisions") !== undefined
+      ? { decisions: optionalStringArray(raw, "decisions", "Connected operation transfer.decisions") }
+      : {}),
+    ...(optionalStringArray(raw, "dissent", "Connected operation transfer.dissent") !== undefined
+      ? { dissent: optionalStringArray(raw, "dissent", "Connected operation transfer.dissent") }
+      : {}),
+    ...(optionalStringArray(raw, "uncertainty", "Connected operation transfer.uncertainty") !== undefined
+      ? { uncertainty: optionalStringArray(raw, "uncertainty", "Connected operation transfer.uncertainty") }
+      : {}),
+    ...(optionalStringArray(raw, "obligations", "Connected operation transfer.obligations") !== undefined
+      ? { obligations: optionalStringArray(raw, "obligations", "Connected operation transfer.obligations") }
+      : {}),
+    ...(optionalJsonRecord(raw, "unknownMemory", "Connected operation transfer.unknownMemory") !== undefined
+      ? { unknownMemory: optionalJsonRecord(raw, "unknownMemory", "Connected operation transfer.unknownMemory") }
+      : {}),
   };
 }
 
@@ -119,6 +176,18 @@ function returnLedgerFrom(value: unknown): ConnectedReturnLedger {
     destinationStateBefore: stateRecord(raw.destinationStateBefore, "returnLedger.destinationStateBefore"),
     destinationStateAfter: stateRecord(raw.destinationStateAfter, "returnLedger.destinationStateAfter"),
     inheritedFacts: assertStringArray(raw.inheritedFacts, "returnLedger.inheritedFacts"),
+    ...(optionalStringArray(raw, "dissent", "returnLedger.dissent") !== undefined
+      ? { dissent: optionalStringArray(raw, "dissent", "returnLedger.dissent") }
+      : {}),
+    ...(optionalStringArray(raw, "uncertainty", "returnLedger.uncertainty") !== undefined
+      ? { uncertainty: optionalStringArray(raw, "uncertainty", "returnLedger.uncertainty") }
+      : {}),
+    ...(optionalStringArray(raw, "obligations", "returnLedger.obligations") !== undefined
+      ? { obligations: optionalStringArray(raw, "obligations", "returnLedger.obligations") }
+      : {}),
+    ...(optionalJsonRecord(raw, "unknownMemory", "returnLedger.unknownMemory") !== undefined
+      ? { unknownMemory: optionalJsonRecord(raw, "unknownMemory", "returnLedger.unknownMemory") }
+      : {}),
   };
 }
 

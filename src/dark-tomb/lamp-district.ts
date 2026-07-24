@@ -1,4 +1,5 @@
 import type { DarkTombPocketSource } from "./types.js";
+import { LAMP_DISTRICT_LIVING_TOMB_LEDGER, withSecondRecensionNote } from "../godscar/second-recension.js";
 
 export const LAMP_DISTRICT_SOURCE: DarkTombPocketSource = {
   "format": "dark-tomb-pocket/1",
@@ -7,11 +8,12 @@ export const LAMP_DISTRICT_SOURCE: DarkTombPocketSource = {
     "title": "The Lamp District",
     "description": "Beneath a survey outpost classified as a sterile ruin, a buried district spends heat, darkness, memory, and whole surface households to keep its school, clinic, market, and future beneath the notice of a dormant search lattice.",
     "author": "BigBirdReturns",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "estimatedCycles": 18,
     "parentCanons": [
       "The Godscar Codex, Book I: The Open Universe · first recension",
-      "The Godscar Codex, Book II: The Dark Tomb · first recension"
+      "The Godscar Codex, Book II: The Dark Tomb · first recension",
+      "The Godscar Codex, Second Recension Addenda · Book II: The Living Tomb"
     ],
     "canonRelation": "compatible"
   },
@@ -1172,9 +1174,9 @@ export const LAMP_DISTRICT_SOURCE: DarkTombPocketSource = {
       "consequenceId": "public-depth-map"
     }
   ],
-  "notes": {
+  "notes": withSecondRecensionNote({
     "authority": "The Godscar Codex, Book II: The Dark Tomb · foundational canon · first recension · July 2026",
     "status": "Canonical RODOH Gate 3 reference campaign",
     "acceptance": "Ordinary life → authority → descent → classification reversal → Alarm audit → visible return → changed hub"
-  }
+  }, "book-ii", LAMP_DISTRICT_LIVING_TOMB_LEDGER)
 };

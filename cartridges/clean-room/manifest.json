@@ -1,0 +1,39 @@
+{
+  "format": "rodoh-clean-room-custody/1",
+  "id": "orchard-at-low-tide",
+  "status": "unbundled",
+  "canon": "non-canon-clean-room-proof",
+  "programOfRecord": null,
+  "sourceKind": "exact-generic-arc",
+  "generator": "npm run build:clean-room-reference",
+  "engineVersion": "1.3.0",
+  "cartridgeDigest": "cart1_3be11e31edc0d7674abf930aad1027281089ca5c2ec2a34f4edb83168b6b86bb",
+  "runIntegrityDigest": "run3_da63ec2f17b2d50b4beb0bdf3f52ef7bf2afc85dfa539d599bdd1e0beffd7e95",
+  "recomputedRunPayloadDigest": "run3_da63ec2f17b2d50b4beb0bdf3f52ef7bf2afc85dfa539d599bdd1e0beffd7e95",
+  "unknownNamespaces": [
+    "unfamiliar.garden-memory@7",
+    "holder.field-notes@1"
+  ],
+  "files": {
+    "source": {
+      "path": "cartridges/clean-room/orchard-at-low-tide.source.arc.json",
+      "sha256": "b743285778e29dd268d7b0fc47f912d58ebeac0b6d12899744b1c6bbc05d6671",
+      "bytes": 28430
+    },
+    "compiled": {
+      "path": "cartridges/clean-room/orchard-at-low-tide.arc.json",
+      "sha256": "b743285778e29dd268d7b0fc47f912d58ebeac0b6d12899744b1c6bbc05d6671",
+      "bytes": 28430
+    },
+    "malformed": {
+      "path": "cartridges/clean-room/orchard-at-low-tide.invalid.arc.json",
+      "sha256": "32af4de8b19312db816894b33995bb2f6b39a0b5530d8dfdb4598f54292f3cf8",
+      "bytes": 28442
+    },
+    "changedRun": {
+      "path": "cartridges/clean-room/orchard-at-low-tide.changed.run.json",
+      "sha256": "c07ea519f1d8c7f443331114f0f03cc01ded4f078fcf0b8185b2e8220adc4e51",
+      "bytes": 52448
+    }
+  }
+}

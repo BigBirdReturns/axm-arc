@@ -1,0 +1,40 @@
+name: Regenerate deterministic Gate 7A artifacts
+
+on:
+  push:
+    branches: [gate7/clean-room-orchard]
+    paths:
+      - '.github/workflows/gate7-clean-room-regenerate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  regenerate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build:clean-room-reference
+      - run: npm run typecheck
+      - run: npm test -- tests/clean-room/orchard-at-low-tide.test.ts
+      - run: npm test
+      - run: npm run build
+      - name: Publish regenerated artifacts
+        run: |
+          git restore --source=HEAD --staged --worktree dist docs/game 2>/dev/null || true
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add cartridges/clean-room
+          git commit -m "Regenerate deterministic Gate 7A artifacts"
+          git push origin HEAD:gate7/clean-room-orchard

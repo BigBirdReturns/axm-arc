@@ -1,0 +1,28 @@
+name: Import hardening TypeScript diagnostic
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/tsc-diagnostic-pr.yml'
+      - 'src/engine/bounded-json.ts'
+      - 'src/engine/save.ts'
+      - 'src/engine/portable-run.ts'
+      - 'tests/engine/bounded-json*.test.ts'
+      - 'tests/engine/cart1-conformance-vectors.test.ts'
+
+permissions:
+  contents: read
+
+jobs:
+  diagnostic:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npx tsc --noEmit --pretty false

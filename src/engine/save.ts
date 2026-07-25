@@ -3,6 +3,7 @@ import type { Arc, Organization } from "./types.js";
 import type { PendingRewardChoice } from "./cycle.js";
 import { cartridgeDigest } from "./cartridge-digest.js";
 import { initializeCartridgeState } from "./state.js";
+import { parseBoundedJson } from "./bounded-json.js";
 
 export const SAVE_VERSION = 3;
 
@@ -57,14 +58,17 @@ export function deserializeGame(
   json: string,
   arc: Arc,
 ): { org: Organization; cycle: number; pendingRewardChoices: PendingRewardChoice[] } {
+  // Bounded parsing preserves ordinary JSON semantics while refusing duplicate
+  // keys, unbounded nesting, and inputs that would consume arbitrary memory
+  // before the version and cartridge-identity checks below can run.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let raw: any;
   try {
-    raw = JSON.parse(json);
-  } catch {
-    throw new Error("Save data is not valid JSON");
+    raw = parseBoundedJson(json, { maxBytes: 12 * 1024 * 1024 });
+  } catch (error) {
+    throw new Error(`Save data is not valid bounded JSON: ${error instanceof Error ? error.message : String(error)}`);
   }
-  if (typeof raw !== "object" || raw === null) throw new Error("Save data must be a JSON object");
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) throw new Error("Save data must be a JSON object");
   if (typeof raw.version !== "number") throw new Error("Save data missing required field: version");
   if (raw.version > SAVE_VERSION) {
     throw new Error(`Save version ${raw.version} is newer than engine version ${SAVE_VERSION}`);

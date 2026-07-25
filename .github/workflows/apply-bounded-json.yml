@@ -3,6 +3,9 @@ name: Apply bounded JSON integration
 # One-shot publication workflow. It commits the permanent portable-run binding
 # and removes every temporary diagnostic/publication workflow from the candidate.
 on:
+  pull_request:
+    paths:
+      - '.github/workflows/apply-bounded-json.yml'
   push:
     branches: [release/import-canonicalization-hardening]
     paths:
@@ -23,7 +26,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
           show-progress: false
       - uses: actions/setup-node@v4

@@ -1,0 +1,102 @@
+{
+  "$schema": "./POST_V1_ARCHITECTURE_STAGING.schema.json",
+  "format": "axm-post-v1-architecture-staging/1",
+  "releaseBoundary": {
+    "requiresRodohV1": true,
+    "changesV1Protocols": false
+  },
+  "decisionKernel": {
+    "package": "@axm/decision-kernel",
+    "version": "0.1.0-candidate",
+    "ownership": "A separately versioned package under axm-arc is the initial canonical authority. It has its own package manifest, conformance vectors, receipt schema, semantic version, and dependency boundary. Arc and World consume the exact same package source. Later extraction to a dedicated repository is a packaging decision, not permission for duplicate law.",
+    "invariants": [
+      "actors and capacity units use opaque domain identifiers",
+      "work contracts carry constraints, resources, risks, and candidate options",
+      "feasibility produces exact rejection reasons",
+      "expected effects name model and policy versions",
+      "selection records assumptions and authorizing authority",
+      "externally observed outcomes are first-class inputs",
+      "expected-versus-actual reconciliation never invents attribution",
+      "decision receipts are immutable, canonical, versioned, and replayable",
+      "state transitions validate against the selected option and observation",
+      "next feasible options derive from the resulting state"
+    ],
+    "excludedPolicies": [
+      "stress",
+      "morale",
+      "afflictions",
+      "relationships",
+      "traits",
+      "recruitment",
+      "infrastructure facilities",
+      "items and loot",
+      "attunement",
+      "progression tiers",
+      "narrative and drama",
+      "heroic events",
+      "mandatory randomness",
+      "browser storage",
+      "React or presentation"
+    ],
+    "conformance": [
+      "feasibility and rejection vectors",
+      "budget capacity capability risk and approval vectors",
+      "observed-outcome ingestion vectors",
+      "expected-versus-actual reconciliation vectors",
+      "canonical decision receipt and replay vectors",
+      "state-transition and next-option vectors",
+      "incompatible-version refusal vectors",
+      "Arc and World byte-equivalent canonical decision facts"
+    ]
+  },
+  "connectedOperations": {
+    "format": "axm-connected-operation/v2-candidate",
+    "deliveryModel": "at-least-once-transport-idempotent-application",
+    "phases": [
+      "prepared",
+      "accepted",
+      "committed",
+      "returned",
+      "compensated",
+      "aborted"
+    ],
+    "invariants": [
+      "operation identity is derived from canonical prepared facts",
+      "every participant names the exact parent run digest it consumed",
+      "transport may repeat but application is idempotent by operation identity",
+      "a causally stale operation is refused before state mutation",
+      "prepare records intended effects without pretending they already occurred",
+      "commit records each participant application separately",
+      "partial commit is represented explicitly and never rewritten as atomic success",
+      "compensation is a new consequence-bearing operation rather than history deletion",
+      "return preserves both sovereign state sets and all unknown memory",
+      "forked histories remain distinct until an explicit reconciliation operation"
+    ],
+    "failureStates": [
+      "replayed-operation",
+      "causally-stale-parent",
+      "participant-refusal",
+      "partial-commit",
+      "return-unavailable",
+      "compensation-refused",
+      "unknown-version"
+    ]
+  },
+  "activation": {
+    "preconditions": [
+      "AXM Arc v1.0.0 and RODOH World v1.0.0 exist as immutable releases",
+      "the local operator receipt and offline recovery snapshot bind the release pair",
+      "the creator recovery kit and hostile-input contract are accepted",
+      "all current v1 connected-operation fixtures remain replayable"
+    ],
+    "firstImplementationMilestones": [
+      "publish the measured boundary audit and Split ADR from issue 117",
+      "create packages/decision-kernel with no browser or game dependency",
+      "publish kernel conformance vectors and a versioned decision receipt",
+      "migrate Arc through a game policy adapter without changing cartridge outcomes",
+      "migrate World to the exact same kernel and delete any proving evaluator",
+      "publish connected-operation v2 types and causal conformance vectors without changing v1 records",
+      "prove partial failure replay compensation and fork refusal across two local holders"
+    ]
+  }
+}

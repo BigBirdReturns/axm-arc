@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
-import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { basename, dirname, join, relative, resolve } from "node:path";
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join, relative, resolve } from "node:path";
 
 const ROOT = resolve(import.meta.dirname, "..");
 const OUT = join(ROOT, "creator-kit", "release");
@@ -16,7 +16,6 @@ function copy(source: string, destination: string): void {
   cpSync(from, to);
 }
 function walk(dir: string): string[] {
-  const { readdirSync } = require("node:fs") as typeof import("node:fs");
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const path = join(dir, entry.name);
     return entry.isDirectory() ? walk(path) : [path];

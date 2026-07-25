@@ -84,8 +84,8 @@ jobs:
           rm -rf creator-kit/dist creator-kit/release
           npm run build:creator-recovery-kit 2>&1 | tee creator-kit-build-second.log
           cp -a creator-kit/release creator-kit/second
-          first="$(find creator-kit/first -type f -printf '%P\0' | sort -z | while IFS= read -r -d '' file; do sha256sum "creator-kit/first/$file"; done | sha256sum | cut -d' ' -f1)"
-          second="$(find creator-kit/second -type f -printf '%P\0' | sort -z | while IFS= read -r -d '' file; do sha256sum "creator-kit/second/$file"; done | sha256sum | cut -d' ' -f1)"
+          first="$(cd creator-kit/first && find . -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum | cut -d' ' -f1)"
+          second="$(cd creator-kit/second && find . -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum | cut -d' ' -f1)"
           printf '%s\n' "$first" > creator-kit/first-tree.sha256
           printf '%s\n' "$second" > creator-kit/second-tree.sha256
           test "$first" = "$second"

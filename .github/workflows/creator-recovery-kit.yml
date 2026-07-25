@@ -65,20 +65,24 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --no-audit --no-fund
-      - name: Exact candidate and focused contracts
+      - name: Exact candidate identity
         run: |
           set -euo pipefail
+          mkdir -p creator-kit-diagnostics
           test "$(git rev-parse HEAD)" = '${{ github.event.pull_request.head.sha || github.sha }}'
-          npm run typecheck
-          npm test -- tests/clean-room/creator-recovery-kit.test.ts tests/clean-room/orchard-at-low-tide.test.ts tests/engine/bounded-json.test.ts tests/engine/cart1-conformance-vectors.test.ts
+          git rev-parse HEAD | tee creator-kit-diagnostics/candidate-sha.txt
+      - name: TypeScript
+        run: npm run typecheck 2>&1 | tee creator-kit-diagnostics/typecheck.log
+      - name: Focused creator contracts
+        run: npm test -- tests/clean-room/creator-recovery-kit.test.ts tests/clean-room/orchard-at-low-tide.test.ts tests/engine/bounded-json.test.ts tests/engine/cart1-conformance-vectors.test.ts 2>&1 | tee creator-kit-diagnostics/focused-tests.log
       - name: Build twice and require byte-identical public kits
         run: |
           set -euo pipefail
           rm -rf creator-kit/first creator-kit/second creator-kit/RODOH_Creator_Recovery_Kit.zip
-          npm run build:creator-recovery-kit | tee creator-kit-build-first.log
+          npm run build:creator-recovery-kit 2>&1 | tee creator-kit-build-first.log
           cp -a creator-kit/release creator-kit/first
           rm -rf creator-kit/dist creator-kit/release
-          npm run build:creator-recovery-kit | tee creator-kit-build-second.log
+          npm run build:creator-recovery-kit 2>&1 | tee creator-kit-build-second.log
           cp -a creator-kit/release creator-kit/second
           first="$(find creator-kit/first -type f -printf '%P\0' | sort -z | while IFS= read -r -d '' file; do sha256sum "creator-kit/first/$file"; done | sha256sum | cut -d' ' -f1)"
           second="$(find creator-kit/second -type f -printf '%P\0' | sort -z | while IFS= read -r -d '' file; do sha256sum "creator-kit/second/$file"; done | sha256sum | cut -d' ' -f1)"
@@ -103,8 +107,8 @@ jobs:
           fi
       - name: Complete Arc regression and production build
         run: |
-          npm test
-          npm run build
+          npm test 2>&1 | tee creator-kit-diagnostics/full-tests.log
+          npm run build 2>&1 | tee creator-kit-diagnostics/build.log
       - name: Pack public creator recovery kit
         run: |
           set -euo pipefail
@@ -119,7 +123,7 @@ jobs:
           git clean -fdx -- docs/game creator-kit/dist creator-kit/release creator-kit/first creator-kit/second
           git diff --check
           test -z "$(git status --porcelain)"
-      - name: Upload creator recovery kit
+      - name: Upload creator recovery kit and diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -132,5 +136,6 @@ jobs:
             creator-kit/invalid.stderr
             creator-kit-build-first.log
             creator-kit-build-second.log
+            creator-kit-diagnostics
           if-no-files-found: warn
           retention-days: 30

@@ -1,0 +1,16 @@
+# Exact source and artifact custody requires the same working-tree bytes on
+# Windows, Linux, and macOS. GitHub stores text as LF; every checkout must retain
+# those bytes so content hashes and deterministic reference builds agree.
+* text=auto eol=lf
+
+# Binary publication and runtime assets are never line-ending transformed.
+*.gif binary
+*.ico binary
+*.jpeg binary
+*.jpg binary
+*.pdf binary
+*.png binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.zip binary

@@ -17,6 +17,7 @@ import {
   project, commitVictory, commitFailedLockout, buildConsequences, saveLedger,
   type CampaignLedger, type CompatibilityReport, type ConsequenceSet, type NightResult,
 } from "./ledger.js";
+import type { SaveResult, StorageWriter } from "./persistence.js";
 import type { Agent, Arc, Challenge, Organization, RunReport } from "../../engine/types.js";
 
 const BOSS_ID = "the-hollow-choir"; // the wall this slice is built around
@@ -289,18 +290,35 @@ export function nightConsequences(state: RaidNightState): ConsequenceSet {
   return buildConsequences(state.ledger, nightResult(state));
 }
 
-/** Commit a cleared night to the guild record ("Commit to Guild Record"). May
- *  advance progression. Persists locally and returns the new ledger. */
+/** Pure/headless adapter: commit a cleared night to a new in-memory ledger.
+ * Interactive callers use the result-bearing path so a browser write failure
+ * cannot be mislabeled as a committed record. */
 export function commitNightVictory(state: RaidNightState): CampaignLedger {
-  const led = commitVictory(state.ledger, nightResult(state));
-  saveLedger(led);
-  return led;
+  return commitVictory(state.ledger, nightResult(state));
 }
 
-/** Commit a failed lockout ("Call It a Night"). Preserves scars/morale/stress/
- *  attendance/bench/best-pull; does not advance the tier gate. */
+/** Pure/headless adapter for a failed lockout. */
 export function commitNightFailed(state: RaidNightState): CampaignLedger {
-  const led = commitFailedLockout(state.ledger, nightResult(state));
-  saveLedger(led);
-  return led;
+  return commitFailedLockout(state.ledger, nightResult(state));
+}
+
+export interface LedgerCommitResult {
+  ledger: CampaignLedger;
+  save: SaveResult;
+}
+
+export function commitNightVictoryWithResult(
+  state: RaidNightState,
+  storage?: StorageWriter | null,
+): LedgerCommitResult {
+  const ledger = commitVictory(state.ledger, nightResult(state));
+  return { ledger, save: saveLedger(ledger, storage) };
+}
+
+export function commitNightFailedWithResult(
+  state: RaidNightState,
+  storage?: StorageWriter | null,
+): LedgerCommitResult {
+  const ledger = commitFailedLockout(state.ledger, nightResult(state));
+  return { ledger, save: saveLedger(ledger, storage) };
 }

@@ -12,7 +12,6 @@ import {
   serializationFailure,
   writeStorageTransaction,
   type RecoveryArtifact,
-  type SaveFailureReason,
   type SaveResult,
   type StorageWriter,
 } from "./persistence.js";
@@ -28,10 +27,26 @@ interface LocalRunEnvelopeV1 {
   extensions: PortableRunExtensions;
 }
 
-// Compatibility exports for callers that adopted the earlier game-local names.
-export type StorageFailureReason = SaveFailureReason;
-export type StorageWriteResult = SaveResult;
+// Compatibility surface for lower-stakes records such as creator drafts,
+// cartridge-library metadata, locale, and presentation preferences. These
+// callers predate the verified transaction contract and must not be confused
+// with the byte-counted SaveResult returned by run and ledger custody.
+export type StorageFailureReason = "quota" | "denied" | "unknown";
+export type StorageWriteResult =
+  | { ok: true }
+  | { ok: false; reason: StorageFailureReason; message: string };
 export type { StorageWriter };
+
+export function storageWriteFailure(error: unknown, operation: string): StorageWriteResult {
+  const name = error instanceof DOMException ? error.name : error instanceof Error ? error.name : "";
+  const reason: StorageFailureReason = name === "QuotaExceededError"
+    ? "quota"
+    : name === "SecurityError" || name === "NotAllowedError"
+      ? "denied"
+      : "unknown";
+  const detail = error instanceof Error && error.message ? ` ${error.message}` : "";
+  return { ok: false, reason, message: `${operation} failed.${detail}` };
+}
 
 export interface LoadedSave {
   org: Organization;
@@ -113,7 +128,7 @@ export function saveSave(
   pendingRewardChoices: PendingRewardChoice[] = [],
   extensions: PortableRunExtensions = {},
   storage?: StorageWriter | null,
-): StorageWriteResult {
+): SaveResult {
   let artifact: RecoveryArtifact;
   try {
     artifact = exportSaveRecovery(org, arc, pendingRewardChoices, extensions);
@@ -128,7 +143,7 @@ export function saveSave(
 export function clearSave(
   arc: Arc,
   storage?: StorageWriter | null,
-): StorageWriteResult {
+): SaveResult {
   const result = removeStorageTransaction(keyFor(arc), storage, "Clearing the run");
   if (!result.ok) console.warn("clearSave failed", result);
   return result;

@@ -12,7 +12,10 @@ const ARCS: Record<string, Arc> = {
   "kind-gods-of-ilyon": KIND_GODS_OF_ILYON,
   "lamp-district": LAMP_DISTRICT,
   "relief-circuit": RELIEF_CIRCUIT,
-  "orchard-at-low-tide": orchard as Arc,
+  // JSON module inference widens fixed-length relationship tuples to string[].
+  // The same artifact is validated as an Arc by the clean-room contract; this
+  // test consumes those exact accepted bytes solely as a canonicalization vector.
+  "orchard-at-low-tide": orchard as unknown as Arc,
 };
 
 function clone<T>(value: T): T {

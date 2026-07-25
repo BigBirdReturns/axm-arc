@@ -7,7 +7,22 @@ import { foundOrganization } from "../src/engine/founding.js";
 import { runCycle } from "../src/engine/cycle.js";
 import type { Arc, Organization } from "../src/engine/types.js";
 import { bestParty } from "../src/sim/cartridge-conformance.js";
-import { buildConnectedOperation } from "../src/engine/connected-operation.js";
+import {
+  buildConnectedOperation,
+  CONNECTED_OPERATION_EXTENSION_KEY,
+  type ConnectedOperationV1,
+} from "../src/engine/connected-operation.js";
+import {
+  portableRunPayloadDigest,
+  type JsonValue,
+  type PortableRunExtensions,
+  type PortableRunV3,
+} from "../src/engine/portable-run.js";
+
+/** This is a committed conformance fixture, not a record of a wall-clock event.
+ * A stable savedAt value keeps repeated reference generation byte-identical while
+ * ordinary player saves continue to record their real export time. */
+const FIXTURE_SAVED_AT = "2026-07-24T00:00:00.000Z";
 
 function boostedFounding(arc: Arc, seed: number): Organization {
   const org = foundOrganization(arc, { format: "axm-founding-input/1", seed });
@@ -36,9 +51,38 @@ function complete(arc: Arc, seed: number): Organization {
   return org;
 }
 
+function gameWithSavedAt(game: string, savedAt: string): string {
+  const parsed = JSON.parse(game) as Record<string, unknown>;
+  parsed.savedAt = savedAt;
+  return JSON.stringify(parsed);
+}
+
+function rebuildRun(
+  run: PortableRunV3,
+  params: { savedAt: string; extensions?: PortableRunExtensions },
+): PortableRunV3 {
+  const core = {
+    format: run.format,
+    authoredArcDigest: run.authoredArcDigest,
+    arc: run.arc,
+    engine: {
+      saveVersion: run.engine.saveVersion,
+      game: gameWithSavedAt(run.engine.game, params.savedAt),
+    },
+    extensions: params.extensions ?? run.extensions,
+  };
+  return {
+    ...core,
+    integrity: {
+      algorithm: run.integrity.algorithm,
+      digest: portableRunPayloadDigest(core),
+    },
+  };
+}
+
 const sourceOrg = complete(RELIEF_CIRCUIT, 20260723);
 const destinationOrg = complete(LAMP_DISTRICT, 20260724);
-const { sourceRun } = buildConnectedOperation({
+const built = buildConnectedOperation({
   sourceArc: RELIEF_CIRCUIT,
   sourceOrg,
   destinationArc: LAMP_DISTRICT,
@@ -82,6 +126,20 @@ const { sourceRun } = buildConnectedOperation({
   },
 });
 
+const destinationRun = rebuildRun(built.operation.destinationRun, { savedAt: FIXTURE_SAVED_AT });
+const operation: ConnectedOperationV1 = {
+  ...built.operation,
+  destinationRun,
+};
+const sourceExtensions: PortableRunExtensions = {
+  ...built.sourceRun.extensions,
+  [CONNECTED_OPERATION_EXTENSION_KEY]: operation as unknown as JsonValue,
+};
+const sourceRun = rebuildRun(built.sourceRun, {
+  savedAt: FIXTURE_SAVED_AT,
+  extensions: sourceExtensions,
+});
+
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const cartridgeDir = resolve(root, "cartridges");
 await mkdir(cartridgeDir, { recursive: true });
@@ -90,4 +148,4 @@ await writeFile(
   `${JSON.stringify(sourceRun, null, 2)}\n`,
   "utf8",
 );
-console.log("Wrote connected Relief Circuit and Lamp District run fixture.");
+console.log("Wrote deterministic connected Relief Circuit and Lamp District run fixture.");

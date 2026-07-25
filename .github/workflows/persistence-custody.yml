@@ -13,7 +13,6 @@ on:
       - 'src/i18n/messages.ts'
       - 'tests/game/persistence-custody-v1.test.ts'
       - 'tests/game/storage.test.ts'
-      - 'tools/apply-persistence-custody-v1.py'
       - 'docs/PERSISTENCE_CUSTODY_V1.md'
       - '.github/workflows/persistence-custody.yml'
   push:
@@ -63,12 +62,6 @@ jobs:
           test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
           mkdir -p persistence-custody-receipt
           printf '%s\n' "$CANDIDATE_SHA" > persistence-custody-receipt/candidate-sha.txt
-          git diff --check
-      - name: Materialize carrier candidate
-        if: ${{ hashFiles('tools/apply-persistence-custody-v1.py') != '' }}
-        run: |
-          set -euo pipefail
-          python tools/apply-persistence-custody-v1.py
           git diff --check
       - name: TypeScript
         run: |

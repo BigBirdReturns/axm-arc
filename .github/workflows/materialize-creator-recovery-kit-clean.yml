@@ -1,5 +1,6 @@
 name: Materialize creator recovery kit cleanly
 
+# Second push intentionally triggers the one-shot workflow after registration.
 on:
   push:
     branches: [release/creator-recovery-kit-clean]

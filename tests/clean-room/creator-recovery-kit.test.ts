@@ -39,7 +39,7 @@ describe("standalone creator custody surface", () => {
       format: "rodoh-creator-inspection-receipt/1",
       cartridgeDigest: MANIFEST.cartridgeDigest,
       sourcePlanes: [],
-      unknownExtensions: ["unfamiliar.garden-memory@7"],
+      unknownExtensions: ["cleanroom.orchard@1", "unfamiliar.garden-memory@7"],
     });
     expect(receipt(run(["simulate", "--file", ORCHARD, "--seeds", "4", "--max-cycles", "80"]))).toMatchObject({
       format: "rodoh-creator-simulation-receipt/1",

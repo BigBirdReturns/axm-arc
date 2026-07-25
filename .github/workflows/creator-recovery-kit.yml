@@ -1,5 +1,6 @@
 name: Creator recovery kit
 
+# Cleanly based on the accepted bounded-JSON and cart1 baseline.
 on:
   pull_request:
     paths:

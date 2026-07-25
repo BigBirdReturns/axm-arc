@@ -1,0 +1,50 @@
+name: Post-v1 architecture staging
+
+on:
+  pull_request:
+    paths:
+      - 'docs/post-v1/**'
+      - 'tests/post-v1/**'
+      - '.github/workflows/post-v1-architecture-staging.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'docs/post-v1/**'
+      - 'tests/post-v1/**'
+      - '.github/workflows/post-v1-architecture-staging.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  staging:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          show-progress: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Staging contract
+        run: |
+          npm run typecheck
+          npm test -- tests/post-v1/architecture-staging.test.ts
+          git diff --check
+      - name: Confirm the v1 product remains unchanged
+        run: |
+          test ! -e packages/decision-kernel
+          ! grep -R -E 'axm-connected-operation/v2([^ -]|$)' src tests cartridges
+          ! grep -R -E 'lineage-commons-pocket/1|Program 006' src tests cartridges
+          npm test
+          npm run build

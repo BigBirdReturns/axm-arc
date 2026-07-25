@@ -12,6 +12,8 @@ on:
       - 'src/game/App.tsx'
       - 'src/i18n/messages.ts'
       - 'tests/game/persistence-custody-v1.test.ts'
+      - 'tests/game/storage.test.ts'
+      - 'tools/apply-persistence-custody-v1.py'
       - 'docs/PERSISTENCE_CUSTODY_V1.md'
       - '.github/workflows/persistence-custody.yml'
   push:
@@ -26,6 +28,7 @@ on:
       - 'src/game/App.tsx'
       - 'src/i18n/messages.ts'
       - 'tests/game/persistence-custody-v1.test.ts'
+      - 'tests/game/storage.test.ts'
       - 'docs/PERSISTENCE_CUSTODY_V1.md'
       - '.github/workflows/persistence-custody.yml'
   workflow_dispatch:
@@ -61,14 +64,28 @@ jobs:
           mkdir -p persistence-custody-receipt
           printf '%s\n' "$CANDIDATE_SHA" > persistence-custody-receipt/candidate-sha.txt
           git diff --check
+      - name: Materialize carrier candidate
+        if: ${{ hashFiles('tools/apply-persistence-custody-v1.py') != '' }}
+        run: |
+          set -euo pipefail
+          python tools/apply-persistence-custody-v1.py
+          git diff --check
       - name: TypeScript
-        run: npm run typecheck | tee persistence-custody-receipt/typecheck.log
+        run: |
+          set -euo pipefail
+          npm run typecheck 2>&1 | tee persistence-custody-receipt/typecheck.log
       - name: Transaction, rollback, recovery, and player-surface contracts
-        run: npm test -- tests/game/persistence-custody-v1.test.ts tests/game/raid-night.test.ts tests/game/ledger.test.ts tests/i18n/i18n.test.ts | tee persistence-custody-receipt/focused-tests.log
+        run: |
+          set -euo pipefail
+          npm test -- tests/game/persistence-custody-v1.test.ts tests/game/raid-night.test.ts tests/game/ledger.test.ts tests/i18n/i18n.test.ts tests/game/storage.test.ts 2>&1 | tee persistence-custody-receipt/focused-tests.log
       - name: Complete Arc regression suite
-        run: npm test | tee persistence-custody-receipt/vitest.log
+        run: |
+          set -euo pipefail
+          npm test 2>&1 | tee persistence-custody-receipt/vitest.log
       - name: Production build
-        run: npm run build | tee persistence-custody-receipt/build.log
+        run: |
+          set -euo pipefail
+          npm run build 2>&1 | tee persistence-custody-receipt/build.log
       - name: Upload persistence receipt
         if: always()
         uses: actions/upload-artifact@v4

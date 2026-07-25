@@ -1,6 +1,6 @@
 name: Finalize persistence custody
 
-# Second push intentionally triggers the registered one-shot workflow.
+# Registered and explicitly re-triggered after the complete application script landed.
 on:
   push:
     branches: [release/persistence-custody-v1]

@@ -10,6 +10,15 @@ import type { Agent, Arc, Organization, Precedent } from "../../engine/types.js"
 import { cartridgeDigest, sha256Hex } from "../../engine/cartridge-digest.js";
 import { hashSeed } from "../../engine/prng.js";
 import { buildStartingOrg } from "../../sim/cartridge-conformance.js";
+import { parseBoundedJson } from "../../engine/bounded-json.js";
+import {
+  removeStorageTransaction,
+  serializationFailure,
+  writeStorageTransaction,
+  type RecoveryArtifact,
+  type SaveResult,
+  type StorageWriter,
+} from "./persistence.js";
 
 const LEDGER_KEY = "axm-arc:campaign-ledger:v1";
 const SCHEMA_VERSION = "ledger/1.0";
@@ -183,24 +192,33 @@ export interface CampaignLedger {
 
 // ── custody (local-first, arc-owned, exportable) ─────────────────────────────
 
-export function loadLedger(): CampaignLedger | null {
+export function loadLedger(storage: StorageWriter = localStorage): CampaignLedger | null {
   try {
-    const raw = localStorage.getItem(LEDGER_KEY);
+    const raw = storage.getItem(LEDGER_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as unknown;
+    const parsed = parseBoundedJson(raw, { maxBytes: 12 * 1024 * 1024 });
     if (ledgerShapeErrors(parsed).length > 0) return null;   // reject non-ledger blobs (parity with importLedger)
     return migrate(parsed as CampaignLedger);                // migrate may refuse (null) a newer schema
   } catch {
     return null;
   }
 }
-export function saveLedger(ledger: CampaignLedger): void {
-  try { localStorage.setItem(LEDGER_KEY, JSON.stringify(ledger)); } catch { /* headless / quota */ }
+export function saveLedger(
+  ledger: CampaignLedger,
+  storage?: StorageWriter | null,
+): SaveResult {
+  let json: string;
+  try {
+    json = JSON.stringify(ledger);
+  } catch {
+    return serializationFailure("Saving the campaign ledger");
+  }
+  return writeStorageTransaction(LEDGER_KEY, json, storage, "Saving the campaign ledger");
 }
-export function clearLedger(): void {
-  try { localStorage.removeItem(LEDGER_KEY); } catch { /* headless */ }
+export function clearLedger(storage?: StorageWriter | null): SaveResult {
+  return removeStorageTransaction(LEDGER_KEY, storage, "Clearing the campaign ledger");
 }
-export function exportLedger(ledger: CampaignLedger): { filename: string; json: string } {
+export function exportLedger(ledger: CampaignLedger): RecoveryArtifact {
   return { filename: `${ledger.guild.name.replace(/\s+/g, "-").toLowerCase()}.guild.json`, json: JSON.stringify(ledger, null, 2) };
 }
 

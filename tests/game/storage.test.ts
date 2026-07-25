@@ -36,7 +36,10 @@ describe("hub run storage", () => {
       "future-player@9": ["opaque", true, 3],
     };
 
-    expect(saveSave(org, FIRST_CHARTER, [], extensions)).toEqual({ ok: true });
+    expect(saveSave(org, FIRST_CHARTER, [], extensions)).toMatchObject({
+      ok: true,
+      bytes: expect.any(Number),
+    });
     expect(loadSave(FIRST_CHARTER)).toMatchObject({ org, extensions });
   });
 
@@ -48,7 +51,10 @@ describe("hub run storage", () => {
     expect(legacy?.org).toEqual(org);
     expect(legacy?.extensions).toEqual({});
 
-    expect(saveSave(legacy!.org, FIRST_CHARTER, legacy!.pendingRewardChoices, legacy!.extensions)).toEqual({ ok: true });
+    expect(saveSave(legacy!.org, FIRST_CHARTER, legacy!.pendingRewardChoices, legacy!.extensions)).toMatchObject({
+      ok: true,
+      bytes: expect.any(Number),
+    });
     expect(JSON.parse(storage.getItem(saveKey())!)).toMatchObject({ localRunVersion: 1, extensions: {} });
   });
 
@@ -58,17 +64,20 @@ describe("hub run storage", () => {
     error.name = "QuotaExceededError";
     storage.throwOnWrite = error;
 
-    expect(saveSave(org, FIRST_CHARTER)).toEqual({
+    expect(saveSave(org, FIRST_CHARTER)).toMatchObject({
       ok: false,
       reason: "quota",
-      message: "Saving the run failed. storage is full",
+      message: "Saving the run failed because local storage is full. storage is full",
+      bytes: expect.any(Number),
+      recoverable: true,
+      rollbackVerified: true,
     });
   });
 
   it("returns a result when clearing custody", () => {
     const org = foundOrganization(FIRST_CHARTER);
-    expect(saveSave(org, FIRST_CHARTER)).toEqual({ ok: true });
-    expect(clearSave(FIRST_CHARTER)).toEqual({ ok: true });
+    expect(saveSave(org, FIRST_CHARTER)).toMatchObject({ ok: true, bytes: expect.any(Number) });
+    expect(clearSave(FIRST_CHARTER)).toEqual({ ok: true, bytes: 0 });
     expect(loadSave(FIRST_CHARTER)).toBeNull();
   });
 });

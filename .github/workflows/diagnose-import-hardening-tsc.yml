@@ -1,0 +1,40 @@
+name: Diagnose import-hardening TypeScript
+
+on:
+  push:
+    branches: [release/import-canonicalization-hardening]
+    paths:
+      - '.github/workflows/diagnose-import-hardening-tsc.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Capture exact TypeScript diagnostics
+        run: |
+          set +e
+          npm run typecheck > tsc.log 2>&1
+          status=$?
+          printf '%s\n' "$status" > tsc.status
+          cat tsc.log
+          exit 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: import-hardening-tsc-diagnostics
+          path: |
+            tsc.log
+            tsc.status
+          if-no-files-found: error
+          retention-days: 7

@@ -1,5 +1,6 @@
 name: Apply bounded JSON integration
 
+# One-shot publication workflow. Remove after the portable-run integration lands.
 on:
   push:
     branches: [release/import-canonicalization-hardening]

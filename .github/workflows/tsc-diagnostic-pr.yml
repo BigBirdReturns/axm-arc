@@ -25,4 +25,19 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --no-audit --no-fund
-      - run: npx tsc --noEmit --pretty false
+      - name: Capture exact diagnostics
+        run: |
+          set +e
+          npx tsc --noEmit --pretty false > tsc.log 2>&1
+          status=$?
+          printf '%s\n' "$status" > tsc.status
+          cat tsc.log
+          exit 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: import-hardening-tsc-diagnostics
+          path: |
+            tsc.log
+            tsc.status
+          if-no-files-found: error
+          retention-days: 7

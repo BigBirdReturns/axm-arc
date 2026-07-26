@@ -1,0 +1,77 @@
+name: Finalize untagged Arc 1.0.0 candidate
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/finalize-arc-v1-candidate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: finalize-untagged-arc-v1-candidate
+  cancel-in-progress: true
+
+env:
+  BASE_SHA: 331e9693d3210a1b66de0c5ee3931645bfcbc053
+  CI: 'true'
+  SOURCE_DATE_EPOCH: '0'
+
+jobs:
+  qualify-and-publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          show-progress: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Derive the untagged package pair
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "$BASE_SHA"
+          test -z "$(git status --porcelain)"
+          npm version 1.0.0 --no-git-tag-version
+          node - <<'NODE'
+          const fs = require('fs');
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          const lock = JSON.parse(fs.readFileSync('package-lock.json', 'utf8'));
+          if (pkg.version !== '1.0.0') throw new Error('package.json is not 1.0.0');
+          if (lock.version !== '1.0.0') throw new Error('package-lock root version is not 1.0.0');
+          if (lock.packages?.['']?.version !== '1.0.0') throw new Error('package-lock package version is not 1.0.0');
+          NODE
+          git diff --check
+      - run: npm ci --no-audit --no-fund
+      - name: Qualify the exact Arc release candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run typecheck
+          npm test -- tests/release/supply-chain.test.ts
+          npm test
+          npm run build
+          if git ls-files -- docs/game | grep -q .; then
+            git restore --source=HEAD --staged --worktree -- docs/game
+          fi
+          git clean -fdx -- docs/game
+          git diff --check
+      - name: Publish only the package version files
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_head='${{ github.event.pull_request.head.sha || github.sha }}'
+          git fetch --no-tags origin release/arc-v1-candidate
+          test "$(git rev-parse origin/release/arc-v1-candidate)" = "$source_head"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add package.json package-lock.json
+          git diff --cached --check
+          git commit -m 'Prepare the untagged axm-arc 1.0.0 candidate'
+          git push origin HEAD:release/arc-v1-candidate

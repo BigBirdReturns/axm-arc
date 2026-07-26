@@ -10,7 +10,9 @@ const GENERATE_SBOM = join(ROOT, "scripts/supply-chain/generate-cyclonedx.mjs");
 const GENERATE_PROVENANCE = join(ROOT, "scripts/supply-chain/generate-provenance.mjs");
 const VERIFY = join(ROOT, "scripts/supply-chain/verify-offline-evidence.mjs");
 const ARC_SHA = "0123456789abcdef0123456789abcdef01234567";
+const OTHER_SHA = "fedcba9876543210fedcba9876543210fedcba98";
 const WORKFLOW = "BigBirdReturns/axm-arc/.github/workflows/supply-chain-evidence.yml@refs/pull/163/merge";
+const UUID_V5_URN = /^urn:uuid:[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 function run(script: string, args: string[], env: NodeJS.ProcessEnv = process.env) {
   return spawnSync(process.execPath, [script, ...args], { cwd: ROOT, env, encoding: "utf8" });
@@ -75,17 +77,26 @@ function strictArgs(dir: string): string[] {
 }
 
 describe("Arc-owned release supply-chain evidence", () => {
-  it("generates deterministic CycloneDX 1.7 and exact contained provenance", () => {
+  it("generates deterministic, source-bound CycloneDX 1.7 and exact contained provenance", () => {
     const evidence = buildEvidence();
     const first = readFileSync(evidence.sbom);
     const second = join(evidence.dir, "sbom", "second.cdx.json");
+    const changed = join(evidence.dir, "sbom", "changed.cdx.json");
     expect(run(GENERATE_SBOM, [
       "--lock", join(ROOT, "package-lock.json"), "--package", join(ROOT, "package.json"),
       "--commit", ARC_SHA, "--output", second,
     ]).status).toBe(0);
+    expect(run(GENERATE_SBOM, [
+      "--lock", join(ROOT, "package-lock.json"), "--package", join(ROOT, "package.json"),
+      "--commit", OTHER_SHA, "--output", changed,
+    ]).status).toBe(0);
     expect(readFileSync(second)).toEqual(first);
     const document = JSON.parse(first.toString());
+    const changedDocument = JSON.parse(readFileSync(changed, "utf8"));
     expect(document).toMatchObject({ bomFormat: "CycloneDX", specVersion: "1.7", version: 1 });
+    expect(document.serialNumber).toMatch(UUID_V5_URN);
+    expect(changedDocument.serialNumber).toMatch(UUID_V5_URN);
+    expect(changedDocument.serialNumber).not.toBe(document.serialNumber);
     expect(document.metadata.component.properties).toContainEqual({ name: "axm:source-commit", value: ARC_SHA });
     const statement = JSON.parse(readFileSync(evidence.provenance, "utf8"));
     expect(statement.subject).toEqual([{ name: "artifacts/axm-arc-game.tar.gz", digest: { sha256: sha256(evidence.artifact) } }]);
@@ -160,7 +171,7 @@ describe("Arc-owned release supply-chain evidence", () => {
     expect(escaped.status).not.toBe(0);
     expect(escaped.stderr).toContain("outside the evidence root");
 
-    const wrong = run(VERIFY, strictArgs(evidence.dir).map((value) => value === ARC_SHA ? "fedcba9876543210fedcba9876543210fedcba98" : value));
+    const wrong = run(VERIFY, strictArgs(evidence.dir).map((value) => value === ARC_SHA ? OTHER_SHA : value));
     expect(wrong.status).not.toBe(0);
     expect(wrong.stderr).toContain("commit mismatch");
 

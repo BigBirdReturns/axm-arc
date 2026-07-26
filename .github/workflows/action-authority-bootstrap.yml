@@ -1,0 +1,51 @@
+name: Action authority bootstrap
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/action-authority-bootstrap.yml"
+      - "src/action/**"
+      - "src/source-planes/**"
+      - "src/game/**"
+      - "tests/action/**"
+      - "tests/source-planes/**"
+      - "docs/ACTION_RUNTIME_V1.md"
+  push:
+    branches: [feature/action-runtime-authority-v1]
+
+permissions:
+  contents: read
+
+jobs:
+  source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install exact dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Pack exact Linux dependencies
+        run: tar -czf /tmp/axm-arc-node-modules.tar.gz node_modules
+      - uses: actions/upload-artifact@v4
+        with:
+          name: axm-arc-action-source
+          path: |
+            .
+            !.git
+            !node_modules
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: axm-arc-action-node-modules
+          path: /tmp/axm-arc-node-modules.tar.gz
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 1

@@ -648,26 +648,6 @@ export type MessageId =
   | "workshop.seededFromDesigner"
   | "workshop.draftRestored"
   | "workshop.draftPersists"
-  | "workshop.actionHeading"
-  | "workshop.actionIntro"
-  | "workshop.actionExplicitCount"
-  | "workshop.actionChallenge"
-  | "workshop.actionArena"
-  | "workshop.actionMoveset"
-  | "workshop.actionDuration"
-  | "workshop.actionArenaScale"
-  | "workshop.actionEnemyScale"
-  | "workshop.actionEnemyKit"
-  | "workshop.actionMoveUp"
-  | "workshop.actionMoveDown"
-  | "workshop.actionExplicit"
-  | "workshop.actionImplicit"
-  | "workshop.actionObjectives"
-  | "workshop.actionMaxWave"
-  | "workshop.actionMaterialize"
-  | "workshop.actionGeneric"
-  | "workshop.actionLowPower"
-  | "workshop.actionNoChallenges"
   // ── accessibility / sensory presentation ──
   | "sensory.group"
   | "sensory.soundOn"
@@ -1563,26 +1543,6 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "workshop.seededFromDesigner": (p) => `Workshop seeded from Designer: exact source for “${str(p, "name")}” is now the working draft`,
     "workshop.draftRestored": "Draft restored from your last session",
     "workshop.draftPersists": "Drafts autosave to this browser's local storage — nothing leaves your machine until you export",
-    "workshop.actionHeading": "Action encounter authoring",
-    "workshop.actionIntro": "Every challenge already compiles into fixed-step action law. Use these controls to make presentation kits and pacing explicit inside the cartridge.",
-    "workshop.actionExplicitCount": (p) => `${num(p, "explicit")}/${num(p, "total")} explicit`,
-    "workshop.actionChallenge": "Challenge",
-    "workshop.actionArena": "Arena kit",
-    "workshop.actionMoveset": "Player moveset",
-    "workshop.actionDuration": "Maximum seconds",
-    "workshop.actionArenaScale": "Arena scale",
-    "workshop.actionEnemyScale": "Enemy scale",
-    "workshop.actionEnemyKit": "Enemy kit",
-    "workshop.actionMoveUp": "Move objective earlier",
-    "workshop.actionMoveDown": "Move objective later",
-    "workshop.actionExplicit": "Explicit cartridge law",
-    "workshop.actionImplicit": "Generic compiler defaults",
-    "workshop.actionObjectives": (p) => `${num(p, "count")} objective${num(p, "count") === 1 ? "" : "s"}`,
-    "workshop.actionMaxWave": (p) => `largest wave ${num(p, "count")}`,
-    "workshop.actionMaterialize": "Write explicit action law for every challenge",
-    "workshop.actionGeneric": "Return selected challenge to generic compiler",
-    "workshop.actionLowPower": "30 Hz integer simulation · 12-enemy wave ceiling · exact replay receipt",
-    "workshop.actionNoChallenges": "Add a challenge before authoring an action encounter",
 
 
     "sensory.group": "Sound and motion",
@@ -2384,26 +2344,6 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "workshop.seededFromDesigner": (p) => `工坊已從設計器載入：「${str(p, "name")}」的完整原始碼現在是工作草稿`,
     "workshop.draftRestored": "已還原你上次的草稿",
     "workshop.draftPersists": "草稿會自動儲存在此瀏覽器的本機儲存空間——匯出前不會離開你的裝置",
-    "workshop.actionHeading": "動作遭遇編寫",
-    "workshop.actionIntro": "每個挑戰都已可編譯為固定步長動作規則。使用這些控制，將呈現套件與節奏明確寫入卡帶。",
-    "workshop.actionExplicitCount": (p) => `${num(p, "explicit")}/${num(p, "total")} 個已明確設定`,
-    "workshop.actionChallenge": "挑戰",
-    "workshop.actionArena": "場地套件",
-    "workshop.actionMoveset": "玩家招式組",
-    "workshop.actionDuration": "最長秒數",
-    "workshop.actionArenaScale": "場地倍率",
-    "workshop.actionEnemyScale": "敵人倍率",
-    "workshop.actionEnemyKit": "敵人套件",
-    "workshop.actionMoveUp": "將目標提前",
-    "workshop.actionMoveDown": "將目標延後",
-    "workshop.actionExplicit": "明確卡帶規則",
-    "workshop.actionImplicit": "通用編譯器預設",
-    "workshop.actionObjectives": (p) => `${num(p, "count")} 個目標`,
-    "workshop.actionMaxWave": (p) => `最大波次 ${num(p, "count")}`,
-    "workshop.actionMaterialize": "為所有挑戰寫入明確動作規則",
-    "workshop.actionGeneric": "讓所選挑戰恢復使用通用編譯器",
-    "workshop.actionLowPower": "30 Hz 整數模擬 · 每波最多 12 名敵人 · 完整可重播收據",
-    "workshop.actionNoChallenges": "請先新增挑戰，再編寫動作遭遇",
 
 
     "sensory.group": "聲音與動態",

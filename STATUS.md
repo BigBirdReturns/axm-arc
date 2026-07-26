@@ -10,39 +10,7 @@ in any new session or by any agent picking up cold. Updated as state changes.
 
 ---
 
-## Current overlay — 2026-07-26
-
-**Post-v1 deterministic action authority**
-
-- Engine 1.4 compiles every ordinary Arc challenge into bounded 30 Hz integer
-  action law, including Arc-owned difficulty-mode composition and one objective
-  per authored mechanic check.
-- `axm.action@1` lets creators explicitly select arena, moveset, enemy kits,
-  objective order, duration, and bounded scale without making explicit profiles
-  mandatory for ordinary cartridges.
-- The action kernel owns movement, attacks, dodge, parry, stagger, five enemy
-  state machines, sequential objective waves, and deterministic presentation
-  events with at most twelve active enemies.
-- `axm-action-receipt/1` carries the full compressed input trace, party, seed,
-  result, and exact trace, terminal-state, spec, cartridge, and receipt digests.
-  Arc replays it before mutation and refuses altered law, party, mode, cycle,
-  result, trailing input, or resource spend with no action-law meaning.
-- A verified action result becomes the ordinary `RunReport`; existing rewards,
-  stress, relationships, progression, state effects, ledger, and save custody
-  remain authoritative downstream. There is no statistical reroll after play.
-- Workshop guided controls cover the complete bounded v1 profile and rewrite the
-  exact validated JSON draft. The action estate compiles and clears all 48
-  challenges across the six current proof cartridges with unique replay receipts.
-- This closes Arc-side action law, adjudication, and authoring. A finished
-  third-person World receiver, controls, animation, camera, audiovisual response,
-  asset kits, and desktop/mobile performance evidence remain coordinated World
-  work rather than inferred completion.
-
-See `docs/ACTION_RUNTIME_V1.md`.
-
----
-
-## Previous current overlay — 2026-07-22
+## Current overlay — 2026-07-22
 
 **RODOH Gates 0 through 3: exact current boundary**
 

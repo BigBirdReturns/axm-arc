@@ -21,7 +21,7 @@ const SKELETON_ARC = {
     description: "Replace this with a one- or two-sentence pitch for what this cartridge is about.",
     author: "Your name here",
     version: "0.1.0",
-    engineVersion: "1.4.0",
+    engineVersion: "1.0",
     domain: "e.g. heist-crew, war-campaign, monster-hunt",
     estimatedCycles: 10,
   },
@@ -154,29 +154,6 @@ const SKELETON_ARC = {
   items: [],
   narrativeEvents: [],
   scaling: null,
-  extensions: {
-    "axm.action@1": {
-      format: "axm-action-profile/1",
-      encounters: {
-        "first-job": {
-          arenaKit: "ring",
-          playerKit: "blade",
-          durationSeconds: 60,
-          enemyScale: 1,
-          objectiveOrder: ["first-job-check"],
-          objectiveKits: { "first-job-check": "skirmisher" },
-        },
-        "second-job": {
-          arenaKit: "lane",
-          playerKit: "staff",
-          durationSeconds: 75,
-          enemyScale: 1,
-          objectiveOrder: ["second-job-check"],
-          objectiveKits: { "second-job-check": "duelist" },
-        },
-      },
-    },
-  },
 };
 
 export function workshopSkeleton(): string {

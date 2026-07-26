@@ -1,6 +1,5 @@
 import { z } from "zod";
 import "./abi13.js";
-import "./abi14.js";
 import type {
   CartridgeStateDefinition,
   CartridgeStateEffect,
@@ -12,7 +11,6 @@ import { compareCodepoints } from "./determinism.js";
 import { validateArc as validateBaseArc } from "./schema-base.js";
 import type { Arc } from "./types.js";
 import { assertEngineCompatible, compareEngineVersions } from "./version.js";
-import { actionProfileErrors } from "./action/profile.js";
 
 const Id = z.string().min(1);
 const StateVisibilitySchema = z.enum(["public", "operator", "private"]);
@@ -363,8 +361,7 @@ function buildArc(input: unknown): { arc?: Arc; errors: string[] } {
     ...(founding ? { founding } : {}),
     challenges,
   };
-  errors.push(...actionProfileErrors(arc));
-  return errors.length > 0 ? { errors } : { arc, errors: [] };
+  return { arc, errors: [] };
 }
 
 export const ArcSchema: z.ZodType<Arc, z.ZodTypeDef, unknown> = z.unknown().superRefine((input, ctx) => {

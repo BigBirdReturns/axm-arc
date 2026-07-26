@@ -5,24 +5,7 @@ backlog in `HANDOFF.md` (that backlog is still accurate as a task list; this
 doc reframes *why* and *in what order*). If you're an agent or contributor
 picking up cold, read this first.
 
-## Current completion overlay — 2026-07-26
-
-The next product train extends the same cartridge authority into human-skill
-action play without creating a second campaign engine. Engine 1.4 now owns a
-bounded action profile, generic challenge compiler, 30 Hz integer simulation,
-exact replay receipt, cycle adjudication, and guided Workshop controls. The Arc
-estate proves all 48 current challenges compile and clear through one kernel.
-Rodoh World must now render and control that exact law, return the exact receipt,
-and meet desktop/mobile performance and custody gates. See
-`docs/ACTION_RUNTIME_V1.md`.
-
-The strategic boundary remains unchanged: Arc owns authored and executable law;
-players own replaceable presentation and input capture. No player may reroll or
-reinterpret an action result after the receipt verifies.
-
----
-
-## Previous completion overlay — 2026-07-22
+## Current completion overlay — 2026-07-22
 
 The local-first product parity train closes the previous unevenness between the
 reference game, authoring tools, and World expression:

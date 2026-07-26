@@ -20,7 +20,9 @@ custody, complete reference campaigns, authoring, responsive World expression,
 local pixel/vector assets, bilingual chrome, sensory preferences, and access
 fallbacks are protected by dedicated Arc and World parity workflows. Engine 1.3
 adds bounded creator-authored state and declarative composition law for Dark Tomb
-and Common Ship source planes; see `docs/ENGINE_1_3_STATE_COMPOSITION.md`. The
+and Common Ship source planes; see `docs/ENGINE_1_3_STATE_COMPOSITION.md`. Engine
+1.4 adds cartridge-derived fixed-step action law, exact replay receipts, cycle
+adjudication, and guided action authoring; see `docs/ACTION_RUNTIME_V1.md`. The
 Lamp District and Dark Tomb Forge close the Arc-side Book II campaign and
 authoring gate; see `docs/LAMP_DISTRICT_ACCEPTANCE.md`. Multiplayer, cloud sync,
 marketplace, publisher signing, cinematic media, and
@@ -54,13 +56,13 @@ finished as a game; it is also not the boundary of the system.
 
 | Layer | Path | What it does |
 |---|---|---|
-| **Engine** | `src/engine/` | Generic deterministic simulation. Resolver, stress/morale/affliction cascade, relationship state machine, drama event cards, bounded cartridge state, declarative composition, recruitment, save/load, and exact receipts. Content-free — zero imports from `src/arcs/`. |
+| **Engine** | `src/engine/` | Generic deterministic simulation. Statistical resolver, fixed-step action adjudication, stress/morale/affliction cascade, relationship state machine, drama event cards, bounded cartridge state, declarative composition, recruitment, save/load, and exact receipts. Content-free — zero imports from `src/arcs/`. |
 | **Arc format** | `src/arcs/` | Portable deterministic scenario definitions. The four bundled references now cover the tutorial guild, large-roster campaign, Book I pocket, and Book II Dark Tomb forms. |
 | **Godscar source planes** | `src/godscar/`, `src/dark-tomb/`, `src/common-ship/`, `src/source-planes/` | Creator-owned Pocket, Dark Tomb, and Common Ship grammars plus the one registry connecting formats, validators, compilers, starters, and exact source recovery. The Lamp District is the canonical Book II source and cartridge. |
-| **Authoring + custody** | `src/game/`, `docs/RFC_WORKSHOP.md`, `docs/RFC_CARTRIDGE_LIBRARY.md` | Library, Workshop, writable Designer, guided/source Pocket and Dark Tomb Forges, validation, authoring QA, bounded campaign simulation, digest/profile, import/export, installation, and explicit custody receipts. |
+| **Authoring + custody** | `src/game/`, `docs/RFC_WORKSHOP.md`, `docs/RFC_CARTRIDGE_LIBRARY.md` | Library, Workshop, writable Designer, guided/source Pocket and Dark Tomb Forges, bounded action authoring, validation, authoring QA, campaign simulation, digest/profile, import/export, installation, and explicit custody receipts. |
 | **Institutional record** | `src/game/lib/ledger.ts`, `docs/RFC_TIER2_LEDGER_SCHEMA.md` | Append-only committed consequences, compatibility projection, Guild Hall, and Expansion Archive. |
 | **Reference game UI** | `src/game/` | React PWA and proof cartridges used to finish a compelling game while exercising the general model and record contract. |
-| **Tests** | `tests/engine/`, `tests/game/`, `tests/sim/`, `tests/dark-tomb/` | Complete engine, custody, authoring, campaign, localization, sensory, and product-parity suites, including exact Lamp District artifacts, multi-seed completion, and inherited Tomb-state acceptance. |
+| **Tests** | `tests/engine/`, `tests/action/`, `tests/game/`, `tests/sim/`, `tests/dark-tomb/` | Complete engine, action replay, custody, authoring, campaign, localization, sensory, and product-parity suites, including exact Lamp District artifacts, multi-seed completion, inherited Tomb-state acceptance, and all-cartridge action compilation. |
 | **Landing page** | `docs/index.html` | AXM House Style static page. Live at [bigbirdreturns.github.io/axm-arc](https://bigbirdreturns.github.io/axm-arc/). |
 | **Game (built)** | `docs/game/` | Compiled PWA output. Live at [bigbirdreturns.github.io/axm-arc/game](https://bigbirdreturns.github.io/axm-arc/game/). |
 | **Design authority** | `DESIGN.md`, `docs/WAKING_TOWER_DESIGN_AUTHORITY.md` | The system design authority plus the explicit Waking Tower player-facing, compatibility-id, World-projection, and change-control boundary. |
@@ -93,6 +95,8 @@ No accounts, no keys, no cloud. Or just [play in the browser](https://bigbirdret
 **Cartridge state.** Engine 1.3 initializes creator-declared number, enum, and boolean state, validates bounded effects, and writes exact before-and-after receipts into the run report and cycle event stream.
 
 **Composition law.** Engine 1.3 evaluates bounded role, profile, tag, metric, range, fraction, redundancy, `all`, and `any` constraints through one deterministic authority used by both direct resolution and the full cycle.
+
+**Action adjudication.** Engine 1.4 compiles every ordinary challenge into bounded 30 Hz integer action law. A compatible player returns a complete input trace; Arc replays and verifies the exact receipt, then commits that human-skill result through the ordinary cycle without a statistical reroll.
 
 **Offline-first save.** Versioned, digest-bound JSON persists locally. Save v3 migrates exact-identity v2 saves and deterministically backfills any state declared by the bound cartridge; pre-digest v1 saves remain refused rather than relabelled. Arc-ID or digest mismatch throws. Your decisions persist across sessions and remain exportable.
 

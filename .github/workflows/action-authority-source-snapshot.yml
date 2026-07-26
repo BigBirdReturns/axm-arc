@@ -1,6 +1,7 @@
 name: Action authority source snapshot
 
 on:
+  pull_request:
   push:
     branches:
       - feature/action-runtime-authority-v1
@@ -10,7 +11,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: action-authority-source-snapshot
+  group: action-authority-source-snapshot-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -20,7 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: feature/action-runtime-authority-v1
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
       - uses: actions/upload-artifact@v4
         with:

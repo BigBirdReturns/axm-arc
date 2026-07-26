@@ -9,3 +9,4 @@ export * from "./engine-adapter.js";
 export * from "./qualification.js";
 export * from "./fingerprint.js";
 export * from "./recipe-validate.js";
+export * from "./audit.js";

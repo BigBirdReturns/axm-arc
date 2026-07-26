@@ -11,11 +11,11 @@ permissions:
   attestations: read
 
 concurrency:
-  group: verify-signed-arc-eb3fd
+  group: verify-signed-arc-331e9693
   cancel-in-progress: true
 
 env:
-  ARC_SIGNED_SHA: eb3fd7f53fd72641814cb3939648790e64e9adcf
+  ARC_SIGNED_SHA: 331e9693d3210a1b66de0c5ee3931645bfcbc053
   SOURCE_DATE_EPOCH: '0'
   CI: 'true'
 
@@ -72,7 +72,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: verified-signed-arc-eb3fd
+          name: verified-signed-arc-331e9693
           path: evidence
           if-no-files-found: error
           retention-days: 30

@@ -258,9 +258,12 @@ describe("beat and obligation ledger", () => {
     });
     const selection = sortNarrativeCandidates(constitution, state, [candidate]);
 
-    expect(selection.selectedCandidateId).toBe("candidate-open");
+    expect(selection.selectedCandidateId).toBeNull();
+    expect(selection.rejected[0]?.failures).toContainEqual(
+      expect.objectContaining({ code: "missing-identity-anchor" }),
+    );
     expect(() => commitNarrativeSelection(constitution, state, [candidate], selection)).toThrow(
-      /Presentation candidates cannot enter/,
+      "Narrative selection contains no candidate to commit",
     );
   });
 

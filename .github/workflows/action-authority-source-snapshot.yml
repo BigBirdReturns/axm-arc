@@ -2,7 +2,8 @@ name: Action authority source snapshot
 
 on:
   push:
-    branches: [feature/action-runtime-authority-v1]
+    branches:
+      - feature/action-runtime-authority-v1
   workflow_dispatch:
 
 permissions:

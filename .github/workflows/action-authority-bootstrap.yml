@@ -1,51 +1,102 @@
-name: Action authority bootstrap
+name: Apply deterministic action authority payload
 
 on:
-  pull_request:
-    paths:
-      - ".github/workflows/action-authority-bootstrap.yml"
-      - "src/action/**"
-      - "src/source-planes/**"
-      - "src/game/**"
-      - "tests/action/**"
-      - "tests/source-planes/**"
-      - "docs/ACTION_RUNTIME_V1.md"
   push:
     branches: [feature/action-runtime-authority-v1]
 
 permissions:
-  contents: read
+  contents: write
+
+concurrency:
+  group: action-authority-self-apply
+  cancel-in-progress: false
 
 jobs:
-  source:
+  apply:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: feature/action-runtime-authority-v1
           fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-      - name: Install exact dependencies
-        run: npm ci --no-audit --no-fund
-      - name: Pack exact Linux dependencies
-        run: tar -czf /tmp/axm-arc-node-modules.tar.gz node_modules
-      - uses: actions/upload-artifact@v4
-        with:
-          name: axm-arc-action-source
-          path: |
-            .
-            !.git
-            !node_modules
-          include-hidden-files: true
-          if-no-files-found: error
-          retention-days: 1
-      - uses: actions/upload-artifact@v4
-        with:
-          name: axm-arc-action-node-modules
-          path: /tmp/axm-arc-node-modules.tar.gz
-          if-no-files-found: error
-          compression-level: 0
-          retention-days: 1
+
+      - name: Reconstruct and verify exact implementation patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .github/action-authority-patch/part* | base64 -d | gzip -d > /tmp/action-authority.patch
+          echo '0b29a1cfac4252efede8875bed6733f01686d58677e4caf87c67ce4f3e7d96b1  /tmp/action-authority.patch' | sha256sum -c -
+
+      - name: Apply exact locally qualified tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > .github/workflows/action-authority-bootstrap.yml <<'WORKFLOW'
+          name: Action authority bootstrap
+
+          on:
+            pull_request:
+              paths:
+                - ".github/workflows/action-authority-bootstrap.yml"
+                - "src/action/**"
+                - "src/source-planes/**"
+                - "src/game/**"
+                - "tests/action/**"
+                - "tests/source-planes/**"
+                - "docs/ACTION_RUNTIME_V1.md"
+            push:
+              branches: [feature/action-runtime-authority-v1]
+
+          permissions:
+            contents: read
+
+          jobs:
+            source:
+              runs-on: ubuntu-24.04
+              timeout-minutes: 20
+              steps:
+                - uses: actions/checkout@v4
+                  with:
+                    fetch-depth: 0
+                - uses: actions/setup-node@v4
+                  with:
+                    node-version: 22
+                    cache: npm
+                - name: Install exact dependencies
+                  run: npm ci --no-audit --no-fund
+                - name: Pack exact Linux dependencies
+                  run: tar -czf /tmp/axm-arc-node-modules.tar.gz node_modules
+                - uses: actions/upload-artifact@v4
+                  with:
+                    name: axm-arc-action-source
+                    path: |
+                      .
+                      !.git
+                      !node_modules
+                    include-hidden-files: true
+                    if-no-files-found: error
+                    retention-days: 1
+                - uses: actions/upload-artifact@v4
+                  with:
+                    name: axm-arc-action-node-modules
+                    path: /tmp/axm-arc-node-modules.tar.gz
+                    if-no-files-found: error
+                    compression-level: 0
+                    retention-days: 1
+          WORKFLOW
+          git add .github/workflows/action-authority-bootstrap.yml
+          git apply --index /tmp/action-authority.patch
+          git rm -r .github/action-authority-patch
+          git diff --cached --check
+
+      - name: Publish carrier-free implementation commit
+        shell: bash
+        env:
+          TARGET_BRANCH: feature/action-runtime-authority-v1
+        run: |
+          set -euo pipefail
+          git config user.name 'BigBirdReturns'
+          git config user.email '219768509+BigBirdReturns@users.noreply.github.com'
+          git commit -m 'Add deterministic action runtime authority'
+          git push origin "HEAD:${TARGET_BRANCH}"

@@ -26,7 +26,44 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cat .github/action-authority-patch/part* | base64 -d | gzip -d > /tmp/action-authority.patch
+          verify_blob() {
+            local expected="$1"
+            local path="$2"
+            local actual
+            actual="$(git hash-object "$path")"
+            if [ "$actual" != "$expected" ]; then
+              echo "payload blob mismatch: $path expected=$expected actual=$actual" >&2
+              exit 1
+            fi
+          }
+          verify_blob 6f6d2bec5c26e988a69b043e72d5056cc6becd45 .github/action-authority-patch/part00
+          verify_blob ac73a785ea57aac0ba09d55ad730bb769885474f .github/action-authority-patch/part01
+          verify_blob 97acd809541b990ddc53f85b74690ca9a6697534 .github/action-authority-patch/part02
+          verify_blob fdec3ebbef23f2dee10c37ac8827622dfcfd32d6 .github/action-authority-patch/part03x0
+          verify_blob 8f71dd212e90b73af07ad7d0ae3dedd79e0b1fe6 .github/action-authority-patch/part03x1
+          verify_blob 25308debf41b1c0694327bda512aad091df61026 .github/action-authority-patch/part03x2
+          verify_blob 2daec15c233d92841772062bc3433f185aa4192e .github/action-authority-patch/part03y0
+          verify_blob 511ee5e442086e0519d81ce0769045c6073e117d .github/action-authority-patch/part03y1
+          verify_blob e2e282ee5fea3df8c1943fd1b3e47733dfb3537e .github/action-authority-patch/part03y2
+          verify_blob 3d443cc272005835bc5e695415ff4f3a477db301 .github/action-authority-patch/part03y3
+          verify_blob 59de012204c52b65ac38610b17da1ea20d7c3d3b .github/action-authority-patch/part04
+          verify_blob 6619aac38630d86f4f77b577dc1a9844350b8d7a .github/action-authority-patch/part05
+          verify_blob b0ff4b8bf795c59d9d084948fd2079f313baf2d6 .github/action-authority-patch/part06
+          cat \
+            .github/action-authority-patch/part00 \
+            .github/action-authority-patch/part01 \
+            .github/action-authority-patch/part02 \
+            .github/action-authority-patch/part03x0 \
+            .github/action-authority-patch/part03x1 \
+            .github/action-authority-patch/part03x2 \
+            .github/action-authority-patch/part03y0 \
+            .github/action-authority-patch/part03y1 \
+            .github/action-authority-patch/part03y2 \
+            .github/action-authority-patch/part03y3 \
+            .github/action-authority-patch/part04 \
+            .github/action-authority-patch/part05 \
+            .github/action-authority-patch/part06 \
+            | base64 -d | gzip -d > /tmp/action-authority.patch
           echo '0b29a1cfac4252efede8875bed6733f01686d58677e4caf87c67ce4f3e7d96b1  /tmp/action-authority.patch' | sha256sum -c -
 
       - name: Apply exact locally qualified tree

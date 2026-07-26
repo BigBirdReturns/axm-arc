@@ -1,0 +1,78 @@
+name: Verify signed Arc release head
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/verify-signed-arc-eb3fd.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  attestations: read
+
+concurrency:
+  group: verify-signed-arc-eb3fd
+  cancel-in-progress: true
+
+env:
+  ARC_SIGNED_SHA: eb3fd7f53fd72641814cb3939648790e64e9adcf
+  SOURCE_DATE_EPOCH: '0'
+  CI: 'true'
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Check out the exact signed Arc head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.ARC_SIGNED_SHA }}
+          fetch-depth: 0
+          show-progress: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Rebuild the exact deterministic Arc subject
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$ARC_SIGNED_SHA"
+          test -z "$(git status --porcelain)"
+          npm run typecheck
+          npm test -- tests/release/supply-chain.test.ts
+          npm test
+          npm run build
+          mkdir -p evidence/artifacts evidence/verification
+          tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner -cf evidence/artifacts/axm-arc-game.tar -C docs game
+          gzip -n evidence/artifacts/axm-arc-game.tar
+          sha256sum evidence/artifacts/axm-arc-game.tar.gz | tee evidence/verification/subject.sha256
+      - name: Verify Arc build provenance and CycloneDX attestations online
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          common=(
+            evidence/artifacts/axm-arc-game.tar.gz
+            --repo BigBirdReturns/axm-arc
+            --signer-workflow BigBirdReturns/axm-arc/.github/workflows/supply-chain-evidence.yml
+            --source-digest "$ARC_SIGNED_SHA"
+            --source-ref refs/heads/main
+            --format json
+          )
+          gh attestation verify "${common[@]}" \
+            --predicate-type https://slsa.dev/provenance/v1 \
+            > evidence/verification/build-provenance.json
+          gh attestation verify "${common[@]}" \
+            --predicate-type https://cyclonedx.org/bom \
+            > evidence/verification/cyclonedx.json
+          test -s evidence/verification/build-provenance.json
+          test -s evidence/verification/cyclonedx.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: verified-signed-arc-eb3fd
+          path: evidence
+          if-no-files-found: error
+          retention-days: 30

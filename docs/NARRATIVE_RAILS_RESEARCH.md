@@ -156,3 +156,57 @@ AXM
 ```
 
 The control question is whether a new team can create material the old team never imagined while every accepted beat still demonstrates the universe's characteristic pressures, actor methods, causal inheritance, and persistent cost.
+
+## 11. Causal width and detachable material
+
+Birchmeier and Ware define causal width as the number of actions in a sequence that are not necessary for a later action or author or character goal. Their results support using lower causal width as a ranking and pruning signal in narrative planning.
+
+Borrowed shape: audit committed beats for downstream causal use, distinguish active frontier from detached residue, and qualify long-run campaigns rather than only local scenes.  
+Rejected claim: the first AXM implementation is a semantic necessity proof. It measures explicit structural dependency until preconditions and effects support counterfactual replay.
+
+Source: Gage Birchmeier and Stephen G. Ware, “Speeding Up Narrative Planning with Causal Width Search and Pruning,” AIIDE 2025.  
+https://ojs.aaai.org/index.php/AIIDE/article/view/36823
+
+## 12. Intention, risk, and rational alternatives
+
+Glaive requires actions to be motivated and goal-oriented toward individual character goals. Later Pareto-based narrative planning observes that merely contributing to a goal is insufficient when the same action sacrifices a more important goal or incurs unnecessary risk. It proposes selecting character policies from a Pareto front of strong and safe alternatives.
+
+Borrowed shape: every acting character must have an inspectable intention claim, and candidate alternatives should be compared on goal progress and risk rather than accepted because they bear a characteristic voice tag.  
+Rejected shape: perfectly optimal characters. AXM needs believable bounded choices, including justified mistakes, sacrifices, and intention revision.
+
+Sources:
+
+- Stephen Ware and R. Michael Young, “Glaive: A State-Space Narrative Planner Supporting Intentionality and Conflict,” AIIDE 2014.  
+  https://ojs.aaai.org/index.php/AIIDE/article/view/12712
+- Molly Siler, Mira Fisher, and Stephen G. Ware, “Pareto-Based Narrative Planning: Making NPCs More Rational,” AIIDE 2025.  
+  https://ojs.aaai.org/index.php/AIIDE/article/view/36837
+
+## 13. Knowledge, belief, and failed action
+
+HeadSpace and related belief-compilation work show that actors can pursue intentions using limited or incorrect beliefs, fail because their model of the world is wrong, learn, and communicate. Fog of War pruning further limits available actions to people, places, and things the protagonist has discovered.
+
+Borrowed shape: actor moves must cite facts within that actor's knowledge or belief estate; discovery and communication become explicit state transitions; failed actions can remain causally valid when the attempt was justified by the actor's beliefs.  
+Rejected shape: an omniscient story room silently lending author knowledge to every character.
+
+Sources:
+
+- Rushit Sanghrajka, R. Michael Young, and Brandon Thorne, “HeadSpace: Incorporating Action Failure and Character Beliefs into Narrative Planning,” AIIDE 2022.  
+  https://ojs.aaai.org/index.php/AIIDE/article/view/21961
+- Matthew Christensen, Jennifer M. Nelson, and Rogelio E. Cardona-Rivera, “Using Domain Compilation to Add Belief to Narrative Planners,” AIIDE 2020.  
+  https://ojs.aaai.org/index.php/AIIDE/article/view/7405
+- Lasantha Senanayake and Stephen G. Ware, “Speeding Up Narrative Planning Using Fog of War Pruning,” AIIDE 2025.  
+  https://ojs.aaai.org/index.php/AIIDE/article/view/36816
+
+## 14. Generative models as proposal engines
+
+PANGeA separates generative flexibility from validation and memory, reporting large accuracy improvements in its evaluated scenarios when model outputs pass through its validation system. There and Back Again similarly separates fluent language generation from formal, controllable story domains and plans.
+
+Borrowed shape: language models may propose recipes, actor bindings, expression, or formal domains, but accepted material must compile into typed AXM authority and pass deterministic qualification.  
+Rejected shape: treating model fluency or self-evaluation as the canonical execution boundary.
+
+Sources:
+
+- Steph Buongiorno et al., “PANGeA: Procedural Artificial Narrative Using Generative AI for Turn-Based, Role-Playing Video Games,” AIIDE 2024.  
+  https://ojs.aaai.org/index.php/AIIDE/article/view/31876
+- Jack Kelly et al., “There and Back Again: Extracting Formal Domains for Controllable Neurosymbolic Story Authoring,” AIIDE 2023.  
+  https://ojs.aaai.org/index.php/AIIDE/article/view/27502

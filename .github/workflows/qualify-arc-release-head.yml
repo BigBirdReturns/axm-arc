@@ -1,0 +1,89 @@
+name: Qualify exact Arc release head
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/qualify-arc-release-head.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qualify-exact-arc-release-head
+  cancel-in-progress: true
+
+env:
+  ARC_RELEASE_SHA: 547c74f4622f63b203d6601173eec6d569c780f3
+  CI: 'true'
+  SOURCE_DATE_EPOCH: '0'
+
+jobs:
+  qualify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Check out the exact Arc release head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.ARC_RELEASE_SHA }}
+          path: arc
+          fetch-depth: 0
+          show-progress: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: arc/package-lock.json
+      - name: Install exact dependencies
+        run: npm --prefix arc ci --no-audit --no-fund
+      - name: Qualify exact source and product
+        run: |
+          set -euo pipefail
+          test "$(git -C arc rev-parse HEAD)" = "$ARC_RELEASE_SHA"
+          test -z "$(git -C arc status --porcelain)"
+          git -C arc diff --check
+          npm --prefix arc run typecheck
+          npm --prefix arc test -- tests/release/supply-chain.test.ts
+          npm --prefix arc test
+          npm --prefix arc run build
+      - name: Assemble and verify deterministic evidence
+        working-directory: arc
+        run: |
+          set -euo pipefail
+          mkdir -p evidence/artifacts evidence/sbom
+          tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner -cf evidence/artifacts/axm-arc-game.tar -C docs game
+          gzip -n evidence/artifacts/axm-arc-game.tar
+          node scripts/supply-chain/generate-cyclonedx.mjs \
+            --lock package-lock.json \
+            --package package.json \
+            --commit "$ARC_RELEASE_SHA" \
+            --output evidence/sbom/axm-arc.cdx.json
+          LOCK_SHA="$(sha256sum package-lock.json | cut -d' ' -f1)"
+          node scripts/supply-chain/generate-provenance.mjs \
+            --subject evidence/artifacts/axm-arc-game.tar.gz \
+            --output evidence/provenance.intoto.json \
+            --repository BigBirdReturns/axm-arc \
+            --commit "$ARC_RELEASE_SHA" \
+            --ref refs/heads/main \
+            --workflow .github/workflows/supply-chain-evidence.yml \
+            --invocation exact-release-qualification \
+            --node "$(node --version)" \
+            --npm "$(npm --version)" \
+            --dependency "axm-arc-package-lock=$LOCK_SHA"
+          (
+            cd evidence
+            {
+              find artifacts sbom -type f -print0
+              printf '%s\0' provenance.intoto.json
+            } | sort -z | xargs -0 sha256sum > SHA256SUMS
+          )
+          node scripts/supply-chain/verify-offline-evidence.mjs --root evidence
+      - name: Upload exact Arc evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-arc-release-head-evidence
+          path: arc/evidence
+          if-no-files-found: error
+          retention-days: 30

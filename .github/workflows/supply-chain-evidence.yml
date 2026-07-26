@@ -2,28 +2,15 @@ name: Arc supply-chain evidence
 
 on:
   pull_request:
-    paths:
-      - 'scripts/supply-chain/**'
-      - 'tests/release/supply-chain.test.ts'
-      - 'docs/SUPPLY_CHAIN_CUSTODY.md'
-      - 'package.json'
-      - 'package-lock.json'
-      - '.github/workflows/supply-chain-evidence.yml'
   push:
     branches: [main]
-    paths:
-      - 'scripts/supply-chain/**'
-      - 'tests/release/supply-chain.test.ts'
-      - 'docs/SUPPLY_CHAIN_CUSTODY.md'
-      - 'package.json'
-      - 'package-lock.json'
-      - '.github/workflows/supply-chain-evidence.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
   id-token: write
   attestations: write
+  artifact-metadata: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -36,7 +23,7 @@ env:
 jobs:
   evidence:
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    timeout-minutes: 120
     steps:
       - name: Check out exact Arc candidate
         uses: actions/checkout@v4
@@ -54,29 +41,31 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = '${{ github.event.pull_request.head.sha || github.sha }}'
+          test -z "$(git status --porcelain)"
           git diff --check
           npm run typecheck
           npm test -- tests/release/supply-chain.test.ts
           npm test
           npm run build
-      - name: Assemble deterministic Arc evidence subjects
+      - name: Assemble and verify deterministic Arc evidence
         shell: bash
         run: |
           set -euo pipefail
+          ARC_SHA='${{ github.event.pull_request.head.sha || github.sha }}'
           mkdir -p evidence/artifacts evidence/sbom evidence/attestations
           tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner -cf evidence/artifacts/axm-arc-game.tar -C docs game
           gzip -n evidence/artifacts/axm-arc-game.tar
           node scripts/supply-chain/generate-cyclonedx.mjs \
             --lock package-lock.json \
             --package package.json \
-            --commit '${{ github.event.pull_request.head.sha || github.sha }}' \
+            --commit "$ARC_SHA" \
             --output evidence/sbom/axm-arc.cdx.json
           LOCK_SHA="$(sha256sum package-lock.json | cut -d' ' -f1)"
           node scripts/supply-chain/generate-provenance.mjs \
             --subject evidence/artifacts/axm-arc-game.tar.gz \
             --output evidence/provenance.intoto.json \
             --repository "$GITHUB_REPOSITORY" \
-            --commit '${{ github.event.pull_request.head.sha || github.sha }}' \
+            --commit "$ARC_SHA" \
             --ref "$GITHUB_REF" \
             --workflow "$GITHUB_WORKFLOW_REF" \
             --invocation "$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" \
@@ -90,7 +79,15 @@ jobs:
               printf '%s\0' provenance.intoto.json
             } | sort -z | xargs -0 sha256sum > SHA256SUMS
           )
-          node scripts/supply-chain/verify-offline-evidence.mjs --root evidence
+          node scripts/supply-chain/verify-offline-evidence.mjs \
+            --root evidence \
+            --require-subject artifacts/axm-arc-game.tar.gz \
+            --exact-subjects \
+            --require-sbom sbom/axm-arc.cdx.json \
+            --exact-sboms \
+            --expected-repository "$GITHUB_REPOSITORY" \
+            --commit "$ARC_SHA" \
+            --expected-workflow "$GITHUB_WORKFLOW_REF"
       - name: Attest Arc build provenance
         if: github.event_name != 'pull_request'
         id: arc-provenance
@@ -104,21 +101,49 @@ jobs:
         with:
           subject-path: evidence/artifacts/axm-arc-game.tar.gz
           sbom-path: evidence/sbom/axm-arc.cdx.json
-      - name: Preserve and verify offline Arc attestation material
+      - name: Preserve and verify signed Arc evidence
         if: github.event_name != 'pull_request'
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          ARC_SHA='${{ github.sha }}'
           cp '${{ steps.arc-provenance.outputs.bundle-path }}' evidence/attestations/axm-arc-build-provenance.jsonl
           cp '${{ steps.arc-sbom.outputs.bundle-path }}' evidence/attestations/axm-arc-sbom.jsonl
           gh attestation trusted-root > evidence/attestations/trusted_root.jsonl
-          node scripts/supply-chain/verify-offline-evidence.mjs \
-            --root evidence \
-            --bundle evidence/attestations/axm-arc-build-provenance.jsonl \
-            --trusted-root evidence/attestations/trusted_root.jsonl \
-            --repo "$GITHUB_REPOSITORY" \
-            --attested-subject artifacts/axm-arc-game.tar.gz \
+          (
+            cd evidence
+            {
+              find artifacts sbom attestations -type f -print0
+              printf '%s\0' provenance.intoto.json
+            } | sort -z | xargs -0 sha256sum > SHA256SUMS
+          )
+          common=(
+            --root evidence
+            --require-subject artifacts/axm-arc-game.tar.gz
+            --exact-subjects
+            --require-sbom sbom/axm-arc.cdx.json
+            --exact-sboms
+            --expected-repository "$GITHUB_REPOSITORY"
+            --commit "$ARC_SHA"
+            --expected-workflow "$GITHUB_WORKFLOW_REF"
+            --trusted-root attestations/trusted_root.jsonl
+            --repo "$GITHUB_REPOSITORY"
+            --attested-subject artifacts/axm-arc-game.tar.gz
+            --signer-workflow BigBirdReturns/axm-arc/.github/workflows/supply-chain-evidence.yml
+            --source-digest "$ARC_SHA"
+            --source-ref "$GITHUB_REF"
             --require-signature
+          )
+          node scripts/supply-chain/verify-offline-evidence.mjs \
+            "${common[@]}" \
+            --bundle attestations/axm-arc-build-provenance.jsonl \
+            --predicate-type https://slsa.dev/provenance/v1
+          node scripts/supply-chain/verify-offline-evidence.mjs \
+            "${common[@]}" \
+            --bundle attestations/axm-arc-sbom.jsonl \
+            --predicate-type https://cyclonedx.org/bom
       - name: Upload Arc supply-chain evidence
         if: always()
         uses: actions/upload-artifact@v4

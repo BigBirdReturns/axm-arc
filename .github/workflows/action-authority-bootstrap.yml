@@ -1,8 +1,8 @@
 name: Apply deterministic action authority payload
 
 on:
-  push:
-    branches: [feature/action-runtime-authority-v1]
+  pull_request:
+    types: [edited]
 
 permissions:
   contents: write
@@ -13,6 +13,7 @@ concurrency:
 
 jobs:
   apply:
+    if: github.event.pull_request.head.ref == 'feature/action-runtime-authority-v1'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:

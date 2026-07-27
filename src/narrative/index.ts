@@ -11,4 +11,5 @@ export * from "./fingerprint.js";
 export * from "./recipe-validate.js";
 export * from "./audit.js";
 export * from "./agency-types.js";
+export * from "./action-receipt-seam.js";
 export * as narrativeSuccession from "./succession/index.js";

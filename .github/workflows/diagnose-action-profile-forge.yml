@@ -42,6 +42,11 @@ jobs:
           start = next(index for index, line in enumerate(lines) if line.strip() == "python - <<'PY'") + 1
           end = next(index for index in range(start, len(lines)) if lines[index].strip() == 'PY')
           script = '\n'.join(line[10:] if line.startswith('          ') else line for line in lines[start:end]) + '\n'
+          old = 'arc.extensions = { ...(arc.extensions ?? {}), [ACTION_EXTENSION_KEY]: profile };'
+          new = 'arc.extensions = { ...(arc.extensions ?? {}), [ACTION_EXTENSION_KEY]: JSON.parse(JSON.stringify(profile)) };'
+          if script.count(old) != 1:
+              raise SystemExit(f'profile JSON-boundary anchor count: {script.count(old)}')
+          script = script.replace(old, new)
           exec(compile(script, '<forge-candidate-transform>', 'exec'), {'__name__': '__main__'})
           PY
           git diff --check
@@ -89,10 +94,23 @@ jobs:
         run: |
           set -o pipefail
           npm run build 2>&1 | tee "$RUNNER_TEMP/forge-diagnostics/product-build.log"
+      - name: Export permanent candidate files
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/forge-candidate"
+          mkdir -p "$root/tools/action-profile-forge/examples" "$root/tests/action"
+          cp package.json "$root/"
+          cp tools/action-profile-forge/app.js tools/action-profile-forge/index.html tools/action-profile-forge/profile-forge.mjs tools/action-profile-forge/profile-forge.test.mjs "$root/tools/action-profile-forge/"
+          cp tools/action-profile-forge/examples/*.json "$root/tools/action-profile-forge/examples/"
+          cp tests/action/action-profile-forge-template.test.ts "$root/tests/action/"
+          (cd "$root" && find . -type f -print0 | sort -z | xargs -0 sha256sum > QUALIFIED_SHA256SUMS)
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: action-profile-forge-diagnostics
-          path: ${{ runner.temp }}/forge-diagnostics
+          path: |
+            ${{ runner.temp }}/forge-diagnostics
+            ${{ runner.temp }}/forge-candidate
           if-no-files-found: warn
           retention-days: 7

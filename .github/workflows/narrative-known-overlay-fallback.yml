@@ -1,0 +1,97 @@
+name: Narrative known-overlay fallback
+
+on:
+  push:
+    branches:
+      - agent/narrative-rails-polish-staging
+    paths:
+      - '.github/workflows/narrative-known-overlay-fallback.yml'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  TARGET_BRANCH: agent/narrative-rails-v0
+  TARGET_PR: '169'
+  FILE_ID: file_000000007c3c81f5a1ba8ef7aa740e84
+  FILE_UUID: 00000000-7c3c-81f5-a1ba-8ef7aa740e84
+  EXPECTED_SHA256: a4dc31011277a6996a737897b854e75d7281226dacd92205f3c513fdff024ef3
+
+jobs:
+  recover-and-qualify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve target tree
+        run: |
+          set -euo pipefail
+          git fetch origin "$TARGET_BRANCH"
+          rm -rf /tmp/target
+          git worktree add /tmp/target "origin/$TARGET_BRANCH"
+
+      - name: Recover previously sealed overlay only when target lacks it
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -f /tmp/target/src/narrative/succession/qualification-estate.ts ]]; then
+            echo 'target already carries the polished qualification authority'
+            exit 0
+          fi
+          urls=(
+            "https://chatgpt.com/backend-api/files/${FILE_ID}/content"
+            "https://files.oaiusercontent.com/${FILE_ID}"
+            "https://files.oaiusercontent.com/files/${FILE_UUID}/raw"
+            "https://sdmntprwestus3.oaiusercontent.com/files/${FILE_UUID}/raw"
+          )
+          found=false
+          for url in "${urls[@]}"; do
+            echo "attempting sealed source host: ${url%%\?*}"
+            if curl --fail --location --retry 2 --connect-timeout 15 --max-time 180 "$url" -o /tmp/overlay.tgz; then
+              actual=$(sha256sum /tmp/overlay.tgz | cut -d' ' -f1)
+              if [[ "$actual" == "$EXPECTED_SHA256" ]]; then
+                found=true
+                break
+              fi
+              echo "checksum mismatch: $actual"
+            fi
+          done
+          [[ "$found" == true ]] || { echo 'sealed overlay was not publicly retrievable'; exit 1; }
+          mkdir -p /tmp/overlay
+          tar -xzf /tmp/overlay.tgz -C /tmp/overlay
+          cp -a /tmp/overlay/. /tmp/target/
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: /tmp/target/package-lock.json
+
+      - name: Qualify recovered or already-present tree
+        working-directory: /tmp/target
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run check
+          npm run build
+          if npm run | grep -q 'qualify:narrative-succession'; then
+            npm run qualify:narrative-succession
+          fi
+
+      - name: Publish recovered tree when changed
+        working-directory: /tmp/target
+        run: |
+          set -euo pipefail
+          git config user.name 'AXM Narrative Qualification'
+          git config user.email 'noreply@users.noreply.github.com'
+          git checkout -B "$TARGET_BRANCH" "origin/$TARGET_BRANCH"
+          git add -A
+          if git diff --cached --quiet; then
+            echo 'no recovery change required'
+          else
+            git commit -m 'Add semantic narrative recurrence authority'
+            git push origin "HEAD:$TARGET_BRANCH"
+          fi

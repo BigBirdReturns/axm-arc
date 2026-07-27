@@ -1,0 +1,132 @@
+name: Scan narrative publication history
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/scan-narrative-publication-history.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          show-progress: false
+      - name: Fetch every reachable branch and scan historical custody
+        shell: bash
+        run: |
+          set -u
+          root="$RUNNER_TEMP/narrative-history-scan"
+          mkdir -p "$root/recovered-polish" "$root/recovered-publish"
+          git fetch --force --no-tags origin '+refs/heads/*:refs/remotes/origin/*'
+          {
+            printf 'candidate=%s\n' "$(git rev-parse HEAD)"
+            printf 'declared_tree=c1f02183caa44d13e12b4f2816cf4c01bb525d7f\n'
+            if git cat-file -e 'c1f02183caa44d13e12b4f2816cf4c01bb525d7f^{tree}' 2>/dev/null; then
+              printf 'declared_tree_reachable=true\n'
+            else
+              printf 'declared_tree_reachable=false\n'
+            fi
+            printf 'remote_refs=%s\n' "$(git for-each-ref --format='%(refname)' refs/remotes/origin | wc -l)"
+          } > "$root/report.txt"
+
+          polish_paths=()
+          for index in $(seq -w 0 11); do polish_paths+=(".narrative-polish/chunk-$index"); done
+          polish_found=false
+          mapfile -t polish_commits < <(git rev-list --all -- .narrative-polish | awk '!seen[$0]++')
+          for commit in "${polish_commits[@]}"; do
+            complete=true
+            for path in "${polish_paths[@]}"; do
+              git cat-file -e "$commit:$path" 2>/dev/null || complete=false
+            done
+            [[ "$complete" == true ]] || continue
+            : > "$root/polish.b64"
+            rm -rf "$root/recovered-polish" && mkdir -p "$root/recovered-polish"
+            for path in "${polish_paths[@]}"; do
+              git show "$commit:$path" >> "$root/polish.b64"
+            done
+            b64_sha=$(sha256sum "$root/polish.b64" | cut -d' ' -f1)
+            printf 'polish_commit=%s b64_sha=%s bytes=%s\n' "$commit" "$b64_sha" "$(wc -c < "$root/polish.b64")" >> "$root/polish-candidates.txt"
+            python - "$root/polish.b64" "$root/polish.tgz" <<'PY'
+          import base64, pathlib, re, sys
+          source = pathlib.Path(sys.argv[1]).read_bytes()
+          compact = re.sub(rb'\s+', b'', source)
+          compact += b'=' * ((4 - len(compact) % 4) % 4)
+          pathlib.Path(sys.argv[2]).write_bytes(base64.b64decode(compact, validate=True))
+          PY
+            if tar -tzf "$root/polish.tgz" > "$root/polish-files.txt" 2>/dev/null; then
+              tgz_sha=$(sha256sum "$root/polish.tgz" | cut -d' ' -f1)
+              printf 'polish_decoded_commit=%s tgz_sha=%s members=%s\n' "$commit" "$tgz_sha" "$(wc -l < "$root/polish-files.txt")" >> "$root/report.txt"
+              if [[ "$b64_sha" == 28cfe8b3db63cbe7207040eacbcc2ba66735179c945a9df73a441523bb0908ad || "$tgz_sha" == 8908974b689c25702ac34609e10bfe0e3901a6158c0cf57bb9da58ceaef4098b ]]; then
+                printf 'matching_polish_commit=%s\n' "$commit" >> "$root/report.txt"
+                polish_found=true
+                break
+              fi
+            fi
+          done
+          printf 'matching_polish_found=%s\n' "$polish_found" >> "$root/report.txt"
+
+          publish_paths=(
+            .narrative-publish/chunk-00
+            .narrative-publish/chunk-01
+            .narrative-publish/chunk-02
+            .narrative-publish/chunk-03
+            .narrative-publish/chunk-04-05
+            .narrative-publish/chunk-06-07
+            .narrative-publish/chunk-08-final
+          )
+          publish_found=false
+          mapfile -t publish_commits < <(git rev-list --all -- .narrative-publish | awk '!seen[$0]++')
+          for commit in "${publish_commits[@]}"; do
+            complete=true
+            for path in "${publish_paths[@]}"; do
+              git cat-file -e "$commit:$path" 2>/dev/null || complete=false
+            done
+            [[ "$complete" == true ]] || continue
+            : > "$root/publish.b64"
+            for path in "${publish_paths[@]}"; do git show "$commit:$path" >> "$root/publish.b64"; done
+            b64_sha=$(sha256sum "$root/publish.b64" | cut -d' ' -f1)
+            printf 'publish_commit=%s b64_sha=%s bytes=%s\n' "$commit" "$b64_sha" "$(wc -c < "$root/publish.b64")" >> "$root/publish-candidates.txt"
+            python - "$root/publish.b64" "$root/publish.tgz" <<'PY'
+          import base64, pathlib, re, sys
+          source = pathlib.Path(sys.argv[1]).read_bytes()
+          compact = re.sub(rb'\s+', b'', source)
+          compact += b'=' * ((4 - len(compact) % 4) % 4)
+          pathlib.Path(sys.argv[2]).write_bytes(base64.b64decode(compact, validate=True))
+          PY
+            if tar -tzf "$root/publish.tgz" > "$root/publish-files.txt" 2>/dev/null; then
+              tgz_sha=$(sha256sum "$root/publish.tgz" | cut -d' ' -f1)
+              printf 'publish_decoded_commit=%s tgz_sha=%s members=%s\n' "$commit" "$tgz_sha" "$(wc -l < "$root/publish-files.txt")" >> "$root/report.txt"
+              if [[ "$b64_sha" == 4a4c69324f2d914c2716a899861eca24f38342856c511b00b729301201a0009c || "$tgz_sha" == e1153e35a93d8cd4262b898edfcab25afe513bb35bf8f69964edd3797821313d ]]; then
+                printf 'matching_publish_commit=%s\n' "$commit" >> "$root/report.txt"
+                publish_found=true
+                break
+              fi
+            fi
+          done
+          printf 'matching_publish_found=%s\n' "$publish_found" >> "$root/report.txt"
+
+          for path in "${publish_paths[@]}"; do
+            found=''
+            while read -r commit; do
+              if git cat-file -e "$commit:$path" 2>/dev/null; then found="$commit"; break; fi
+            done < <(git rev-list --all -- "$path")
+            printf 'path=%s historical_commit=%s\n' "$path" "${found:-absent}" >> "$root/path-custody.txt"
+            if [[ -n "$found" ]]; then git show "$found:$path" > "$root/recovered-publish/$(basename "$path")"; fi
+          done
+          cat "$root/report.txt"
+          cat "$root/path-custody.txt"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: narrative-publication-history-scan
+          path: ${{ runner.temp }}/narrative-history-scan
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7

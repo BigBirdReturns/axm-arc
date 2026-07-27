@@ -1,6 +1,9 @@
 name: Recover exact narrative-succession tree
 
 on:
+  pull_request:
+    paths:
+      - '.github/workflows/recover-narrative-succession-exact-tree.yml'
   push:
     branches:
       - qualify/narrative-chunk-recovery-v1

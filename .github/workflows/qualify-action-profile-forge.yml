@@ -1,0 +1,514 @@
+name: Qualify exact Action Profile Forge
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/qualify-action-profile-forge.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qualify-exact-action-profile-forge
+  cancel-in-progress: true
+
+env:
+  ARC_ACTION_AUTHORITY_SHA: 6eef311836ee7cb3a43a94ce51f448a2699c3b04
+  CI: 'true'
+
+jobs:
+  qualify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          show-progress: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Align Forge law with the deployed ActionProfile contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          import re
+
+          core_path = Path('tools/action-profile-forge/profile-forge.mjs')
+          core = core_path.read_text()
+          old_concepts = '''const CONCEPTS = Object.freeze({
+            arenaKit: ["arenaKit", "arena", "arenaId", "arenaType", "arena.kind", "arena.kit"],
+            playerKit: ["playerKit", "player", "moveset", "playerMoveset", "player.kind", "player.kit"],
+            enemyCap: ["maximumEnemies", "maxEnemies", "enemyCap", "maximumActiveEnemies", "limits.enemies", "limits.maximumEnemies"],
+            durationSeconds: ["maximumDurationSeconds", "maxDurationSeconds", "durationSeconds", "timeLimitSeconds", "limits.durationSeconds", "limits.maximumDurationSeconds"],
+            aggression: ["aggression", "aggressionScale", "enemyAggression", "tuning.aggression", "tuning.aggressionScale"],
+            partialCount: ["partialObjectiveCount", "partialThreshold", "requiredPartialObjectives", "outcomes.partialObjectiveCount"],
+            objectiveOverrides: ["objectiveEnemyKits", "objectiveOverrides", "enemyKitByObjective", "objectives.enemyKits"],
+          });'''
+          new_concepts = '''const CONCEPTS = Object.freeze({
+            arenaKit: ["arenaKit"],
+            playerKit: ["playerKit"],
+            durationSeconds: ["durationSeconds"],
+            arenaScale: ["arenaScale"],
+            enemyScale: ["enemyScale"],
+            objectiveOrder: ["objectiveOrder"],
+            objectiveOverrides: ["objectiveKits"],
+          });'''
+          if core.count(old_concepts) != 1:
+              raise SystemExit(f'concept block count: {core.count(old_concepts)}')
+          core = core.replace(old_concepts, new_concepts)
+
+          replacement = r'''function resolveProfileScope(profile, challengeId = null) {
+            validateProfileRoot(profile);
+            const encounterIds = Object.keys(profile.encounters).sort();
+            const selected = challengeId ?? (encounterIds.length === 1 ? encounterIds[0] : null);
+            if (selected === null) throw new Error("A profile with multiple encounters requires an action spec challengeId.");
+            const root = profile.encounters[selected];
+            if (!isPlainObject(root)) throw new Error(`Action profile encounter ${selected} is absent or not an object.`);
+            return { challengeId: selected, root, prefix: `encounters.${selected}.` };
+          }
+
+          export function inspectProfile(profile, challengeId = null) {
+            const scope = resolveProfileScope(profile, challengeId);
+            const fieldMap = {};
+            const values = {};
+            const relativePaths = {};
+            for (const [concept, aliases] of Object.entries(CONCEPTS)) {
+              const relative = aliases.find((candidate) => hasPath(scope.root, candidate)) ?? null;
+              relativePaths[concept] = relative;
+              fieldMap[concept] = relative === null ? null : scope.prefix + relative;
+              values[concept] = relative === null ? null : clone(getPath(scope.root, relative));
+            }
+            const recognizedEncounterRoots = new Set(Object.values(relativePaths).filter(Boolean).map((path) => path.split(".")[0]));
+            return {
+              format: profile.format,
+              challengeId: scope.challengeId,
+              fieldMap,
+              values,
+              unknownRootFields: Object.keys(profile).filter((key) => key !== "format" && key !== "encounters").sort(),
+              unknownEncounterFields: Object.keys(scope.root).filter((key) => !recognizedEncounterRoots.has(key)).sort(),
+            };
+          }
+
+          export function updateConcept(profile, concept, value, challengeId = null) {
+            validateProfileRoot(profile);
+            if (!(concept in CONCEPTS)) throw new Error(`Unknown Forge concept ${concept}.`);
+            const inspected = inspectProfile(profile, challengeId);
+            const path = inspected.fieldMap[concept];
+            if (path === null) throw new Error(`The exact profile template does not expose ${concept}; the Forge refuses to invent a field.`);
+            const next = clone(profile);
+            setPath(next, path, clone(value));
+            return next;
+          }
+
+          export function setObjectiveEnemyKit(profile, objectiveId, enemyKit, challengeId = null) {
+            if (!ENEMY_KITS.includes(enemyKit)) throw new Error(`Unknown enemy kit ${enemyKit}.`);
+            const inspected = inspectProfile(profile, challengeId);
+            const path = inspected.fieldMap.objectiveOverrides;
+            if (path === null) throw new Error("The exact profile template does not expose objective-specific enemy mapping.");
+            const current = getPath(profile, path);
+            if (!isPlainObject(current)) throw new Error(`Objective override field ${path} is not an object.`);
+            const next = clone(profile);
+            const overrides = clone(getPath(next, path));
+            overrides[objectiveId] = enemyKit;
+            setPath(next, path, overrides);
+            return next;
+          }
+
+          export function removeObjectiveOverride(profile, objectiveId, challengeId = null) {
+            const inspected = inspectProfile(profile, challengeId);
+            const path = inspected.fieldMap.objectiveOverrides;
+            if (path === null) return clone(profile);
+            const next = clone(profile);
+            const overrides = clone(getPath(next, path));
+            if (isPlainObject(overrides)) delete overrides[objectiveId];
+            setPath(next, path, overrides);
+            return next;
+          }
+
+          export function validateProfile(profile, actionSpec = null) {
+            const errors = [];
+            let inspection;
+            try {
+              validateProfileRoot(profile);
+              inspection = inspectProfile(profile, actionSpec?.challengeId ?? null);
+            } catch (error) {
+              errors.push(error.message);
+              return { valid: false, errors, inspection: null };
+            }
+            checkKit(inspection.values.arenaKit, ARENA_KITS, "arena kit", errors);
+            checkKit(inspection.values.playerKit, PLAYER_KITS, "player kit", errors);
+            checkNumber(inspection.values.durationSeconds, 20, 600, "duration seconds", errors, true);
+            checkNumber(inspection.values.arenaScale, 0.5, 2, "arena scale", errors, false);
+            checkNumber(inspection.values.enemyScale, 0.5, 2, "enemy scale", errors, false);
+
+            const order = inspection.values.objectiveOrder;
+            if (order !== null && (!Array.isArray(order) || order.length === 0 || order.some((id) => typeof id !== "string" || id.length === 0))) {
+              errors.push("Profile objective order must be a non-empty array of ids.");
+            } else if (Array.isArray(order) && new Set(order).size !== order.length) {
+              errors.push("Profile objective order contains duplicate ids.");
+            }
+
+            if (actionSpec !== null) {
+              if (!isPlainObject(actionSpec) || actionSpec.format !== ACTION_SPEC_FORMAT) errors.push(`Action spec must use ${ACTION_SPEC_FORMAT}.`);
+              else {
+                if (inspection.challengeId !== actionSpec.challengeId) errors.push(`Profile encounter ${inspection.challengeId} does not match action spec challenge ${String(actionSpec.challengeId)}.`);
+                const objectiveIds = (actionSpec.objectives ?? []).map((objective) => objective?.id).filter((id) => typeof id === "string");
+                const objectives = new Set(objectiveIds);
+                if (Array.isArray(order) && (order.length !== objectiveIds.length || order.some((id) => !objectives.has(id)))) {
+                  errors.push("Profile objective order must name every action-spec objective exactly once.");
+                }
+                const overrides = inspection.values.objectiveOverrides;
+                if (overrides !== null && !isPlainObject(overrides)) errors.push("Objective overrides must be an object.");
+                else if (isPlainObject(overrides)) {
+                  for (const [objectiveId, kit] of Object.entries(overrides)) {
+                    if (!objectives.has(objectiveId)) errors.push(`Objective override ${objectiveId} does not exist in the loaded action spec.`);
+                    if (!ENEMY_KITS.includes(kit)) errors.push(`Objective override ${objectiveId} uses unknown enemy kit ${String(kit)}.`);
+                  }
+                }
+                if (typeof actionSpec.specDigest !== "string" || !/^actspec1_[0-9a-f]{64}$/.test(actionSpec.specDigest)) errors.push("Action spec digest is malformed.");
+              }
+            }
+            return { valid: errors.length === 0, errors, inspection };
+          }
+
+          export async function buildForgeReceipt({ sourceProfile, outputProfile, actionSpec = null, operations = [] }) {
+            const validation = validateProfile(outputProfile, actionSpec);
+            if (!validation.valid) throw new Error(`Profile cannot be receipted: ${validation.errors.join(" ")}`);
+            const sourceCanonical = canonicalJson(sourceProfile);
+            const outputCanonical = canonicalJson(outputProfile);
+            return {
+              format: FORGE_RECEIPT_FORMAT,
+              generatedAt: new Date().toISOString(),
+              status: "pass",
+              profileFormat: outputProfile.format,
+              challengeId: validation.inspection.challengeId,
+              sourceProfileSha256: await sha256Hex(sourceCanonical),
+              outputProfileSha256: await sha256Hex(outputCanonical),
+              changed: sourceCanonical !== outputCanonical,
+              actionSpecDigest: actionSpec?.specDigest ?? null,
+              actionSpecFormat: actionSpec?.format ?? null,
+              operations: clone(operations),
+              fieldMap: validation.inspection.fieldMap,
+              preservedUnknownRootFields: validation.inspection.unknownRootFields,
+              preservedUnknownEncounterFields: validation.inspection.unknownEncounterFields,
+              authority: "Arc compiler validation required before installation",
+            };
+          }
+
+          function validateProfileRoot'''
+          core, count = re.subn(
+              r'export function inspectProfile\(profile\) \{.*?\nfunction validateProfileRoot',
+              replacement,
+              core,
+              count=1,
+              flags=re.S,
+          )
+          if count != 1:
+              raise SystemExit(f'profile function block count: {count}')
+          old_root = '''function validateProfileRoot(profile) {
+            if (!isPlainObject(profile)) throw new Error("Action profile must be a plain JSON object.");
+            if (profile.format !== ACTION_PROFILE_FORMAT) throw new Error(`Action profile must use ${ACTION_PROFILE_FORMAT}.`);
+            validateJsonValue(profile);
+          }'''
+          new_root = '''function validateProfileRoot(profile) {
+            if (!isPlainObject(profile)) throw new Error("Action profile must be a plain JSON object.");
+            if (profile.format !== ACTION_PROFILE_FORMAT) throw new Error(`Action profile must use ${ACTION_PROFILE_FORMAT}.`);
+            if (!isPlainObject(profile.encounters) || Object.keys(profile.encounters).length === 0) throw new Error("Action profile encounters must be a non-empty object.");
+            validateJsonValue(profile);
+          }'''
+          if core.count(old_root) != 1:
+              raise SystemExit(f'profile root validator count: {core.count(old_root)}')
+          core_path.write_text(core.replace(old_root, new_root))
+
+          app_path = Path('tools/action-profile-forge/app.js')
+          app = app_path.read_text()
+          replacements = {
+            '"arena-control", "arena-path", "player-control", "player-path", "enemy-cap-control",\n  "enemy-cap-path", "duration-control", "duration-path", "aggression-control",\n  "aggression-path", "partial-control", "partial-path", "objective-count", "objective-list",': '"arena-control", "arena-path", "player-control", "player-path", "duration-control",\n  "duration-path", "arena-scale-control", "arena-scale-path", "enemy-scale-control",\n  "enemy-scale-path", "objective-count", "objective-list",',
+            '["enemyCap", "enemy-cap-control"],\n  ["durationSeconds", "duration-control"],\n  ["aggression", "aggression-control"],\n  ["partialCount", "partial-control"],': '["durationSeconds", "duration-control"],\n  ["arenaScale", "arena-scale-control"],\n  ["enemyScale", "enemy-scale-control"],',
+            'const inspection = inspectProfile(state.profile);': 'const inspection = inspectProfile(state.profile, state.actionSpec?.challengeId ?? null);',
+            'state.profile = updateConcept(state.profile, concept, value);': 'state.profile = updateConcept(state.profile, concept, value, state.actionSpec?.challengeId ?? null);',
+            'elements["unknown-fields"].textContent = inspection.unknownRootFields.length ? inspection.unknownRootFields.join(", ") : "None";': 'const unknown = [...inspection.unknownRootFields.map((field) => `root:${field}`), ...inspection.unknownEncounterFields.map((field) => `encounter:${field}`)];\n  elements["unknown-fields"].textContent = unknown.length ? unknown.join(", ") : "None";',
+            'configureNumber("enemy-cap", "enemyCap", inspection);\n  configureNumber("duration", "durationSeconds", inspection);\n  configureNumber("aggression", "aggression", inspection);\n  configureNumber("partial", "partialCount", inspection);': 'configureNumber("duration", "durationSeconds", inspection);\n  configureNumber("arena-scale", "arenaScale", inspection);\n  configureNumber("enemy-scale", "enemyScale", inspection);',
+            'for (const prefix of ["arena", "player", "enemy-cap", "duration", "aggression", "partial"]) {': 'for (const prefix of ["arena", "player", "duration", "arena-scale", "enemy-scale"]) {',
+            'const before = clone(inspectProfile(state.profile).values.objectiveOverrides?.[objective.id] ?? null);': 'const before = clone(inspectProfile(state.profile, state.actionSpec?.challengeId ?? null).values.objectiveOverrides?.[objective.id] ?? null);',
+            '? setObjectiveEnemyKit(state.profile, objective.id, select.value)\n          : removeObjectiveOverride(state.profile, objective.id);': '? setObjectiveEnemyKit(state.profile, objective.id, select.value, state.actionSpec?.challengeId ?? null)\n          : removeObjectiveOverride(state.profile, objective.id, state.actionSpec?.challengeId ?? null);',
+            '${validation.inspection.unknownRootFields.length} root extensions preserved.': '${validation.inspection.unknownRootFields.length + validation.inspection.unknownEncounterFields.length} extensions preserved.',
+          }
+          for old, new in replacements.items():
+              if old not in app:
+                  raise SystemExit(f'app anchor absent: {old[:80]}')
+              app = app.replace(old, new)
+          app_path.write_text(app)
+
+          html_path = Path('tools/action-profile-forge/index.html')
+          html = html_path.read_text()
+          old_controls = '''          <label><span>Enemy cap</span><input id="enemy-cap-control" type="number" min="1" max="12" step="1" disabled><small id="enemy-cap-path">Template field absent</small></label>
+                    <label><span>Duration seconds</span><input id="duration-control" type="number" min="5" max="3600" step="1" disabled><small id="duration-path">Template field absent</small></label>
+                    <label><span>Aggression</span><input id="aggression-control" type="number" min="0.05" max="8" step="0.05" disabled><small id="aggression-path">Template field absent</small></label>
+                    <label><span>Partial objectives</span><input id="partial-control" type="number" min="0" max="4096" step="1" disabled><small id="partial-path">Template field absent</small></label>'''
+          new_controls = '''          <label><span>Duration seconds</span><input id="duration-control" type="number" min="20" max="600" step="1" disabled><small id="duration-path">Template field absent</small></label>
+                    <label><span>Arena scale</span><input id="arena-scale-control" type="number" min="0.5" max="2" step="0.05" disabled><small id="arena-scale-path">Template field absent</small></label>
+                    <label><span>Enemy scale</span><input id="enemy-scale-control" type="number" min="0.5" max="2" step="0.05" disabled><small id="enemy-scale-path">Template field absent</small></label>'''
+          if html.count(old_controls) != 1:
+              raise SystemExit(f'HTML control block count: {html.count(old_controls)}')
+          html_path.write_text(html.replace(old_controls, new_controls))
+
+          template_test = r'''import { describe, expect, it } from "vitest";
+          import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+          import { tmpdir } from "node:os";
+          import { dirname, join, resolve } from "node:path";
+          import { FIRST_CHARTER } from "../../src/arcs/first-charter.js";
+          import { cartridgeDigest } from "../../src/engine/cartridge-digest.js";
+          import { compileActionEncounter } from "../../src/engine/action/compile.js";
+          import { parseActionProfile } from "../../src/engine/action/profile.js";
+          import { ACTION_EXTENSION_KEY, ACTION_PROFILE_FORMAT, type ActionEnemyKit, type ActionProfile } from "../../src/engine/action/types.js";
+
+          const fallbackRoot = mkdtempSync(join(tmpdir(), "axm-action-profile-template-"));
+          const profileOutput = resolve(process.env.AXM_ACTION_PROFILE_TEMPLATE_OUT ?? join(fallbackRoot, "first-charter.action-profile.json"));
+          const specOutput = resolve(process.env.AXM_ACTION_PROFILE_TEMPLATE_SPEC_OUT ?? join(fallbackRoot, "first-charter.action-spec.json"));
+          const receiptOutput = resolve(process.env.AXM_ACTION_PROFILE_TEMPLATE_RECEIPT_OUT ?? join(fallbackRoot, "first-charter.template-receipt.json"));
+          const authority = process.env.ARC_ACTION_AUTHORITY_SHA ?? "6eef311836ee7cb3a43a94ce51f448a2699c3b04";
+
+          describe("Action Profile Forge exact template", () => {
+            it("publishes one exact compiler-proven First Charter profile and action spec", () => {
+              const challenge = FIRST_CHARTER.challenges.find((candidate) => candidate.mechanicChecks.length > 0) ?? FIRST_CHARTER.challenges[0];
+              expect(challenge).toBeTruthy();
+              const objectiveIds = challenge!.mechanicChecks.map((check) => check.id);
+              const kits: ActionEnemyKit[] = ["skirmisher", "duelist", "swarm", "hexer", "breaker"];
+              const profile: ActionProfile = parseActionProfile({
+                format: ACTION_PROFILE_FORMAT,
+                encounters: {
+                  [challenge!.id]: {
+                    arenaKit: "ring",
+                    playerKit: "staff",
+                    durationSeconds: 90,
+                    arenaScale: 1,
+                    enemyScale: 1,
+                    objectiveOrder: objectiveIds,
+                    objectiveKits: Object.fromEntries(objectiveIds.map((id, index) => [id, kits[index % kits.length]])),
+                  },
+                },
+              });
+              const arc = structuredClone(FIRST_CHARTER);
+              arc.extensions = { ...(arc.extensions ?? {}), [ACTION_EXTENSION_KEY]: profile };
+              const spec = compileActionEncounter(arc, challenge!);
+              const digest = cartridgeDigest(arc);
+              expect(spec.format).toBe("axm-action-spec/1");
+              expect(spec.arcDigest).toBe(digest);
+              expect(spec.challengeId).toBe(challenge!.id);
+              expect(spec.specDigest).toMatch(/^actspec1_[0-9a-f]{64}$/);
+              expect(spec.tickRate).toBe(30);
+              expect(spec.objectives.map((objective) => objective.id)).toEqual(objectiveIds);
+              mkdirSync(dirname(profileOutput), { recursive: true });
+              mkdirSync(dirname(specOutput), { recursive: true });
+              mkdirSync(dirname(receiptOutput), { recursive: true });
+              writeFileSync(profileOutput, JSON.stringify(profile, null, 2) + "\n");
+              writeFileSync(specOutput, JSON.stringify(spec, null, 2) + "\n");
+              writeFileSync(receiptOutput, JSON.stringify({
+                format: "axm-action-profile-template-receipt/1",
+                status: "pass",
+                arcActionAuthorityCommit: authority,
+                arcExport: "FIRST_CHARTER",
+                arcDigest: digest,
+                arcDigestSource: "cartridgeDigest",
+                challengeId: challenge!.id,
+                challengeName: challenge!.name,
+                profileFormat: profile.format,
+                profileSource: "parseActionProfile exact deployed contract",
+                validator: "parseActionProfile",
+                compiler: "compileActionEncounter",
+                actionSpecDigest: spec.specDigest,
+                tickRate: spec.tickRate,
+                authority: "exact Arc compiler acceptance",
+              }, null, 2) + "\n");
+            });
+          });
+          '''
+          Path('tests/action/action-profile-forge-template.test.ts').write_text(template_test)
+
+          forge_test = r'''import test from "node:test";
+          import assert from "node:assert/strict";
+          import {
+            ACTION_PROFILE_FORMAT,
+            ACTION_SPEC_FORMAT,
+            parseStrictJson,
+            canonicalJson,
+            inspectProfile,
+            updateConcept,
+            setObjectiveEnemyKit,
+            removeObjectiveOverride,
+            validateProfile,
+            buildForgeReceipt,
+          } from "./profile-forge.mjs";
+
+          const SPEC = {
+            format: ACTION_SPEC_FORMAT,
+            specDigest: "actspec1_" + "a".repeat(64),
+            challengeId: "forge-test",
+            objectives: [
+              { id: "first", label: "First objective" },
+              { id: "second", label: "Second objective" },
+            ],
+          };
+          const PROFILE = {
+            format: ACTION_PROFILE_FORMAT,
+            encounters: {
+              "forge-test": {
+                arenaKit: "ring",
+                playerKit: "staff",
+                durationSeconds: 90,
+                arenaScale: 1,
+                enemyScale: 1,
+                objectiveOrder: ["first", "second"],
+                objectiveKits: {},
+                "creator.example/cue": { text: "preserve encounter extension" },
+              },
+            },
+            "creator.example/notes": { text: "preserve root extension", order: [3, 2, 1] },
+          };
+
+          test("strict parser rejects duplicate keys before profile semantics", () => {
+            assert.throws(() => parseStrictJson('{"format":"axm-action-profile/1","format":"forged"}'), /Duplicate JSON object key "format"/);
+          });
+          test("strict parser rejects trailing content, unpaired surrogates, and non-object roots", () => {
+            assert.throws(() => parseStrictJson('{"format":"axm-action-profile/1"} true'), /Trailing content/);
+            assert.throws(() => parseStrictJson('{"format":"axm-action-profile/1","x":"\\ud800"}'), /Unpaired high Unicode surrogate/);
+            assert.throws(() => parseStrictJson('[]'), /root must be an object/);
+          });
+          test("Forge edits the exact deployed encounter path and preserves extensions", () => {
+            const inspected = inspectProfile(PROFILE, SPEC.challengeId);
+            assert.equal(inspected.fieldMap.arenaKit, "encounters.forge-test.arenaKit");
+            assert.equal(inspected.fieldMap.playerKit, "encounters.forge-test.playerKit");
+            assert.equal(inspected.fieldMap.durationSeconds, "encounters.forge-test.durationSeconds");
+            assert.equal(inspected.fieldMap.arenaScale, "encounters.forge-test.arenaScale");
+            assert.equal(inspected.fieldMap.enemyScale, "encounters.forge-test.enemyScale");
+            assert.equal(inspected.fieldMap.objectiveOverrides, "encounters.forge-test.objectiveKits");
+            assert.deepEqual(inspected.unknownRootFields, ["creator.example/notes"]);
+            assert.deepEqual(inspected.unknownEncounterFields, ["creator.example/cue"]);
+            const updated = updateConcept(PROFILE, "arenaKit", "lane", SPEC.challengeId);
+            assert.equal(updated.encounters["forge-test"].arenaKit, "lane");
+            assert.deepEqual(updated["creator.example/notes"], PROFILE["creator.example/notes"]);
+            assert.deepEqual(updated.encounters["forge-test"]["creator.example/cue"], PROFILE.encounters["forge-test"]["creator.example/cue"]);
+            assert.equal(PROFILE.encounters["forge-test"].arenaKit, "ring");
+          });
+          test("Forge refuses to invent an absent exact profile field", () => {
+            const profile = { format: ACTION_PROFILE_FORMAT, encounters: { "forge-test": { arenaKit: "ring" } } };
+            assert.throws(() => updateConcept(profile, "playerKit", "blade", "forge-test"), /refuses to invent a field/);
+          });
+          test("multiple encounters require an exact action-spec challenge", () => {
+            const profile = { format: ACTION_PROFILE_FORMAT, encounters: { first: { arenaKit: "ring" }, second: { arenaKit: "lane" } } };
+            assert.throws(() => inspectProfile(profile), /requires an action spec challengeId/);
+            assert.equal(inspectProfile(profile, "second").values.arenaKit, "lane");
+          });
+          test("objective mappings bind only named action-spec objectives", () => {
+            let profile = setObjectiveEnemyKit(PROFILE, "first", "duelist", SPEC.challengeId);
+            assert.equal(profile.encounters["forge-test"].objectiveKits.first, "duelist");
+            assert.equal(validateProfile(profile, SPEC).valid, true);
+            profile = setObjectiveEnemyKit(profile, "missing", "breaker", SPEC.challengeId);
+            const invalid = validateProfile(profile, SPEC);
+            assert.equal(invalid.valid, false);
+            assert.match(invalid.errors.join(" "), /does not exist in the loaded action spec/);
+            profile = removeObjectiveOverride(profile, "missing", SPEC.challengeId);
+            assert.equal(validateProfile(profile, SPEC).valid, true);
+          });
+          test("profile validation enforces exact kits, scales, duration, and objective order", () => {
+            assert.equal(validateProfile(PROFILE, SPEC).valid, true);
+            const invalid = structuredClone(PROFILE);
+            invalid.encounters["forge-test"].playerKit = "unknown";
+            invalid.encounters["forge-test"].arenaScale = 9;
+            invalid.encounters["forge-test"].objectiveOrder = ["first", "first"];
+            const result = validateProfile(invalid, SPEC);
+            assert.equal(result.valid, false);
+            assert.match(result.errors.join(" "), /player kit is unknown/);
+            assert.match(result.errors.join(" "), /arena scale must be in/);
+            assert.match(result.errors.join(" "), /duplicate ids/);
+          });
+          test("canonical JSON is stable across insertion order", () => {
+            const left = { format: ACTION_PROFILE_FORMAT, encounters: { x: { playerKit: "staff", arenaKit: "ring" } } };
+            const right = { encounters: { x: { arenaKit: "ring", playerKit: "staff" } }, format: ACTION_PROFILE_FORMAT };
+            assert.equal(canonicalJson(left), canonicalJson(right));
+          });
+          test("Forge receipt binds exact source, output, spec, operations, and extensions", async () => {
+            const output = updateConcept(PROFILE, "arenaKit", "islands", SPEC.challengeId);
+            const receipt = await buildForgeReceipt({ sourceProfile: PROFILE, outputProfile: output, actionSpec: SPEC, operations: [{ type: "set-concept", concept: "arenaKit", before: "ring", after: "islands" }] });
+            assert.equal(receipt.format, "axm-action-profile-forge-receipt/1");
+            assert.equal(receipt.status, "pass");
+            assert.equal(receipt.challengeId, SPEC.challengeId);
+            assert.equal(receipt.changed, true);
+            assert.match(receipt.sourceProfileSha256, /^[0-9a-f]{64}$/);
+            assert.match(receipt.outputProfileSha256, /^[0-9a-f]{64}$/);
+            assert.equal(receipt.actionSpecDigest, SPEC.specDigest);
+            assert.deepEqual(receipt.preservedUnknownRootFields, ["creator.example/notes"]);
+            assert.deepEqual(receipt.preservedUnknownEncounterFields, ["creator.example/cue"]);
+            assert.equal(receipt.authority, "Arc compiler validation required before installation");
+          });
+          '''
+          Path('tools/action-profile-forge/profile-forge.test.mjs').write_text(forge_test)
+
+          package_path = Path('package.json')
+          package = json.loads(package_path.read_text())
+          package['scripts']['test:action-profile-forge'] = 'node --test tools/action-profile-forge/profile-forge.test.mjs'
+          package['scripts']['build:action-profile-forge'] = 'node tools/action-profile-forge/build.mjs'
+          package_path.write_text(json.dumps(package, indent=2) + '\n')
+          PY
+          git diff --check
+      - run: npm ci --no-audit --no-fund
+      - name: Generate the exact compiler-proven examples
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p tools/action-profile-forge/examples
+          export AXM_ACTION_PROFILE_TEMPLATE_OUT="$PWD/tools/action-profile-forge/examples/first-charter.action-profile.json"
+          export AXM_ACTION_PROFILE_TEMPLATE_SPEC_OUT="$PWD/tools/action-profile-forge/examples/first-charter.action-spec.json"
+          export AXM_ACTION_PROFILE_TEMPLATE_RECEIPT_OUT="$PWD/tools/action-profile-forge/examples/first-charter.template-receipt.json"
+          npx vitest run tests/action/action-profile-forge-template.test.ts --reporter=verbose
+      - name: Qualify Forge law, deterministic assembly, and complete Arc product
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run typecheck
+          npm run test:action-profile-forge
+          npm test -- tests/action/action-profile-forge-template.test.ts tests/action/action-profile.test.ts tests/action/action-estate.test.ts
+          first="$RUNNER_TEMP/forge-first"
+          second="$RUNNER_TEMP/forge-second"
+          npm run build:action-profile-forge -- --output "$first" --authority-commit "$ARC_ACTION_AUTHORITY_SHA"
+          npm run build:action-profile-forge -- --output "$second" --authority-commit "$ARC_ACTION_AUTHORITY_SHA"
+          diff -ru "$first" "$second"
+          node - <<'NODE'
+          const fs = require('fs');
+          const manifest = JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + '/forge-first/manifest.json', 'utf8'));
+          if (manifest.status !== 'pass') throw new Error('Forge manifest did not pass.');
+          if (manifest.authorityCommit !== process.env.ARC_ACTION_AUTHORITY_SHA) throw new Error('Forge authority mismatch.');
+          if (manifest.remoteRuntimeReferences !== 0 || manifest.dynamicEvaluation || manifest.serviceWorker) throw new Error('Forge crossed its offline boundary.');
+          if (!/^actspec1_[0-9a-f]{64}$/.test(manifest.actionSpecDigest)) throw new Error('Forge action-spec identity is malformed.');
+          NODE
+          npm test
+          npm run build
+          if git ls-files -- docs/game | grep -q .; then git restore --source=HEAD --staged --worktree -- docs/game; fi
+          git clean -fdx -- docs/game
+          git diff --check
+      - name: Export the qualified permanent files
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/forge-candidate"
+          mkdir -p "$root/tools/action-profile-forge/examples" "$root/tests/action"
+          cp package.json "$root/"
+          cp tools/action-profile-forge/app.js tools/action-profile-forge/index.html tools/action-profile-forge/profile-forge.mjs tools/action-profile-forge/profile-forge.test.mjs "$root/tools/action-profile-forge/"
+          cp tools/action-profile-forge/examples/*.json "$root/tools/action-profile-forge/examples/"
+          cp tests/action/action-profile-forge-template.test.ts "$root/tests/action/"
+          (cd "$root" && find . -type f -print0 | sort -z | xargs -0 sha256sum > QUALIFIED_SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qualified-action-profile-forge
+          path: ${{ runner.temp }}/forge-candidate
+          if-no-files-found: warn
+          retention-days: 7

@@ -1,0 +1,184 @@
+name: Recover exact narrative-succession tree
+
+on:
+  push:
+    branches:
+      - qualify/narrative-chunk-recovery-v1
+    paths:
+      - '.github/workflows/recover-narrative-succession-exact-tree.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: recover-exact-narrative-succession-tree
+  cancel-in-progress: false
+
+env:
+  TARGET_BRANCH: agent/narrative-rails-v0
+  TARGET_HEAD: 3c09166af33fb24dd185b0559b5a80183d514d3e
+  MAIN_HEAD: 318faaab6fb1c4b0eefe66516d3573bdb8f97369
+  EXPECTED_TREE: c1f02183caa44d13e12b4f2816cf4c01bb525d7f
+  PAYLOAD_B64_SHA256: 28cfe8b3db63cbe7207040eacbcc2ba66735179c945a9df73a441523bb0908ad
+  PAYLOAD_TGZ_SHA256: 8908974b689c25702ac34609e10bfe0e3901a6158c0cf57bb9da58ceaef4098b
+  CANDIDATE_BRANCH: qualify/narrative-succession-candidate-v1
+  TARGET_PR: '169'
+  CI: 'true'
+
+jobs:
+  recover:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          show-progress: false
+
+      - name: Assemble and authenticate repository-custodied archive
+        id: archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = '${{ github.event.pull_request.head.sha || github.sha }}'
+          mapfile -t chunks < <(find .narrative-polish -maxdepth 1 -type f -name 'chunk-*' | LC_ALL=C sort)
+          test "${#chunks[@]}" -eq 12
+          cat "${chunks[@]}" > "$RUNNER_TEMP/narrative-polish-payload.b64"
+          echo "$PAYLOAD_B64_SHA256  $RUNNER_TEMP/narrative-polish-payload.b64" | sha256sum -c -
+          base64 --decode "$RUNNER_TEMP/narrative-polish-payload.b64" > "$RUNNER_TEMP/narrative-polish-payload.tgz"
+          echo "$PAYLOAD_TGZ_SHA256  $RUNNER_TEMP/narrative-polish-payload.tgz" | sha256sum -c -
+          python - <<'PY'
+          import tarfile
+          from pathlib import PurePosixPath
+          import os
+
+          archive = os.path.join(os.environ['RUNNER_TEMP'], 'narrative-polish-payload.tgz')
+          with tarfile.open(archive, 'r:gz') as handle:
+              members = handle.getmembers()
+              if not members:
+                  raise SystemExit('narrative archive is empty')
+              for member in members:
+                  path = PurePosixPath(member.name)
+                  if path.is_absolute() or '..' in path.parts:
+                      raise SystemExit(f'unsafe archive member: {member.name}')
+          print(f'authenticated {len(members)} archive members')
+          PY
+          mkdir -p "$RUNNER_TEMP/narrative-recovered"
+          tar -xzf "$RUNNER_TEMP/narrative-polish-payload.tgz" -C "$RUNNER_TEMP/narrative-recovered"
+          find "$RUNNER_TEMP/narrative-recovered" -type f -printf '%P\n' | LC_ALL=C sort > "$RUNNER_TEMP/recovered-files.txt"
+
+      - name: Materialize exact target baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "$TARGET_BRANCH" main
+          test "$(git rev-parse origin/$TARGET_BRANCH)" = "$TARGET_HEAD"
+          test "$(git rev-parse origin/main)" = "$MAIN_HEAD"
+          rm -rf "$RUNNER_TEMP/narrative-target"
+          git worktree add --detach "$RUNNER_TEMP/narrative-target" "$TARGET_HEAD"
+          cp -a "$RUNNER_TEMP/narrative-recovered/." "$RUNNER_TEMP/narrative-target/"
+          rm -rf "$RUNNER_TEMP/narrative-target/.narrative-polish" "$RUNNER_TEMP/narrative-target/.narrative-publish"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ${{ runner.temp }}/narrative-target/package-lock.json
+
+      - name: Qualify recovered narrative estate
+        working-directory: ${{ runner.temp }}/narrative-target
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          npm run check
+          npm run build
+          if npm run | grep -q 'qualify:narrative-succession'; then
+            npm run qualify:narrative-succession
+          fi
+          focused=(
+            tests/narrative/rails.test.ts
+            tests/narrative/recipes.test.ts
+            tests/narrative/audit.test.ts
+            tests/narrative/succession.test.ts
+          )
+          for optional in tests/narrative/succession-polish.test.ts tests/narrative/succession-regime.test.ts; do
+            [[ -f "$optional" ]] && focused+=("$optional")
+          done
+          npx vitest run "${focused[@]}"
+          git diff --check
+
+      - name: Require the declared exact target tree
+        id: tree
+        working-directory: ${{ runner.temp }}/narrative-target
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add -A
+          git diff --cached --check
+          actual=$(git write-tree)
+          printf '%s\n' "$actual" | tee "$RUNNER_TEMP/actual-tree.txt"
+          git diff --cached --name-status > "$RUNNER_TEMP/recovered-diff.txt"
+          echo "actual_tree=$actual" >> "$GITHUB_OUTPUT"
+          if [[ "$actual" == "$EXPECTED_TREE" ]]; then
+            echo 'matched=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'matched=false' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Refuse a non-identical recovery
+        if: steps.tree.outputs.matched != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ACTUAL_TREE: ${{ steps.tree.outputs.actual_tree }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh pr comment "$TARGET_PR" --repo "$GITHUB_REPOSITORY" --body \
+            "Repository chunk recovery qualified but produced tree \`$ACTUAL_TREE\`, not declared tree \`$EXPECTED_TREE\`. PR #169 remains unchanged; no candidate was published. Recovery run: \`$GITHUB_RUN_ID\`."
+          exit 1
+
+      - name: Publish exact candidate without moving PR branch
+        if: steps.tree.outputs.matched == 'true'
+        id: publish
+        working-directory: ${{ runner.temp }}/narrative-target
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'AXM Narrative Qualification'
+          git config user.email 'noreply@users.noreply.github.com'
+          tree=$(git write-tree)
+          commit=$(printf '%s\n' 'Polish deterministic narrative succession authority' | \
+            GIT_AUTHOR_NAME='AXM Narrative Qualification' \
+            GIT_AUTHOR_EMAIL='noreply@users.noreply.github.com' \
+            GIT_COMMITTER_NAME='AXM Narrative Qualification' \
+            GIT_COMMITTER_EMAIL='noreply@users.noreply.github.com' \
+            git commit-tree "$tree" -p "$TARGET_HEAD" -p "$MAIN_HEAD")
+          git push --force origin "$commit:refs/heads/$CANDIDATE_BRANCH"
+          echo "candidate_sha=$commit" >> "$GITHUB_OUTPUT"
+
+      - name: Record exact recovery candidate
+        if: steps.tree.outputs.matched == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_SHA: ${{ steps.publish.outputs.candidate_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh pr comment "$TARGET_PR" --repo "$GITHUB_REPOSITORY" --body \
+            "Recovered repository-custodied narrative payload \`$PAYLOAD_TGZ_SHA256\`, qualified the complete estate, reproduced exact tree \`$EXPECTED_TREE\`, and published isolated candidate \`$CANDIDATE_SHA\` on \`$CANDIDATE_BRANCH\`. PR #169 itself has not moved. Recovery run: \`$GITHUB_RUN_ID\`."
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: narrative-succession-chunk-recovery
+          path: |
+            ${{ runner.temp }}/narrative-polish-payload.tgz
+            ${{ runner.temp }}/recovered-files.txt
+            ${{ runner.temp }}/actual-tree.txt
+            ${{ runner.temp }}/recovered-diff.txt
+          if-no-files-found: warn
+          retention-days: 30

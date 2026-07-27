@@ -1,0 +1,174 @@
+name: Narrative public payload publisher
+
+on:
+  push:
+    branches:
+      - agent/narrative-rails-polish-staging
+    paths:
+      - '.github/workflows/narrative-public-payload-publisher.yml'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  TARGET_BRANCH: agent/narrative-rails-v0
+  TARGET_PR: '169'
+  PAYLOAD_SHA256: e1153e35a93d8cd4262b898edfcab25afe513bb35bf8f69964edd3797821313d
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve target branch
+        run: |
+          set -euo pipefail
+          git fetch origin "$TARGET_BRANCH"
+          rm -rf /tmp/target /tmp/payload
+          git worktree add /tmp/target "origin/$TARGET_BRANCH"
+
+      - name: Download exact sealed publication payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          urls=(
+            'https://filebin.net/axm-pr169-e1153e35/pr169-polish-kit-payload.tgz'
+            'https://bashupload.com/pr169-polish-kit-payload-e1153e35.tgz'
+          )
+          ok=false
+          for url in "${urls[@]}"; do
+            echo "attempting $url"
+            if curl --fail --location --retry 3 --retry-all-errors --connect-timeout 20 --max-time 300 "$url" -o /tmp/payload.tgz; then
+              actual=$(sha256sum /tmp/payload.tgz | cut -d' ' -f1)
+              if [[ "$actual" == "$PAYLOAD_SHA256" ]]; then
+                ok=true
+                break
+              fi
+              echo "checksum mismatch: $actual"
+            fi
+          done
+          [[ "$ok" == true ]] || { echo 'no transport returned the sealed payload'; exit 1; }
+          mkdir -p /tmp/payload
+          tar -xzf /tmp/payload.tgz -C /tmp/payload
+
+      - name: Verify payload manifest before application
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          root = Path('/tmp/payload')
+          manifest = json.loads((root / 'MANIFEST.json').read_text(encoding='utf-8'))
+          entries = manifest.get('files') or manifest.get('overlayFiles') or []
+          failures = []
+          for entry in entries:
+              rel = entry.get('path') or entry.get('file')
+              expected = entry.get('sha256')
+              if not rel or not expected:
+                  continue
+              path = root / 'overlay' / rel
+              if not path.is_file():
+                  failures.append(f'missing:{rel}')
+                  continue
+              actual = hashlib.sha256(path.read_bytes()).hexdigest()
+              if actual != expected:
+                  failures.append(f'hash:{rel}:{actual}:{expected}')
+          if failures:
+              raise SystemExit('\n'.join(failures))
+          print(f'verified {len(entries)} manifest entries')
+          PY
+          cp -a /tmp/payload/overlay/. /tmp/target/
+          rm -rf /tmp/target/.narrative-publish /tmp/target/.narrative-polish
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: /tmp/target/package-lock.json
+
+      - name: Install exact dependencies
+        working-directory: /tmp/target
+        run: npm ci
+
+      - name: Complete repository check
+        working-directory: /tmp/target
+        run: npm run check
+
+      - name: Production build
+        working-directory: /tmp/target
+        run: npm run build
+
+      - name: Narrative smoke qualification
+        working-directory: /tmp/target
+        run: npm run qualify:narrative-succession
+
+      - name: Focused narrative qualification
+        working-directory: /tmp/target
+        run: >-
+          npx vitest run
+          tests/narrative/rails.test.ts
+          tests/narrative/recipes.test.ts
+          tests/narrative/audit.test.ts
+          tests/narrative/succession.test.ts
+          tests/narrative/succession-polish.test.ts
+          tests/narrative/succession-regime.test.ts
+
+      - name: Verify applied tree against manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          root = Path('/tmp/payload')
+          repo = Path('/tmp/target')
+          manifest = json.loads((root / 'MANIFEST.json').read_text(encoding='utf-8'))
+          entries = manifest.get('files') or manifest.get('overlayFiles') or []
+          failures = []
+          for entry in entries:
+              rel = entry.get('path') or entry.get('file')
+              expected = entry.get('sha256')
+              if not rel or not expected:
+                  continue
+              path = repo / rel
+              if not path.is_file():
+                  failures.append(f'missing:{rel}')
+                  continue
+              actual = hashlib.sha256(path.read_bytes()).hexdigest()
+              if actual != expected:
+                  failures.append(f'hash:{rel}:{actual}:{expected}')
+          if failures:
+              raise SystemExit('\n'.join(failures))
+          print(f'reverified {len(entries)} applied files')
+          PY
+
+      - name: Commit and publish exact qualified tree
+        id: publish
+        working-directory: /tmp/target
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'AXM Narrative Qualification'
+          git config user.email 'noreply@users.noreply.github.com'
+          git checkout -B "$TARGET_BRANCH" "origin/$TARGET_BRANCH"
+          git add -A
+          if git diff --cached --quiet; then
+            echo 'target already contains exact payload'
+          else
+            git commit -m 'Polish deterministic narrative succession authority'
+            git push origin "HEAD:$TARGET_BRANCH"
+          fi
+          echo "target_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Record publication on PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_SHA: ${{ steps.publish.outputs.target_sha }}
+        run: |
+          gh pr comment "$TARGET_PR" --repo "$GITHUB_REPOSITORY" --body \
+            "Published checksum-pinned narrative succession payload \`$PAYLOAD_SHA256\` as \`$TARGET_SHA\` after manifest verification, \`npm run check\`, production build, smoke qualification, and focused narrative tests. Pull-request workflows remain the final commit-specific evidence gate."

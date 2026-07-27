@@ -1,0 +1,161 @@
+import {
+  NARRATIVE_LEDGER_FORMAT,
+  NARRATIVE_RAILS_FORMAT,
+  type NarrativeConstitution,
+  type NarrativeRuntimeState,
+} from "../../narrative/index.js";
+
+export const UNDERDRAIN_CONSTITUTION: NarrativeConstitution = {
+  format: NARRATIVE_RAILS_FORMAT,
+  id: "underdrain-series-constitution",
+  version: "1.0.0",
+  identityAnchors: [
+    { id: "municipal-absurdity", anyOfTags: ["institution:municipal", "ordinary:plumbing"] },
+    {
+      id: "character-method",
+      anyOfTags: [
+        "move:improvise",
+        "move:formalize",
+        "move:monetize",
+        "move:organize",
+        "move:negotiate",
+        "move:ratify-drain-concord",
+        "move:declare-pump-ceasefire",
+        "move:request-toilet-rationing",
+      ],
+    },
+    {
+      id: "earned-consequence",
+      anyOfTags: [
+        "payment:resource",
+        "payment:precedent",
+        "payment:relationship",
+        "payment:action-result",
+      ],
+    },
+  ],
+  prohibitedMoveTags: ["clean-reset", "fungus-is-randomly-evil", "world-invents-outcome"],
+  actorPolicies: [
+    {
+      actorId: "rhea-venn",
+      baselineMoves: ["improvise"],
+      conditionalMoves: [
+        { moveTag: "formalize", requiresAnyTags: ["pressure:public-safety"] },
+        { moveTag: "negotiate", requiresAnyTags: ["truth:shared-harm"] },
+        { moveTag: "ratify-drain-concord", requiresAnyTags: ["action:success"] },
+        { moveTag: "declare-pump-ceasefire", requiresAnyTags: ["action:partial"] },
+        { moveTag: "request-toilet-rationing", requiresAnyTags: ["action:failure"] },
+      ],
+      forbiddenMoves: ["abandon-bellwether"],
+      deviationPolicy: "reject",
+    },
+    {
+      actorId: "dax-venn",
+      baselineMoves: ["monetize"],
+      conditionalMoves: [],
+      forbiddenMoves: ["quietly-refund-everyone"],
+      deviationPolicy: "reject",
+    },
+    {
+      actorId: "tess-loam",
+      baselineMoves: ["organize"],
+      conditionalMoves: [],
+      forbiddenMoves: ["ignore-labor-question"],
+      deviationPolicy: "reject",
+    },
+    {
+      actorId: "marta-sump",
+      baselineMoves: ["formalize"],
+      conditionalMoves: [],
+      forbiddenMoves: ["admit-uncertainty-without-form"],
+      deviationPolicy: "reject",
+    },
+    {
+      actorId: "morrowcap",
+      baselineMoves: ["negotiate"],
+      conditionalMoves: [],
+      forbiddenMoves: ["forget-a-promise"],
+      deviationPolicy: "reject",
+    },
+  ],
+  rails: [{
+    id: "municipal-episode",
+    openingFunctions: ["establish"],
+    transitions: {
+      establish: ["pressure"],
+      pressure: ["escalate"],
+      escalate: ["reveal"],
+      reveal: ["choose"],
+      choose: ["consequence"],
+      consequence: ["inherit"],
+      inherit: [],
+    },
+    terminalFunctions: ["inherit"],
+  }],
+  weights: {
+    authoredPriority: 10,
+    sourceSeverity: 2,
+    conditionComplexity: 4,
+    obligationPressure: 4,
+    identityRelevance: 8,
+    closure: 20,
+    freshness: 1,
+    actorFit: 5,
+    repetition: 3,
+    trackUrgency: 3,
+  },
+  freshnessCap: 8,
+};
+
+export function initialUnderdrainNarrativeState(): NarrativeRuntimeState {
+  return {
+    cycle: 1,
+    facts: [
+      {
+        id: "fact-drain-plague",
+        type: "infrastructure-backflow",
+        cycle: 1,
+        actorIds: ["rhea-venn"],
+        tags: ["ordinary:plumbing", "institution:municipal", "pressure:infrastructure"],
+        severity: 8,
+        receiptRef: "bellwether:dispatch:drain-plague",
+      },
+      {
+        id: "fact-draft-order",
+        type: "municipal-draft",
+        cycle: 1,
+        actorIds: ["rhea-venn", "marta-sump"],
+        tags: ["institution:municipal", "pressure:public-safety"],
+        severity: 7,
+        receiptRef: "bellwether:form:8-b",
+      },
+      {
+        id: "fact-drain-cap-side-hustle",
+        type: "family-side-plot",
+        cycle: 1,
+        actorIds: ["dax-venn"],
+        tags: ["ordinary:plumbing", "institution:municipal", "pressure:family"],
+        severity: 5,
+        receiptRef: "dax:store:drain-caps",
+      },
+      {
+        id: "fact-aquifer-poisoning",
+        type: "hidden-cause",
+        cycle: 1,
+        actorIds: ["morrowcap", "rhea-venn"],
+        tags: ["institution:municipal", "truth:shared-harm", "pressure:ecology"],
+        severity: 9,
+        receiptRef: "morrowcap:aquifer-ledger",
+      },
+    ],
+    actors: [
+      { id: "rhea-venn", tags: ["ordinary:plumbing", "cast:plumber"], metrics: { nerve: 15, diagnosis: 18 } },
+      { id: "dax-venn", tags: ["cast:housemate", "ordinary:plumbing"], metrics: { sales: 19, shame: 2 } },
+      { id: "tess-loam", tags: ["cast:apprentice", "institution:municipal"], metrics: { solidarity: 18 } },
+      { id: "marta-sump", tags: ["cast:director", "institution:municipal"], metrics: { paperwork: 20 } },
+      { id: "morrowcap", tags: ["cast:fungal-envoy", "institution:municipal"], metrics: { memory: 20 } },
+    ],
+    tracks: [],
+    ledger: { format: NARRATIVE_LEDGER_FORMAT, beats: [], obligations: [] },
+  };
+}

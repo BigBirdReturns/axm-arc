@@ -1,0 +1,103 @@
+name: Narrative exact-tree publisher
+
+on:
+  push:
+    branches:
+      - agent/narrative-rails-polish-staging
+    paths:
+      - '.github/workflows/narrative-exact-tree-publisher.yml'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  TARGET_BRANCH: agent/narrative-rails-v0
+  TARGET_PR: '169'
+  TARGET_TREE: c1f02183caa44d13e12b4f2816cf4c01bb525d7f
+  FIRST_PARENT: 3c09166af33fb24dd185b0559b5a80183d514d3e
+  SECOND_PARENT: 318faaab6fb1c4b0eefe66516d3573bdb8f97369
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Materialize exact qualified commit from Git object custody
+        id: commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          body=$(jq -n \
+            --arg message 'Polish deterministic narrative succession authority' \
+            --arg tree "$TARGET_TREE" \
+            --arg p1 "$FIRST_PARENT" \
+            --arg p2 "$SECOND_PARENT" \
+            '{message:$message,tree:$tree,parents:[$p1,$p2]}')
+          response=$(gh api --method POST "/repos/$GITHUB_REPOSITORY/git/commits" --input - <<<"$body")
+          sha=$(jq -r '.sha' <<<"$response")
+          test -n "$sha"
+          echo "candidate_sha=$sha" >> "$GITHUB_OUTPUT"
+          gh api --method POST "/repos/$GITHUB_REPOSITORY/git/refs" \
+            -f ref='refs/heads/agent/narrative-exact-candidate' \
+            -f sha="$sha" \
+            || gh api --method PATCH "/repos/$GITHUB_REPOSITORY/git/refs/heads/agent/narrative-exact-candidate" \
+              -f sha="$sha" -F force=true
+
+      - name: Check out exact candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.commit.outputs.candidate_sha }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Verify exact tree identity
+        env:
+          CANDIDATE_SHA: ${{ steps.commit.outputs.candidate_sha }}
+        run: |
+          set -euo pipefail
+          actual=$(git show -s --format=%T "$CANDIDATE_SHA")
+          test "$actual" = "$TARGET_TREE"
+          test "$(git rev-parse "$CANDIDATE_SHA^1")" = "$FIRST_PARENT"
+          test "$(git rev-parse "$CANDIDATE_SHA^2")" = "$SECOND_PARENT"
+
+      - name: Install exact dependencies
+        run: npm ci
+
+      - name: Complete Arc qualification
+        run: npm run check
+
+      - name: Build production product
+        run: npm run build
+
+      - name: Narrative succession qualification
+        run: |
+          set -euo pipefail
+          npm run qualify:narrative-succession
+          npx vitest run \
+            tests/narrative/rails.test.ts \
+            tests/narrative/recipes.test.ts \
+            tests/narrative/audit.test.ts \
+            tests/narrative/succession.test.ts \
+            tests/narrative/succession-polish.test.ts \
+            tests/narrative/succession-regime.test.ts
+
+      - name: Advance PR branch to exact qualified candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_SHA: ${{ steps.commit.outputs.candidate_sha }}
+        run: |
+          set -euo pipefail
+          gh api --method PATCH "/repos/$GITHUB_REPOSITORY/git/refs/heads/$TARGET_BRANCH" \
+            -f sha="$CANDIDATE_SHA" -F force=false
+          gh pr comment "$TARGET_PR" --repo "$GITHUB_REPOSITORY" --body \
+            "Exact narrative-succession tree \`$TARGET_TREE\` qualified in repository custody and published as \`$CANDIDATE_SHA\`. Pull-request workflows are now the final evidence gate."

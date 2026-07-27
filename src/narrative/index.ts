@@ -13,4 +13,5 @@ export * from "./audit.js";
 export * from "./agency-types.js";
 export * from "./io.js";
 export * from "./action-receipt-seam.js";
+export * from "./action-receipt-transition.js";
 export * as narrativeSuccession from "./succession/index.js";

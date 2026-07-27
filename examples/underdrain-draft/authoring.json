@@ -1,0 +1,40 @@
+{
+  "format": "rodoh-underdrain-standalone/1",
+  "id": "underdrain-draft",
+  "version": "1.0.0",
+  "title": "UNDERDRAIN: The Bloom Below",
+  "arcAuthority": "axm-action-receipt/1",
+  "narrativeAuthority": "axm-narrative-rails/1",
+  "actionProfile": {
+    "format": "axm-action-profile/1",
+    "encounters": {
+      "breach-crown-pump": {
+        "arenaKit": "lane",
+        "playerKit": "hammer",
+        "durationSeconds": 90,
+        "arenaScale": 1,
+        "enemyScale": 1,
+        "objectiveOrder": [
+          "flush-spore-valves",
+          "hold-pump-line",
+          "break-crown-matron"
+        ],
+        "objectiveKits": {
+          "flush-spore-valves": "skirmisher",
+          "hold-pump-line": "swarm",
+          "break-crown-matron": "breaker"
+        }
+      }
+    }
+  },
+  "seriesConstitution": {
+    "identityAnchors": [
+      "municipal-absurdity",
+      "character-method",
+      "earned-consequence"
+    ],
+    "noCleanReset": true,
+    "bPlotMustCollide": true,
+    "acceptedOutcomeCannotBeReinterpreted": true
+  }
+}

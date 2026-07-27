@@ -1,0 +1,17 @@
+{
+  "format": "axm-action-profile-template-receipt/1",
+  "status": "pass",
+  "arcActionAuthorityCommit": "6eef311836ee7cb3a43a94ce51f448a2699c3b04",
+  "arcExport": "FIRST_CHARTER",
+  "arcDigest": "cart1_fadfa2d7ba578cd50686220e6d200658bb286b599be3f76b08a2dc811ed75a04",
+  "arcDigestSource": "cartridgeDigest",
+  "challengeId": "cellar",
+  "challengeName": "The Cellar",
+  "profileFormat": "axm-action-profile/1",
+  "profileSource": "parseActionProfile exact deployed contract",
+  "validator": "parseActionProfile",
+  "compiler": "compileActionEncounter",
+  "actionSpecDigest": "actspec1_1a8ba87d551954e85581137338583109f3dc0ab1686ad4815b072d13127d5abd",
+  "tickRate": 30,
+  "authority": "exact Arc compiler acceptance"
+}

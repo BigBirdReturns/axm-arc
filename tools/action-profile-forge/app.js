@@ -26,9 +26,9 @@ const state = {
 const elements = Object.fromEntries([
   "profile-file", "spec-file", "status-dot", "status-title", "status-detail",
   "profile-format", "spec-digest", "challenge-id", "unknown-fields", "recognized-count",
-  "arena-control", "arena-path", "player-control", "player-path", "enemy-cap-control",
-  "enemy-cap-path", "duration-control", "duration-path", "aggression-control",
-  "aggression-path", "partial-control", "partial-path", "objective-count", "objective-list",
+  "arena-control", "arena-path", "player-control", "player-path", "duration-control",
+  "duration-path", "arena-scale-control", "arena-scale-path", "enemy-scale-control",
+  "enemy-scale-path", "objective-count", "objective-list",
   "source-editor", "validation-output", "reset-button", "format-button", "apply-source-button",
   "validate-button", "export-profile-button", "export-receipt-button",
 ].map((id) => [id, document.getElementById(id)]));
@@ -39,10 +39,9 @@ fillSelect(elements["player-control"], PLAYER_KITS);
 for (const [concept, id] of [
   ["arenaKit", "arena-control"],
   ["playerKit", "player-control"],
-  ["enemyCap", "enemy-cap-control"],
   ["durationSeconds", "duration-control"],
-  ["aggression", "aggression-control"],
-  ["partialCount", "partial-control"],
+  ["arenaScale", "arena-scale-control"],
+  ["enemyScale", "enemy-scale-control"],
 ]) {
   elements[id].addEventListener("change", () => applyGuidedChange(concept, elements[id]));
 }
@@ -126,12 +125,12 @@ function resetProfile() {
 function applyGuidedChange(concept, control) {
   if (!state.profile || control.disabled) return;
   try {
-    const inspection = inspectProfile(state.profile);
+    const inspection = inspectProfile(state.profile, state.actionSpec?.challengeId ?? null);
     const before = clone(inspection.values[concept]);
     let value;
     if (concept === "arenaKit" || concept === "playerKit") value = replaceKit(before, control.value);
     else value = Number(control.value);
-    state.profile = updateConcept(state.profile, concept, value);
+    state.profile = updateConcept(state.profile, concept, value, state.actionSpec?.challengeId ?? null);
     state.operations.push({ type: "set-concept", concept, field: inspection.fieldMap[concept], before, after: clone(value), at: new Date().toISOString() });
     render();
     validateAndReport(false);
@@ -165,7 +164,7 @@ function applySourceEditor() {
       outputProfileSha256Pending: true,
       at: new Date().toISOString(),
     });
-    setStatus("good", "Exact source applied", `${recognized(validation.inspection)} deployed fields recognized; ${validation.inspection.unknownRootFields.length} root extensions preserved.`);
+    setStatus("good", "Exact source applied", `${recognized(validation.inspection)} deployed fields recognized; ${validation.inspection.unknownRootFields.length + validation.inspection.unknownEncounterFields.length} extensions preserved.`);
     render();
     validateAndReport(false);
   } catch (error) {
@@ -193,15 +192,15 @@ function render() {
   elements["profile-format"].textContent = state.profile.format;
   elements["spec-digest"].textContent = state.actionSpec?.specDigest ?? "Not bound";
   elements["challenge-id"].textContent = state.actionSpec?.challengeId ?? "Not bound";
-  elements["unknown-fields"].textContent = inspection.unknownRootFields.length ? inspection.unknownRootFields.join(", ") : "None";
+  const unknown = [...inspection.unknownRootFields.map((field) => `root:${field}`), ...inspection.unknownEncounterFields.map((field) => `encounter:${field}`)];
+  elements["unknown-fields"].textContent = unknown.length ? unknown.join(", ") : "None";
   elements["recognized-count"].textContent = `${recognized(inspection)} fields recognized`;
   elements["source-editor"].value = pretty(state.profile);
   configureSelect("arena", "arenaKit", inspection, ARENA_KITS);
   configureSelect("player", "playerKit", inspection, PLAYER_KITS);
-  configureNumber("enemy-cap", "enemyCap", inspection);
   configureNumber("duration", "durationSeconds", inspection);
-  configureNumber("aggression", "aggression", inspection);
-  configureNumber("partial", "partialCount", inspection);
+  configureNumber("arena-scale", "arenaScale", inspection);
+  configureNumber("enemy-scale", "enemyScale", inspection);
   renderObjectives(inspection);
   if (validation.valid) setValidation("good", validationSummary(validation));
   else setValidation("bad", validation.errors.join("\n"));
@@ -228,7 +227,7 @@ function configureNumber(prefix, concept, inspection) {
 }
 
 function disableGuided() {
-  for (const prefix of ["arena", "player", "enemy-cap", "duration", "aggression", "partial"]) {
+  for (const prefix of ["arena", "player", "duration", "arena-scale", "enemy-scale"]) {
     elements[`${prefix}-control`].disabled = true;
     elements[`${prefix}-path`].textContent = "Template field absent";
   }
@@ -268,10 +267,10 @@ function renderObjectives(inspection) {
     select.value = typeof existing === "string" ? existing : existing?.enemyKit ?? "";
     select.addEventListener("change", () => {
       try {
-        const before = clone(inspectProfile(state.profile).values.objectiveOverrides?.[objective.id] ?? null);
+        const before = clone(inspectProfile(state.profile, state.actionSpec?.challengeId ?? null).values.objectiveOverrides?.[objective.id] ?? null);
         state.profile = select.value
-          ? setObjectiveEnemyKit(state.profile, objective.id, select.value)
-          : removeObjectiveOverride(state.profile, objective.id);
+          ? setObjectiveEnemyKit(state.profile, objective.id, select.value, state.actionSpec?.challengeId ?? null)
+          : removeObjectiveOverride(state.profile, objective.id, state.actionSpec?.challengeId ?? null);
         state.operations.push({ type: select.value ? "set-objective-enemy-kit" : "remove-objective-override", field: overridePath, objectiveId: objective.id, before, after: select.value || null, at: new Date().toISOString() });
         render();
         validateAndReport(false);

@@ -15,13 +15,13 @@ export const PLAYER_KITS = Object.freeze(["staff", "blade", "hammer"]);
 export const ENEMY_KITS = Object.freeze(["skirmisher", "duelist", "swarm", "hexer", "breaker"]);
 
 const CONCEPTS = Object.freeze({
-  arenaKit: ["arenaKit", "arena", "arenaId", "arenaType", "arena.kind", "arena.kit"],
-  playerKit: ["playerKit", "player", "moveset", "playerMoveset", "player.kind", "player.kit"],
-  enemyCap: ["maximumEnemies", "maxEnemies", "enemyCap", "maximumActiveEnemies", "limits.enemies", "limits.maximumEnemies"],
-  durationSeconds: ["maximumDurationSeconds", "maxDurationSeconds", "durationSeconds", "timeLimitSeconds", "limits.durationSeconds", "limits.maximumDurationSeconds"],
-  aggression: ["aggression", "aggressionScale", "enemyAggression", "tuning.aggression", "tuning.aggressionScale"],
-  partialCount: ["partialObjectiveCount", "partialThreshold", "requiredPartialObjectives", "outcomes.partialObjectiveCount"],
-  objectiveOverrides: ["objectiveEnemyKits", "objectiveOverrides", "enemyKitByObjective", "objectives.enemyKits"],
+  arenaKit: ["arenaKit"],
+  playerKit: ["playerKit"],
+  durationSeconds: ["durationSeconds"],
+  arenaScale: ["arenaScale"],
+  enemyScale: ["enemyScale"],
+  objectiveOrder: ["objectiveOrder"],
+  objectiveOverrides: ["objectiveKits"],
 });
 
 export class ForgeJsonError extends Error {
@@ -196,27 +196,42 @@ export async function sha256Hex(value) {
   return [...new Uint8Array(digest)].map((part) => part.toString(16).padStart(2, "0")).join("");
 }
 
-export function inspectProfile(profile) {
+function resolveProfileScope(profile, challengeId = null) {
   validateProfileRoot(profile);
+  const encounterIds = Object.keys(profile.encounters).sort();
+  const selected = challengeId ?? (encounterIds.length === 1 ? encounterIds[0] : null);
+  if (selected === null) throw new Error("A profile with multiple encounters requires an action spec challengeId.");
+  const root = profile.encounters[selected];
+  if (!isPlainObject(root)) throw new Error(`Action profile encounter ${selected} is absent or not an object.`);
+  return { challengeId: selected, root, prefix: `encounters.${selected}.` };
+}
+
+export function inspectProfile(profile, challengeId = null) {
+  const scope = resolveProfileScope(profile, challengeId);
   const fieldMap = {};
   const values = {};
+  const relativePaths = {};
   for (const [concept, aliases] of Object.entries(CONCEPTS)) {
-    const path = aliases.find((candidate) => hasPath(profile, candidate)) ?? null;
-    fieldMap[concept] = path;
-    values[concept] = path === null ? null : clone(getPath(profile, path));
+    const relative = aliases.find((candidate) => hasPath(scope.root, candidate)) ?? null;
+    relativePaths[concept] = relative;
+    fieldMap[concept] = relative === null ? null : scope.prefix + relative;
+    values[concept] = relative === null ? null : clone(getPath(scope.root, relative));
   }
+  const recognizedEncounterRoots = new Set(Object.values(relativePaths).filter(Boolean).map((path) => path.split(".")[0]));
   return {
     format: profile.format,
+    challengeId: scope.challengeId,
     fieldMap,
     values,
-    unknownRootFields: Object.keys(profile).filter((key) => key !== "format" && !Object.values(fieldMap).filter(Boolean).some((path) => path.split(".")[0] === key)).sort(),
+    unknownRootFields: Object.keys(profile).filter((key) => key !== "format" && key !== "encounters").sort(),
+    unknownEncounterFields: Object.keys(scope.root).filter((key) => !recognizedEncounterRoots.has(key)).sort(),
   };
 }
 
-export function updateConcept(profile, concept, value) {
+export function updateConcept(profile, concept, value, challengeId = null) {
   validateProfileRoot(profile);
   if (!(concept in CONCEPTS)) throw new Error(`Unknown Forge concept ${concept}.`);
-  const inspected = inspectProfile(profile);
+  const inspected = inspectProfile(profile, challengeId);
   const path = inspected.fieldMap[concept];
   if (path === null) throw new Error(`The exact profile template does not expose ${concept}; the Forge refuses to invent a field.`);
   const next = clone(profile);
@@ -224,24 +239,22 @@ export function updateConcept(profile, concept, value) {
   return next;
 }
 
-export function setObjectiveEnemyKit(profile, objectiveId, enemyKit) {
+export function setObjectiveEnemyKit(profile, objectiveId, enemyKit, challengeId = null) {
   if (!ENEMY_KITS.includes(enemyKit)) throw new Error(`Unknown enemy kit ${enemyKit}.`);
-  const inspected = inspectProfile(profile);
+  const inspected = inspectProfile(profile, challengeId);
   const path = inspected.fieldMap.objectiveOverrides;
   if (path === null) throw new Error("The exact profile template does not expose objective-specific enemy mapping.");
   const current = getPath(profile, path);
   if (!isPlainObject(current)) throw new Error(`Objective override field ${path} is not an object.`);
   const next = clone(profile);
   const overrides = clone(getPath(next, path));
-  const existing = overrides[objectiveId];
-  if (isPlainObject(existing)) overrides[objectiveId] = { ...existing, enemyKit };
-  else overrides[objectiveId] = enemyKit;
+  overrides[objectiveId] = enemyKit;
   setPath(next, path, overrides);
   return next;
 }
 
-export function removeObjectiveOverride(profile, objectiveId) {
-  const inspected = inspectProfile(profile);
+export function removeObjectiveOverride(profile, objectiveId, challengeId = null) {
+  const inspected = inspectProfile(profile, challengeId);
   const path = inspected.fieldMap.objectiveOverrides;
   if (path === null) return clone(profile);
   const next = clone(profile);
@@ -253,24 +266,41 @@ export function removeObjectiveOverride(profile, objectiveId) {
 
 export function validateProfile(profile, actionSpec = null) {
   const errors = [];
-  try { validateProfileRoot(profile); } catch (error) { errors.push(error.message); return { valid: false, errors, inspection: null }; }
-  const inspection = inspectProfile(profile);
+  let inspection;
+  try {
+    validateProfileRoot(profile);
+    inspection = inspectProfile(profile, actionSpec?.challengeId ?? null);
+  } catch (error) {
+    errors.push(error.message);
+    return { valid: false, errors, inspection: null };
+  }
   checkKit(inspection.values.arenaKit, ARENA_KITS, "arena kit", errors);
   checkKit(inspection.values.playerKit, PLAYER_KITS, "player kit", errors);
-  checkNumber(inspection.values.enemyCap, 1, 12, "enemy cap", errors, true);
-  checkNumber(inspection.values.durationSeconds, 5, 3600, "duration seconds", errors, false);
-  checkNumber(inspection.values.aggression, 0.05, 8, "aggression", errors, false);
-  checkNumber(inspection.values.partialCount, 0, 4096, "partial objective count", errors, true);
+  checkNumber(inspection.values.durationSeconds, 20, 600, "duration seconds", errors, true);
+  checkNumber(inspection.values.arenaScale, 0.5, 2, "arena scale", errors, false);
+  checkNumber(inspection.values.enemyScale, 0.5, 2, "enemy scale", errors, false);
+
+  const order = inspection.values.objectiveOrder;
+  if (order !== null && (!Array.isArray(order) || order.length === 0 || order.some((id) => typeof id !== "string" || id.length === 0))) {
+    errors.push("Profile objective order must be a non-empty array of ids.");
+  } else if (Array.isArray(order) && new Set(order).size !== order.length) {
+    errors.push("Profile objective order contains duplicate ids.");
+  }
+
   if (actionSpec !== null) {
     if (!isPlainObject(actionSpec) || actionSpec.format !== ACTION_SPEC_FORMAT) errors.push(`Action spec must use ${ACTION_SPEC_FORMAT}.`);
     else {
-      const objectives = new Set((actionSpec.objectives ?? []).map((objective) => objective?.id).filter((id) => typeof id === "string"));
+      if (inspection.challengeId !== actionSpec.challengeId) errors.push(`Profile encounter ${inspection.challengeId} does not match action spec challenge ${String(actionSpec.challengeId)}.`);
+      const objectiveIds = (actionSpec.objectives ?? []).map((objective) => objective?.id).filter((id) => typeof id === "string");
+      const objectives = new Set(objectiveIds);
+      if (Array.isArray(order) && (order.length !== objectiveIds.length || order.some((id) => !objectives.has(id)))) {
+        errors.push("Profile objective order must name every action-spec objective exactly once.");
+      }
       const overrides = inspection.values.objectiveOverrides;
       if (overrides !== null && !isPlainObject(overrides)) errors.push("Objective overrides must be an object.");
       else if (isPlainObject(overrides)) {
-        for (const [objectiveId, entry] of Object.entries(overrides)) {
+        for (const [objectiveId, kit] of Object.entries(overrides)) {
           if (!objectives.has(objectiveId)) errors.push(`Objective override ${objectiveId} does not exist in the loaded action spec.`);
-          const kit = isPlainObject(entry) ? entry.enemyKit : entry;
           if (!ENEMY_KITS.includes(kit)) errors.push(`Objective override ${objectiveId} uses unknown enemy kit ${String(kit)}.`);
         }
       }
@@ -290,6 +320,7 @@ export async function buildForgeReceipt({ sourceProfile, outputProfile, actionSp
     generatedAt: new Date().toISOString(),
     status: "pass",
     profileFormat: outputProfile.format,
+    challengeId: validation.inspection.challengeId,
     sourceProfileSha256: await sha256Hex(sourceCanonical),
     outputProfileSha256: await sha256Hex(outputCanonical),
     changed: sourceCanonical !== outputCanonical,
@@ -298,6 +329,7 @@ export async function buildForgeReceipt({ sourceProfile, outputProfile, actionSp
     operations: clone(operations),
     fieldMap: validation.inspection.fieldMap,
     preservedUnknownRootFields: validation.inspection.unknownRootFields,
+    preservedUnknownEncounterFields: validation.inspection.unknownEncounterFields,
     authority: "Arc compiler validation required before installation",
   };
 }
@@ -305,6 +337,7 @@ export async function buildForgeReceipt({ sourceProfile, outputProfile, actionSp
 function validateProfileRoot(profile) {
   if (!isPlainObject(profile)) throw new Error("Action profile must be a plain JSON object.");
   if (profile.format !== ACTION_PROFILE_FORMAT) throw new Error(`Action profile must use ${ACTION_PROFILE_FORMAT}.`);
+  if (!isPlainObject(profile.encounters) || Object.keys(profile.encounters).length === 0) throw new Error("Action profile encounters must be a non-empty object.");
   validateJsonValue(profile);
 }
 

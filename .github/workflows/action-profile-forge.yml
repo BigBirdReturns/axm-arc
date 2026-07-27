@@ -1,5 +1,6 @@
 name: Action Profile Forge
 
+# Exact child-head qualification of the permanent clean-clone authoring product.
 on:
   pull_request:
     paths:

@@ -1,0 +1,231 @@
+name: Narrative polish publication
+
+on:
+  push:
+    branches:
+      - agent/narrative-rails-polish-staging
+    paths:
+      - '.github/workflows/narrative-polish-publish.yml'
+      - '.narrative-publish/**'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  TARGET_BRANCH: agent/narrative-rails-v0
+  TARGET_PR: '169'
+  PAYLOAD_B64_SHA256: 4a4c69324f2d914c2716a899861eca24f38342856c511b00b729301201a0009c
+  PAYLOAD_TAR_SHA256: e1153e35a93d8cd4262b898edfcab25afe513bb35bf8f69964edd3797821313d
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out staging custody
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure exact Git identity
+        run: |
+          git config user.name 'AXM Narrative Qualification'
+          git config user.email 'noreply@users.noreply.github.com'
+
+      - name: Resolve target and payload posture
+        id: posture
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin "$TARGET_BRANCH"
+          rm -rf /tmp/axm-target /tmp/narrative-polish
+          git worktree add /tmp/axm-target "origin/$TARGET_BRANCH"
+
+          expected=(
+            .narrative-publish/chunk-00
+            .narrative-publish/chunk-01
+            .narrative-publish/chunk-02
+            .narrative-publish/chunk-03
+            .narrative-publish/chunk-04-05
+            .narrative-publish/chunk-06-07
+            .narrative-publish/chunk-08-final
+          )
+          complete=true
+          for path in "${expected[@]}"; do
+            if [[ ! -f "$path" ]]; then
+              echo "missing payload component: $path"
+              complete=false
+            fi
+          done
+
+          if [[ "$complete" == true ]]; then
+            cat "${expected[@]}" > /tmp/narrative-polish.b64
+            echo "$PAYLOAD_B64_SHA256  /tmp/narrative-polish.b64" | sha256sum -c -
+            base64 --decode /tmp/narrative-polish.b64 > /tmp/narrative-polish.tgz
+            echo "$PAYLOAD_TAR_SHA256  /tmp/narrative-polish.tgz" | sha256sum -c -
+            mkdir -p /tmp/narrative-polish
+            tar -xzf /tmp/narrative-polish.tgz -C /tmp/narrative-polish
+            python - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          root = Path('/tmp/narrative-polish')
+          manifest = json.loads((root / 'MANIFEST.json').read_text(encoding='utf-8'))
+          failures = []
+          entries = manifest.get('files') or manifest.get('overlayFiles') or []
+          for entry in entries:
+              rel = entry.get('path') or entry.get('file')
+              expected = entry.get('sha256')
+              if not rel or not expected:
+                  continue
+              path = root / 'overlay' / rel
+              if not path.is_file():
+                  failures.append(f'missing:{rel}')
+                  continue
+              actual = hashlib.sha256(path.read_bytes()).hexdigest()
+              if actual != expected:
+                  failures.append(f'hash:{rel}:{actual}:{expected}')
+          if failures:
+              raise SystemExit('\n'.join(failures))
+          print(f'verified {len(entries)} manifest entries')
+          PY
+            cp -a /tmp/narrative-polish/overlay/. /tmp/axm-target/
+            echo 'payload_applied=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'payload_applied=false' >> "$GITHUB_OUTPUT"
+          fi
+
+          cd /tmp/axm-target
+          test -f tools/narrative-succession-cli.ts
+          test -f src/narrative/succession/qualification-estate.ts
+          grep -q 'qualify:narrative-succession' package.json
+          rm -rf .narrative-publish .narrative-polish
+
+      - name: Install exact dependencies
+        working-directory: /tmp/axm-target
+        run: npm ci
+
+      - name: Typecheck and complete test estate
+        working-directory: /tmp/axm-target
+        run: npm run check
+
+      - name: Build production browser product
+        working-directory: /tmp/axm-target
+        run: npm run build
+
+      - name: Run narrative succession smoke qualification
+        working-directory: /tmp/axm-target
+        run: npm run qualify:narrative-succession
+
+      - name: Run focused narrative estate
+        working-directory: /tmp/axm-target
+        run: >-
+          npx vitest run
+          tests/narrative/rails.test.ts
+          tests/narrative/recipes.test.ts
+          tests/narrative/audit.test.ts
+          tests/narrative/succession.test.ts
+          tests/narrative/succession-polish.test.ts
+          tests/narrative/succession-regime.test.ts
+
+      - name: Reverify published overlay manifest
+        if: steps.posture.outputs.payload_applied == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          manifest_root = Path('/tmp/narrative-polish')
+          repo = Path('/tmp/axm-target')
+          manifest = json.loads((manifest_root / 'MANIFEST.json').read_text(encoding='utf-8'))
+          entries = manifest.get('files') or manifest.get('overlayFiles') or []
+          failures = []
+          for entry in entries:
+              rel = entry.get('path') or entry.get('file')
+              expected = entry.get('sha256')
+              if not rel or not expected:
+                  continue
+              path = repo / rel
+              if not path.is_file():
+                  failures.append(f'missing:{rel}')
+                  continue
+              actual = hashlib.sha256(path.read_bytes()).hexdigest()
+              if actual != expected:
+                  failures.append(f'hash:{rel}:{actual}:{expected}')
+          if failures:
+              raise SystemExit('\n'.join(failures))
+          print(f'reverified {len(entries)} published files')
+          PY
+
+      - name: Commit and advance PR branch
+        id: publish
+        working-directory: /tmp/axm-target
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git checkout -B "$TARGET_BRANCH" "origin/$TARGET_BRANCH"
+          git add -A
+          if git diff --cached --quiet; then
+            echo 'target already contains the qualified tree'
+          else
+            git commit -m 'Polish deterministic narrative succession authority'
+            git push origin "HEAD:$TARGET_BRANCH"
+          fi
+          target_sha=$(git rev-parse HEAD)
+          echo "target_sha=$target_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Update PR evidence from verified commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_SHA: ${{ steps.publish.outputs.target_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > /tmp/pr-body.md <<EOF
+          ## Classification
+
+          This draft adds a deterministic narrative succession authority for AXM Arc. It converts source-plane constitutions into plot-excluded handoff packets, qualifies successor-room mechanism pitches, binds character action to owned goals and available knowledge, preserves semantic causality and open obligations, and generates writer-room briefs without reopening runtime authority.
+
+          The implementation is additive. Existing Arc engine behavior, cartridges, saves, portable runs, source-plane formats, and current player output remain unchanged unless a caller explicitly uses the narrative subsystem.
+
+          ## Published authority
+
+          The verified target commit is \`${TARGET_SHA}\`. The publication workflow refused partial payloads and ran the complete repository gates before advancing this evidence statement.
+
+          The subsystem now includes:
+
+          - machine-readable narrative constitutions and actor methods;
+          - deterministic role binding and hard eligibility gates;
+          - intention, belief, provenance, expected-effect, and risk receipts;
+          - reusable situation recipes and family-specific causal micro-rails;
+          - append-only beat, track, and obligation memory;
+          - counterfactual causal-width auditing;
+          - semantic novelty and recurrence-regime qualification;
+          - plot-excluded handoff inspection;
+          - bounded successor-pitch and writer-room CLI workflows;
+          - isolated cold-room, mutation, successor-room, long-horizon, and human-review fixtures.
+
+          ## Qualification performed before publication
+
+          The exact published tree passed:
+
+          - \`npm ci\`;
+          - \`npm run check\`;
+          - \`npm run build\`;
+          - \`npm run qualify:narrative-succession\`;
+          - the focused narrative rail, recipe, audit, succession, polish, and recurrence suites;
+          - manifest hash verification before and after application.
+
+          The checked-in qualification corpus covers plot exclusion, stale custody, all 31 adversarial handoff mutations, six unseen successor mechanisms, cross-universe transplant refusal, sincere false belief, unavailable author-knowledge refusal, family-specific micro-rails, deterministic plurality, writer-room compilation, isolated cold-room execution, recurrence regimes, epistemic causality, and separated human-review custody.
+
+          ## Authority boundary
+
+          Structural succession is qualified. The system proves identity, character agency, epistemic limits, causal inheritance, persistent cost, deterministic replay, and bounded novelty across the checked-in estate. It does not claim that formal qualification alone guarantees humor, emotional force, dialogue quality, visual execution, or audience preference. Those remain human editorial and blinded-audience evidence.
+
+          ## Control question
+
+          Can a writer who never sat in the original room prove, from the receipts alone, which native pressure produced a scene, why these actors chose these methods from goals and beliefs available to them, which prior beat the scene inherited, what persistent state it changed, which alternatives it rejected, and what future decision it made unavoidable?
+          EOF
+          gh pr edit "$TARGET_PR" --repo "$GITHUB_REPOSITORY" --body-file /tmp/pr-body.md

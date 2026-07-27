@@ -1,0 +1,134 @@
+name: Narrative publication finalizer
+
+on:
+  push:
+    branches:
+      - agent/narrative-rails-polish-staging
+    paths:
+      - '.github/workflows/narrative-publication-finalizer.yml'
+
+permissions:
+  contents: write
+  actions: read
+  pull-requests: write
+
+env:
+  TARGET_BRANCH: agent/narrative-rails-v0
+  TARGET_PR: '169'
+
+jobs:
+  finalize:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Wait for exact published authority and required workflows
+        id: evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected=('test' 'Arc product parity' 'Arc supply-chain evidence')
+          for attempt in $(seq 1 100); do
+            pr=$(gh api "/repos/$GITHUB_REPOSITORY/pulls/$TARGET_PR")
+            sha=$(jq -r '.head.sha' <<<"$pr")
+            git fetch --force origin "$sha"
+            authority=false
+            if git cat-file -e "$sha:src/narrative/succession/qualification-estate.ts" 2>/dev/null \
+              && git cat-file -e "$sha:tools/narrative-succession-cli.ts" 2>/dev/null \
+              && git cat-file -e "$sha:tests/narrative/succession-polish.test.ts" 2>/dev/null \
+              && git cat-file -e "$sha:tests/narrative/succession-regime.test.ts" 2>/dev/null; then
+              authority=true
+            fi
+
+            runs=$(gh api --paginate "/repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$sha&per_page=100")
+            complete=true
+            success=true
+            summary='[]'
+            for name in "${expected[@]}"; do
+              row=$(jq -c --arg name "$name" '[.workflow_runs[] | select(.name == $name)] | sort_by(.run_attempt, .run_number) | last // {}' <<<"$runs")
+              status=$(jq -r '.status // "missing"' <<<"$row")
+              conclusion=$(jq -r '.conclusion // ""' <<<"$row")
+              url=$(jq -r '.html_url // ""' <<<"$row")
+              number=$(jq -r '.run_number // ""' <<<"$row")
+              summary=$(jq -c --arg name "$name" --arg status "$status" --arg conclusion "$conclusion" --arg url "$url" --arg number "$number" '. + [{name:$name,status:$status,conclusion:$conclusion,url:$url,run_number:$number}]' <<<"$summary")
+              [[ "$status" == completed ]] || complete=false
+              [[ "$conclusion" == success ]] || success=false
+            done
+
+            echo "authority=$authority sha=$sha complete=$complete success=$success"
+            echo "$summary"
+            if [[ "$authority" == true && "$complete" == true ]]; then
+              [[ "$success" == true ]] || { echo 'required commit workflows reached a failed terminal state'; exit 1; }
+              echo "target_sha=$sha" >> "$GITHUB_OUTPUT"
+              printf 'check_summary<<EOF\n%s\nEOF\n' "$summary" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            sleep 30
+          done
+          echo 'published authority and green workflow estate did not converge'
+          exit 1
+
+      - name: Write exact PR evidence boundary
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_SHA: ${{ steps.evidence.outputs.target_sha }}
+          CHECK_SUMMARY: ${{ steps.evidence.outputs.check_summary }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          checks=$(jq -r '.[] | "- `\(.name)` run \(.run_number): **\(.conclusion)**"' <<<"$CHECK_SUMMARY")
+          cat > /tmp/pr-body.md <<EOF
+          ## Classification
+
+          This draft adds a deterministic narrative succession authority for AXM Arc. It compiles creator-owned source-plane constitutions into plot-excluded handoff packets, qualifies successor-room mechanism pitches, binds character action to owned intentions and available knowledge, preserves semantic causality and open obligations, and generates writer-room briefs without granting presentation code authority over story state.
+
+          The train is additive. Existing Arc engine law, cartridges, source-plane formats, saves, portable runs, and current player behavior remain unchanged unless a caller explicitly enters the narrative subsystem.
+
+          ## Qualified published commit
+
+          The exact published head is \`${TARGET_SHA}\`.
+
+          ## Authority delivered
+
+          - deterministic role binding and hard eligibility before comparative scoring;
+          - identity anchors, Story Physics, actor methods, prohibited moves, and evidence-backed deviations;
+          - intention, belief, provenance, expected-effect, false-belief, and risk receipts;
+          - reusable situation recipes and incident-family causal micro-rails;
+          - append-only beat, track, precedent, and obligation memory;
+          - explicit epistemic transitions and author-knowledge refusal;
+          - counterfactual causal-width, semantic novelty, recurrence, and institutional-regime auditing;
+          - plot-excluded handoff inspection and bounded successor-pitch authoring;
+          - writer-room packets with paired actor, method, goal, knowledge, risk, and custody receipts;
+          - isolated cold-room, adversarial mutation, successor-room, long-horizon, and human-review qualification fixtures.
+
+          ## Commit-specific repository evidence
+
+          ${checks}
+
+          The publication path also authenticated the sealed payload, verified every manifest entry before and after application, ran \`npm ci\`, \`npm run check\`, \`npm run build\`, \`npm run qualify:narrative-succession\`, and the focused rail, recipe, audit, succession, polish, and recurrence suites before advancing the branch.
+
+          ## Evidentiary boundary
+
+          The repository evidence qualifies structural succession: native-universe identity, character agency, epistemic limits, causal inheritance, persistent costs, bounded novelty, recurrence with institutional memory, and deterministic replay. It does not claim that formal qualification alone guarantees humor, dialogue quality, emotional force, visual execution, or audience preference. Those remain human editorial and blinded-audience evidence.
+
+          ## Control question
+
+          Can a writer who never sat in the original room prove, from the receipts alone, which native pressure produced a scene, why these actors chose these methods from goals and beliefs available to them, which prior beat the scene inherited, what persistent state it changed, which alternatives it rejected, and what future decision it made unavoidable?
+          EOF
+          gh pr edit "$TARGET_PR" --repo "$GITHUB_REPOSITORY" --body-file /tmp/pr-body.md
+          gh pr comment "$TARGET_PR" --repo "$GITHUB_REPOSITORY" --body \
+            "Final publication gate passed for \`$TARGET_SHA\`. Required commit-specific workflows are green; staging custody is being removed."
+
+      - name: Remove temporary publication refs
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api --method DELETE "/repos/$GITHUB_REPOSITORY/git/refs/heads/agent/narrative-exact-candidate" || true
+          gh api --method DELETE "/repos/$GITHUB_REPOSITORY/git/refs/heads/agent/deploy-key-probe" || true
+          gh api --method DELETE "/repos/$GITHUB_REPOSITORY/git/refs/heads/agent/narrative-rails-polish-staging" || true

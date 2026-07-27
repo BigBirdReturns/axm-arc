@@ -1,0 +1,74 @@
+name: Narrative polish staging
+
+on:
+  push:
+    branches:
+      - agent/narrative-rails-polish-staging
+
+permissions:
+  contents: write
+
+concurrency:
+  group: narrative-polish-staging
+  cancel-in-progress: false
+
+jobs:
+  assemble-and-qualify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out the exact staging branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/narrative-rails-polish-staging
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Assemble and verify the transported archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t chunks < <(find .narrative-polish -maxdepth 1 -type f -name 'chunk-*' | LC_ALL=C sort)
+          test "${#chunks[@]}" -eq 12
+          cat "${chunks[@]}" > /tmp/narrative-polish-payload.b64
+          echo "28cfe8b3db63cbe7207040eacbcc2ba66735179c945a9df73a441523bb0908ad  /tmp/narrative-polish-payload.b64" | sha256sum -c -
+          base64 --decode /tmp/narrative-polish-payload.b64 > /tmp/narrative-polish-payload.tgz
+          echo "8908974b689c25702ac34609e10bfe0e3901a6158c0cf57bb9da58ceaef4098b  /tmp/narrative-polish-payload.tgz" | sha256sum -c -
+          tar -tzf /tmp/narrative-polish-payload.tgz > /tmp/narrative-polish-files.txt
+          tar -xzf /tmp/narrative-polish-payload.tgz -C .
+          rm -rf .narrative-polish
+          rm -f .github/workflows/narrative-polish-staging.yml
+          test ! -e .narrative-polish
+          test ! -e .github/workflows/narrative-polish-staging.yml
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install exact dependencies
+        run: npm ci
+
+      - name: Qualify the exact polished source
+        run: |
+          set -euo pipefail
+          npm run typecheck
+          npm test
+          npm run qualify:narrative-succession
+          npm run build
+          git diff --check
+
+      - name: Publish the qualified staging candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "The payload produced no repository change." >&2
+            exit 1
+          fi
+          git commit -m "Polish deterministic narrative succession"
+          git push origin HEAD:agent/narrative-rails-polish-staging

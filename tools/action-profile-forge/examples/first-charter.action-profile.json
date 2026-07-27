@@ -1,0 +1,18 @@
+{
+  "format": "axm-action-profile/1",
+  "encounters": {
+    "cellar": {
+      "arenaKit": "ring",
+      "playerKit": "staff",
+      "durationSeconds": 90,
+      "arenaScale": 1,
+      "enemyScale": 1,
+      "objectiveOrder": [
+        "cellar-sweep"
+      ],
+      "objectiveKits": {
+        "cellar-sweep": "skirmisher"
+      }
+    }
+  }
+}

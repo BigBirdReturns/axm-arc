@@ -1,0 +1,116 @@
+name: Action Profile Forge
+
+on:
+  pull_request:
+    paths:
+      - 'src/engine/action/**'
+      - 'src/engine/cartridge-digest.ts'
+      - 'src/arcs/first-charter.ts'
+      - 'tools/action-profile-forge/**'
+      - 'tests/action/action-profile-forge-template.test.ts'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/action-profile-forge.yml'
+  push:
+    branches:
+      - feature/action-profile-forge-v1
+    paths:
+      - 'src/engine/action/**'
+      - 'src/engine/cartridge-digest.ts'
+      - 'src/arcs/first-charter.ts'
+      - 'tools/action-profile-forge/**'
+      - 'tests/action/action-profile-forge-template.test.ts'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/action-profile-forge.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: action-profile-forge-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  ARC_ACTION_AUTHORITY_SHA: 6eef311836ee7cb3a43a94ce51f448a2699c3b04
+  CI: 'true'
+
+jobs:
+  forge:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      RECEIPT_DIR: ${{ runner.temp }}/action-profile-forge-receipt
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          show-progress: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Record exact candidate identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = '${{ github.event.pull_request.head.sha || github.sha }}'
+          test -z "$(git status --porcelain)"
+          mkdir -p "$RECEIPT_DIR"
+          printf '%s\n' '${{ github.event.pull_request.head.sha || github.sha }}' > "$RECEIPT_DIR/candidate-sha.txt"
+      - run: npm ci --no-audit --no-fund
+      - name: TypeScript and pure Forge editing law
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run typecheck 2>&1 | tee "$RECEIPT_DIR/typecheck.log"
+          npm run test:action-profile-forge 2>&1 | tee "$RECEIPT_DIR/forge-law.log"
+      - name: Regenerate compiler-proven examples byte-for-byte
+        shell: bash
+        run: |
+          set -euo pipefail
+          generated="$RUNNER_TEMP/generated-examples"
+          mkdir -p "$generated"
+          export AXM_ACTION_PROFILE_TEMPLATE_OUT="$generated/first-charter.action-profile.json"
+          export AXM_ACTION_PROFILE_TEMPLATE_SPEC_OUT="$generated/first-charter.action-spec.json"
+          export AXM_ACTION_PROFILE_TEMPLATE_RECEIPT_OUT="$generated/first-charter.template-receipt.json"
+          npx vitest run tests/action/action-profile-forge-template.test.ts --reporter=verbose 2>&1 | tee "$RECEIPT_DIR/template.log"
+          diff -ru tools/action-profile-forge/examples "$generated" | tee "$RECEIPT_DIR/example-diff.log"
+      - name: Build the dependency-free static Forge twice
+        shell: bash
+        run: |
+          set -euo pipefail
+          first="$RUNNER_TEMP/forge-first"
+          second="$RUNNER_TEMP/forge-second"
+          npm run build:action-profile-forge -- --output "$first" --authority-commit "$ARC_ACTION_AUTHORITY_SHA" 2>&1 | tee "$RECEIPT_DIR/build-first.log"
+          npm run build:action-profile-forge -- --output "$second" --authority-commit "$ARC_ACTION_AUTHORITY_SHA" 2>&1 | tee "$RECEIPT_DIR/build-second.log"
+          diff -ru "$first" "$second" | tee "$RECEIPT_DIR/build-diff.log"
+          cp "$first/manifest.json" "$RECEIPT_DIR/manifest.json"
+          node - <<'NODE'
+          const fs = require('fs');
+          const manifest = JSON.parse(fs.readFileSync(process.env.RECEIPT_DIR + '/manifest.json', 'utf8'));
+          if (manifest.format !== 'axm-action-profile-forge-static/1' || manifest.status !== 'pass') throw new Error('Forge manifest did not pass.');
+          if (manifest.authorityCommit !== process.env.ARC_ACTION_AUTHORITY_SHA) throw new Error('Forge authority mismatch.');
+          if (!/^actspec1_[0-9a-f]{64}$/.test(manifest.actionSpecDigest)) throw new Error('Forge spec digest is malformed.');
+          if (manifest.remoteRuntimeReferences !== 0 || manifest.dynamicEvaluation || manifest.serviceWorker) throw new Error('Forge crossed its offline boundary.');
+          NODE
+      - name: Focused and complete Arc product qualification
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm test -- tests/action/action-profile-forge-template.test.ts tests/action/action-profile.test.ts tests/action/action-estate.test.ts 2>&1 | tee "$RECEIPT_DIR/focused.log"
+          npm test 2>&1 | tee "$RECEIPT_DIR/complete.log"
+          npm run build 2>&1 | tee "$RECEIPT_DIR/product-build.log"
+          if git ls-files -- docs/game | grep -q .; then git restore --source=HEAD --staged --worktree -- docs/game; fi
+          git clean -fdx -- docs/game
+          git diff --check
+          test -z "$(git status --porcelain)"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: axm-action-profile-forge
+          path: ${{ runner.temp }}/action-profile-forge-receipt
+          if-no-files-found: warn
+          retention-days: 30

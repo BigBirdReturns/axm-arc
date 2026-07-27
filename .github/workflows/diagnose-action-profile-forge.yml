@@ -1,0 +1,98 @@
+name: Diagnose exact Action Profile Forge
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/diagnose-action-profile-forge.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: diagnose-exact-action-profile-forge
+  cancel-in-progress: true
+
+env:
+  ARC_ACTION_AUTHORITY_SHA: 6eef311836ee7cb3a43a94ce51f448a2699c3b04
+  CI: 'true'
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          show-progress: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Reapply the candidate transformation
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/forge-diagnostics"
+          python - <<'PY' 2>&1 | tee "$RUNNER_TEMP/forge-diagnostics/transformation.log"
+          from pathlib import Path
+          lines = Path('.github/workflows/qualify-action-profile-forge.yml').read_text().splitlines()
+          start = next(index for index, line in enumerate(lines) if line.strip() == "python - <<'PY'") + 1
+          end = next(index for index in range(start, len(lines)) if lines[index].strip() == 'PY')
+          script = '\n'.join(line[10:] if line.startswith('          ') else line for line in lines[start:end]) + '\n'
+          exec(compile(script, '<forge-candidate-transform>', 'exec'), {'__name__': '__main__'})
+          PY
+          git diff --check
+      - run: npm ci --no-audit --no-fund
+      - name: Generate exact examples
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p tools/action-profile-forge/examples
+          export AXM_ACTION_PROFILE_TEMPLATE_OUT="$PWD/tools/action-profile-forge/examples/first-charter.action-profile.json"
+          export AXM_ACTION_PROFILE_TEMPLATE_SPEC_OUT="$PWD/tools/action-profile-forge/examples/first-charter.action-spec.json"
+          export AXM_ACTION_PROFILE_TEMPLATE_RECEIPT_OUT="$PWD/tools/action-profile-forge/examples/first-charter.template-receipt.json"
+          npx vitest run tests/action/action-profile-forge-template.test.ts --reporter=verbose 2>&1 | tee "$RUNNER_TEMP/forge-diagnostics/template.log"
+      - name: TypeScript
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run typecheck 2>&1 | tee "$RUNNER_TEMP/forge-diagnostics/typecheck.log"
+      - name: Pure Forge law
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run test:action-profile-forge 2>&1 | tee "$RUNNER_TEMP/forge-diagnostics/forge-law.log"
+      - name: Focused Arc action contracts
+        shell: bash
+        run: |
+          set -o pipefail
+          npm test -- tests/action/action-profile-forge-template.test.ts tests/action/action-profile.test.ts tests/action/action-estate.test.ts 2>&1 | tee "$RUNNER_TEMP/forge-diagnostics/focused.log"
+      - name: Deterministic offline assembly
+        shell: bash
+        run: |
+          set -euo pipefail
+          first="$RUNNER_TEMP/forge-first"
+          second="$RUNNER_TEMP/forge-second"
+          npm run build:action-profile-forge -- --output "$first" --authority-commit "$ARC_ACTION_AUTHORITY_SHA" 2>&1 | tee "$RUNNER_TEMP/forge-diagnostics/build-first.log"
+          npm run build:action-profile-forge -- --output "$second" --authority-commit "$ARC_ACTION_AUTHORITY_SHA" 2>&1 | tee "$RUNNER_TEMP/forge-diagnostics/build-second.log"
+          diff -ru "$first" "$second" | tee "$RUNNER_TEMP/forge-diagnostics/build-diff.log"
+      - name: Complete Arc regression
+        shell: bash
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee "$RUNNER_TEMP/forge-diagnostics/complete.log"
+      - name: Production build
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee "$RUNNER_TEMP/forge-diagnostics/product-build.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: action-profile-forge-diagnostics
+          path: ${{ runner.temp }}/forge-diagnostics
+          if-no-files-found: warn
+          retention-days: 7

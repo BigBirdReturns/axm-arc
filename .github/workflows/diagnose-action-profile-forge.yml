@@ -1,4 +1,4 @@
-name: Diagnose exact Action Profile Forge
+name: Finalize exact Action Profile Forge
 
 on:
   pull_request:
@@ -7,18 +7,19 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
-  group: diagnose-exact-action-profile-forge
+  group: finalize-exact-action-profile-forge
   cancel-in-progress: true
 
 env:
   ARC_ACTION_AUTHORITY_SHA: 6eef311836ee7cb3a43a94ce51f448a2699c3b04
+  FORGE_BASE_SHA: d7073347f422091d709c2b6a0c02e10aae28ad93
   CI: 'true'
 
 jobs:
-  diagnose:
+  finalize:
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     steps:
@@ -31,12 +32,12 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - name: Reapply the candidate transformation
+      - name: Materialize the qualified permanent candidate
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p "$RUNNER_TEMP/forge-diagnostics"
-          python - <<'PY' 2>&1 | tee "$RUNNER_TEMP/forge-diagnostics/transformation.log"
+          mkdir -p "$RUNNER_TEMP/forge-receipt"
+          python - <<'PY' 2>&1 | tee "$RUNNER_TEMP/forge-receipt/transformation.log"
           from pathlib import Path
           lines = Path('.github/workflows/qualify-action-profile-forge.yml').read_text().splitlines()
           start = next(index for index, line in enumerate(lines) if line.strip() == "python - <<'PY'") + 1
@@ -46,12 +47,11 @@ jobs:
           new = 'arc.extensions = { ...(arc.extensions ?? {}), [ACTION_EXTENSION_KEY]: JSON.parse(JSON.stringify(profile)) };'
           if script.count(old) != 1:
               raise SystemExit(f'profile JSON-boundary anchor count: {script.count(old)}')
-          script = script.replace(old, new)
-          exec(compile(script, '<forge-candidate-transform>', 'exec'), {'__name__': '__main__'})
+          exec(compile(script.replace(old, new), '<forge-candidate-transform>', 'exec'), {'__name__': '__main__'})
           PY
           git diff --check
       - run: npm ci --no-audit --no-fund
-      - name: Generate exact examples
+      - name: Generate exact compiler-proven examples
         shell: bash
         run: |
           set -euo pipefail
@@ -59,58 +59,58 @@ jobs:
           export AXM_ACTION_PROFILE_TEMPLATE_OUT="$PWD/tools/action-profile-forge/examples/first-charter.action-profile.json"
           export AXM_ACTION_PROFILE_TEMPLATE_SPEC_OUT="$PWD/tools/action-profile-forge/examples/first-charter.action-spec.json"
           export AXM_ACTION_PROFILE_TEMPLATE_RECEIPT_OUT="$PWD/tools/action-profile-forge/examples/first-charter.template-receipt.json"
-          npx vitest run tests/action/action-profile-forge-template.test.ts --reporter=verbose 2>&1 | tee "$RUNNER_TEMP/forge-diagnostics/template.log"
-      - name: TypeScript
-        shell: bash
-        run: |
-          set -o pipefail
-          npm run typecheck 2>&1 | tee "$RUNNER_TEMP/forge-diagnostics/typecheck.log"
-      - name: Pure Forge law
-        shell: bash
-        run: |
-          set -o pipefail
-          npm run test:action-profile-forge 2>&1 | tee "$RUNNER_TEMP/forge-diagnostics/forge-law.log"
-      - name: Focused Arc action contracts
-        shell: bash
-        run: |
-          set -o pipefail
-          npm test -- tests/action/action-profile-forge-template.test.ts tests/action/action-profile.test.ts tests/action/action-estate.test.ts 2>&1 | tee "$RUNNER_TEMP/forge-diagnostics/focused.log"
-      - name: Deterministic offline assembly
+          npx vitest run tests/action/action-profile-forge-template.test.ts --reporter=verbose 2>&1 | tee "$RUNNER_TEMP/forge-receipt/template.log"
+      - name: Qualify exact Forge and complete Arc product
         shell: bash
         run: |
           set -euo pipefail
+          npm run typecheck 2>&1 | tee "$RUNNER_TEMP/forge-receipt/typecheck.log"
+          npm run test:action-profile-forge 2>&1 | tee "$RUNNER_TEMP/forge-receipt/forge-law.log"
+          npm test -- tests/action/action-profile-forge-template.test.ts tests/action/action-profile.test.ts tests/action/action-estate.test.ts 2>&1 | tee "$RUNNER_TEMP/forge-receipt/focused.log"
           first="$RUNNER_TEMP/forge-first"
           second="$RUNNER_TEMP/forge-second"
-          npm run build:action-profile-forge -- --output "$first" --authority-commit "$ARC_ACTION_AUTHORITY_SHA" 2>&1 | tee "$RUNNER_TEMP/forge-diagnostics/build-first.log"
-          npm run build:action-profile-forge -- --output "$second" --authority-commit "$ARC_ACTION_AUTHORITY_SHA" 2>&1 | tee "$RUNNER_TEMP/forge-diagnostics/build-second.log"
-          diff -ru "$first" "$second" | tee "$RUNNER_TEMP/forge-diagnostics/build-diff.log"
-      - name: Complete Arc regression
-        shell: bash
-        run: |
-          set -o pipefail
-          npm test 2>&1 | tee "$RUNNER_TEMP/forge-diagnostics/complete.log"
-      - name: Production build
-        shell: bash
-        run: |
-          set -o pipefail
-          npm run build 2>&1 | tee "$RUNNER_TEMP/forge-diagnostics/product-build.log"
-      - name: Export permanent candidate files
+          npm run build:action-profile-forge -- --output "$first" --authority-commit "$ARC_ACTION_AUTHORITY_SHA" 2>&1 | tee "$RUNNER_TEMP/forge-receipt/build-first.log"
+          npm run build:action-profile-forge -- --output "$second" --authority-commit "$ARC_ACTION_AUTHORITY_SHA" 2>&1 | tee "$RUNNER_TEMP/forge-receipt/build-second.log"
+          diff -ru "$first" "$second" | tee "$RUNNER_TEMP/forge-receipt/build-diff.log"
+          npm test 2>&1 | tee "$RUNNER_TEMP/forge-receipt/complete.log"
+          npm run build 2>&1 | tee "$RUNNER_TEMP/forge-receipt/product-build.log"
+          if git ls-files -- docs/game | grep -q .; then git restore --source=HEAD --staged --worktree -- docs/game; fi
+          git clean -fdx -- docs/game
+          git diff --check
+      - name: Publish one carrier-free Forge commit
         shell: bash
         run: |
           set -euo pipefail
-          root="$RUNNER_TEMP/forge-candidate"
-          mkdir -p "$root/tools/action-profile-forge/examples" "$root/tests/action"
-          cp package.json "$root/"
-          cp tools/action-profile-forge/app.js tools/action-profile-forge/index.html tools/action-profile-forge/profile-forge.mjs tools/action-profile-forge/profile-forge.test.mjs "$root/tools/action-profile-forge/"
-          cp tools/action-profile-forge/examples/*.json "$root/tools/action-profile-forge/examples/"
-          cp tests/action/action-profile-forge-template.test.ts "$root/tests/action/"
-          (cd "$root" && find . -type f -print0 | sort -z | xargs -0 sha256sum > QUALIFIED_SHA256SUMS)
+          git fetch --no-tags origin feature/action-profile-forge-v1
+          base="$(git rev-parse origin/feature/action-profile-forge-v1)"
+          test "$base" = "$FORGE_BASE_SHA"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git read-tree "$base^{tree}"
+          git add \
+            package.json \
+            tests/action/action-profile-forge-template.test.ts \
+            tools/action-profile-forge/app.js \
+            tools/action-profile-forge/index.html \
+            tools/action-profile-forge/profile-forge.mjs \
+            tools/action-profile-forge/profile-forge.test.mjs \
+            tools/action-profile-forge/examples/first-charter.action-profile.json \
+            tools/action-profile-forge/examples/first-charter.action-spec.json \
+            tools/action-profile-forge/examples/first-charter.template-receipt.json
+          git diff --cached --check
+          tree="$(git write-tree)"
+          commit="$(printf '%s\n' 'Bind Action Profile Forge to the deployed Arc profile contract' | \
+            GIT_AUTHOR_NAME='github-actions[bot]' \
+            GIT_AUTHOR_EMAIL='41898282+github-actions[bot]@users.noreply.github.com' \
+            GIT_COMMITTER_NAME='github-actions[bot]' \
+            GIT_COMMITTER_EMAIL='41898282+github-actions[bot]@users.noreply.github.com' \
+            git commit-tree "$tree" -p "$base")"
+          git push origin "$commit":feature/action-profile-forge-v1
+          printf '%s\n' "$commit" > "$RUNNER_TEMP/forge-receipt/published-sha.txt"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: action-profile-forge-diagnostics
-          path: |
-            ${{ runner.temp }}/forge-diagnostics
-            ${{ runner.temp }}/forge-candidate
+          name: finalized-action-profile-forge
+          path: ${{ runner.temp }}/forge-receipt
           if-no-files-found: warn
-          retention-days: 7
+          retention-days: 30

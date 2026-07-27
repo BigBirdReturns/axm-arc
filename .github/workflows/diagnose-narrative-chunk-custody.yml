@@ -1,0 +1,58 @@
+name: Diagnose narrative chunk custody
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/diagnose-narrative-chunk-custody.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          show-progress: false
+      - name: Measure repository-held chunks without applying them
+        shell: bash
+        run: |
+          set -u
+          root="$RUNNER_TEMP/narrative-chunk-diagnostics"
+          mkdir -p "$root"
+          mapfile -t chunks < <(find .narrative-polish -maxdepth 1 -type f -name 'chunk-*' | LC_ALL=C sort)
+          {
+            printf 'candidate=%s\n' "$(git rev-parse HEAD)"
+            printf 'chunk_count=%s\n' "${#chunks[@]}"
+            printf 'expected_b64_sha256=%s\n' '28cfe8b3db63cbe7207040eacbcc2ba66735179c945a9df73a441523bb0908ad'
+            printf 'expected_tgz_sha256=%s\n' '8908974b689c25702ac34609e10bfe0e3901a6158c0cf57bb9da58ceaef4098b'
+            printf '%s\n' "${chunks[@]}"
+          } > "$root/diagnostics.txt"
+          if [[ ${#chunks[@]} -gt 0 ]]; then
+            cat "${chunks[@]}" > "$root/payload.b64"
+            printf 'actual_b64_sha256=%s\n' "$(sha256sum "$root/payload.b64" | cut -d' ' -f1)" >> "$root/diagnostics.txt"
+            if base64 --decode "$root/payload.b64" > "$root/payload.tgz" 2> "$root/base64-error.txt"; then
+              printf 'base64_decode=pass\n' >> "$root/diagnostics.txt"
+              printf 'actual_tgz_sha256=%s\n' "$(sha256sum "$root/payload.tgz" | cut -d' ' -f1)" >> "$root/diagnostics.txt"
+              if tar -tzf "$root/payload.tgz" > "$root/archive-files.txt" 2> "$root/tar-error.txt"; then
+                printf 'tar_list=pass\n' >> "$root/diagnostics.txt"
+                printf 'archive_member_count=%s\n' "$(wc -l < "$root/archive-files.txt")" >> "$root/diagnostics.txt"
+              else
+                printf 'tar_list=fail\n' >> "$root/diagnostics.txt"
+              fi
+            else
+              printf 'base64_decode=fail\n' >> "$root/diagnostics.txt"
+            fi
+          fi
+          cat "$root/diagnostics.txt"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: narrative-chunk-custody-diagnostics
+          path: ${{ runner.temp }}/narrative-chunk-diagnostics
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7

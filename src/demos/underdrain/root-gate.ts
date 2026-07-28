@@ -1,6 +1,7 @@
 import { cartridgeDigest, sha256Hex } from "../../engine/cartridge-digest.js";
 import { orderRecordKeysDeep } from "../../engine/determinism.js";
-import type { Arc, CartridgeStateEffect, CartridgeStateValue } from "../../engine/types.js";
+import type { CartridgeStateEffect, CartridgeStateValue } from "../../engine/abi13.js";
+import type { Arc } from "../../engine/types.js";
 import {
   UNDERDRAIN_DRAFT_ARC,
   UNDERDRAIN_ROOT_GATE_CHALLENGE,

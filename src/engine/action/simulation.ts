@@ -1,5 +1,11 @@
 import { compareCodepoints } from "../determinism.js";
 import {
+  actionObjectiveComplete,
+  initializeSemanticObjectiveState,
+  semanticObjectiveProgress,
+  stepSemanticObjective,
+} from "./objectives.js";
+import {
   ACTION_BUTTON,
   ACTION_BUTTON_MASK,
   type ActionAttackLaw,
@@ -127,7 +133,8 @@ export function initialActionState(spec: ActionEncounterSpec, seed: number): Act
     events: [{ type: "wave_started", objectiveId: spec.objectives[0]!.id }],
     result: null,
   };
-  return { ...state, enemies: spawnWave(spec, state, 0) };
+  const initialized = { ...state, enemies: spawnWave(spec, state, 0) };
+  return initializeSemanticObjectiveState(spec, initialized);
 }
 
 function playerInvulnerable(spec: ActionEncounterSpec, player: ActionPlayerState): boolean {
@@ -286,7 +293,10 @@ function stepEnemy(
 function objectiveProgress(spec: ActionEncounterSpec, state: ActionSimulationState): ActionObjectiveProgress[] {
   const completed = new Set(state.completedObjectiveIds);
   return spec.objectives.map((objective, index) => {
-    if (completed.has(objective.id)) {
+    const isCompleted = completed.has(objective.id);
+    const semantic = semanticObjectiveProgress(state, objective, isCompleted);
+    if (semantic) return semantic;
+    if (isCompleted) {
       return { id: objective.id, defeated: objective.targetDefeats, target: objective.targetDefeats, completed: true };
     }
     if (index !== state.activeObjectiveIndex) {
@@ -332,9 +342,8 @@ function terminalResult(spec: ActionEncounterSpec, state: ActionSimulationState)
 }
 
 function advanceWave(spec: ActionEncounterSpec, state: ActionSimulationState): ActionSimulationState {
-  if (state.enemies.some((enemy) => enemy.mode !== "defeated")) return state;
   const objective = spec.objectives[state.activeObjectiveIndex];
-  if (!objective) return state;
+  if (!objective || !actionObjectiveComplete(state, objective)) return state;
   const completedObjectiveIds = [...new Set([...state.completedObjectiveIds, objective.id])].sort(compareCodepoints);
   const nextIndex = state.activeObjectiveIndex + 1;
   const events: ActionEvent[] = [...state.events, { type: "objective_completed", objectiveId: objective.id }];
@@ -364,7 +373,9 @@ export function stepActionSimulation(
     events = stepped.events;
     return stepped.enemy;
   });
-  state = { ...state, tick: state.tick + 1, player, enemies, stats, events, previousButtons: input.buttons };
+  state = { ...state, tick: state.tick + 1, player, enemies, stats, events };
+  state = stepSemanticObjective(spec, state, input);
+  state = { ...state, previousButtons: input.buttons };
   state = advanceWave(spec, state);
   const result = terminalResult(spec, state);
   if (result) {

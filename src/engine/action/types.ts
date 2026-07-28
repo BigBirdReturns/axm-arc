@@ -36,11 +36,17 @@ export type ActionObjectiveAuthoring =
       kind: "interact_count";
       targetCount: number;
       radius?: number;
+      /** Optional authored pressure population. Zero creates a safe mechanism
+       * objective. Absent preserves the ordinary derived enemy population. */
+      pressureEnemyCount?: number;
     }
   | {
       kind: "hold_ticks";
       targetTicks: number;
       radius?: number;
+      /** Optional authored pressure population. Zero creates a safe mechanism
+       * objective. Absent preserves the ordinary derived enemy population. */
+      pressureEnemyCount?: number;
     };
 
 export interface ActionObjectiveProfile {

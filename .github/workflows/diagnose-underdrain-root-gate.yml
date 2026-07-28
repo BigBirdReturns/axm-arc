@@ -1,0 +1,52 @@
+name: Diagnose Underdrain Root Gate authority
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/diagnose-underdrain-root-gate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          show-progress: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Capture exact compiler and focused-test diagnostics
+        shell: bash
+        run: |
+          set +e
+          root="$RUNNER_TEMP/underdrain-root-gate-diagnostics"
+          mkdir -p "$root"
+          npm run typecheck > "$root/typecheck.log" 2>&1
+          typecheck=$?
+          if [ "$typecheck" -eq 0 ]; then
+            npm test -- tests/demos/underdrain-root-gate.test.ts tests/demos/underdrain-draft.test.ts > "$root/tests.log" 2>&1
+            tests=$?
+          else
+            tests=99
+          fi
+          printf '{"typecheck":%s,"tests":%s}\n' "$typecheck" "$tests" > "$root/status.json"
+          cat "$root/typecheck.log"
+          test "$typecheck" -eq 0
+          cat "$root/tests.log" 2>/dev/null || true
+          test "$tests" -eq 0
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: underdrain-root-gate-diagnostics
+          path: ${{ runner.temp }}/underdrain-root-gate-diagnostics
+          if-no-files-found: error
+          retention-days: 14

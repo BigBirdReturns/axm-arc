@@ -9,6 +9,7 @@ import {
   ACTION_BUTTON_MASK,
   ACTION_RECEIPT_FORMAT,
   ACTION_RUNTIME_VERSION,
+  ACTION_SEMANTIC_RUNTIME_VERSION,
   type ActionInputRun,
   type ActionReceipt,
   type ActionReceiptCore,
@@ -33,12 +34,16 @@ const StatsSchema = z.object({
   parries: z.number().int().nonnegative(),
   dodgedAttacks: z.number().int().nonnegative(),
   enemiesDefeated: z.number().int().nonnegative(),
+  objectiveInteractions: z.number().int().nonnegative().optional(),
+  objectiveHoldTicks: z.number().int().nonnegative().optional(),
 }).strict();
 const ProgressSchema = z.object({
   id: Id,
   defeated: z.number().int().nonnegative(),
   target: z.number().int().positive(),
   completed: z.boolean(),
+  kind: z.enum(["interact_count", "hold_ticks"]).optional(),
+  progress: z.number().int().nonnegative().optional(),
 }).strict();
 const ResultSchema = z.object({
   outcome: z.enum(["success", "partial", "failure"]),
@@ -51,7 +56,10 @@ const ResultSchema = z.object({
 }).strict();
 const ReceiptSchema = z.object({
   format: z.literal(ACTION_RECEIPT_FORMAT),
-  runtimeVersion: z.literal(ACTION_RUNTIME_VERSION),
+  runtimeVersion: z.union([
+    z.literal(ACTION_RUNTIME_VERSION),
+    z.literal(ACTION_SEMANTIC_RUNTIME_VERSION),
+  ]),
   arcDigest: Digest,
   challengeId: Id,
   difficultyModeId: Id.nullable(),
@@ -137,7 +145,7 @@ export function buildActionReceipt(params: {
   if (traceTicks !== terminal.result.totalTicks) throw new Error("Action receipt trace length does not match the terminal tick.");
   const core: ActionReceiptCore = {
     format: ACTION_RECEIPT_FORMAT,
-    runtimeVersion: ACTION_RUNTIME_VERSION,
+    runtimeVersion: spec.runtimeVersion,
     arcDigest: cartridgeDigest(params.arc),
     challengeId: params.challenge.id,
     difficultyModeId,
@@ -178,6 +186,7 @@ export function verifyActionReceipt(params: {
   if (!expectedParty.includes(receipt.controlledAgentId)) throw new Error("Action receipt controlled agent is not in the committed party.");
 
   const spec = compileActionEncounter(params.arc, params.challenge, difficultyModeId);
+  if (receipt.runtimeVersion !== spec.runtimeVersion) throw new Error("Action receipt runtime-version mismatch.");
   if (receipt.actionSpecDigest !== spec.specDigest) throw new Error("Action receipt encounter-law digest mismatch.");
   const rebuilt = buildActionReceipt({
     arc: params.arc,

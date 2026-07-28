@@ -135,7 +135,8 @@ export function compileActionEncounter(
     16000,
   );
   const objectives = checks.map((check, objectiveIndex) => {
-    const count = enemyCount(check, enemyScale);
+    const objectiveAuthoring = objectiveProfile?.encounters[challenge.id]?.[check.id];
+    const count = objectiveAuthoring?.pressureEnemyCount ?? enemyCount(check, enemyScale);
     const semanticCompletion = compileActionObjectiveCompletion({
       profile: objectiveProfile,
       challengeId: challenge.id,

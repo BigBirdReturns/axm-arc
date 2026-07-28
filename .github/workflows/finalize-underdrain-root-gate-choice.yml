@@ -1,0 +1,69 @@
+name: Finalize Underdrain Root Gate choice authority
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/finalize-underdrain-root-gate-choice.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: finalize-underdrain-root-gate-choice
+  cancel-in-progress: true
+
+env:
+  CI: 'true'
+  SOURCE_DATE_EPOCH: '0'
+
+jobs:
+  finalize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          show-progress: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Regenerate and qualify exact Arc authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx vite-node tools/build-underdrain-authoring.ts
+          npm run typecheck
+          npm test -- \
+            tests/demos/underdrain-root-gate.test.ts \
+            tests/demos/underdrain-draft.test.ts \
+            tests/action/semantic-objectives.test.ts \
+            tests/experience/authored-experience.test.ts
+          npm test
+          npm run build
+          if git ls-files -- docs/game | grep -q .; then
+            git restore --source=HEAD --staged --worktree -- docs/game
+          fi
+          git clean -fdx -- docs/game
+          git diff --check
+      - name: Publish only deterministic manifest bytes
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_head='${{ github.event.pull_request.head.sha || github.sha }}'
+          branch='demo/underdrain-authority-v1'
+          git fetch --no-tags origin "$branch"
+          test "$(git rev-parse "origin/$branch")" = "$source_head"
+          changed=$(git status --porcelain | awk '{print $2}' | sort)
+          expected=$(printf '%s\n' examples/underdrain-draft/SHA256SUMS examples/underdrain-draft/authoring.json | sort)
+          test "$changed" = "$expected"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add examples/underdrain-draft/authoring.json examples/underdrain-draft/SHA256SUMS
+          git diff --cached --check
+          git commit -m 'Freeze the Root Gate choice authority manifest'
+          git push origin "HEAD:$branch"

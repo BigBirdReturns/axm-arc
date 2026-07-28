@@ -1,0 +1,183 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://axm.tools/schemas/axm-authored-experience-v1.schema.json",
+  "title": "AXM authored experience profile v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "experiences"],
+  "properties": {
+    "format": { "const": "axm-authored-experience/1" },
+    "experiences": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "$ref": "#/$defs/experience" }
+    },
+    "extensions": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "$defs": {
+    "id": { "type": "string", "minLength": 1 },
+    "runtimeSignal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "id"],
+      "properties": {
+        "kind": { "enum": ["information", "actor", "route", "presentation", "affordance"] },
+        "id": { "$ref": "#/$defs/id" }
+      }
+    },
+    "commitment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "label", "description", "runtimeSignals"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "label": { "$ref": "#/$defs/id" },
+        "description": { "type": "string" },
+        "runtimeSignals": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "items": { "$ref": "#/$defs/runtimeSignal" }
+        }
+      }
+    },
+    "completion": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "targetCount"],
+          "properties": {
+            "kind": { "const": "defeat_count" },
+            "targetCount": { "type": "integer", "minimum": 1, "maximum": 10000 }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "targetCount"],
+          "properties": {
+            "kind": { "const": "interact_count" },
+            "targetCount": { "type": "integer", "minimum": 1, "maximum": 10000 }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "targetTicks"],
+          "properties": {
+            "kind": { "const": "hold_ticks" },
+            "targetTicks": { "type": "integer", "minimum": 1, "maximum": 1000000 }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "choiceIds"],
+          "properties": {
+            "kind": { "const": "authored_choice" },
+            "choiceIds": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 64,
+              "items": { "$ref": "#/$defs/id" }
+            }
+          }
+        }
+      ]
+    },
+    "objectiveBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["verb", "targetKind", "targetId", "playerFacingLabel", "completion", "storyPaymentId"],
+      "properties": {
+        "verb": { "enum": ["diagnose", "inspect", "operate", "repair", "reroute", "defend", "escort", "subdue", "negotiate"] },
+        "targetKind": { "enum": ["actor", "mechanism", "area", "item"] },
+        "targetId": { "$ref": "#/$defs/id" },
+        "playerFacingLabel": { "$ref": "#/$defs/id" },
+        "completion": { "$ref": "#/$defs/completion" },
+        "storyPaymentId": { "$ref": "#/$defs/id" }
+      }
+    },
+    "reveal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "objectiveId", "trigger", "actorId", "factId"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "objectiveId": { "$ref": "#/$defs/id" },
+        "trigger": { "enum": ["objective_started", "objective_completed"] },
+        "actorId": { "$ref": "#/$defs/id" },
+        "factId": { "$ref": "#/$defs/id" }
+      }
+    },
+    "outcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["factIds", "openedObligationIds", "resolvedObligationIds", "nextExperienceIds"],
+      "properties": {
+        "factIds": { "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/id" } },
+        "openedObligationIds": { "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/id" } },
+        "resolvedObligationIds": { "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/id" } },
+        "nextExperienceIds": { "type": "array", "maxItems": 64, "items": { "$ref": "#/$defs/id" } },
+        "terminal": { "type": "boolean" }
+      }
+    },
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["beatId", "title", "playerRoleId", "playerRoleLabel", "ordinaryStake", "primaryActionLabel"],
+      "properties": {
+        "beatId": { "$ref": "#/$defs/id" },
+        "title": { "$ref": "#/$defs/id" },
+        "playerRoleId": { "$ref": "#/$defs/id" },
+        "playerRoleLabel": { "$ref": "#/$defs/id" },
+        "ordinaryStake": { "$ref": "#/$defs/id" },
+        "primaryActionLabel": { "$ref": "#/$defs/id" }
+      }
+    },
+    "experience": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["challengeId", "entry", "commitments", "objectiveBindings", "reveals", "outcomes", "checkpointKey"],
+      "properties": {
+        "challengeId": { "$ref": "#/$defs/id" },
+        "entry": { "$ref": "#/$defs/entry" },
+        "commitments": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 64,
+          "items": { "$ref": "#/$defs/commitment" }
+        },
+        "objectiveBindings": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/objectiveBinding" }
+        },
+        "reveals": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 256,
+          "items": { "$ref": "#/$defs/reveal" }
+        },
+        "outcomes": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["success", "partial", "failure"],
+          "properties": {
+            "success": { "$ref": "#/$defs/outcome" },
+            "partial": { "$ref": "#/$defs/outcome" },
+            "failure": { "$ref": "#/$defs/outcome" }
+          }
+        },
+        "checkpointKey": { "$ref": "#/$defs/id" },
+        "extensions": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    }
+  }
+}

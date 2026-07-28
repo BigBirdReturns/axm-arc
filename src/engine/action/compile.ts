@@ -2,9 +2,11 @@ import type { Arc, Challenge, FailureConsequence, MechanicCheck } from "../types
 import { cartridgeDigest, sha256Hex } from "../cartridge-digest.js";
 import { orderRecordKeysDeep } from "../determinism.js";
 import { applyDifficultyMode } from "../difficulty.js";
+import { compileActionObjectiveCompletion, readActionObjectiveProfile } from "./objectives.js";
 import { readActionProfile } from "./profile.js";
 import {
   ACTION_RUNTIME_VERSION,
+  ACTION_SEMANTIC_RUNTIME_VERSION,
   ACTION_SPEC_FORMAT,
   ACTION_TICK_RATE,
   type ActionArenaKit,
@@ -121,13 +123,26 @@ export function compileActionEncounter(
   }
   const effectiveChallenge = mode ? applyDifficultyMode(challenge, mode) : challenge;
   const profile = readActionProfile(arc);
+  const objectiveProfile = readActionObjectiveProfile(arc);
   const authored = profile?.encounters[challenge.id];
   const playerKit = authored?.playerKit ?? defaultPlayerKit(effectiveChallenge);
   const arenaScale = authored?.arenaScale ?? 1;
   const enemyScale = authored?.enemyScale ?? 1;
   const checks = objectiveOrder(effectiveChallenge, authored);
-  const objectives = checks.map((check) => {
+  const arenaRadius = clampInt(
+    (6200 + effectiveChallenge.difficultyRating * 32 + checks.length * 550) * arenaScale,
+    4800,
+    16000,
+  );
+  const objectives = checks.map((check, objectiveIndex) => {
     const count = enemyCount(check, enemyScale);
+    const semanticCompletion = compileActionObjectiveCompletion({
+      profile: objectiveProfile,
+      challengeId: challenge.id,
+      objectiveId: check.id,
+      objectiveIndex,
+      arenaRadius,
+    });
     return {
       id: check.id,
       label: check.name,
@@ -137,6 +152,7 @@ export function compileActionEncounter(
       targetDefeats: count,
       failureKind: check.failureConsequence.type,
       severity: check.failureConsequence.severity,
+      ...(semanticCompletion ? { semanticCompletion } : {}),
     };
   });
   const authoredThreshold = effectiveChallenge.completionCriteria.parameters["threshold"];
@@ -152,7 +168,9 @@ export function compileActionEncounter(
       };
   const core: ActionEncounterSpecCore = {
     format: ACTION_SPEC_FORMAT,
-    runtimeVersion: ACTION_RUNTIME_VERSION,
+    runtimeVersion: objectives.some((objective) => objective.semanticCompletion !== undefined)
+      ? ACTION_SEMANTIC_RUNTIME_VERSION
+      : ACTION_RUNTIME_VERSION,
     arcDigest: cartridgeDigest(arc),
     challengeId: challenge.id,
     title: effectiveChallenge.name,
@@ -163,7 +181,7 @@ export function compileActionEncounter(
       : defaultDurationTicks(effectiveChallenge),
     arena: {
       kit: authored?.arenaKit ?? defaultArenaKit(effectiveChallenge),
-      radius: clampInt((6200 + effectiveChallenge.difficultyRating * 32 + objectives.length * 550) * arenaScale, 4800, 16000),
+      radius: arenaRadius,
     },
     player: structuredClone(PLAYER_LAWS[playerKit]),
     enemyLaws: structuredClone(ENEMY_LAWS),

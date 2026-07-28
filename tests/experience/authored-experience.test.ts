@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { validateArc } from "../../src/engine/schema.js";
+import type { Arc } from "../../src/engine/types.js";
 import {
   authoredExperienceErrors,
   authoredExperienceForChallenge,
@@ -103,15 +104,19 @@ function profile(): AuthoredExperienceProfile {
   };
 }
 
-function arcWithProfile(value: unknown, engineVersion = "1.4.0") {
-  return validateArc({
+function rawArcWithProfile(value: unknown, engineVersion = "1.4.0"): Arc {
+  return {
     ...structuredClone(MINI_ARC),
     meta: { ...MINI_ARC.meta, engineVersion },
     extensions: {
       ...(MINI_ARC.extensions ?? {}),
       [AUTHORED_EXPERIENCE_EXTENSION_KEY]: value,
     },
-  });
+  } as Arc;
+}
+
+function validatedArcWithProfile(value: unknown, engineVersion = "1.4.0"): Arc {
+  return validateArc(rawArcWithProfile(value, engineVersion));
 }
 
 describe("axm-authored-experience/1", () => {
@@ -124,7 +129,7 @@ describe("axm-authored-experience/1", () => {
   });
 
   it("binds every challenge mechanic to a truthful player verb, reveal, consequence, and implemented next experience", () => {
-    const arc = arcWithProfile(profile());
+    const arc = validatedArcWithProfile(profile());
     expect(authoredExperienceErrors(arc)).toEqual([]);
     expect(readAuthoredExperienceProfile(arc)).toEqual(profile());
     expect(authoredExperienceForChallenge(arc, "mini-challenge").map((entry) => entry.experienceId)).toEqual([
@@ -141,11 +146,12 @@ describe("axm-authored-experience/1", () => {
       playerFacingLabel: "Repair the focus dial",
       completion: { kind: "defeat_count", targetCount: 3 },
     };
-    const errors = authoredExperienceErrors(arcWithProfile(invalid));
-    expect(errors).toContain(
-      `[extensions.${AUTHORED_EXPERIENCE_EXTENSION_KEY}.experiences.first-trial.objectiveBindings.check-focus.completion] `
-      + `Verb "repair" cannot be completed by "defeat_count".`,
-    );
+    const raw = rawArcWithProfile(invalid);
+    const errors = authoredExperienceErrors(raw);
+    const expected = `[extensions.${AUTHORED_EXPERIENCE_EXTENSION_KEY}.experiences.first-trial.objectiveBindings.check-focus.completion] `
+      + `Verb "repair" cannot be completed by "defeat_count".`;
+    expect(errors).toContain(expected);
+    expect(() => validateArc(raw)).toThrow(/Verb "repair" cannot be completed by "defeat_count"/);
   });
 
   it("refuses missing and invented objective bindings", () => {
@@ -159,29 +165,35 @@ describe("axm-authored-experience/1", () => {
       completion: { kind: "interact_count", targetCount: 1 },
       storyPaymentId: "invented-payment",
     };
-    const errors = authoredExperienceErrors(arcWithProfile(invalid));
+    const raw = rawArcWithProfile(invalid);
+    const errors = authoredExperienceErrors(raw);
     expect(errors).toEqual(expect.arrayContaining([
       `[extensions.${AUTHORED_EXPERIENCE_EXTENSION_KEY}.experiences.first-trial.objectiveBindings.invented-valve] Unknown challenge objective.`,
       `[extensions.${AUTHORED_EXPERIENCE_EXTENSION_KEY}.experiences.first-trial.objectiveBindings] Missing semantic binding for challenge objective "check-focus".`,
     ]));
+    expect(() => validateArc(raw)).toThrow(/Missing semantic binding for challenge objective "check-focus"/);
   });
 
   it("refuses teaser-only continuations and unknown next beats", () => {
     const noNext = profile();
     noNext.experiences["first-trial"]!.outcomes.success.nextExperienceIds = [];
-    const noNextErrors = authoredExperienceErrors(arcWithProfile(noNext));
+    const noNextRaw = rawArcWithProfile(noNext);
+    const noNextErrors = authoredExperienceErrors(noNextRaw);
     expect(noNextErrors).toContain(
       `[extensions.${AUTHORED_EXPERIENCE_EXTENSION_KEY}.experiences.first-trial.outcomes.success.nextExperienceIds] `
       + "Nonterminal outcome must name at least one implemented next experience.",
     );
+    expect(() => validateArc(noNextRaw)).toThrow(/Nonterminal outcome must name at least one implemented next experience/);
 
     const unknown = profile();
     unknown.experiences["first-trial"]!.outcomes.partial.nextExperienceIds = ["episode-two-teaser"];
-    const unknownErrors = authoredExperienceErrors(arcWithProfile(unknown));
+    const unknownRaw = rawArcWithProfile(unknown);
+    const unknownErrors = authoredExperienceErrors(unknownRaw);
     expect(unknownErrors).toContain(
       `[extensions.${AUTHORED_EXPERIENCE_EXTENSION_KEY}.experiences.first-trial.outcomes.partial.nextExperienceIds] `
       + `Unknown next experience "episode-two-teaser".`,
     );
+    expect(() => validateArc(unknownRaw)).toThrow(/Unknown next experience "episode-two-teaser"/);
   });
 
   it("refuses choices that cannot change any runtime information or affordance", () => {
@@ -190,18 +202,23 @@ describe("axm-authored-experience/1", () => {
     const commitments = experiences["first-trial"]!["commitments"] as Array<Record<string, unknown>>;
     commitments[0]!["runtimeSignals"] = [];
     expect(() => parseAuthoredExperienceProfile(invalid)).toThrow(/runtimeSignals.*at least 1/i);
+    expect(() => validateArc(rawArcWithProfile(invalid))).toThrow(/runtimeSignals.*at least 1/i);
   });
 
   it("refuses duplicate checkpoint custody and an old engine floor", () => {
     const duplicate = profile();
     duplicate.experiences["hall-aftermath"]!.checkpointKey = "trial-checkpoint";
-    expect(authoredExperienceErrors(arcWithProfile(duplicate))).toContain(
+    const duplicateRaw = rawArcWithProfile(duplicate);
+    expect(authoredExperienceErrors(duplicateRaw)).toContain(
       `[extensions.${AUTHORED_EXPERIENCE_EXTENSION_KEY}.experiences.hall-aftermath.checkpointKey] `
       + `Duplicate checkpoint key "trial-checkpoint".`,
     );
+    expect(() => validateArc(duplicateRaw)).toThrow(/Duplicate checkpoint key "trial-checkpoint"/);
 
-    expect(authoredExperienceErrors(arcWithProfile(profile(), "1.3.0"))).toContain(
+    const oldRaw = rawArcWithProfile(profile(), "1.3.0");
+    expect(authoredExperienceErrors(oldRaw)).toContain(
       `[meta.engineVersion] ${AUTHORED_EXPERIENCE_FORMAT} requires engineVersion 1.4.0 or newer.`,
     );
+    expect(() => validateArc(oldRaw)).toThrow(/requires engineVersion 1\.4\.0 or newer/);
   });
 });

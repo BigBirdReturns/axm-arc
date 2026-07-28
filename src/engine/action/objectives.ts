@@ -17,16 +17,19 @@ import {
 } from "./types.js";
 
 const Id = z.string().min(1);
+const PressureEnemyCount = z.number().int().min(0).max(12).optional();
 const AuthoringSchema: z.ZodType<ActionObjectiveAuthoring> = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("interact_count"),
     targetCount: z.number().int().positive().max(16),
     radius: z.number().int().min(300).max(3000).optional(),
+    pressureEnemyCount: PressureEnemyCount,
   }).strict(),
   z.object({
     kind: z.literal("hold_ticks"),
     targetTicks: z.number().int().positive().max(18_000),
     radius: z.number().int().min(300).max(3000).optional(),
+    pressureEnemyCount: PressureEnemyCount,
   }).strict(),
 ]);
 const ProfileSchema: z.ZodType<ActionObjectiveProfile> = z.object({

@@ -310,7 +310,7 @@ export const UNDERDRAIN_AUTHORED_EXPERIENCE_PROFILE: AuthoredExperienceProfile =
         success: outcome(
           ["fact-pump-seven-balanced", "fact-nursery-route-preserved"],
           ["honor-fungal-embassy", "deliver-municipal-compost"],
-          ["keep-water-running", "expose-enzyme-poisoning"],
+          ["keep-water-running", "identify-hidden-drain-cause"],
           ["root-gate-parley"],
         ),
         partial: outcome(
@@ -351,7 +351,7 @@ export const UNDERDRAIN_AUTHORED_EXPERIENCE_PROFILE: AuthoredExperienceProfile =
           label: "Town water first",
           description: "Guarantee Bellwether's household pressure and accept a higher Crown grievance debt.",
           runtimeSignals: [
-            { kind: "world-state", id: "town-first-water-compact" },
+            { kind: "information", id: "town-first-water-compact" },
             { kind: "presentation", id: "bellwether-pressure-map" },
           ],
         },
@@ -360,8 +360,8 @@ export const UNDERDRAIN_AUTHORED_EXPERIENCE_PROFILE: AuthoredExperienceProfile =
           label: "Nursery protection first",
           description: "Protect the fungal nursery and force the city to ration until clean infrastructure exists.",
           runtimeSignals: [
-            { kind: "world-state", id: "nursery-first-water-compact" },
-            { kind: "relationship", id: "crown-trust-increase" },
+            { kind: "information", id: "nursery-first-water-compact" },
+            { kind: "actor", id: "crown-trust-increase" },
           ],
         },
         {

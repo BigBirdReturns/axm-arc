@@ -8,7 +8,7 @@ import {
 export const UNDERDRAIN_CONSTITUTION: NarrativeConstitution = {
   format: NARRATIVE_RAILS_FORMAT,
   id: "underdrain-series-constitution",
-  version: "1.0.0",
+  version: "2.0.0",
   identityAnchors: [
     { id: "municipal-absurdity", anyOfTags: ["institution:municipal", "ordinary:plumbing"] },
     {
@@ -41,7 +41,7 @@ export const UNDERDRAIN_CONSTITUTION: NarrativeConstitution = {
       baselineMoves: ["improvise"],
       conditionalMoves: [
         { moveTag: "formalize", requiresAnyTags: ["pressure:public-safety"] },
-        { moveTag: "negotiate", requiresAnyTags: ["truth:shared-harm"] },
+        { moveTag: "negotiate", requiresAnyTags: ["contact:fungal", "truth:shared-harm"] },
         { moveTag: "ratify-drain-concord", requiresAnyTags: ["action:success"] },
         { moveTag: "declare-pump-ceasefire", requiresAnyTags: ["action:partial"] },
         { moveTag: "request-toilet-rationing", requiresAnyTags: ["action:failure"] },
@@ -84,7 +84,10 @@ export const UNDERDRAIN_CONSTITUTION: NarrativeConstitution = {
     transitions: {
       establish: ["pressure"],
       pressure: ["escalate"],
-      escalate: ["reveal"],
+      // A creator may stage a reveal before the commitment, but Underdrain's
+      // controlling fungal-nursery reveal is intentionally paid by the action
+      // objectives rather than exposed in pre-action prose.
+      escalate: ["choose", "reveal"],
       reveal: ["choose"],
       choose: ["consequence"],
       consequence: ["inherit"],
@@ -139,13 +142,13 @@ export function initialUnderdrainNarrativeState(): NarrativeRuntimeState {
         receiptRef: "dax:store:drain-caps",
       },
       {
-        id: "fact-aquifer-poisoning",
-        type: "hidden-cause",
+        id: "fact-morrowcap-truce-offer",
+        type: "fungal-contact-offer",
         cycle: 1,
-        actorIds: ["morrowcap", "rhea-venn"],
-        tags: ["institution:municipal", "truth:shared-harm", "pressure:ecology"],
-        severity: 9,
-        receiptRef: "morrowcap:aquifer-ledger",
+        actorIds: ["morrowcap"],
+        tags: ["institution:municipal", "contact:fungal", "pressure:ecology"],
+        severity: 6,
+        receiptRef: "morrowcap:signal:truce-offer",
       },
     ],
     actors: [

@@ -33,19 +33,47 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Reconcile the final hidden-cause obligation identity
+      - name: Reconcile final authored-experience identities and signal vocabulary
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
           from pathlib import Path
+
           path = Path('src/demos/underdrain/arc.ts')
           text = path.read_text()
-          old = '          ["keep-water-running", "expose-enzyme-poisoning"],\n'
-          new = '          ["keep-water-running", "identify-hidden-drain-cause"],\n'
-          if text.count(old) != 1:
-              raise SystemExit(f'expected one hidden-cause obligation anchor, found {text.count(old)}')
-          path.write_text(text.replace(old, new))
+          replacements = [
+              (
+                  '          ["keep-water-running", "expose-enzyme-poisoning"],\n',
+                  '          ["keep-water-running", "identify-hidden-drain-cause"],\n',
+                  1,
+                  'hidden-cause obligation',
+              ),
+              (
+                  '{ kind: "world-state", id: "town-first-water-compact" }',
+                  '{ kind: "information", id: "town-first-water-compact" }',
+                  1,
+                  'town-first runtime signal',
+              ),
+              (
+                  '{ kind: "world-state", id: "nursery-first-water-compact" }',
+                  '{ kind: "information", id: "nursery-first-water-compact" }',
+                  1,
+                  'nursery-first runtime signal',
+              ),
+              (
+                  '{ kind: "relationship", id: "crown-trust-increase" }',
+                  '{ kind: "actor", id: "crown-trust-increase" }',
+                  1,
+                  'Crown trust runtime signal',
+              ),
+          ]
+          for old, new, expected, label in replacements:
+              count = text.count(old)
+              if count != expected:
+                  raise SystemExit(f'{label}: expected {expected} anchor, found {count}')
+              text = text.replace(old, new)
+          path.write_text(text)
           PY
           git diff --check
 

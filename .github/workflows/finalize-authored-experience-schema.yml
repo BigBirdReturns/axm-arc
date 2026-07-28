@@ -1,5 +1,6 @@
 name: Finalize authored-experience schema integration
 
+# Retry after invalid fixtures were separated from canonical validation.
 on:
   pull_request:
     paths:

@@ -5,6 +5,7 @@
   "title": "UNDERDRAIN: The Bloom Below",
   "classification": "authored-pilot-candidate",
   "arcAuthority": "axm-action-receipt/1",
+  "rootGateAuthority": "axm-authored-choice-receipt/1",
   "narrativeAuthority": "axm-narrative-rails/1",
   "authoredExperienceAuthority": "axm-authored-experience/1",
   "actionObjectiveAuthority": "axm-action-objectives/1",
@@ -540,6 +541,7 @@
     "importantRevealOccursDuringPumpPlay": true,
     "resultRequiresArcAcceptanceBeforeWorldDelta": true,
     "rootGateSuccessorIsAuthored": true,
+    "rootGateChoiceRequiresArcAcceptance": true,
     "independentPlayerReceiptRequired": true
   },
   "seriesConstitution": {

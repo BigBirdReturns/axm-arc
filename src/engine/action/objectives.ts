@@ -154,7 +154,7 @@ export function initializeSemanticObjectiveState(
     ...state,
     objectiveProgress: {},
     completedInteractionTargetIds: [],
-  } as ActionSimulationState;
+  };
 }
 
 function distanceSquared(ax: number, ay: number, bx: number, by: number): number {
@@ -190,7 +190,7 @@ export function stepSemanticObjective(
     const target = completion.targets.find((candidate) => !completedTargets.has(candidate.id) && withinTarget(state, candidate));
     if (!target) return state;
     completedTargets.add(target.id);
-    amount = completedTargets.size;
+    amount = completion.targets.filter((candidate) => completedTargets.has(candidate.id)).length;
     targetId = target.id;
   } else {
     if ((input.buttons & ACTION_BUTTON.interact) === 0 || !withinTarget(state, completion.target)) return state;
@@ -216,7 +216,7 @@ export function stepSemanticObjective(
       objectiveHoldTicks: (state.stats.objectiveHoldTicks ?? 0) + (completion.kind === "hold_ticks" ? 1 : 0),
     },
     events,
-  } as ActionSimulationState;
+  };
 }
 
 export function actionObjectiveComplete(

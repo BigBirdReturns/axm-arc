@@ -59,6 +59,36 @@ describe("axm-action-objectives/1", () => {
     );
   });
 
+  it("allows a safe first-minute mechanism objective without inventing a hidden combatant", () => {
+    const arc = semanticArc({
+      "check-power": {
+        kind: "interact_count",
+        targetCount: 1,
+        radius: 3000,
+        pressureEnemyCount: 0,
+      },
+    });
+    const spec = compileActionEncounter(arc, arc.challenges[0]!);
+    const objective = spec.objectives[0]!;
+    expect(spec.runtimeVersion).toBe(ACTION_SEMANTIC_RUNTIME_VERSION);
+    expect(objective.enemyCount).toBe(0);
+    expect(objective.targetDefeats).toBe(0);
+    let state = initialActionState(spec, 13);
+    expect(state.enemies).toEqual([]);
+    expect(state.completedObjectiveIds).toEqual([]);
+    expect(state.result).toBeNull();
+
+    const target = objective.semanticCompletion?.kind === "interact_count"
+      ? objective.semanticCompletion.targets[0]!
+      : null;
+    expect(target).not.toBeNull();
+    state = { ...state, player: { ...state.player, x: target!.x, y: target!.y } };
+    state = stepActionSimulation(spec, state, { ...IDLE, buttons: ACTION_BUTTON.interact });
+    expect(state.result?.outcome).toBe("success");
+    expect(state.stats.enemiesDefeated).toBe(0);
+    expect(state.stats.objectiveInteractions).toBe(1);
+  });
+
   it("completes an interact objective only through its authored mechanism, not by clearing pressure enemies", () => {
     const arc = semanticArc({
       "check-power": { kind: "interact_count", targetCount: 1, radius: 3000 },
@@ -155,7 +185,7 @@ describe("axm-action-objectives/1", () => {
     expect(state.stats.enemiesDefeated).toBe(0);
   });
 
-  it("refuses unknown objective references and an old engine floor", () => {
+  it("refuses unknown objective references, invalid pressure populations, and an old engine floor", () => {
     const unknown = structuredClone(MINI_ARC);
     unknown.meta = { ...unknown.meta, engineVersion: "1.4.0" };
     unknown.extensions = {
@@ -168,6 +198,21 @@ describe("axm-action-objectives/1", () => {
       },
     };
     expect(() => validateArc(unknown)).toThrow(/Unknown objective id/);
+
+    const excessive = structuredClone(MINI_ARC);
+    excessive.meta = { ...excessive.meta, engineVersion: "1.4.0" };
+    excessive.extensions = {
+      ...(excessive.extensions ?? {}),
+      [ACTION_OBJECTIVE_EXTENSION_KEY]: {
+        format: ACTION_OBJECTIVE_PROFILE_FORMAT,
+        encounters: {
+          "mini-challenge": {
+            "check-power": { kind: "interact_count", targetCount: 1, pressureEnemyCount: 13 },
+          },
+        },
+      },
+    };
+    expect(() => validateArc(excessive)).toThrow(/less than or equal to 12/i);
 
     const old = structuredClone(MINI_ARC);
     old.meta = { ...old.meta, engineVersion: "1.3.0" };

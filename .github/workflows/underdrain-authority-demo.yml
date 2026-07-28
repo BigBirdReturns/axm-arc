@@ -1,4 +1,4 @@
-name: UNDERDRAIN narrative and action authority
+name: UNDERDRAIN continuous authored-pilot authority
 
 on:
   pull_request:
@@ -7,6 +7,7 @@ on:
       - 'src/demos/underdrain/**'
       - 'tests/demos/underdrain-draft.test.ts'
       - 'examples/underdrain-draft/**'
+      - 'tools/build-underdrain-authoring.ts'
       - 'docs/UNDERDRAIN_STANDALONE_DEMO.md'
   workflow_dispatch:
 
@@ -40,7 +41,17 @@ jobs:
 
       - run: npm ci --no-audit --no-fund
 
-      - name: Qualify the original narrative and action contract
+      - name: Require deterministic authoring assembly
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx vite-node tools/build-underdrain-authoring.ts \
+            | tee "$RUNNER_TEMP/underdrain-authoring-build.json"
+          git diff --exit-code -- \
+            examples/underdrain-draft/authoring.json \
+            examples/underdrain-draft/SHA256SUMS
+
+      - name: Qualify the continuous narrative and action contract
         shell: bash
         run: |
           set -euo pipefail
@@ -60,12 +71,14 @@ jobs:
         run: |
           set -euo pipefail
           root="$RUNNER_TEMP/underdrain-authority"
-          mkdir -p "$root/src/demos/underdrain" "$root/tests/demos" "$root/examples/underdrain-draft" "$root/docs"
+          mkdir -p "$root/src/demos/underdrain" "$root/tests/demos" "$root/examples/underdrain-draft" "$root/tools" "$root/docs"
           cp src/demos/underdrain/*.ts "$root/src/demos/underdrain/"
           cp tests/demos/underdrain-draft.test.ts "$root/tests/demos/"
           cp examples/underdrain-draft/authoring.json "$root/examples/underdrain-draft/"
           cp examples/underdrain-draft/SHA256SUMS "$root/examples/underdrain-draft/"
+          cp tools/build-underdrain-authoring.ts "$root/tools/"
           cp docs/UNDERDRAIN_STANDALONE_DEMO.md "$root/docs/"
+          cp "$RUNNER_TEMP/underdrain-authoring-build.json" "$root/"
           printf '%s\n' '${{ github.event.pull_request.head.sha || github.sha }}' > "$root/arc-candidate.txt"
           (
             cd "$root"
@@ -76,7 +89,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: underdrain-authority-demo
+          name: underdrain-continuous-authored-pilot
           path: ${{ runner.temp }}/underdrain-authority
           include-hidden-files: true
           if-no-files-found: error

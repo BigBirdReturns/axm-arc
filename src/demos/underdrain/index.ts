@@ -10,11 +10,13 @@ import {
   UNDERDRAIN_CHALLENGE_ID,
 } from "./arc.js";
 import { UNDERDRAIN_CONSTITUTION } from "./constitution.js";
+import { UNDERDRAIN_ROOT_GATE_RECEIPT_FORMAT } from "./root-gate.js";
 
 export * from "./arc.js";
 export * from "./constitution.js";
 export * from "./pre-action.js";
 export * from "./return-binding.js";
+export * from "./root-gate.js";
 
 export const UNDERDRAIN_STANDALONE_MANIFEST = {
   format: "rodoh-underdrain-standalone/2",
@@ -23,6 +25,7 @@ export const UNDERDRAIN_STANDALONE_MANIFEST = {
   title: "UNDERDRAIN: The Bloom Below",
   classification: "authored-pilot-candidate",
   arcAuthority: "axm-action-receipt/1",
+  rootGateAuthority: UNDERDRAIN_ROOT_GATE_RECEIPT_FORMAT,
   narrativeAuthority: NARRATIVE_RAILS_FORMAT,
   authoredExperienceAuthority: UNDERDRAIN_AUTHORED_EXPERIENCE_PROFILE.format,
   actionObjectiveAuthority: UNDERDRAIN_ACTION_OBJECTIVE_PROFILE.format,
@@ -40,6 +43,7 @@ export const UNDERDRAIN_STANDALONE_MANIFEST = {
     importantRevealOccursDuringPumpPlay: true,
     resultRequiresArcAcceptanceBeforeWorldDelta: true,
     rootGateSuccessorIsAuthored: true,
+    rootGateChoiceRequiresArcAcceptance: true,
     independentPlayerReceiptRequired: true,
   },
   seriesConstitution: {

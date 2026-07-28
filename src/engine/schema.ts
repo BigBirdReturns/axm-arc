@@ -13,6 +13,7 @@ import { validateArc as validateBaseArc } from "./schema-base.js";
 import type { Arc } from "./types.js";
 import { assertEngineCompatible, compareEngineVersions } from "./version.js";
 import { actionProfileErrors } from "./action/profile.js";
+import { authoredExperienceErrors } from "./experience/profile.js";
 
 const Id = z.string().min(1);
 const StateVisibilitySchema = z.enum(["public", "operator", "private"]);
@@ -364,6 +365,7 @@ function buildArc(input: unknown): { arc?: Arc; errors: string[] } {
     challenges,
   };
   errors.push(...actionProfileErrors(arc));
+  errors.push(...authoredExperienceErrors(arc));
   return errors.length > 0 ? { errors } : { arc, errors: [] };
 }
 

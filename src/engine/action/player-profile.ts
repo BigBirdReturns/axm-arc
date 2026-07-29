@@ -199,12 +199,13 @@ export function actionPlayerProfileErrors(arc: Arc): string[] {
   }
 
   const globalStageIds = new Set<string>();
-  for (const [mechanicId, stages] of Object.entries(profile.learning)) {
+  const learningEntries: Array<[string, ActionLearningStage[]]> = [["parry", profile.learning.parry]];
+  for (const [mechanicId, stages] of learningEntries) {
     const expected: ActionLearningStageKind[] = ["teach", "practice", "master"];
     if (stages.length !== expected.length) {
       errors.push(`[${root}.learning.${mechanicId}] A mandatory mechanic requires exactly teach, practice, and master stages.`);
     }
-    stages.forEach((stage, index) => {
+    stages.forEach((stage: ActionLearningStage, index: number) => {
       if (globalStageIds.has(stage.id)) {
         errors.push(`[${root}.learning.${mechanicId}.${index}.id] Learning-stage ids must be globally unique.`);
       }
@@ -229,9 +230,9 @@ export function actionPlayerProfileErrors(arc: Arc): string[] {
       }
     });
 
-    const teach = stages.find((stage) => stage.stage === "teach");
-    const practice = stages.find((stage) => stage.stage === "practice");
-    const master = stages.find((stage) => stage.stage === "master");
+    const teach = stages.find((stage: ActionLearningStage) => stage.stage === "teach");
+    const practice = stages.find((stage: ActionLearningStage) => stage.stage === "practice");
+    const master = stages.find((stage: ActionLearningStage) => stage.stage === "master");
     if (teach && (teach.mandatory || !teach.safeOrLowDamage)) {
       errors.push(`[${root}.learning.${mechanicId}] Teach must be nonmandatory and safe or low damage.`);
     }

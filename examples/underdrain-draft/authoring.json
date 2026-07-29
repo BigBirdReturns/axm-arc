@@ -1,0 +1,558 @@
+{
+  "format": "rodoh-underdrain-standalone/2",
+  "id": "underdrain-draft",
+  "version": "2.0.0",
+  "title": "UNDERDRAIN: The Bloom Below",
+  "classification": "authored-pilot-candidate",
+  "arcAuthority": "axm-action-receipt/1",
+  "rootGateAuthority": "axm-authored-choice-receipt/1",
+  "narrativeAuthority": "axm-narrative-rails/1",
+  "authoredExperienceAuthority": "axm-authored-experience/1",
+  "actionObjectiveAuthority": "axm-action-objectives/1",
+  "challengeOrder": [
+    "mrs-kett-service-call",
+    "breach-crown-pump",
+    "root-gate-parley"
+  ],
+  "experienceOrder": [
+    "mrs-kett-service-call",
+    "pump-seven-operation",
+    "root-gate-parley"
+  ],
+  "actionProfile": {
+    "format": "axm-action-profile/1",
+    "encounters": {
+      "mrs-kett-service-call": {
+        "arenaKit": "ring",
+        "playerKit": "hammer",
+        "durationSeconds": 35,
+        "arenaScale": 0.65,
+        "enemyScale": 0.5,
+        "objectiveOrder": [
+          "inspect-living-trap",
+          "restore-kett-water"
+        ],
+        "objectiveKits": {
+          "inspect-living-trap": "skirmisher",
+          "restore-kett-water": "skirmisher"
+        }
+      },
+      "breach-crown-pump": {
+        "arenaKit": "lane",
+        "playerKit": "hammer",
+        "durationSeconds": 120,
+        "arenaScale": 1,
+        "enemyScale": 1,
+        "objectiveOrder": [
+          "diagnose-spore-valves",
+          "operate-purge-wheel",
+          "open-crown-sluice"
+        ],
+        "objectiveKits": {
+          "diagnose-spore-valves": "skirmisher",
+          "operate-purge-wheel": "swarm",
+          "open-crown-sluice": "breaker"
+        }
+      }
+    }
+  },
+  "actionObjectives": {
+    "format": "axm-action-objectives/1",
+    "encounters": {
+      "mrs-kett-service-call": {
+        "inspect-living-trap": {
+          "kind": "interact_count",
+          "targetCount": 1,
+          "radius": 1200,
+          "pressureEnemyCount": 0
+        },
+        "restore-kett-water": {
+          "kind": "hold_ticks",
+          "targetTicks": 45,
+          "radius": 1200,
+          "pressureEnemyCount": 0
+        }
+      },
+      "breach-crown-pump": {
+        "diagnose-spore-valves": {
+          "kind": "interact_count",
+          "targetCount": 3,
+          "radius": 1000,
+          "pressureEnemyCount": 2
+        },
+        "operate-purge-wheel": {
+          "kind": "hold_ticks",
+          "targetTicks": 90,
+          "radius": 1100,
+          "pressureEnemyCount": 2
+        },
+        "open-crown-sluice": {
+          "kind": "hold_ticks",
+          "targetTicks": 75,
+          "radius": 1100,
+          "pressureEnemyCount": 2
+        }
+      }
+    }
+  },
+  "authoredExperiences": {
+    "format": "axm-authored-experience/1",
+    "experiences": {
+      "mrs-kett-service-call": {
+        "challengeId": "mrs-kett-service-call",
+        "entry": {
+          "beatId": "kett-kitchen-backflow",
+          "title": "Mrs. Kett's Kitchen",
+          "playerRoleId": "rhea-venn",
+          "playerRoleLabel": "Rhea Venn, licensed plumber",
+          "ordinaryStake": "Restore one customer's water before Bellwether converts a repair call into a military emergency.",
+          "primaryActionLabel": "Inspect the living trap joint"
+        },
+        "commitments": [
+          {
+            "id": "restore-service-first",
+            "label": "Restore service first",
+            "description": "Patch the household line before anyone turns the living blockage into evidence or a weapon.",
+            "runtimeSignals": [
+              {
+                "kind": "affordance",
+                "id": "household-bypass-visible"
+              },
+              {
+                "kind": "presentation",
+                "id": "mrs-kett-tap-pressure"
+              }
+            ]
+          },
+          {
+            "id": "preserve-living-sample",
+            "label": "Preserve a sample",
+            "description": "Keep the tissue intact so Tess can prove that the blockage is regulating pressure rather than merely clogging the drain.",
+            "runtimeSignals": [
+              {
+                "kind": "information",
+                "id": "living-tissue-sample"
+              },
+              {
+                "kind": "actor",
+                "id": "tess-diagnosis-channel"
+              }
+            ]
+          }
+        ],
+        "objectiveBindings": {
+          "inspect-living-trap": {
+            "verb": "diagnose",
+            "targetKind": "mechanism",
+            "targetId": "kett-living-trap-joint",
+            "playerFacingLabel": "Inspect the living trap joint",
+            "completion": {
+              "kind": "interact_count",
+              "targetCount": 1
+            },
+            "storyPaymentId": "fact-living-clog-regulates-pressure"
+          },
+          "restore-kett-water": {
+            "verb": "repair",
+            "targetKind": "mechanism",
+            "targetId": "kett-household-bypass",
+            "playerFacingLabel": "Hold the bypass until Mrs. Kett's tap runs clear",
+            "completion": {
+              "kind": "hold_ticks",
+              "targetTicks": 45
+            },
+            "storyPaymentId": "fact-kett-water-restored"
+          }
+        },
+        "reveals": [
+          {
+            "id": "living-pressure-route",
+            "objectiveId": "inspect-living-trap",
+            "trigger": "objective_completed",
+            "actorId": "tess-loam",
+            "factId": "fact-living-clog-regulates-pressure"
+          },
+          {
+            "id": "townwide-pressure-pattern",
+            "objectiveId": "restore-kett-water",
+            "trigger": "objective_completed",
+            "actorId": "rhea-venn",
+            "factId": "fact-backflow-is-townwide-network"
+          }
+        ],
+        "outcomes": {
+          "success": {
+            "factIds": [
+              "fact-kett-water-restored",
+              "fact-living-clog-regulates-pressure"
+            ],
+            "openedObligationIds": [
+              "obligation-answer-municipal-draft"
+            ],
+            "resolvedObligationIds": [
+              "obligation-complete-service-call"
+            ],
+            "nextExperienceIds": [
+              "pump-seven-operation"
+            ]
+          },
+          "partial": {
+            "factIds": [
+              "fact-kett-water-temporarily-restored"
+            ],
+            "openedObligationIds": [
+              "obligation-finish-kett-bypass"
+            ],
+            "resolvedObligationIds": [],
+            "nextExperienceIds": [
+              "mrs-kett-service-call"
+            ]
+          },
+          "failure": {
+            "factIds": [
+              "fact-kett-backflow-worsened"
+            ],
+            "openedObligationIds": [
+              "obligation-retry-kett-service"
+            ],
+            "resolvedObligationIds": [],
+            "nextExperienceIds": [
+              "mrs-kett-service-call"
+            ]
+          }
+        },
+        "checkpointKey": "underdrain:kett-service:v1",
+        "extensions": {
+          "underdrain.presentation@1": {
+            "placeId": "mrs-kett-kitchen",
+            "safeOpening": true,
+            "firstMeaningfulSuccess": "household-water-restored"
+          }
+        }
+      },
+      "pump-seven-operation": {
+        "challengeId": "breach-crown-pump",
+        "entry": {
+          "beatId": "municipal-draft-at-kett-kitchen",
+          "title": "The Draft and Pump Seven",
+          "playerRoleId": "rhea-venn",
+          "playerRoleLabel": "Rhea Venn, civilian plumber under municipal draft",
+          "ordinaryStake": "Keep Bellwether's water moving without letting the city purge a hidden fungal nursery.",
+          "primaryActionLabel": "Choose how Rhea enters Pump Seven"
+        },
+        "commitments": [
+          {
+            "id": "emergency-plan",
+            "label": "Follow the emergency plan",
+            "description": "Use the city's access codes while Marta and the Sanitary Reserve treat every living pipe as hostile infrastructure.",
+            "runtimeSignals": [
+              {
+                "kind": "actor",
+                "id": "marta-command-channel"
+              },
+              {
+                "kind": "affordance",
+                "id": "municipal-override-controls"
+              }
+            ]
+          },
+          {
+            "id": "service-tunnel",
+            "label": "Take the old service tunnel",
+            "description": "Enter as a working plumber, following household pressure lines the military map ignores.",
+            "runtimeSignals": [
+              {
+                "kind": "route",
+                "id": "old-service-tunnel"
+              },
+              {
+                "kind": "information",
+                "id": "household-pressure-map"
+              }
+            ]
+          },
+          {
+            "id": "truce-offer",
+            "label": "Carry Morrowcap's truce",
+            "description": "Enter with a literal promise that opens fungal signals and makes every act of force diplomatically legible.",
+            "runtimeSignals": [
+              {
+                "kind": "information",
+                "id": "morrowcap-signal-key"
+              },
+              {
+                "kind": "affordance",
+                "id": "fungal-contact-prompts"
+              }
+            ]
+          }
+        ],
+        "objectiveBindings": {
+          "diagnose-spore-valves": {
+            "verb": "diagnose",
+            "targetKind": "mechanism",
+            "targetId": "pump-seven-spore-valve-array",
+            "playerFacingLabel": "Inspect and reroute the three living spore valves",
+            "completion": {
+              "kind": "interact_count",
+              "targetCount": 3
+            },
+            "storyPaymentId": "fact-valves-shield-nursery-branch"
+          },
+          "operate-purge-wheel": {
+            "verb": "operate",
+            "targetKind": "mechanism",
+            "targetId": "pump-seven-purge-wheel",
+            "playerFacingLabel": "Hold the purge wheel at shared-flow pressure",
+            "completion": {
+              "kind": "hold_ticks",
+              "targetTicks": 90
+            },
+            "storyPaymentId": "fact-city-purge-would-flood-nursery"
+          },
+          "open-crown-sluice": {
+            "verb": "reroute",
+            "targetKind": "mechanism",
+            "targetId": "crown-sluice",
+            "playerFacingLabel": "Balance the Crown Sluice and open a communication route",
+            "completion": {
+              "kind": "hold_ticks",
+              "targetTicks": 75
+            },
+            "storyPaymentId": "fact-crown-contact-channel-open"
+          }
+        },
+        "reveals": [
+          {
+            "id": "nursery-defense",
+            "objectiveId": "diagnose-spore-valves",
+            "trigger": "objective_completed",
+            "actorId": "tess-loam",
+            "factId": "fact-valves-shield-nursery-branch"
+          },
+          {
+            "id": "municipal-discharge-cause",
+            "objectiveId": "operate-purge-wheel",
+            "trigger": "objective_started",
+            "actorId": "morrowcap",
+            "factId": "fact-city-purge-would-flood-nursery"
+          },
+          {
+            "id": "crown-signal",
+            "objectiveId": "open-crown-sluice",
+            "trigger": "objective_completed",
+            "actorId": "morrowcap",
+            "factId": "fact-crown-contact-channel-open"
+          }
+        ],
+        "outcomes": {
+          "success": {
+            "factIds": [
+              "fact-pump-seven-balanced",
+              "fact-nursery-route-preserved"
+            ],
+            "openedObligationIds": [
+              "honor-fungal-embassy",
+              "deliver-municipal-compost"
+            ],
+            "resolvedObligationIds": [
+              "keep-water-running",
+              "identify-hidden-drain-cause"
+            ],
+            "nextExperienceIds": [
+              "root-gate-parley"
+            ]
+          },
+          "partial": {
+            "factIds": [
+              "fact-pump-seven-ceasefire"
+            ],
+            "openedObligationIds": [
+              "audit-lower-aquifer",
+              "negotiate-fungal-labor-status"
+            ],
+            "resolvedObligationIds": [
+              "keep-water-running"
+            ],
+            "nextExperienceIds": [
+              "root-gate-parley"
+            ]
+          },
+          "failure": {
+            "factIds": [
+              "fact-crown-controls-pump-seven"
+            ],
+            "openedObligationIds": [
+              "restore-crown-pump",
+              "pay-substrate-invoice"
+            ],
+            "resolvedObligationIds": [],
+            "nextExperienceIds": [
+              "root-gate-parley"
+            ]
+          }
+        },
+        "checkpointKey": "underdrain:pump-seven:v1",
+        "extensions": {
+          "underdrain.presentation@1": {
+            "placeId": "pump-seven",
+            "revealMustOccurBeforeResult": "nursery-defense",
+            "acceptedResultRequiredBeforeWorldDelta": true
+          }
+        }
+      },
+      "root-gate-parley": {
+        "challengeId": "root-gate-parley",
+        "entry": {
+          "beatId": "root-gate-opens",
+          "title": "Parley at the Root Gate",
+          "playerRoleId": "rhea-venn",
+          "playerRoleLabel": "Rhea Venn, plumber and reluctant liaison",
+          "ordinaryStake": "Separate water-flow rights from political sovereignty before either side turns emergency access into permanent occupation.",
+          "primaryActionLabel": "Propose a water compact"
+        },
+        "commitments": [
+          {
+            "id": "town-first-flow",
+            "label": "Town water first",
+            "description": "Guarantee Bellwether's household pressure and accept a higher Crown grievance debt.",
+            "runtimeSignals": [
+              {
+                "kind": "information",
+                "id": "town-first-water-compact"
+              },
+              {
+                "kind": "presentation",
+                "id": "bellwether-pressure-map"
+              }
+            ]
+          },
+          {
+            "id": "nursery-first-flow",
+            "label": "Nursery protection first",
+            "description": "Protect the fungal nursery and force the city to ration until clean infrastructure exists.",
+            "runtimeSignals": [
+              {
+                "kind": "information",
+                "id": "nursery-first-water-compact"
+              },
+              {
+                "kind": "actor",
+                "id": "crown-trust-increase"
+              }
+            ]
+          },
+          {
+            "id": "balanced-flow-compact",
+            "label": "Balanced flow compact",
+            "description": "Bind both sides to shared meters, evidence custody, and a jointly operated sluice.",
+            "runtimeSignals": [
+              {
+                "kind": "affordance",
+                "id": "joint-sluice-controls"
+              },
+              {
+                "kind": "actor",
+                "id": "rhea-liaison-role"
+              }
+            ]
+          }
+        ],
+        "objectiveBindings": {
+          "negotiate-water-compact": {
+            "verb": "negotiate",
+            "targetKind": "actor",
+            "targetId": "crown-regent-and-bellwether-council",
+            "playerFacingLabel": "Choose the water compact Bellwether must honor",
+            "completion": {
+              "kind": "authored_choice",
+              "choiceIds": [
+                "town-first-flow",
+                "nursery-first-flow",
+                "balanced-flow-compact"
+              ]
+            },
+            "storyPaymentId": "fact-root-gate-compact-decided"
+          }
+        },
+        "reveals": [
+          {
+            "id": "root-gate-history",
+            "objectiveId": "negotiate-water-compact",
+            "trigger": "objective_started",
+            "actorId": "morrowcap",
+            "factId": "fact-crown-predates-bellwether-water-grid"
+          }
+        ],
+        "outcomes": {
+          "success": {
+            "factIds": [
+              "fact-balanced-water-compact"
+            ],
+            "openedObligationIds": [],
+            "resolvedObligationIds": [
+              "honor-fungal-embassy",
+              "negotiate-fungal-labor-status"
+            ],
+            "nextExperienceIds": [],
+            "terminal": true
+          },
+          "partial": {
+            "factIds": [
+              "fact-provisional-root-gate-compact"
+            ],
+            "openedObligationIds": [],
+            "resolvedObligationIds": [
+              "audit-lower-aquifer"
+            ],
+            "nextExperienceIds": [],
+            "terminal": true
+          },
+          "failure": {
+            "factIds": [
+              "fact-root-gate-talks-suspended"
+            ],
+            "openedObligationIds": [],
+            "resolvedObligationIds": [],
+            "nextExperienceIds": [],
+            "terminal": true
+          }
+        },
+        "checkpointKey": "underdrain:root-gate:v1",
+        "extensions": {
+          "underdrain.presentation@1": {
+            "placeId": "root-gate",
+            "playableSuccessor": true,
+            "demoTerminalAfterAcceptedCompact": true
+          }
+        }
+      }
+    },
+    "extensions": {
+      "underdrain.episode-order@1": [
+        "mrs-kett-service-call",
+        "pump-seven-operation",
+        "root-gate-parley"
+      ]
+    }
+  },
+  "oneAmBoundary": {
+    "safeOpeningHasNoPressureEnemies": true,
+    "importantRevealOccursDuringPumpPlay": true,
+    "resultRequiresArcAcceptanceBeforeWorldDelta": true,
+    "rootGateSuccessorIsAuthored": true,
+    "rootGateChoiceRequiresArcAcceptance": true,
+    "independentPlayerReceiptRequired": true
+  },
+  "seriesConstitution": {
+    "identityAnchors": [
+      "municipal-absurdity",
+      "character-method",
+      "earned-consequence"
+    ],
+    "noCleanReset": true,
+    "bPlotMustCollide": true,
+    "acceptedOutcomeCannotBeReinterpreted": true,
+    "hiddenCauseMustBeDiscoveredInPlay": true
+  }
+}

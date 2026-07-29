@@ -2,9 +2,12 @@ import type { Arc, Challenge, FailureConsequence, MechanicCheck } from "../types
 import { cartridgeDigest, sha256Hex } from "../cartridge-digest.js";
 import { orderRecordKeysDeep } from "../determinism.js";
 import { applyDifficultyMode } from "../difficulty.js";
+import { compileActionObjectiveCompletion, readActionObjectiveProfile } from "./objectives.js";
+import { resolveActionTimingProfile } from "./player-profile.js";
 import { readActionProfile } from "./profile.js";
 import {
   ACTION_RUNTIME_VERSION,
+  ACTION_SEMANTIC_RUNTIME_VERSION,
   ACTION_SPEC_FORMAT,
   ACTION_TICK_RATE,
   type ActionArenaKit,
@@ -108,10 +111,36 @@ function specDigest(core: ActionEncounterSpecCore): string {
   return "actspec1_" + sha256Hex(JSON.stringify(orderRecordKeysDeep(core)));
 }
 
+function applyTimingProfile(params: {
+  arc: Arc;
+  challengeId: string;
+  timingProfileId: string | null;
+  player: ActionPlayerLaw;
+  enemyLaws: Record<ActionEnemyKit, ActionEnemyLaw>;
+}): { player: ActionPlayerLaw; enemyLaws: Record<ActionEnemyKit, ActionEnemyLaw> } {
+  const timing = resolveActionTimingProfile(params.arc, params.challengeId, params.timingProfileId);
+  if (!timing) return { player: params.player, enemyLaws: params.enemyLaws };
+  const player: ActionPlayerLaw = {
+    ...params.player,
+    parryTicks: timing.parryCommitTicks,
+    parryActiveTicks: timing.parryActiveTicks,
+    parryRecoveryTicks: timing.parryRecoveryTicks,
+    dodgeInvulnerableTicks: timing.dodgeInvulnerableTicks,
+  };
+  const enemyLaws = Object.fromEntries(
+    Object.entries(params.enemyLaws).map(([kit, law]) => [kit, {
+      ...law,
+      telegraphTicks: clampInt(law.telegraphTicks * timing.enemyTelegraphScalePermille / 1000, 1, 18_000),
+    }]),
+  ) as Record<ActionEnemyKit, ActionEnemyLaw>;
+  return { player, enemyLaws };
+}
+
 export function compileActionEncounter(
   arc: Arc,
   challenge: Challenge,
   difficultyModeId: string | null = null,
+  timingProfileId: string | null = null,
 ): ActionEncounterSpec {
   const mode = difficultyModeId === null
     ? null
@@ -121,13 +150,27 @@ export function compileActionEncounter(
   }
   const effectiveChallenge = mode ? applyDifficultyMode(challenge, mode) : challenge;
   const profile = readActionProfile(arc);
+  const objectiveProfile = readActionObjectiveProfile(arc);
   const authored = profile?.encounters[challenge.id];
   const playerKit = authored?.playerKit ?? defaultPlayerKit(effectiveChallenge);
   const arenaScale = authored?.arenaScale ?? 1;
   const enemyScale = authored?.enemyScale ?? 1;
   const checks = objectiveOrder(effectiveChallenge, authored);
-  const objectives = checks.map((check) => {
-    const count = enemyCount(check, enemyScale);
+  const arenaRadius = clampInt(
+    (6200 + effectiveChallenge.difficultyRating * 32 + checks.length * 550) * arenaScale,
+    4800,
+    16000,
+  );
+  const objectives = checks.map((check, objectiveIndex) => {
+    const objectiveAuthoring = objectiveProfile?.encounters[challenge.id]?.[check.id];
+    const count = objectiveAuthoring?.pressureEnemyCount ?? enemyCount(check, enemyScale);
+    const semanticCompletion = compileActionObjectiveCompletion({
+      profile: objectiveProfile,
+      challengeId: challenge.id,
+      objectiveId: check.id,
+      objectiveIndex,
+      arenaRadius,
+    });
     return {
       id: check.id,
       label: check.name,
@@ -137,6 +180,7 @@ export function compileActionEncounter(
       targetDefeats: count,
       failureKind: check.failureConsequence.type,
       severity: check.failureConsequence.severity,
+      ...(semanticCompletion ? { semanticCompletion } : {}),
     };
   });
   const authoredThreshold = effectiveChallenge.completionCriteria.parameters["threshold"];
@@ -150,23 +194,33 @@ export function compileActionEncounter(
         successObjectiveCount: effectiveChallenge.completionCriteria.type === "threshold_passed" ? threshold : objectives.length,
         partialObjectiveCount: Math.max(1, Math.min(objectives.length, Math.ceil(threshold / 2))),
       };
+  const timed = applyTimingProfile({
+    arc,
+    challengeId: challenge.id,
+    timingProfileId,
+    player: structuredClone(PLAYER_LAWS[playerKit]),
+    enemyLaws: structuredClone(ENEMY_LAWS),
+  });
   const core: ActionEncounterSpecCore = {
     format: ACTION_SPEC_FORMAT,
-    runtimeVersion: ACTION_RUNTIME_VERSION,
+    runtimeVersion: objectives.some((objective) => objective.semanticCompletion !== undefined)
+      ? ACTION_SEMANTIC_RUNTIME_VERSION
+      : ACTION_RUNTIME_VERSION,
     arcDigest: cartridgeDigest(arc),
     challengeId: challenge.id,
     title: effectiveChallenge.name,
     difficultyModeId,
+    ...(timingProfileId === null ? {} : { timingProfileId }),
     tickRate: ACTION_TICK_RATE,
     maxTicks: authored?.durationSeconds
       ? clampInt(authored.durationSeconds * ACTION_TICK_RATE, 20 * ACTION_TICK_RATE, 600 * ACTION_TICK_RATE)
       : defaultDurationTicks(effectiveChallenge),
     arena: {
       kit: authored?.arenaKit ?? defaultArenaKit(effectiveChallenge),
-      radius: clampInt((6200 + effectiveChallenge.difficultyRating * 32 + objectives.length * 550) * arenaScale, 4800, 16000),
+      radius: arenaRadius,
     },
-    player: structuredClone(PLAYER_LAWS[playerKit]),
-    enemyLaws: structuredClone(ENEMY_LAWS),
+    player: timed.player,
+    enemyLaws: timed.enemyLaws,
     objectives,
     completion,
   };

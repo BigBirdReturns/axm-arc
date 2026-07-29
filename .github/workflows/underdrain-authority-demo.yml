@@ -1,0 +1,96 @@
+name: UNDERDRAIN continuous authored-pilot authority
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/underdrain-authority-demo.yml'
+      - 'src/demos/underdrain/**'
+      - 'tests/demos/underdrain-draft.test.ts'
+      - 'examples/underdrain-draft/**'
+      - 'tools/build-underdrain-authoring.ts'
+      - 'docs/UNDERDRAIN_STANDALONE_DEMO.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI: 'true'
+  SOURCE_DATE_EPOCH: '0'
+
+jobs:
+  qualify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    steps:
+      - name: Check out exact candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          show-progress: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci --no-audit --no-fund
+
+      - name: Require deterministic authoring assembly
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx vite-node tools/build-underdrain-authoring.ts \
+            | tee "$RUNNER_TEMP/underdrain-authoring-build.json"
+          git diff --exit-code -- \
+            examples/underdrain-draft/authoring.json \
+            examples/underdrain-draft/SHA256SUMS
+
+      - name: Qualify the continuous narrative and action contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/underdrain-authority"
+          npm run typecheck
+          npm test -- tests/demos/underdrain-draft.test.ts \
+            | tee "$RUNNER_TEMP/underdrain-authority/focused.log"
+          npm test | tee "$RUNNER_TEMP/underdrain-authority/complete.log"
+          npm run build | tee "$RUNNER_TEMP/underdrain-authority/build.log"
+          if git ls-files -- docs/game | grep -q .; then
+            git restore --source=HEAD --staged --worktree -- docs/game
+          fi
+          git clean -fdx -- docs/game
+
+      - name: Retain the authoring estate
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/underdrain-authority"
+          mkdir -p "$root/src/demos/underdrain" "$root/tests/demos" "$root/examples/underdrain-draft" "$root/tools" "$root/docs"
+          cp src/demos/underdrain/*.ts "$root/src/demos/underdrain/"
+          cp tests/demos/underdrain-draft.test.ts "$root/tests/demos/"
+          cp examples/underdrain-draft/authoring.json "$root/examples/underdrain-draft/"
+          cp examples/underdrain-draft/SHA256SUMS "$root/examples/underdrain-draft/"
+          cp tools/build-underdrain-authoring.ts "$root/tools/"
+          cp docs/UNDERDRAIN_STANDALONE_DEMO.md "$root/docs/"
+          cp "$RUNNER_TEMP/underdrain-authoring-build.json" "$root/"
+          printf '%s\n' '${{ github.event.pull_request.head.sha || github.sha }}' > "$root/arc-candidate.txt"
+          (
+            cd "$root"
+            find . -type f ! -name SHA256SUMS.ALL -printf '%P\0' | sort -z | xargs -0 sha256sum > SHA256SUMS.ALL
+          )
+          git diff --check
+          test -z "$(git status --porcelain)"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: underdrain-continuous-authored-pilot
+          path: ${{ runner.temp }}/underdrain-authority
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30

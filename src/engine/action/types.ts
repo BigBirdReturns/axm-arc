@@ -2,9 +2,13 @@ import type { JsonValue } from "../types.js";
 
 export const ACTION_PROFILE_FORMAT = "axm-action-profile/1" as const;
 export const ACTION_EXTENSION_KEY = "axm.action@1" as const;
+export const ACTION_OBJECTIVE_PROFILE_FORMAT = "axm-action-objectives/1" as const;
+export const ACTION_OBJECTIVE_EXTENSION_KEY = "axm.action-objectives@1" as const;
 export const ACTION_SPEC_FORMAT = "axm-action-spec/1" as const;
 export const ACTION_RECEIPT_FORMAT = "axm-action-receipt/1" as const;
 export const ACTION_RUNTIME_VERSION = "1.0.0" as const;
+export const ACTION_SEMANTIC_RUNTIME_VERSION = "1.1.0" as const;
+export type ActionRuntimeVersion = typeof ACTION_RUNTIME_VERSION | typeof ACTION_SEMANTIC_RUNTIME_VERSION;
 export const ACTION_TICK_RATE = 30 as const;
 
 export type ActionArenaKit = "ring" | "lane" | "islands";
@@ -25,6 +29,29 @@ export interface ActionEncounterAuthoring {
 export interface ActionProfile {
   format: typeof ACTION_PROFILE_FORMAT;
   encounters: Record<string, ActionEncounterAuthoring>;
+}
+
+export type ActionObjectiveAuthoring =
+  | {
+      kind: "interact_count";
+      targetCount: number;
+      radius?: number;
+      /** Optional authored pressure population. Zero creates a safe mechanism
+       * objective. Absent preserves the ordinary derived enemy population. */
+      pressureEnemyCount?: number;
+    }
+  | {
+      kind: "hold_ticks";
+      targetTicks: number;
+      radius?: number;
+      /** Optional authored pressure population. Zero creates a safe mechanism
+       * objective. Absent preserves the ordinary derived enemy population. */
+      pressureEnemyCount?: number;
+    };
+
+export interface ActionObjectiveProfile {
+  format: typeof ACTION_OBJECTIVE_PROFILE_FORMAT;
+  encounters: Record<string, Record<string, ActionObjectiveAuthoring>>;
 }
 
 export interface ActionAttackLaw {
@@ -70,6 +97,25 @@ export interface ActionEnemyLaw {
   staggerTicks: number;
 }
 
+export interface ActionObjectiveTarget {
+  id: string;
+  x: number;
+  y: number;
+  radius: number;
+}
+
+export type ActionObjectiveSemanticCompletion =
+  | {
+      kind: "interact_count";
+      targetCount: number;
+      targets: ActionObjectiveTarget[];
+    }
+  | {
+      kind: "hold_ticks";
+      targetTicks: number;
+      target: ActionObjectiveTarget;
+    };
+
 export interface ActionObjectiveSpec {
   id: string;
   label: string;
@@ -79,6 +125,9 @@ export interface ActionObjectiveSpec {
   targetDefeats: number;
   failureKind: string;
   severity: number;
+  /** Absent for all runtime-1.0 cartridges, preserving their exact spec bytes.
+   * When present, pressure enemies are not the completion predicate. */
+  semanticCompletion?: ActionObjectiveSemanticCompletion;
 }
 
 export type ActionCompletionLaw =
@@ -96,11 +145,14 @@ export type ActionCompletionLaw =
 
 export interface ActionEncounterSpecCore {
   format: typeof ACTION_SPEC_FORMAT;
-  runtimeVersion: typeof ACTION_RUNTIME_VERSION;
+  runtimeVersion: ActionRuntimeVersion;
   arcDigest: string;
   challengeId: string;
   title: string;
   difficultyModeId: string | null;
+  /** Present only when a player product explicitly selects an Arc-owned timing
+   * profile. Its absence preserves every legacy spec and receipt byte. */
+  timingProfileId?: string;
   tickRate: typeof ACTION_TICK_RATE;
   maxTicks: number;
   arena: {
@@ -122,8 +174,9 @@ export const ACTION_BUTTON = Object.freeze({
   heavy: 2,
   dodge: 4,
   parry: 8,
+  interact: 16,
 });
-export const ACTION_BUTTON_MASK = 15;
+export const ACTION_BUTTON_MASK = 31;
 
 export interface ActionInput {
   moveX: -1 | 0 | 1;
@@ -169,6 +222,8 @@ export interface ActionObjectiveProgress {
   defeated: number;
   target: number;
   completed: boolean;
+  kind?: ActionObjectiveSemanticCompletion["kind"];
+  progress?: number;
 }
 
 export interface ActionStats {
@@ -178,6 +233,8 @@ export interface ActionStats {
   parries: number;
   dodgedAttacks: number;
   enemiesDefeated: number;
+  objectiveInteractions?: number;
+  objectiveHoldTicks?: number;
 }
 
 export type ActionEvent =
@@ -187,6 +244,7 @@ export type ActionEvent =
   | { type: "player_hit"; enemyId: string; damage: number; health: number }
   | { type: "parry"; enemyId: string }
   | { type: "dodge"; enemyId: string }
+  | { type: "objective_progress"; objectiveId: string; targetId: string | null; progress: number; target: number }
   | { type: "objective_completed"; objectiveId: string }
   | { type: "encounter_completed"; outcome: ActionOutcome };
 
@@ -208,6 +266,9 @@ export interface ActionSimulationState {
   player: ActionPlayerState;
   enemies: ActionEnemyState[];
   completedObjectiveIds: string[];
+  /** Present only for runtime-1.1 semantic objectives. */
+  objectiveProgress?: Record<string, number>;
+  completedInteractionTargetIds?: string[];
   stats: ActionStats;
   previousButtons: number;
   /** Ephemeral deterministic events produced by the most recent tick. They are
@@ -218,10 +279,12 @@ export interface ActionSimulationState {
 
 export interface ActionReceiptCore {
   format: typeof ACTION_RECEIPT_FORMAT;
-  runtimeVersion: typeof ACTION_RUNTIME_VERSION;
+  runtimeVersion: ActionRuntimeVersion;
   arcDigest: string;
   challengeId: string;
   difficultyModeId: string | null;
+  /** Optional and omitted for every legacy action receipt. */
+  timingProfileId?: string;
   actionSpecDigest: string;
   cycle: number;
   seed: number;
@@ -241,7 +304,7 @@ export interface ActionReceipt extends ActionReceiptCore {
 export interface ActionAdjudicationSummary {
   kind: "action";
   format: typeof ACTION_RECEIPT_FORMAT;
-  runtimeVersion: typeof ACTION_RUNTIME_VERSION;
+  runtimeVersion: ActionRuntimeVersion;
   receiptDigest: string;
   actionSpecDigest: string;
   traceDigest: string;

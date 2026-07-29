@@ -1,6 +1,8 @@
 import { z } from "zod";
 import type { Arc } from "../types.js";
 import { compareEngineVersions } from "../version.js";
+import { actionObjectiveProfileErrors } from "./objectives.js";
+import { actionPlayerProfileErrors } from "./player-profile.js";
 import {
   ACTION_EXTENSION_KEY,
   ACTION_PROFILE_FORMAT,
@@ -18,7 +20,6 @@ const EncounterAuthoringSchema: z.ZodType<ActionEncounterAuthoring> = z.object({
   objectiveOrder: z.array(Id).min(1).optional(),
   objectiveKits: z.record(z.enum(["skirmisher", "duelist", "swarm", "hexer", "breaker"])).optional(),
 }).strict();
-
 const ProfileSchema: z.ZodType<ActionProfile> = z.object({
   format: z.literal(ACTION_PROFILE_FORMAT),
   encounters: z.record(EncounterAuthoringSchema),
@@ -41,17 +42,23 @@ export function readActionProfile(arc: Arc): ActionProfile | null {
   return raw === undefined ? null : parseActionProfile(raw);
 }
 
+/** Canonical action-extension validation. The action-profile, semantic objective,
+ * and action-player extensions are independent and optional, so this entrypoint
+ * validates every action-owned plane even when only one is present. */
 export function actionProfileErrors(arc: Arc): string[] {
+  const errors = [
+    ...actionObjectiveProfileErrors(arc),
+    ...actionPlayerProfileErrors(arc),
+  ];
   const raw = arc.extensions?.[ACTION_EXTENSION_KEY];
-  if (raw === undefined) return [];
+  if (raw === undefined) return errors;
   let profile: ActionProfile;
   try {
     profile = parseActionProfile(raw);
   } catch (error) {
-    return [(error as Error).message];
+    return [...errors, (error as Error).message];
   }
 
-  const errors: string[] = [];
   if (compareEngineVersions(arc.meta.engineVersion, "1.4.0") < 0) {
     errors.push(`[meta.engineVersion] ${ACTION_PROFILE_FORMAT} requires engineVersion 1.4.0 or newer.`);
   }

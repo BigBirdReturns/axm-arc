@@ -69,11 +69,18 @@ export interface ActionLearningStage {
   alternate?: ActionLearningAlternate;
 }
 
+/** V1 deliberately supports one complete mandatory-mechanic ladder rather than
+ * pretending to generalize unimplemented mechanics. Adding another mechanic is
+ * a contract migration, not an unreviewed record key. */
+export interface ActionPlayerLearningProfile {
+  parry: ActionLearningStage[];
+}
+
 export interface ActionPlayerProfile {
   format: typeof ACTION_PLAYER_PROFILE_FORMAT;
   timingProfiles: Record<ActionTimingProfileId, ActionTimingProfile>;
   encounters: Record<string, ActionPlayerEncounterProfile>;
-  learning: Record<string, ActionLearningStage[]>;
+  learning: ActionPlayerLearningProfile;
 }
 
 const Id = z.string().min(1).max(256);
@@ -113,11 +120,14 @@ const LearningStageSchema: z.ZodType<ActionLearningStage> = z.object({
   advantage: AdvantageSchema.optional(),
   alternate: AlternateSchema.optional(),
 }).strict();
+const LearningProfileSchema: z.ZodType<ActionPlayerLearningProfile> = z.object({
+  parry: z.array(LearningStageSchema).min(1).max(32),
+}).strict();
 const ProfileSchema: z.ZodType<ActionPlayerProfile> = z.object({
   format: z.literal(ACTION_PLAYER_PROFILE_FORMAT),
   timingProfiles: z.record(TimingProfileSchema),
   encounters: z.record(EncounterSchema),
-  learning: z.record(z.array(LearningStageSchema).min(1).max(32)),
+  learning: LearningProfileSchema,
 }).strict();
 
 export function parseActionPlayerProfile(input: unknown): ActionPlayerProfile {

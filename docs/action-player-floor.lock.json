@@ -1,0 +1,39 @@
+{
+  "format": "axm-action-player-floor-lock/1",
+  "floor": {
+    "repository": "BigBirdReturns/tier-bench",
+    "mainCommit": "9693cb99694338e72c15d0ffbb87b5a1c5bbf16a",
+    "catalogId": "actionfloor1_55eb8869417b3b36a28a309263624fe04ad07028f2254337a2f1548cd03b47d8",
+    "reportId": "actionfloorreport1_190434fd82b36c0877c55a4cde8cd2e4c0c0f64876d59907fa104f522b36f46e",
+    "underdrainIntentId": "playerintent1_91647652ca3f387b114d5fa7cfab416e2d99c5f307098b6426a17f624cdfbe6c"
+  },
+  "owner": "Arc",
+  "ownedPlanes": [
+    "action-law",
+    "timing-profile",
+    "semantic-cue",
+    "mechanic-learning",
+    "replay",
+    "accepted-receipt",
+    "campaign-consequence"
+  ],
+  "prohibitedPlanes": [
+    "input-provider",
+    "camera-provider",
+    "animation-provider",
+    "vfx-provider",
+    "audio-provider",
+    "hud-provider",
+    "haptic-provider",
+    "engine-integration",
+    "human-observation",
+    "product-acceptance"
+  ],
+  "negativeWitnesses": [
+    "witness.parallel-shine-runtime",
+    "witness.primitive-fixture-as-product",
+    "witness.mandatory-parry-before-teaching"
+  ],
+  "aggregateReadinessScore": null,
+  "productAccepted": false
+}

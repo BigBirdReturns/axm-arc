@@ -17,6 +17,7 @@ export * from "./constitution.js";
 export * from "./pre-action.js";
 export * from "./return-binding.js";
 export * from "./root-gate.js";
+export * from "./player-floor.js";
 
 export const UNDERDRAIN_STANDALONE_MANIFEST = {
   format: "rodoh-underdrain-standalone/2",

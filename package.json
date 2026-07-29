@@ -22,7 +22,9 @@
     "build:creator-recovery-kit": "npm run build:creator-kit && vite-node tools/build-creator-recovery-kit.ts",
     "test:action-profile-forge": "node --test tools/action-profile-forge/profile-forge.test.mjs",
     "build:action-profile-forge": "node tools/action-profile-forge/build.mjs",
-    "test:continuous-authority": "vitest run tests/narrative/action-receipt-seam.test.ts tests/narrative/rails.test.ts tests/action/action-estate.test.ts"
+    "test:continuous-authority": "vitest run tests/narrative/action-receipt-seam.test.ts tests/narrative/rails.test.ts tests/action/action-estate.test.ts",
+    "test:action-player-floor": "vitest run tests/action/action-player-floor.test.ts tests/action/semantic-objectives.test.ts tests/demos/underdrain-draft.test.ts",
+    "build:action-player-reference": "vite-node tools/build-action-player-floor-reference.ts"
   },
   "dependencies": {
     "react": "^18.3.1",

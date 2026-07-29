@@ -1,0 +1,145 @@
+name: Arc Action Player Floor
+
+on:
+  pull_request:
+    paths:
+      - 'src/engine/action/**'
+      - 'src/demos/underdrain/**'
+      - 'tests/action/action-player-floor.test.ts'
+      - 'tests/action/semantic-objectives.test.ts'
+      - 'tests/demos/underdrain-draft.test.ts'
+      - 'tools/build-action-player-floor-reference.ts'
+      - 'docs/ACTION_PLAYER_FLOOR_IMPLEMENTATION.md'
+      - 'docs/action-player-floor.lock.json'
+      - 'package.json'
+      - '.github/workflows/action-player-floor.yml'
+  push:
+    branches:
+      - feature/action-player-cues-v1
+    paths:
+      - 'src/engine/action/**'
+      - 'src/demos/underdrain/**'
+      - 'tests/action/action-player-floor.test.ts'
+      - 'tests/action/semantic-objectives.test.ts'
+      - 'tests/demos/underdrain-draft.test.ts'
+      - 'tools/build-action-player-floor-reference.ts'
+      - 'docs/ACTION_PLAYER_FLOOR_IMPLEMENTATION.md'
+      - 'docs/action-player-floor.lock.json'
+      - 'package.json'
+      - '.github/workflows/action-player-floor.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arc-action-player-floor-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLOOR_COMMIT: 9693cb99694338e72c15d0ffbb87b5a1c5bbf16a
+  FLOOR_CATALOG: actionfloor1_55eb8869417b3b36a28a309263624fe04ad07028f2254337a2f1548cd03b47d8
+  PLAYER_INTENT: playerintent1_91647652ca3f387b114d5fa7cfab416e2d99c5f307098b6426a17f624cdfbe6c
+
+jobs:
+  qualify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install exact dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Validate floor lock and source law
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const lock = JSON.parse(readFileSync('docs/action-player-floor.lock.json', 'utf8'));
+          if (lock.format !== 'axm-action-player-floor-lock/1') throw new Error('floor lock format mismatch');
+          if (lock.floor.mainCommit !== process.env.FLOOR_COMMIT) throw new Error('floor commit mismatch');
+          if (lock.floor.catalogId !== process.env.FLOOR_CATALOG) throw new Error('floor catalog mismatch');
+          if (lock.floor.underdrainIntentId !== process.env.PLAYER_INTENT) throw new Error('player intent mismatch');
+          if (lock.aggregateReadinessScore !== null || lock.productAccepted !== false) {
+            throw new Error('floor lock may not imply aggregate readiness or product acceptance');
+          }
+          const forbidden = new Set(lock.prohibitedPlanes);
+          for (const plane of ['camera-provider', 'animation-provider', 'engine-integration', 'product-acceptance']) {
+            if (!forbidden.has(plane)) throw new Error(`missing prohibited plane ${plane}`);
+          }
+          NODE
+          npm run typecheck
+          npm run test:action-player-floor
+
+      - name: Reconstruct the exact governed player reference twice
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/action-player-floor"
+          mkdir -p "$root"
+          npm run build:action-player-reference -- --output "$root/reference-a.json" --timing-profile forgiving \
+            | tee "$root/reference-build.log"
+          npm run build:action-player-reference -- --output "$root/reference-b.json" --timing-profile forgiving \
+            > "$root/reference-build-second.log"
+          cmp "$root/reference-a.json" "$root/reference-b.json"
+          mv "$root/reference-a.json" "$root/underdrain-action-player-reference.json"
+          rm "$root/reference-b.json"
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const path = process.env.RUNNER_TEMP + '/action-player-floor/underdrain-action-player-reference.json';
+          const value = JSON.parse(readFileSync(path, 'utf8'));
+          if (value.format !== 'axm-action-player-reference/1') throw new Error('reference format mismatch');
+          if (value.timingProfileId !== 'forgiving') throw new Error('reference timing mismatch');
+          if (value.acceptedReceipt?.timingProfileId !== 'forgiving') throw new Error('receipt timing custody missing');
+          if (value.boundary?.cueAuthority !== 'presentation-only') throw new Error('cue authority boundary missing');
+          if (value.boundary?.outcomeAuthority !== 'Arc replay') throw new Error('outcome authority boundary missing');
+          if (value.boundary?.playerAcceptanceClaimed !== false) throw new Error('reference may not claim player acceptance');
+          if (!/^actcuetrace1_[0-9a-f]{64}$/.test(value.cueTrace?.cueTraceDigest ?? '')) {
+            throw new Error('cue trace digest missing');
+          }
+          NODE
+
+      - name: Run complete Arc regression and production build
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm test
+          npm run build
+          git restore --source=HEAD --staged --worktree -- dist 2>/dev/null || true
+          git clean -fdx -- dist
+
+      - name: Assemble exact qualification custody
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/action-player-floor"
+          cp docs/action-player-floor.lock.json "$root/"
+          cp docs/ACTION_PLAYER_FLOOR_IMPLEMENTATION.md "$root/"
+          cp src/engine/action/player-profile.ts "$root/"
+          cp src/engine/action/cues.ts "$root/"
+          cp src/demos/underdrain/player-floor.ts "$root/"
+          printf '%s\n' "$(git rev-parse HEAD)" > "$root/repository-head.txt"
+          printf '%s\n' "$FLOOR_COMMIT" > "$root/floor-head.txt"
+          (
+            cd "$root"
+            find . -type f ! -name SHA256SUMS -printf '%P\0' |
+              sort -z |
+              xargs -0 sha256sum > SHA256SUMS
+          )
+          git diff --check
+          test -z "$(git status --porcelain)"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: arc-action-player-floor
+          path: ${{ runner.temp }}/action-player-floor
+          if-no-files-found: error
+          retention-days: 30

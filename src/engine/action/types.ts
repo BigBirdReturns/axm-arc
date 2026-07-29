@@ -150,6 +150,9 @@ export interface ActionEncounterSpecCore {
   challengeId: string;
   title: string;
   difficultyModeId: string | null;
+  /** Present only when a player product explicitly selects an Arc-owned timing
+   * profile. Its absence preserves every legacy spec and receipt byte. */
+  timingProfileId?: string;
   tickRate: typeof ACTION_TICK_RATE;
   maxTicks: number;
   arena: {
@@ -280,6 +283,8 @@ export interface ActionReceiptCore {
   arcDigest: string;
   challengeId: string;
   difficultyModeId: string | null;
+  /** Optional and omitted for every legacy action receipt. */
+  timingProfileId?: string;
   actionSpecDigest: string;
   cycle: number;
   seed: number;

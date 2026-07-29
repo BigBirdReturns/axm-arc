@@ -3,6 +3,7 @@ import { cartridgeDigest, sha256Hex } from "../cartridge-digest.js";
 import { orderRecordKeysDeep } from "../determinism.js";
 import { applyDifficultyMode } from "../difficulty.js";
 import { compileActionObjectiveCompletion, readActionObjectiveProfile } from "./objectives.js";
+import { resolveActionTimingProfile } from "./player-profile.js";
 import { readActionProfile } from "./profile.js";
 import {
   ACTION_RUNTIME_VERSION,
@@ -110,10 +111,36 @@ function specDigest(core: ActionEncounterSpecCore): string {
   return "actspec1_" + sha256Hex(JSON.stringify(orderRecordKeysDeep(core)));
 }
 
+function applyTimingProfile(params: {
+  arc: Arc;
+  challengeId: string;
+  timingProfileId: string | null;
+  player: ActionPlayerLaw;
+  enemyLaws: Record<ActionEnemyKit, ActionEnemyLaw>;
+}): { player: ActionPlayerLaw; enemyLaws: Record<ActionEnemyKit, ActionEnemyLaw> } {
+  const timing = resolveActionTimingProfile(params.arc, params.challengeId, params.timingProfileId);
+  if (!timing) return { player: params.player, enemyLaws: params.enemyLaws };
+  const player: ActionPlayerLaw = {
+    ...params.player,
+    parryTicks: timing.parryCommitTicks,
+    parryActiveTicks: timing.parryActiveTicks,
+    parryRecoveryTicks: timing.parryRecoveryTicks,
+    dodgeInvulnerableTicks: timing.dodgeInvulnerableTicks,
+  };
+  const enemyLaws = Object.fromEntries(
+    Object.entries(params.enemyLaws).map(([kit, law]) => [kit, {
+      ...law,
+      telegraphTicks: clampInt(law.telegraphTicks * timing.enemyTelegraphScalePermille / 1000, 1, 18_000),
+    }]),
+  ) as Record<ActionEnemyKit, ActionEnemyLaw>;
+  return { player, enemyLaws };
+}
+
 export function compileActionEncounter(
   arc: Arc,
   challenge: Challenge,
   difficultyModeId: string | null = null,
+  timingProfileId: string | null = null,
 ): ActionEncounterSpec {
   const mode = difficultyModeId === null
     ? null
@@ -167,6 +194,13 @@ export function compileActionEncounter(
         successObjectiveCount: effectiveChallenge.completionCriteria.type === "threshold_passed" ? threshold : objectives.length,
         partialObjectiveCount: Math.max(1, Math.min(objectives.length, Math.ceil(threshold / 2))),
       };
+  const timed = applyTimingProfile({
+    arc,
+    challengeId: challenge.id,
+    timingProfileId,
+    player: structuredClone(PLAYER_LAWS[playerKit]),
+    enemyLaws: structuredClone(ENEMY_LAWS),
+  });
   const core: ActionEncounterSpecCore = {
     format: ACTION_SPEC_FORMAT,
     runtimeVersion: objectives.some((objective) => objective.semanticCompletion !== undefined)
@@ -176,6 +210,7 @@ export function compileActionEncounter(
     challengeId: challenge.id,
     title: effectiveChallenge.name,
     difficultyModeId,
+    ...(timingProfileId === null ? {} : { timingProfileId }),
     tickRate: ACTION_TICK_RATE,
     maxTicks: authored?.durationSeconds
       ? clampInt(authored.durationSeconds * ACTION_TICK_RATE, 20 * ACTION_TICK_RATE, 600 * ACTION_TICK_RATE)
@@ -184,8 +219,8 @@ export function compileActionEncounter(
       kit: authored?.arenaKit ?? defaultArenaKit(effectiveChallenge),
       radius: arenaRadius,
     },
-    player: structuredClone(PLAYER_LAWS[playerKit]),
-    enemyLaws: structuredClone(ENEMY_LAWS),
+    player: timed.player,
+    enemyLaws: timed.enemyLaws,
     objectives,
     completion,
   };

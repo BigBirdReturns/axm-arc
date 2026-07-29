@@ -63,6 +63,7 @@ const ReceiptSchema = z.object({
   arcDigest: Digest,
   challengeId: Id,
   difficultyModeId: Id.nullable(),
+  timingProfileId: Id.optional(),
   actionSpecDigest: Digest,
   cycle: z.number().int().nonnegative(),
   seed: z.number().int().min(0).max(0xffff_ffff),
@@ -89,8 +90,16 @@ export function parseActionReceipt(input: unknown): ActionReceipt {
   return structuredClone(parsed.data) as ActionReceipt;
 }
 
-export function actionSeed(orgSeed: number, cycle: number, challengeId: string, difficultyModeId: string | null): number {
-  return hashSeed(orgSeed, cycle, challengeId, difficultyModeId ?? "base", "axm-action/1");
+export function actionSeed(
+  orgSeed: number,
+  cycle: number,
+  challengeId: string,
+  difficultyModeId: string | null,
+  timingProfileId: string | null = null,
+): number {
+  return timingProfileId === null
+    ? hashSeed(orgSeed, cycle, challengeId, difficultyModeId ?? "base", "axm-action/1")
+    : hashSeed(orgSeed, cycle, challengeId, difficultyModeId ?? "base", "timing", timingProfileId, "axm-action/1");
 }
 
 function canonicalTrace(trace: readonly ActionInputRun[]): ActionInputRun[] {
@@ -124,6 +133,7 @@ export function buildActionReceipt(params: {
   arc: Arc;
   challenge: Challenge;
   difficultyModeId?: string | null;
+  timingProfileId?: string | null;
   cycle: number;
   orgSeed: number;
   controlledAgentId: string;
@@ -131,8 +141,9 @@ export function buildActionReceipt(params: {
   trace: readonly ActionInputRun[];
 }): ActionReceipt {
   const difficultyModeId = params.difficultyModeId ?? null;
-  const spec = compileActionEncounter(params.arc, params.challenge, difficultyModeId);
-  const seed = actionSeed(params.orgSeed, params.cycle, params.challenge.id, difficultyModeId);
+  const timingProfileId = params.timingProfileId ?? null;
+  const spec = compileActionEncounter(params.arc, params.challenge, difficultyModeId, timingProfileId);
+  const seed = actionSeed(params.orgSeed, params.cycle, params.challenge.id, difficultyModeId, timingProfileId);
   const partyAgentIds = [...new Set(params.partyAgentIds)].sort(compareCodepoints);
   if (partyAgentIds.length !== params.partyAgentIds.length) throw new Error("Action receipt party contains duplicate agent ids.");
   if (!partyAgentIds.includes(params.controlledAgentId)) {
@@ -149,6 +160,7 @@ export function buildActionReceipt(params: {
     arcDigest: cartridgeDigest(params.arc),
     challengeId: params.challenge.id,
     difficultyModeId,
+    ...(timingProfileId === null ? {} : { timingProfileId }),
     actionSpecDigest: spec.specDigest,
     cycle: params.cycle,
     seed,
@@ -167,14 +179,24 @@ export function verifyActionReceipt(params: {
   arc: Arc;
   challenge: Challenge;
   difficultyModeId?: string | null;
+  timingProfileId?: string | null;
   cycle: number;
   orgSeed: number;
   partyAgentIds: string[];
   receipt: unknown;
 }): VerifiedActionReceipt {
   const difficultyModeId = params.difficultyModeId ?? null;
+  const requestedTimingProfileId = params.timingProfileId ?? null;
   const receipt = parseActionReceipt(params.receipt);
-  const expectedSeed = actionSeed(params.orgSeed, params.cycle, params.challenge.id, difficultyModeId);
+  const receiptTimingProfileId = receipt.timingProfileId ?? null;
+  if (receiptTimingProfileId !== requestedTimingProfileId) throw new Error("Action receipt timing-profile mismatch.");
+  const expectedSeed = actionSeed(
+    params.orgSeed,
+    params.cycle,
+    params.challenge.id,
+    difficultyModeId,
+    requestedTimingProfileId,
+  );
   if (receipt.arcDigest !== cartridgeDigest(params.arc)) throw new Error("Action receipt cartridge digest mismatch.");
   if (receipt.challengeId !== params.challenge.id) throw new Error("Action receipt challenge mismatch.");
   if (receipt.difficultyModeId !== difficultyModeId) throw new Error("Action receipt difficulty-mode mismatch.");
@@ -185,13 +207,14 @@ export function verifyActionReceipt(params: {
   if (canonical(receipt.partyAgentIds) !== canonical(expectedParty)) throw new Error("Action receipt party mismatch.");
   if (!expectedParty.includes(receipt.controlledAgentId)) throw new Error("Action receipt controlled agent is not in the committed party.");
 
-  const spec = compileActionEncounter(params.arc, params.challenge, difficultyModeId);
+  const spec = compileActionEncounter(params.arc, params.challenge, difficultyModeId, requestedTimingProfileId);
   if (receipt.runtimeVersion !== spec.runtimeVersion) throw new Error("Action receipt runtime-version mismatch.");
   if (receipt.actionSpecDigest !== spec.specDigest) throw new Error("Action receipt encounter-law digest mismatch.");
   const rebuilt = buildActionReceipt({
     arc: params.arc,
     challenge: params.challenge,
     difficultyModeId,
+    timingProfileId: requestedTimingProfileId,
     cycle: params.cycle,
     orgSeed: params.orgSeed,
     controlledAgentId: receipt.controlledAgentId,

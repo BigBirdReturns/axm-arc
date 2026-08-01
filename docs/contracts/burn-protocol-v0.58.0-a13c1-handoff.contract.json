@@ -1,0 +1,83 @@
+{
+  "authority": {
+    "inheritedHistory": "read-only",
+    "liveRuns": "counterfactual-only",
+    "panelPayloads": "verified-only-after-exact-intake",
+    "storyChanges": "none"
+  },
+  "corpusValidation": {
+    "basename": "validation-report-v0.58.0.json",
+    "requiredText": [
+      "780",
+      "720",
+      "36",
+      "144",
+      "A13C1"
+    ]
+  },
+  "format": "burn-protocol-handoff-intake-contract/1",
+  "handoff": {
+    "basename": "Burn_Protocol_FRESH_SESSION_HANDOFF_v0.58.0_A13C1.zip",
+    "bytes": 363384929,
+    "entries": 24,
+    "sha256": "e96874ca4c753f49eed1c6ecf5db7f924ad4bfa006e242bf426319345dfaedde"
+  },
+  "outerManifest": {
+    "records": 23
+  },
+  "parent": {
+    "basename": "Star_Trek_Discovery_The_Burn_Protocol_Web_Series_v0.58.0.zip",
+    "bytes": 353717668,
+    "entries": 1986,
+    "manifestBasename": "v0.58.0-file-manifest.json",
+    "manifestRecords": 1985,
+    "manifestUncompressedBytes": 383401783,
+    "sha256": "b3b299e14d8c22cde88629eb6bc4d197b8f8015eec7bf46b95f0de2a31b5f0df",
+    "sha256ReceiptBasename": "Star_Trek_Discovery_The_Burn_Protocol_Web_Series_v0.58.0.zip.sha256"
+  },
+  "productionContract": {
+    "basename": "A13C1-production-contract.md",
+    "maxBytes": 40960,
+    "minBytes": 30720,
+    "requiredText": [
+      "A13C1",
+      "Disclosure",
+      "public truth",
+      "sovereign owner"
+    ]
+  },
+  "requiredBasenames": [
+    "Star_Trek_Discovery_The_Burn_Protocol_Web_Series_v0.58.0.zip",
+    "Star_Trek_Discovery_The_Burn_Protocol_Web_Series_v0.58.0.zip.sha256",
+    "Star_Trek_Discovery_The_Burn_Protocol_Web_Series_v0.58.0.release-verification.json",
+    "Star_Trek_Discovery_The_Burn_Protocol_Web_Series_v0.58.0.clean-validation.json",
+    "v0.58.0-file-manifest.json",
+    "v0.58.0-lineage-ledger.json",
+    "v0.57.0-rematerialization-v0.58.0.json",
+    "a12c3-panel-contact-sheet.png",
+    "a12c3-plate-montage.png",
+    "a12c3-underpaint-to-final.png",
+    "a12c3-vs-active-floor.png",
+    "reader-art-smoke-a12c3-desktop-p41.png",
+    "reader-art-smoke-a12c3-desktop-p60.png",
+    "reader-art-smoke-a12c3-mobile-p60.png",
+    "a12c3-art-audit.json",
+    "validation-report-v0.58.0.json",
+    "reader-art-smoke-a12c3.json",
+    "a12c3-visual-qa.json",
+    "a12c3-rejection-log.json",
+    "A12C3-art-lock.md",
+    "A12C3-execution-report.md",
+    "A13C1-production-contract.md"
+  ],
+  "statePointer": {
+    "maxFileBytes": 2097152,
+    "requiredTerms": [
+      "0.58.0",
+      "A13C1"
+    ]
+  },
+  "verifierPatterns": [
+    "(?:^|/)verify[^/]*\\.(?:py|mjs|js|sh)$"
+  ]
+}

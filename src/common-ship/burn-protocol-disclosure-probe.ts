@@ -95,14 +95,19 @@ source.evidence = {
   }],
 };
 
-source.factionReceipts = [
+const factionRows: Array<[string, string, string, string, string]> = [
   ["starfleet", "Starfleet", "jurisdiction, fleet capacity, and the inherited official record", "Coordinate scarce repair and disclose institutional failure.", "Disclosure becomes self-absolution while custody and repair authority remain exclusive."],
   ["former-chain", "Former Chain infrastructure", "maintenance networks, title history, and coercive ownership residue", "Retain practical knowledge needed to keep corridors functioning.", "Maintenance becomes a route for coercive ownership, profit, or unpaid public cost to survive."],
   ["public-repositories", "Six public repositories", "custody, comparison, public access, and later reconstruction", "Prevent one institution from editing the only record.", "Indexing rules become distributed sovereign authority."],
   ["protected-witnesses", "Protected witnesses and affected communities", "disclosure consent, kinship standing, local withdrawal, and repair cost", "Preserve authority over access, representation, and refusal.", "Privacy or local refusal conceals shared dependencies and public cost."],
-].map(([factionId, factionName, variableControlled, publicGood, characteristicFailure]) => ({
-  factionId, factionName, variableControlled, publicGood, characteristicFailure,
-}));
+];
+source.factionReceipts = factionRows.map(([
+  factionId,
+  factionName,
+  variableControlled,
+  publicGood,
+  characteristicFailure,
+]) => ({ factionId, factionName, variableControlled, publicGood, characteristicFailure }));
 
 const cast: Array<[string, string, CommonShipPocketSourceV2["cast"][number]["roleId"], CommonShipPocketSourceV2["cast"][number]["responsibility"], string, string, string]> = [
   ["vance", "Admiral Vance", "response", "depends-on-host-baseline", "Enters Starfleet's failures while operating through its fastest repair baseline.", "starfleet", "starfleet-command-officer"],

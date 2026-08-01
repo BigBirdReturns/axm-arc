@@ -1,0 +1,289 @@
+name: Burn Protocol handoff publication activation
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/burn-protocol-handoff-publication-activation.yml'
+      - 'docs/BURN_PROTOCOL_HANDOFF_PUBLICATION_ACTIVATION.md'
+      - 'docs/contracts/burn-protocol-handoff-publication.activation.json'
+      - 'tools/build-burn-protocol-publication-approval.mjs'
+      - 'tools/activate-burn-protocol-handoff-publication.mjs'
+  push:
+    branches: [probe/burn-protocol-handoff-publication-activation-v1]
+    paths:
+      - '.github/workflows/burn-protocol-handoff-publication-activation.yml'
+      - 'docs/BURN_PROTOCOL_HANDOFF_PUBLICATION_ACTIVATION.md'
+      - 'docs/contracts/burn-protocol-handoff-publication.activation.json'
+      - 'tools/build-burn-protocol-publication-approval.mjs'
+      - 'tools/activate-burn-protocol-handoff-publication.mjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qualify-publication-activation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      PUBLICATION_HEAD: 4b076089f9b7ae1949ba8fac45f2373aeeb5b344
+      EXPECTED_DIGEST: cart1_870f3dfcab909fc9aace115e2c46cd30268339f80bc87a14f0eebcc4e2c28c3e
+    steps:
+      - name: Check out stacked candidate
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          show-progress: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Verify stacked authority and tool syntax
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor "$PUBLICATION_HEAD" HEAD
+          node --check tools/build-burn-protocol-publication-approval.mjs
+          node --check tools/activate-burn-protocol-handoff-publication.mjs
+          python3 -m py_compile tools/fixtures/build-burn-protocol-handoff-fixture.py
+          node <<'NODE'
+          const fs = require('node:fs');
+          const contract = JSON.parse(fs.readFileSync(
+            'docs/contracts/burn-protocol-handoff-publication.activation.json',
+            'utf8',
+          ));
+          if (contract.format !== 'burn-protocol-handoff-publication-activation-contract/1') {
+            throw new Error('activation format');
+          }
+          if (contract.evidenceTier !== 'production-exact-intake') throw new Error('evidence tier');
+          if (contract.parentBinding !== 'exact-publication-parent') throw new Error('parent binding');
+          if (contract.publication.arcHead !== process.env.PUBLICATION_HEAD) throw new Error('publication head');
+          if (contract.publication.cartridgeDigest !== process.env.EXPECTED_DIGEST) throw new Error('digest');
+          if (contract.intake.handoff.sha256 !== 'e96874ca4c753f49eed1c6ecf5db7f924ad4bfa006e242bf426319345dfaedde') {
+            throw new Error('handoff');
+          }
+          if (contract.intake.parent.sha256 !== 'b3b299e14d8c22cde88629eb6bc4d197b8f8015eec7bf46b95f0de2a31b5f0df') {
+            throw new Error('parent');
+          }
+          NODE
+
+      - name: Typecheck Arc
+        run: npm run typecheck
+
+      - name: Build calibrated publication artifacts
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/burn-publication"
+          npx vite-node tools/build-burn-protocol-disclosure-probe.ts \
+            "$RUNNER_TEMP/burn-publication" \
+            | tee "$RUNNER_TEMP/publication.log"
+
+      - name: Build and verify deterministic intake fixture
+        run: |
+          set -euo pipefail
+          python3 tools/fixtures/build-burn-protocol-handoff-fixture.py \
+            --output "$RUNNER_TEMP/burn-handoff-fixtures"
+          node tools/verify-burn-protocol-handoff.mjs \
+            --handoff "$RUNNER_TEMP/burn-handoff-fixtures/Burn_Protocol_FRESH_SESSION_HANDOFF_v0.58.0_A13C1.zip" \
+            --contract "$RUNNER_TEMP/burn-handoff-fixtures/good.contract.json" \
+            --output "$RUNNER_TEMP/burn-handoff-intake" \
+            | tee "$RUNNER_TEMP/intake.log"
+
+      - name: Derive publication approval from verified intake output
+        run: |
+          set -euo pipefail
+          node tools/build-burn-protocol-publication-approval.mjs \
+            --intake-receipt "$RUNNER_TEMP/burn-handoff-intake/handoff-intake-receipt.json" \
+            --asset-index "$RUNNER_TEMP/burn-handoff-intake/corpus-asset-index.json" \
+            --intake-contract "$RUNNER_TEMP/burn-handoff-fixtures/good.contract.json" \
+            --output "$RUNNER_TEMP/burn-handoff-intake/handoff-publication-approval.json" \
+            | tee "$RUNNER_TEMP/approval.log"
+
+      - name: Build explicitly non-production fixture activation contract
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const root = process.env.RUNNER_TEMP;
+          const contract = JSON.parse(fs.readFileSync(
+            'docs/contracts/burn-protocol-handoff-publication.activation.json',
+            'utf8',
+          ));
+          const approval = JSON.parse(fs.readFileSync(
+            path.join(root, 'burn-handoff-intake', 'handoff-publication-approval.json'),
+            'utf8',
+          ));
+          contract.evidenceTier = 'mechanism-fixture';
+          contract.parentBinding = 'fixture-structural-only';
+          contract.intake.handoff = approval.handoff;
+          contract.intake.parent = approval.parent;
+          contract.intake.outerManifestRecords = approval.outerManifest.records;
+          contract.intakeAuthority = approval.authority;
+          fs.writeFileSync(
+            path.join(root, 'fixture.activation.json'),
+            `${JSON.stringify(contract, null, 2)}\n`,
+          );
+          NODE
+
+      - name: Activate fixture custody without changing authored identity
+        run: |
+          set -euo pipefail
+          node tools/activate-burn-protocol-handoff-publication.mjs \
+            --activation-contract "$RUNNER_TEMP/fixture.activation.json" \
+            --approval "$RUNNER_TEMP/burn-handoff-intake/handoff-publication-approval.json" \
+            --intake-receipt "$RUNNER_TEMP/burn-handoff-intake/handoff-intake-receipt.json" \
+            --asset-index "$RUNNER_TEMP/burn-handoff-intake/corpus-asset-index.json" \
+            --intake-contract "$RUNNER_TEMP/burn-handoff-fixtures/good.contract.json" \
+            --publication-dir "$RUNNER_TEMP/burn-publication" \
+            --output "$RUNNER_TEMP/burn-publication-activation" \
+            | tee "$RUNNER_TEMP/activation.log"
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const root = process.env.RUNNER_TEMP;
+          const receipt = JSON.parse(fs.readFileSync(
+            path.join(root, 'burn-publication-activation', 'handoff-publication-activation-receipt.json'),
+            'utf8',
+          ));
+          const overlay = JSON.parse(fs.readFileSync(
+            path.join(root, 'burn-publication-activation', 'burn-protocol-handoff-publication-overlay.json'),
+            'utf8',
+          ));
+          if (receipt.status !== 'pass' || receipt.evidenceTier !== 'mechanism-fixture') {
+            throw new Error('fixture activation');
+          }
+          if (receipt.cartridge.authoredArcDigest !== process.env.EXPECTED_DIGEST) throw new Error('identity');
+          if (overlay.classification !== 'mechanism-fixture-external-custody') throw new Error('classification');
+          if (overlay.externalCustody.runtimeBundling !== 'none') throw new Error('runtime bundling');
+          if (overlay.authoredBoundary.panelPayloads !== 'not-present') throw new Error('authored boundary');
+          if (overlay.externalCustody.assetIndex.counts['panel-raster'] !== 1) throw new Error('asset index');
+          NODE
+
+      - name: Refuse fixture approval under the production contract
+        run: |
+          set -euo pipefail
+          if node tools/activate-burn-protocol-handoff-publication.mjs \
+            --activation-contract docs/contracts/burn-protocol-handoff-publication.activation.json \
+            --approval "$RUNNER_TEMP/burn-handoff-intake/handoff-publication-approval.json" \
+            --intake-receipt "$RUNNER_TEMP/burn-handoff-intake/handoff-intake-receipt.json" \
+            --asset-index "$RUNNER_TEMP/burn-handoff-intake/corpus-asset-index.json" \
+            --intake-contract "$RUNNER_TEMP/burn-handoff-fixtures/good.contract.json" \
+            --publication-dir "$RUNNER_TEMP/burn-publication" \
+            --output "$RUNNER_TEMP/false-production" \
+            > "$RUNNER_TEMP/production-refusal.log" 2>&1; then
+            echo 'Fixture approval was accepted as production evidence.' >&2
+            exit 1
+          fi
+          grep -F 'Activation handoff identity does not match' "$RUNNER_TEMP/production-refusal.log"
+
+      - name: Refuse intake receipt changed after approval
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const root = process.env.RUNNER_TEMP;
+          const input = path.join(root, 'burn-handoff-intake', 'handoff-intake-receipt.json');
+          const value = JSON.parse(fs.readFileSync(input, 'utf8'));
+          value.tamperMarker = 'changed-after-approval';
+          fs.writeFileSync(path.join(root, 'changed-intake-receipt.json'), `${JSON.stringify(value, null, 2)}\n`);
+          NODE
+          if node tools/activate-burn-protocol-handoff-publication.mjs \
+            --activation-contract "$RUNNER_TEMP/fixture.activation.json" \
+            --approval "$RUNNER_TEMP/burn-handoff-intake/handoff-publication-approval.json" \
+            --intake-receipt "$RUNNER_TEMP/changed-intake-receipt.json" \
+            --asset-index "$RUNNER_TEMP/burn-handoff-intake/corpus-asset-index.json" \
+            --intake-contract "$RUNNER_TEMP/burn-handoff-fixtures/good.contract.json" \
+            --publication-dir "$RUNNER_TEMP/burn-publication" \
+            --output "$RUNNER_TEMP/changed-receipt-output" \
+            > "$RUNNER_TEMP/receipt-refusal.log" 2>&1; then
+            echo 'Changed intake receipt was accepted.' >&2
+            exit 1
+          fi
+          grep -F 'Intake receipt SHA-256' "$RUNNER_TEMP/receipt-refusal.log"
+
+      - name: Refuse asset index changed after approval
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const root = process.env.RUNNER_TEMP;
+          const input = path.join(root, 'burn-handoff-intake', 'corpus-asset-index.json');
+          const value = JSON.parse(fs.readFileSync(input, 'utf8'));
+          value.assets[0].bytes += 1;
+          fs.writeFileSync(path.join(root, 'changed-asset-index.json'), `${JSON.stringify(value, null, 2)}\n`);
+          NODE
+          if node tools/activate-burn-protocol-handoff-publication.mjs \
+            --activation-contract "$RUNNER_TEMP/fixture.activation.json" \
+            --approval "$RUNNER_TEMP/burn-handoff-intake/handoff-publication-approval.json" \
+            --intake-receipt "$RUNNER_TEMP/burn-handoff-intake/handoff-intake-receipt.json" \
+            --asset-index "$RUNNER_TEMP/changed-asset-index.json" \
+            --intake-contract "$RUNNER_TEMP/burn-handoff-fixtures/good.contract.json" \
+            --publication-dir "$RUNNER_TEMP/burn-publication" \
+            --output "$RUNNER_TEMP/changed-index-output" \
+            > "$RUNNER_TEMP/index-refusal.log" 2>&1; then
+            echo 'Changed asset index was accepted.' >&2
+            exit 1
+          fi
+          grep -F 'Asset index SHA-256' "$RUNNER_TEMP/index-refusal.log"
+
+      - name: Refuse publication bytes changed after Arc receipt
+        run: |
+          set -euo pipefail
+          cp -R "$RUNNER_TEMP/burn-publication" "$RUNNER_TEMP/changed-publication"
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const root = process.env.RUNNER_TEMP;
+          const target = path.join(root, 'changed-publication', 'burn-protocol-disclosure-probe.arc.json');
+          const value = JSON.parse(fs.readFileSync(target, 'utf8'));
+          value.meta.description += ' changed';
+          fs.writeFileSync(target, `${JSON.stringify(value, null, 2)}\n`);
+          NODE
+          if node tools/activate-burn-protocol-handoff-publication.mjs \
+            --activation-contract "$RUNNER_TEMP/fixture.activation.json" \
+            --approval "$RUNNER_TEMP/burn-handoff-intake/handoff-publication-approval.json" \
+            --intake-receipt "$RUNNER_TEMP/burn-handoff-intake/handoff-intake-receipt.json" \
+            --asset-index "$RUNNER_TEMP/burn-handoff-intake/corpus-asset-index.json" \
+            --intake-contract "$RUNNER_TEMP/burn-handoff-fixtures/good.contract.json" \
+            --publication-dir "$RUNNER_TEMP/changed-publication" \
+            --output "$RUNNER_TEMP/changed-publication-output" \
+            > "$RUNNER_TEMP/publication-refusal.log" 2>&1; then
+            echo 'Changed Arc publication was accepted.' >&2
+            exit 1
+          fi
+          grep -F 'burn-protocol-disclosure-probe.arc.json' "$RUNNER_TEMP/publication-refusal.log"
+
+      - name: Retain activation qualification
+        if: always()
+        run: |
+          set -euo pipefail
+          output=burn-protocol-handoff-publication-activation-qualification
+          mkdir -p "$output"
+          cp docs/contracts/burn-protocol-handoff-publication.activation.json "$output/"
+          cp "$RUNNER_TEMP/fixture.activation.json" "$output/" 2>/dev/null || true
+          cp "$RUNNER_TEMP/burn-handoff-intake"/*.json "$output/" 2>/dev/null || true
+          cp "$RUNNER_TEMP/burn-publication-activation"/*.json "$output/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/*.log "$output/" 2>/dev/null || true
+          cp "$RUNNER_TEMP/burn-publication/publication-receipt.json" "$output/" 2>/dev/null || true
+          sha256sum "$output"/* > "$output/SHA256SUMS"
+
+      - name: Upload activation qualification
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: burn-protocol-handoff-publication-activation-qualification
+          path: burn-protocol-handoff-publication-activation-qualification
+          if-no-files-found: error
+          retention-days: 30

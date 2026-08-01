@@ -5,8 +5,10 @@ import { fileURLToPath } from "node:url";
 import { BURN_PROTOCOL_DISCLOSURE_PROBE } from "../src/arcs/burn-protocol-disclosure-probe.js";
 import {
   BURN_PROTOCOL_CORPUS_PUBLICATION_PROBE,
-  BURN_PROTOCOL_DISCLOSURE_PROBE_SOURCE,
 } from "../src/common-ship/burn-protocol-disclosure-probe.js";
+import {
+  BURN_PROTOCOL_DISCLOSURE_PROBE_PUBLISHED_SOURCE,
+} from "../src/common-ship/burn-protocol-disclosure-publication.js";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const outputDir = resolve(
@@ -16,7 +18,7 @@ await mkdir(outputDir, { recursive: true });
 
 const files = {
   "burn-protocol-v0.58.0.corpus.json": BURN_PROTOCOL_CORPUS_PUBLICATION_PROBE,
-  "burn-protocol-disclosure-probe.ship.json": BURN_PROTOCOL_DISCLOSURE_PROBE_SOURCE,
+  "burn-protocol-disclosure-probe.ship.json": BURN_PROTOCOL_DISCLOSURE_PROBE_PUBLISHED_SOURCE,
   "burn-protocol-disclosure-probe.arc.json": BURN_PROTOCOL_DISCLOSURE_PROBE,
 } as const;
 
@@ -35,7 +37,7 @@ const receipt = {
   status: "pass",
   cartridgeId: BURN_PROTOCOL_DISCLOSURE_PROBE.meta.id,
   engineVersion: BURN_PROTOCOL_DISCLOSURE_PROBE.meta.engineVersion,
-  sourcePlane: BURN_PROTOCOL_DISCLOSURE_PROBE_SOURCE.format,
+  sourcePlane: BURN_PROTOCOL_DISCLOSURE_PROBE_PUBLISHED_SOURCE.format,
   exactParentSha256: BURN_PROTOCOL_CORPUS_PUBLICATION_PROBE.exactParent.sha256,
   challenges: BURN_PROTOCOL_DISCLOSURE_PROBE.challenges.map((challenge) => challenge.id),
   files: receiptFiles,

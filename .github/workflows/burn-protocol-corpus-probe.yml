@@ -1,0 +1,136 @@
+name: Burn Protocol corpus publication probe
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/burn-protocol-corpus-probe.yml"
+      - "docs/BURN_PROTOCOL_CORPUS_PUBLICATION_PROBE.md"
+      - "src/arcs/burn-protocol-disclosure-probe.ts"
+      - "src/common-ship/burn-protocol-disclosure-probe.ts"
+      - "tests/common-ship/burn-protocol-disclosure-probe.test.ts"
+      - "tools/build-burn-protocol-disclosure-probe.ts"
+
+permissions:
+  contents: read
+
+jobs:
+  compile-and-world-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out Arc candidate
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install Arc dependencies
+        run: npm ci
+
+      - name: Typecheck Arc
+        run: npm run typecheck
+
+      - name: Run focused corpus publication tests
+        run: npx vitest run tests/common-ship/burn-protocol-disclosure-probe.test.ts
+
+      - name: Build deterministic publication artifacts
+        run: npx vite-node tools/build-burn-protocol-disclosure-probe.ts "$RUNNER_TEMP/burn-protocol-probe"
+
+      - name: Check out World receiver
+        uses: actions/checkout@v4
+        with:
+          repository: BigBirdReturns/axm-world
+          ref: main
+          path: world
+
+      - name: Install World dependencies
+        run: npm ci --prefix world
+
+      - name: Validate and found the Arc through World
+        env:
+          AXM_ARC_HEAD: ${{ github.sha }}
+        run: |
+          cat > world/.burn-protocol-world-smoke.ts <<'TS'
+          import { readFileSync, writeFileSync } from "node:fs";
+          import { resolve } from "node:path";
+          import { evaluateComposition } from "./src/engine/composition.js";
+          import { foundOrganization } from "./src/engine/founding.js";
+          import { validateArc } from "./src/engine/schema.js";
+
+          const arcPath = resolve(process.argv[2]!);
+          const reportPath = resolve(process.argv[3]!);
+          const arc = validateArc(JSON.parse(readFileSync(arcPath, "utf8")));
+          const input = { format: "axm-founding-input/1" as const, seed: 58001301 };
+          const first = foundOrganization(arc, input);
+          const second = foundOrganization(arc, input);
+          if (JSON.stringify(first) !== JSON.stringify(second)) {
+            throw new Error("World founding is not deterministic for the probe seed.");
+          }
+
+          const agents = Object.values(first.agents);
+          if (agents.length !== 6) throw new Error(`Expected six founders, received ${agents.length}.`);
+          const challenges = arc.challenges.map((challenge) => {
+            const result = evaluateComposition({ arc, challenge, agents });
+            if (!result.feasible) {
+              throw new Error(`${challenge.id}: ${result.rejectionReasons.join("; ")}`);
+            }
+            return {
+              id: challenge.id,
+              feasible: result.feasible,
+              categories: result.results.map((item) => item.category),
+            };
+          });
+
+          const report = {
+            format: "rodoh-world-corpus-smoke/1",
+            status: "pass",
+            arcHead: process.env.AXM_ARC_HEAD ?? null,
+            worldHead: process.env.AXM_WORLD_HEAD ?? null,
+            cartridgeId: arc.meta.id,
+            engineVersion: arc.meta.engineVersion,
+            domain: arc.meta.domain,
+            founders: agents.map((agent) => ({
+              id: agent.id,
+              role: agent.role,
+              compositionProfileId: agent.compositionProfileId ?? null,
+            })),
+            cartridgeStateKeys: Object.keys(first.cartridgeState ?? {}).sort(),
+            challenges,
+          };
+          writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
+          console.log(JSON.stringify(report, null, 2));
+          TS
+          export AXM_WORLD_HEAD="$(git -C world rev-parse HEAD)"
+          (
+            cd world
+            npx vite-node .burn-protocol-world-smoke.ts \
+              "$RUNNER_TEMP/burn-protocol-probe/burn-protocol-disclosure-probe.arc.json" \
+              "$RUNNER_TEMP/burn-protocol-probe/world-smoke.json"
+          )
+          rm world/.burn-protocol-world-smoke.ts
+
+      - name: Build the World browser receiver
+        run: npm run build --prefix world
+
+      - name: Record artifact hashes
+        run: |
+          (
+            cd "$RUNNER_TEMP/burn-protocol-probe"
+            sha256sum \
+              burn-protocol-v0.58.0.corpus.json \
+              burn-protocol-disclosure-probe.ship.json \
+              burn-protocol-disclosure-probe.arc.json \
+              publication-receipt.json \
+              world-smoke.json > SHA256SUMS
+          )
+
+      - name: Retain publication probe
+        uses: actions/upload-artifact@v4
+        with:
+          name: burn-protocol-corpus-publication-probe
+          path: ${{ runner.temp }}/burn-protocol-probe
+          if-no-files-found: error
+          retention-days: 30

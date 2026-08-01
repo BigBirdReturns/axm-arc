@@ -1,0 +1,173 @@
+name: Burn Protocol exact handoff intake surface
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/burn-protocol-handoff-intake.yml'
+      - 'docs/BURN_PROTOCOL_EXACT_HANDOFF_INTAKE.md'
+      - 'docs/contracts/burn-protocol-v0.58.0-a13c1-handoff.contract.json'
+      - 'tools/verify-burn-protocol-handoff.mjs'
+      - 'tools/fixtures/build-burn-protocol-handoff-fixture.py'
+  push:
+    branches: [probe/burn-protocol-exact-handoff-intake-v1]
+    paths:
+      - '.github/workflows/burn-protocol-handoff-intake.yml'
+      - 'docs/BURN_PROTOCOL_EXACT_HANDOFF_INTAKE.md'
+      - 'docs/contracts/burn-protocol-v0.58.0-a13c1-handoff.contract.json'
+      - 'tools/verify-burn-protocol-handoff.mjs'
+      - 'tools/fixtures/build-burn-protocol-handoff-fixture.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qualify-intake-mechanism:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out candidate
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Verify tool syntax and exact contract ledger
+        run: |
+          set -euo pipefail
+          node --check tools/verify-burn-protocol-handoff.mjs
+          python3 -m py_compile tools/fixtures/build-burn-protocol-handoff-fixture.py
+          node <<'NODE'
+          const fs = require('node:fs');
+          const contract = JSON.parse(fs.readFileSync(
+            'docs/contracts/burn-protocol-v0.58.0-a13c1-handoff.contract.json',
+            'utf8',
+          ));
+          const expected = {
+            handoff: {
+              basename: 'Burn_Protocol_FRESH_SESSION_HANDOFF_v0.58.0_A13C1.zip',
+              bytes: 363384929,
+              entries: 24,
+              sha256: 'e96874ca4c753f49eed1c6ecf5db7f924ad4bfa006e242bf426319345dfaedde',
+            },
+            parent: {
+              basename: 'Star_Trek_Discovery_The_Burn_Protocol_Web_Series_v0.58.0.zip',
+              bytes: 353717668,
+              entries: 1986,
+              manifestRecords: 1985,
+              manifestUncompressedBytes: 383401783,
+              sha256: 'b3b299e14d8c22cde88629eb6bc4d197b8f8015eec7bf46b95f0de2a31b5f0df',
+            },
+          };
+          for (const [key, value] of Object.entries(expected.handoff)) {
+            if (contract.handoff[key] !== value) throw new Error(`handoff.${key}`);
+          }
+          for (const [key, value] of Object.entries(expected.parent)) {
+            if (contract.parent[key] !== value) throw new Error(`parent.${key}`);
+          }
+          if (contract.outerManifest.records !== 23) throw new Error('outerManifest.records');
+          if (contract.requiredBasenames.length !== 22) throw new Error('requiredBasenames');
+          NODE
+
+      - name: Build deterministic fixture set
+        run: |
+          python3 tools/fixtures/build-burn-protocol-handoff-fixture.py \
+            --output "$RUNNER_TEMP/burn-handoff-fixtures"
+
+      - name: Accept the structurally valid fixture
+        run: |
+          set -euo pipefail
+          node tools/verify-burn-protocol-handoff.mjs \
+            --handoff "$RUNNER_TEMP/burn-handoff-fixtures/Burn_Protocol_FRESH_SESSION_HANDOFF_v0.58.0_A13C1.zip" \
+            --contract "$RUNNER_TEMP/burn-handoff-fixtures/good.contract.json" \
+            --output "$RUNNER_TEMP/burn-handoff-positive" \
+            | tee "$RUNNER_TEMP/positive.log"
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const root = process.env.RUNNER_TEMP;
+          const receipt = JSON.parse(fs.readFileSync(
+            path.join(root, 'burn-handoff-positive', 'handoff-intake-receipt.json'),
+            'utf8',
+          ));
+          if (receipt.status !== 'pass') throw new Error('positive fixture did not pass');
+          if (receipt.handoff.entries !== 24) throw new Error('outer entries');
+          if (receipt.outerManifest.records !== 23) throw new Error('outer records');
+          if (receipt.parent.entries !== 4 || receipt.parent.manifestRecords !== 3) {
+            throw new Error('nested fixture records');
+          }
+          if (receipt.assetIndex.counts['panel-raster'] !== 1) throw new Error('asset index');
+          NODE
+
+      - name: Refuse changed handoff bytes
+        run: |
+          set -euo pipefail
+          if node tools/verify-burn-protocol-handoff.mjs \
+            --handoff "$RUNNER_TEMP/burn-handoff-fixtures/hash-tamper.zip" \
+            --contract "$RUNNER_TEMP/burn-handoff-fixtures/hash-tamper.contract.json" \
+            --output "$RUNNER_TEMP/hash-tamper-output" \
+            > "$RUNNER_TEMP/hash-tamper.log" 2>&1; then
+            echo 'Changed handoff bytes were accepted.' >&2
+            exit 1
+          fi
+          grep -F 'Handoff SHA-256' "$RUNNER_TEMP/hash-tamper.log"
+
+      - name: Refuse an unsafe ZIP path
+        run: |
+          set -euo pipefail
+          if node tools/verify-burn-protocol-handoff.mjs \
+            --handoff "$RUNNER_TEMP/burn-handoff-fixtures/unsafe.zip" \
+            --contract "$RUNNER_TEMP/burn-handoff-fixtures/unsafe.contract.json" \
+            --output "$RUNNER_TEMP/unsafe-output" \
+            > "$RUNNER_TEMP/unsafe.log" 2>&1; then
+            echo 'Unsafe ZIP path was accepted.' >&2
+            exit 1
+          fi
+          grep -F 'ZIP entry escapes its root' "$RUNNER_TEMP/unsafe.log"
+
+      - name: Refuse changed manifested bytes
+        run: |
+          set -euo pipefail
+          if node tools/verify-burn-protocol-handoff.mjs \
+            --handoff "$RUNNER_TEMP/burn-handoff-fixtures/manifest-tamper.zip" \
+            --contract "$RUNNER_TEMP/burn-handoff-fixtures/manifest-tamper.contract.json" \
+            --output "$RUNNER_TEMP/manifest-tamper-output" \
+            > "$RUNNER_TEMP/manifest-tamper.log" 2>&1; then
+            echo 'Changed manifested bytes were accepted.' >&2
+            exit 1
+          fi
+          grep -F 'Outer handoff manifest' "$RUNNER_TEMP/manifest-tamper.log"
+
+      - name: Retain fixture qualification
+        if: always()
+        run: |
+          set -euo pipefail
+          mkdir -p burn-protocol-handoff-intake-qualification
+          cp "$RUNNER_TEMP/positive.log" burn-protocol-handoff-intake-qualification/ 2>/dev/null || true
+          cp "$RUNNER_TEMP/hash-tamper.log" burn-protocol-handoff-intake-qualification/ 2>/dev/null || true
+          cp "$RUNNER_TEMP/unsafe.log" burn-protocol-handoff-intake-qualification/ 2>/dev/null || true
+          cp "$RUNNER_TEMP/manifest-tamper.log" burn-protocol-handoff-intake-qualification/ 2>/dev/null || true
+          cp "$RUNNER_TEMP/burn-handoff-positive"/*.json burn-protocol-handoff-intake-qualification/ 2>/dev/null || true
+          cp docs/contracts/burn-protocol-v0.58.0-a13c1-handoff.contract.json \
+            burn-protocol-handoff-intake-qualification/
+          sha256sum burn-protocol-handoff-intake-qualification/* \
+            > burn-protocol-handoff-intake-qualification/SHA256SUMS
+
+      - name: Upload fixture qualification
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: burn-protocol-handoff-intake-qualification
+          path: burn-protocol-handoff-intake-qualification
+          if-no-files-found: error
+          retention-days: 30

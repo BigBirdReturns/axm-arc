@@ -58,6 +58,9 @@ export interface CanonicalStorySourceRequiredAssetReference {
   status: "source-required";
   id: string;
   path: string;
+  /** These keys remain addressable for compatibility but cannot carry values. */
+  bytes?: never;
+  sha256?: never;
   expectedBytes?: number;
   mimeType: "image/png" | "image/jpeg" | "image/webp";
   availability: "manifested-external";

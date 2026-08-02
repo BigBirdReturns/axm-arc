@@ -7,6 +7,8 @@ import {
   type CanonicalStoryChapter,
   type CanonicalStoryCoverage,
   type CanonicalStoryCursor,
+  type CanonicalStoryManifestedAssetReference,
+  type CanonicalStoryAssetReference,
   type CanonicalStoryPanel,
   type CanonicalStorySource,
   type CanonicalStoryTransitionReceipt,
@@ -16,6 +18,12 @@ interface LocatedPanel {
   episodeId: string;
   chapter: CanonicalStoryChapter;
   panel: CanonicalStoryPanel;
+}
+
+export function canonicalStoryAssetIsManifested(
+  asset: CanonicalStoryAssetReference,
+): asset is CanonicalStoryManifestedAssetReference {
+  return asset.status !== "source-required";
 }
 
 function allPanels(story: CanonicalStorySource): LocatedPanel[] {
@@ -133,6 +141,10 @@ export function canonicalStoryCoverage(input: unknown): CanonicalStoryCoverage {
   const panelIds = new Set(panels.map((panel) => panel.id));
   const unresolvedTextPanels = panels.filter((panel) => panel.text.status === "source-required").length;
   const unresolvedPlateMappings = plates.filter((plate) => plate.panelMapping.status === "source-required").length;
+  const unresolvedAssets = [
+    ...panels.map((panel) => panel.asset),
+    ...plates.map((plate) => plate.asset),
+  ].filter((asset) => !canonicalStoryAssetIsManifested(asset)).length;
   return {
     episodes: story.episodes.length,
     chapters: chapters.length,
@@ -143,7 +155,10 @@ export function canonicalStoryCoverage(input: unknown): CanonicalStoryCoverage {
     resolvedPlateMappings: plates.length - unresolvedPlateMappings,
     unresolvedPlateMappings,
     choiceNodes: 0,
-    productionReady: unresolvedTextPanels === 0 && unresolvedPlateMappings === 0 && story.episodes.every((episode) => episode.complete),
+    productionReady: unresolvedTextPanels === 0
+      && unresolvedPlateMappings === 0
+      && unresolvedAssets === 0
+      && story.episodes.every((episode) => episode.complete),
     incompleteEpisodeIds: story.episodes.filter((episode) => !episode.complete).map((episode) => episode.id),
     continuationPanelIds: chapters
       .map((chapter) => chapter.nextPanelId)

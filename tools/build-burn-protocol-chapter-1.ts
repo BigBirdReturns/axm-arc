@@ -101,5 +101,5 @@ console.log(json({
   unresolvedTextPanels: coverage.unresolvedTextPanels,
   unresolvedPlateMappings: coverage.unresolvedPlateMappings,
   continuationPanelId: "E01-C2-P19",
-  files: allPaths.map(basename),
+  files: allPaths.map((path) => basename(path)),
 }).trimEnd());

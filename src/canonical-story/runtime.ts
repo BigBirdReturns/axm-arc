@@ -130,6 +130,7 @@ export function canonicalStoryCoverage(input: unknown): CanonicalStoryCoverage {
   const chapters = story.episodes.flatMap((episode) => episode.chapters);
   const panels = chapters.flatMap((chapter) => chapter.panels);
   const plates = chapters.flatMap((chapter) => chapter.plates);
+  const panelIds = new Set(panels.map((panel) => panel.id));
   const unresolvedTextPanels = panels.filter((panel) => panel.text.status === "source-required").length;
   const unresolvedPlateMappings = plates.filter((plate) => plate.panelMapping.status === "source-required").length;
   return {
@@ -144,6 +145,8 @@ export function canonicalStoryCoverage(input: unknown): CanonicalStoryCoverage {
     choiceNodes: 0,
     productionReady: unresolvedTextPanels === 0 && unresolvedPlateMappings === 0 && story.episodes.every((episode) => episode.complete),
     incompleteEpisodeIds: story.episodes.filter((episode) => !episode.complete).map((episode) => episode.id),
-    continuationPanelIds: chapters.map((chapter) => chapter.nextPanelId).filter((panelId): panelId is string => panelId !== null),
+    continuationPanelIds: chapters
+      .map((chapter) => chapter.nextPanelId)
+      .filter((panelId): panelId is string => panelId !== null && !panelIds.has(panelId)),
   };
 }

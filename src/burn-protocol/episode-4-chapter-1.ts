@@ -211,11 +211,11 @@ export const BURN_PROTOCOL_THROUGH_EPISODE_4_CHAPTER_1_SOURCE = appendBurnProtoc
     storyVersion: "0.8.0",
     sourceReceipts: EPISODE_4_CHAPTER_1_RECEIPTS,
     canonicalSourceReceiptIds: [
-      ...BURN_PROTOCOL_THROUGH_EPISODE_3_SOURCE.estate.canonicalSourceReceiptIds,
+      ...(BURN_PROTOCOL_THROUGH_EPISODE_3_SOURCE.estate.canonicalSourceReceiptIds ?? []),
       "episode-04-source",
     ],
     compiledSourceReceiptIds: [
-      ...BURN_PROTOCOL_THROUGH_EPISODE_3_SOURCE.estate.compiledSourceReceiptIds,
+      ...(BURN_PROTOCOL_THROUGH_EPISODE_3_SOURCE.estate.compiledSourceReceiptIds ?? []),
       "episode-04-compiled",
     ],
     missingRequiredReceiptIds: [

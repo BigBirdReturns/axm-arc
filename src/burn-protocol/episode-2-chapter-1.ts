@@ -143,33 +143,6 @@ export const BURN_PROTOCOL_EPISODE_2_CHAPTER_1: CanonicalStoryChapter = {
       chapterId: "E02-C1",
       asset: {
         id: `asset:${plateId}`,
-/${panelId}.webp`,
-        bytes: row.bytes,
-        sha256: row.sha256,
-        mimeType: "image/webp" as const,
-        availability: "manifested-external" as const,
-        visualStanding: "q02-review-required" as const,
-      },
-      text: {
-        status: "source-required" as const,
-        expectedSourceReceiptIds: [
-          "episode-02-source",
-          "episode-02-compiled",
-          "a02c1-lettering",
-          "q01-dialogue-parity",
-        ],
-        reason: "The exact Episode 2 and A02C1 lettering bytes are not present in this repository. Canonical captions, dialogue, sound effects, and alt text cannot be reconstructed from derivative ledgers.",
-      },
-    };
-  }),
-  plates: PLATES.map((row) => {
-    const plateId = `A02C1-plate-${String(row.ordinal).padStart(2, "0")}`;
-    return {
-      id: plateId,
-      ordinal: row.ordinal,
-      chapterId: "E02-C1",
-      asset: {
-        id: `asset:${plateId}`,
         path: `site/assets/art/A02C1/plates/${plateId}.webp`,
         bytes: row.bytes,
         sha256: row.sha256,

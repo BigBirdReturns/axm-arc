@@ -23,9 +23,9 @@ import tempfile
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
-from typing import Any, BinaryIO, Iterable, Iterator, Sequence
+from typing import Any, Iterable, Iterator, Sequence
 
-TOOL_VERSION = "1.2.0"
+TOOL_VERSION = "1.2.1"
 FORMAT = "burn-protocol-source-frontier-recovery/1"
 PACKET_FORMAT = "burn-protocol-source-frontier-packet/1"
 FIXED_ZIP_TIME = (1980, 1, 1, 0, 0, 0)
@@ -182,22 +182,46 @@ def materialize_parent(input_path: Path, contract: dict[str, Any], temp_root: Pa
     else:
         try:
             with zipfile.ZipFile(input_path) as handoff:
-                entries = validate_zip(handoff, "handoff")
+                # The handoff is not an authority object. Validate its paths and
+                # structure, then read only the one nested parent whose exact
+                # receipt is authoritative. Reading that entry to EOF verifies
+                # its CRC without expanding unrelated handoff material.
+                entries = validate_zip(handoff, "handoff", test_crc=False)
                 matches = basename_matches(entries, expected["basename"])
                 if len(matches) != 1:
                     raise RecoveryError(
                         f"Expected one nested {expected['basename']}, found {len(matches)}."
                     )
                 nested_name = matches[0]
+                nested_info = entries[nested_name]
+                if nested_info.is_dir():
+                    raise RecoveryError(f"Nested parent is a directory: {nested_name}")
+                if nested_info.file_size != expected["bytes"]:
+                    raise RecoveryError(
+                        f"Nested parent central-directory bytes: expected {expected['bytes']}, "
+                        f"got {nested_info.file_size}."
+                    )
                 parent_path = temp_root / expected["basename"]
-                with handoff.open(entries[nested_name], "r") as source, parent_path.open("wb") as destination:
-                    shutil.copyfileobj(source, destination, length=1024 * 1024)
+                digest = hashlib.sha256()
+                total = 0
+                with handoff.open(nested_info, "r") as source, parent_path.open("wb") as destination:
+                    while chunk := source.read(1024 * 1024):
+                        total += len(chunk)
+                        if total > expected["bytes"]:
+                            raise RecoveryError(
+                                f"Nested parent exceeded the contracted {expected['bytes']} bytes."
+                            )
+                        digest.update(chunk)
+                        destination.write(chunk)
+                actual_bytes = total
+                actual_hash = digest.hexdigest()
                 source_kind = "nested-parent"
         except zipfile.BadZipFile as exc:
             raise RecoveryError(f"Input is neither the direct parent nor a valid handoff ZIP: {exc}") from exc
 
-    actual_bytes = parent_path.stat().st_size
-    actual_hash = sha256_file(parent_path)
+    if source_kind == "direct-parent":
+        actual_bytes = input_receipt["bytes"]
+        actual_hash = input_receipt["sha256"]
     if actual_bytes != expected["bytes"]:
         raise RecoveryError(f"Parent bytes: expected {expected['bytes']}, got {actual_bytes}.")
     if actual_hash != expected["sha256"]:
@@ -651,11 +675,15 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             print(json.dumps(receipt, indent=2, sort_keys=True))
             return 0 if status == "verified-frontier-evidence" else 3
-    except Exception:
+    except RecoveryError:
         # Never leave apparently complete output after a failed verification.
         if output_root.exists():
             shutil.rmtree(output_root, ignore_errors=True)
         raise
+    except (OSError, EOFError, RuntimeError, NotImplementedError, zipfile.BadZipFile, zipfile.LargeZipFile) as exc:
+        if output_root.exists():
+            shutil.rmtree(output_root, ignore_errors=True)
+        raise RecoveryError(f"Archive or filesystem verification failed: {exc}") from exc
 
 
 if __name__ == "__main__":

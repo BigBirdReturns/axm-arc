@@ -77,6 +77,7 @@ def build_parent(
     tamper_manifest_path: str | None = None,
     unsafe_entry: str | None = None,
     large_assets: bool = False,
+    duplicate_manifest_path: str | None = None,
 ) -> Path:
     omitted = set(omit)
     files = {path: data for path, data in fixture_files(large_assets=large_assets).items() if path not in omitted}
@@ -85,7 +86,10 @@ def build_parent(
         digest = sha256_bytes(data)
         if path == tamper_manifest_path:
             digest = "0" * 64
-        records.append({"path": path, "bytes": len(data), "sha256": digest})
+        record = {"path": path, "bytes": len(data), "sha256": digest}
+        records.append(record)
+        if path == duplicate_manifest_path:
+            records.append(dict(record))
     manifest = json.dumps(
         {"format": "burn-protocol-test-manifest/1", "files": records},
         sort_keys=True,
@@ -237,6 +241,32 @@ class BurnSourceFrontierRecoveryTests(unittest.TestCase):
                 {"required": 1, "found": 0},
             )
             verify_sha256sums(output)
+
+    def test_duplicate_manifest_path_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            duplicated = "source/art/A04C2/chapter.json"
+            parent = build_parent(root, duplicate_manifest_path=duplicated)
+            contract = write_contract(root, parent)
+            output = root / "output"
+
+            result = run_tool(parent, contract, output)
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("duplicates", result.stderr.lower())
+            self.assertFalse(output.exists())
+
+    def test_corrupt_pinned_parent_is_a_clean_custody_refusal(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            parent = root / PARENT_BASENAME
+            parent.write_bytes(b"not a zip archive\n")
+            contract = write_contract(root, parent)
+            output = root / "output"
+
+            result = run_tool(parent, contract, output)
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("archive or filesystem verification failed", result.stderr.lower())
+            self.assertFalse(output.exists())
 
     def test_manifest_digest_mismatch_fails_closed_and_removes_output(self) -> None:
         with tempfile.TemporaryDirectory() as temp:

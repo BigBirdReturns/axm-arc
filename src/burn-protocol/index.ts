@@ -6,3 +6,4 @@ export * from "./chapter-1.js";
 export * from "./chapter-2.js";
 export * from "./chapter-3.js";
 export * from "./episode-2.js";
+export * from "./episode-3-chapter-1.js";

@@ -1,0 +1,937 @@
+{
+  "format": "burn-protocol/1",
+  "identity": {
+    "id": "burn-protocol-episode-01-chapter-01",
+    "title": "The Burn Protocol: Episode 1, Chapter 1 — Impact",
+    "description": "The first canonical publication extent of The Burn Protocol, represented as eighteen ordered panel slots and four scroll-plate assets without simulation or invented branching.",
+    "author": "The Burn Project",
+    "version": "0.1.0"
+  },
+  "estate": {
+    "release": "0.62.0",
+    "archiveReceiptId": "estate-archive-v062",
+    "canonicalSourceReceiptId": "episode-01-source",
+    "compiledSourceReceiptId": "episode-01-compiled",
+    "productionStanding": "source-ledger-only",
+    "missingRequiredReceiptIds": [
+      "estate-archive-v062",
+      "episode-01-source",
+      "episode-01-compiled",
+      "a01c1-lettering",
+      "a01c1-scroll-plates"
+    ],
+    "boundary": "Panel order and asset custody are explicit. Exact canonical captions, dialogue, sound effects, alt text, and plate-to-panel mappings remain blocked until the source bytes named by the receipts are supplied."
+  },
+  "canonicalStory": {
+    "format": "axm-canonical-story/1",
+    "identity": {
+      "id": "burn-protocol",
+      "title": "The Burn Protocol",
+      "version": "0.1.0"
+    },
+    "sourcePlane": {
+      "format": "burn-protocol/1",
+      "extensionKey": "burn.protocol@1"
+    },
+    "authority": {
+      "pathPolicy": "canonical-fixed",
+      "choicePolicy": "none",
+      "textAuthority": "exact-source-required",
+      "assetAuthority": "external-manifest"
+    },
+    "sourceReceipts": [
+      {
+        "id": "estate-archive-v062",
+        "path": "Star_Trek_Discovery_The_Burn_Protocol_Web_Series_v0.62.0.zip",
+        "bytes": 641627846,
+        "sha256": "f67dcd2c632720566e38b04c0a6b844188de24c967a77a4be31978a5ff82349a",
+        "role": "sealed-estate",
+        "available": false
+      },
+      {
+        "id": "episode-01-source",
+        "path": "source/episodes/episode-01.json",
+        "bytes": 68729,
+        "sha256": "de87f7cb5ed8f4fa5b5ebe6f8e7d63d1872740e0c29365108fc2aba0b1d0a35f",
+        "role": "canonical-story-source",
+        "available": false
+      },
+      {
+        "id": "episode-01-compiled",
+        "path": "site/data/episode-01.json",
+        "bytes": 89102,
+        "sha256": "71708f82e67b78dcc9fa50313e3b33da3a3ff034ff042a4212e8f7672c598c3f",
+        "role": "compiled-reader-source",
+        "available": false
+      },
+      {
+        "id": "a01c1-lettering",
+        "path": "manifests/a01c1-lettering.json",
+        "bytes": 15462,
+        "sha256": "77a016ffa3193a0e0806df44f77bbfb99f50ea0951a55ced4f5713b5ccd1d564",
+        "role": "canonical-lettering",
+        "available": false
+      },
+      {
+        "id": "a01c1-scroll-plates",
+        "path": "manifests/a01c1-scroll-plates.json",
+        "bytes": 1477,
+        "sha256": "5a23b0d760b495f5c8d6f43b79e0af572fdaf5cc38867d6ace287a1f9766f47d",
+        "role": "plate-composition-map",
+        "available": false
+      },
+      {
+        "id": "a01c1-art-audit",
+        "path": "manifests/a01c1-art-audit.json",
+        "bytes": 30471,
+        "sha256": "896db888eb638fbacd32d61108b6962dfdf153d73eeb4445100cba6e201b1be2",
+        "role": "chapter-art-audit",
+        "available": false
+      },
+      {
+        "id": "a01c1-art-manifest",
+        "path": "manifests/a01c1-art-manifest.csv",
+        "bytes": 3554,
+        "sha256": "cffc5009b93745bfff0fb4509506b9d53b44e34723b4ba74b137bfbc24e96b71",
+        "role": "chapter-art-manifest",
+        "available": false
+      },
+      {
+        "id": "q01-dialogue-parity",
+        "path": "manifests/q01-dialogue-parity.json",
+        "bytes": 763244,
+        "sha256": "212493c941469d673f410d2e5771c91a5db1a59f8fc483238246cfd5d2084b7e",
+        "role": "text-parity-ledger",
+        "available": false
+      },
+      {
+        "id": "q01-causal-ledger",
+        "path": "manifests/q01-causal-ledger.json",
+        "bytes": 1493256,
+        "sha256": "fd9ec4a4bc4b42e2a97351d34eff07e462f14aabff9db5a88cf5886cd747a9cc",
+        "role": "canonical-panel-audit",
+        "available": false
+      }
+    ],
+    "episodes": [
+      {
+        "id": "E01",
+        "number": 1,
+        "title": "The Broken Road",
+        "complete": false,
+        "nextChapterId": "E01-C2",
+        "chapters": [
+          {
+            "id": "E01-C1",
+            "number": 1,
+            "title": "Impact",
+            "complete": true,
+            "openingPanelId": "E01-C1-P01",
+            "terminalPanelId": "E01-C1-P18",
+            "previousPanelId": null,
+            "nextPanelId": "E01-C2-P19",
+            "panels": [
+              {
+                "id": "E01-C1-P01",
+                "ordinal": 1,
+                "chapterId": "E01-C1",
+                "previousPanelId": null,
+                "nextPanelId": "E01-C1-P02",
+                "asset": {
+                  "id": "asset:E01-C1-P01",
+                  "path": "site/assets/art/A01C1/panels/E01-C1-P01.webp",
+                  "bytes": 220554,
+                  "sha256": "7e88e194ce8cb19731ae7e5c10494b11e21b4d7581e7194b80c5ea67971a358e",
+                  "mimeType": "image/webp",
+                  "availability": "manifested-external",
+                  "visualStanding": "q02-review-required"
+                },
+                "text": {
+                  "status": "source-required",
+                  "expectedSourceReceiptIds": [
+                    "episode-01-source",
+                    "episode-01-compiled",
+                    "a01c1-lettering",
+                    "q01-dialogue-parity"
+                  ],
+                  "reason": "The exact canonical source and lettering bytes are not present in this Arc checkout. No dialogue, caption, or sound-effect text has been reconstructed from derivative ledgers."
+                },
+                "auditProjection": {
+                  "authority": "derived-q01-q02",
+                  "location": "Wormhole exit, deep space",
+                  "actorIds": [
+                    "BURNHAM"
+                  ],
+                  "summary": "Burnham falls from a collapsing wormhole into a field of wrecked ships while a courier vessel races beneath her.",
+                  "sourceReceiptIds": [
+                    "q01-causal-ledger",
+                    "a01c1-art-audit"
+                  ]
+                }
+              },
+              {
+                "id": "E01-C1-P02",
+                "ordinal": 2,
+                "chapterId": "E01-C1",
+                "previousPanelId": "E01-C1-P01",
+                "nextPanelId": "E01-C1-P03",
+                "asset": {
+                  "id": "asset:E01-C1-P02",
+                  "path": "site/assets/art/A01C1/panels/E01-C1-P02.webp",
+                  "bytes": 180138,
+                  "sha256": "277c99ddf735ab34a393f5ff79f8f3fd81d0e7d3eae1726e82f3e12e24a759c1",
+                  "mimeType": "image/webp",
+                  "availability": "manifested-external",
+                  "visualStanding": "q02-review-required"
+                },
+                "text": {
+                  "status": "source-required",
+                  "expectedSourceReceiptIds": [
+                    "episode-01-source",
+                    "episode-01-compiled",
+                    "a01c1-lettering",
+                    "q01-dialogue-parity"
+                  ],
+                  "reason": "The exact canonical source and lettering bytes are not present in this Arc checkout. No dialogue, caption, or sound-effect text has been reconstructed from derivative ledgers."
+                },
+                "auditProjection": {
+                  "authority": "derived-q01-q02",
+                  "location": "Wreck field",
+                  "actorIds": [
+                    "BURNHAM",
+                    "SUIT"
+                  ],
+                  "summary": "Burnham's suit reports completed temporal transit, failed guidance, critical reserve power, positional drift, and no Federation beacon.",
+                  "sourceReceiptIds": [
+                    "q01-causal-ledger",
+                    "a01c1-art-audit"
+                  ]
+                }
+              },
+              {
+                "id": "E01-C1-P03",
+                "ordinal": 3,
+                "chapterId": "E01-C1",
+                "previousPanelId": "E01-C1-P02",
+                "nextPanelId": "E01-C1-P04",
+                "asset": {
+                  "id": "asset:E01-C1-P03",
+                  "path": "site/assets/art/A01C1/panels/E01-C1-P03.webp",
+                  "bytes": 179654,
+                  "sha256": "0013499911cdef76dce9f45c03d54e211e7e8e4d945aae4bfdb7e67e2b2f2061",
+                  "mimeType": "image/webp",
+                  "availability": "manifested-external",
+                  "visualStanding": "q02-review-required"
+                },
+                "text": {
+                  "status": "source-required",
+                  "expectedSourceReceiptIds": [
+                    "episode-01-source",
+                    "episode-01-compiled",
+                    "a01c1-lettering",
+                    "q01-dialogue-parity"
+                  ],
+                  "reason": "The exact canonical source and lettering bytes are not present in this Arc checkout. No dialogue, caption, or sound-effect text has been reconstructed from derivative ledgers."
+                },
+                "auditProjection": {
+                  "authority": "derived-q01-q02",
+                  "location": "Wreck field",
+                  "actorIds": [
+                    "BURNHAM",
+                    "UNKNOWN_VOICE"
+                  ],
+                  "summary": "Burnham catches a drifting seed-stock canister while an unknown pilot warns her away.",
+                  "sourceReceiptIds": [
+                    "q01-causal-ledger",
+                    "a01c1-art-audit"
+                  ]
+                }
+              },
+              {
+                "id": "E01-C1-P04",
+                "ordinal": 4,
+                "chapterId": "E01-C1",
+                "previousPanelId": "E01-C1-P03",
+                "nextPanelId": "E01-C1-P05",
+                "asset": {
+                  "id": "asset:E01-C1-P04",
+                  "path": "site/assets/art/A01C1/panels/E01-C1-P04.webp",
+                  "bytes": 173082,
+                  "sha256": "76c9f73654c4f2f90fab3229c73fd0820b32ed39d83d549305bad79e65812158",
+                  "mimeType": "image/webp",
+                  "availability": "manifested-external",
+                  "visualStanding": "q02-review-required"
+                },
+                "text": {
+                  "status": "source-required",
+                  "expectedSourceReceiptIds": [
+                    "episode-01-source",
+                    "episode-01-compiled",
+                    "a01c1-lettering",
+                    "q01-dialogue-parity"
+                  ],
+                  "reason": "The exact canonical source and lettering bytes are not present in this Arc checkout. No dialogue, caption, or sound-effect text has been reconstructed from derivative ledgers."
+                },
+                "auditProjection": {
+                  "authority": "derived-q01-q02",
+                  "location": "Wreck field",
+                  "actorIds": [
+                    "BOOK",
+                    "BURNHAM",
+                    "UNKNOWN_VOICE"
+                  ],
+                  "summary": "Book reaches Burnham in the wreck field and identifies her arrival as the new cause of an already dangerous situation.",
+                  "sourceReceiptIds": [
+                    "q01-causal-ledger",
+                    "a01c1-art-audit"
+                  ]
+                }
+              },
+              {
+                "id": "E01-C1-P05",
+                "ordinal": 5,
+                "chapterId": "E01-C1",
+                "previousPanelId": "E01-C1-P04",
+                "nextPanelId": "E01-C1-P06",
+                "asset": {
+                  "id": "asset:E01-C1-P05",
+                  "path": "site/assets/art/A01C1/panels/E01-C1-P05.webp",
+                  "bytes": 153570,
+                  "sha256": "2cae7c97f5202514c8febf6f9cdc1efd8a1f28b6ee67708a4183bcbc5fc47cdc",
+                  "mimeType": "image/webp",
+                  "availability": "manifested-external",
+                  "visualStanding": "q02-review-required"
+                },
+                "text": {
+                  "status": "source-required",
+                  "expectedSourceReceiptIds": [
+                    "episode-01-source",
+                    "episode-01-compiled",
+                    "a01c1-lettering",
+                    "q01-dialogue-parity"
+                  ],
+                  "reason": "The exact canonical source and lettering bytes are not present in this Arc checkout. No dialogue, caption, or sound-effect text has been reconstructed from derivative ledgers."
+                },
+                "auditProjection": {
+                  "authority": "derived-q01-q02",
+                  "location": "Book's ship, cargo bay",
+                  "actorIds": [
+                    "BOOK",
+                    "BURNHAM"
+                  ],
+                  "summary": "Burnham and Book face each other in a crowded cargo bay, each treating the other as a possible threat.",
+                  "sourceReceiptIds": [
+                    "q01-causal-ledger",
+                    "a01c1-art-audit"
+                  ]
+                }
+              },
+              {
+                "id": "E01-C1-P06",
+                "ordinal": 6,
+                "chapterId": "E01-C1",
+                "previousPanelId": "E01-C1-P05",
+                "nextPanelId": "E01-C1-P07",
+                "asset": {
+                  "id": "asset:E01-C1-P06",
+                  "path": "site/assets/art/A01C1/panels/E01-C1-P06.webp",
+                  "bytes": 127892,
+                  "sha256": "0397fb167506d7f3e4bdff183f73fae8eb5d1aeaa78e7fc6eb8d25e745c98904",
+                  "mimeType": "image/webp",
+                  "availability": "manifested-external",
+                  "visualStanding": "q02-review-required"
+                },
+                "text": {
+                  "status": "source-required",
+                  "expectedSourceReceiptIds": [
+                    "episode-01-source",
+                    "episode-01-compiled",
+                    "a01c1-lettering",
+                    "q01-dialogue-parity"
+                  ],
+                  "reason": "The exact canonical source and lettering bytes are not present in this Arc checkout. No dialogue, caption, or sound-effect text has been reconstructed from derivative ledgers."
+                },
+                "auditProjection": {
+                  "authority": "derived-q01-q02",
+                  "location": "Book's ship, cargo bay",
+                  "actorIds": [
+                    "BOOK",
+                    "BURNHAM"
+                  ],
+                  "summary": "Book scans Burnham's antique Starfleet suit and realizes that her temporal-displacement claim is physically plausible.",
+                  "sourceReceiptIds": [
+                    "q01-causal-ledger",
+                    "a01c1-art-audit"
+                  ]
+                }
+              },
+              {
+                "id": "E01-C1-P07",
+                "ordinal": 7,
+                "chapterId": "E01-C1",
+                "previousPanelId": "E01-C1-P06",
+                "nextPanelId": "E01-C1-P08",
+                "asset": {
+                  "id": "asset:E01-C1-P07",
+                  "path": "site/assets/art/A01C1/panels/E01-C1-P07.webp",
+                  "bytes": 167606,
+                  "sha256": "02393eac1702ecc54763cda21f6a07bdfad734ac8168b9b73fc0f9eb80aecc48",
+                  "mimeType": "image/webp",
+                  "availability": "manifested-external",
+                  "visualStanding": "q02-review-required"
+                },
+                "text": {
+                  "status": "source-required",
+                  "expectedSourceReceiptIds": [
+                    "episode-01-source",
+                    "episode-01-compiled",
+                    "a01c1-lettering",
+                    "q01-dialogue-parity"
+                  ],
+                  "reason": "The exact canonical source and lettering bytes are not present in this Arc checkout. No dialogue, caption, or sound-effect text has been reconstructed from derivative ledgers."
+                },
+                "auditProjection": {
+                  "authority": "derived-q01-q02",
+                  "location": "Book's ship, cockpit",
+                  "actorIds": [
+                    "BOOK",
+                    "BURNHAM",
+                    "CHAIN_PATROL"
+                  ],
+                  "summary": "An Emerald Chain patrol targets Book's vessel, orders it to expose its cargo registry, and identifies Burnham as unregistered cargo.",
+                  "sourceReceiptIds": [
+                    "q01-causal-ledger",
+                    "a01c1-art-audit"
+                  ]
+                }
+              },
+              {
+                "id": "E01-C1-P08",
+                "ordinal": 8,
+                "chapterId": "E01-C1",
+                "previousPanelId": "E01-C1-P07",
+                "nextPanelId": "E01-C1-P09",
+                "asset": {
+                  "id": "asset:E01-C1-P08",
+                  "path": "site/assets/art/A01C1/panels/E01-C1-P08.webp",
+                  "bytes": 216258,
+                  "sha256": "0c5de65d3cfb417e268d11db0d823c2e49c4aed867dedadc386f6b3f60e82b55",
+                  "mimeType": "image/webp",
+                  "availability": "manifested-external",
+                  "visualStanding": "q02-review-required"
+                },
+                "text": {
+                  "status": "source-required",
+                  "expectedSourceReceiptIds": [
+                    "episode-01-source",
+                    "episode-01-compiled",
+                    "a01c1-lettering",
+                    "q01-dialogue-parity"
+                  ],
+                  "reason": "The exact canonical source and lettering bytes are not present in this Arc checkout. No dialogue, caption, or sound-effect text has been reconstructed from derivative ledgers."
+                },
+                "auditProjection": {
+                  "authority": "derived-q01-q02",
+                  "location": "Book's ship and wreck field",
+                  "actorIds": [
+                    "BOOK",
+                    "BURNHAM"
+                  ],
+                  "summary": "Book evades fire through wreckage while Burnham notices a repeating phase cycle in the subspace scar.",
+                  "sourceReceiptIds": [
+                    "q01-causal-ledger",
+                    "a01c1-art-audit"
+                  ]
+                }
+              },
+              {
+                "id": "E01-C1-P09",
+                "ordinal": 9,
+                "chapterId": "E01-C1",
+                "previousPanelId": "E01-C1-P08",
+                "nextPanelId": "E01-C1-P10",
+                "asset": {
+                  "id": "asset:E01-C1-P09",
+                  "path": "site/assets/art/A01C1/panels/E01-C1-P09.webp",
+                  "bytes": 122264,
+                  "sha256": "c9568472c33928e779bb1c01427f9bda07fc8b6654f18643f78cb73f2728a6fe",
+                  "mimeType": "image/webp",
+                  "availability": "manifested-external",
+                  "visualStanding": "q02-review-required"
+                },
+                "text": {
+                  "status": "source-required",
+                  "expectedSourceReceiptIds": [
+                    "episode-01-source",
+                    "episode-01-compiled",
+                    "a01c1-lettering",
+                    "q01-dialogue-parity"
+                  ],
+                  "reason": "The exact canonical source and lettering bytes are not present in this Arc checkout. No dialogue, caption, or sound-effect text has been reconstructed from derivative ledgers."
+                },
+                "auditProjection": {
+                  "authority": "derived-q01-q02",
+                  "location": "Book's ship, cockpit",
+                  "actorIds": [
+                    "BOOK",
+                    "BURNHAM"
+                  ],
+                  "summary": "Burnham reaches for Book's controls to act on the pattern; Book blocks access until she explains the route.",
+                  "sourceReceiptIds": [
+                    "q01-causal-ledger",
+                    "a01c1-art-audit"
+                  ]
+                }
+              },
+              {
+                "id": "E01-C1-P10",
+                "ordinal": 10,
+                "chapterId": "E01-C1",
+                "previousPanelId": "E01-C1-P09",
+                "nextPanelId": "E01-C1-P11",
+                "asset": {
+                  "id": "asset:E01-C1-P10",
+                  "path": "site/assets/art/A01C1/panels/E01-C1-P10.webp",
+                  "bytes": 149528,
+                  "sha256": "1bab4c37974d8be68ea68be018a42d8ed3d18230feaa9f7d96c9626892cd1705",
+                  "mimeType": "image/webp",
+                  "availability": "manifested-external",
+                  "visualStanding": "q02-review-required"
+                },
+                "text": {
+                  "status": "source-required",
+                  "expectedSourceReceiptIds": [
+                    "episode-01-source",
+                    "episode-01-compiled",
+                    "a01c1-lettering",
+                    "q01-dialogue-parity"
+                  ],
+                  "reason": "The exact canonical source and lettering bytes are not present in this Arc checkout. No dialogue, caption, or sound-effect text has been reconstructed from derivative ledgers."
+                },
+                "auditProjection": {
+                  "authority": "derived-q01-q02",
+                  "location": "Book's ship, cockpit",
+                  "actorIds": [
+                    "BOOK",
+                    "BURNHAM"
+                  ],
+                  "summary": "Burnham gives a physical route through lagging wrecks and a flashing freighter while Book demands the cost of being wrong.",
+                  "sourceReceiptIds": [
+                    "q01-causal-ledger",
+                    "a01c1-art-audit"
+                  ]
+                }
+              },
+              {
+                "id": "E01-C1-P11",
+                "ordinal": 11,
+                "chapterId": "E01-C1",
+                "previousPanelId": "E01-C1-P10",
+                "nextPanelId": "E01-C1-P12",
+                "asset": {
+                  "id": "asset:E01-C1-P11",
+                  "path": "site/assets/art/A01C1/panels/E01-C1-P11.webp",
+                  "bytes": 183804,
+                  "sha256": "6a60b76d3d704fa9e9be9acb934b22a4c13a9ce47a0cd0ffae184b57d349477e",
+                  "mimeType": "image/webp",
+                  "availability": "manifested-external",
+                  "visualStanding": "q02-review-required"
+                },
+                "text": {
+                  "status": "source-required",
+                  "expectedSourceReceiptIds": [
+                    "episode-01-source",
+                    "episode-01-compiled",
+                    "a01c1-lettering",
+                    "q01-dialogue-parity"
+                  ],
+                  "reason": "The exact canonical source and lettering bytes are not present in this Arc checkout. No dialogue, caption, or sound-effect text has been reconstructed from derivative ledgers."
+                },
+                "auditProjection": {
+                  "authority": "derived-q01-q02",
+                  "location": "Subspace scar",
+                  "actorIds": [
+                    "BOOK",
+                    "BURNHAM",
+                    "CHAIN_PATROL"
+                  ],
+                  "summary": "Book holds the route until Burnham calls the phase change, then cuts through the scar as the patrol loses the corridor.",
+                  "sourceReceiptIds": [
+                    "q01-causal-ledger",
+                    "a01c1-art-audit"
+                  ]
+                }
+              },
+              {
+                "id": "E01-C1-P12",
+                "ordinal": 12,
+                "chapterId": "E01-C1",
+                "previousPanelId": "E01-C1-P11",
+                "nextPanelId": "E01-C1-P13",
+                "asset": {
+                  "id": "asset:E01-C1-P12",
+                  "path": "site/assets/art/A01C1/panels/E01-C1-P12.webp",
+                  "bytes": 124288,
+                  "sha256": "f262b2bfa143df695a69d81e3238e3e55cf4e2ceef756aa61b36d4ed28e51d92",
+                  "mimeType": "image/webp",
+                  "availability": "manifested-external",
+                  "visualStanding": "q02-review-required"
+                },
+                "text": {
+                  "status": "source-required",
+                  "expectedSourceReceiptIds": [
+                    "episode-01-source",
+                    "episode-01-compiled",
+                    "a01c1-lettering",
+                    "q01-dialogue-parity"
+                  ],
+                  "reason": "The exact canonical source and lettering bytes are not present in this Arc checkout. No dialogue, caption, or sound-effect text has been reconstructed from derivative ledgers."
+                },
+                "auditProjection": {
+                  "authority": "derived-q01-q02",
+                  "location": "Book's ship, cockpit",
+                  "actorIds": [
+                    "BOOK",
+                    "BURNHAM"
+                  ],
+                  "summary": "After the escape, Burnham and Book recognize that both of them protected the seed cargo rather than pursuing a cleaner victory.",
+                  "sourceReceiptIds": [
+                    "q01-causal-ledger",
+                    "a01c1-art-audit"
+                  ]
+                }
+              },
+              {
+                "id": "E01-C1-P13",
+                "ordinal": 13,
+                "chapterId": "E01-C1",
+                "previousPanelId": "E01-C1-P12",
+                "nextPanelId": "E01-C1-P14",
+                "asset": {
+                  "id": "asset:E01-C1-P13",
+                  "path": "site/assets/art/A01C1/panels/E01-C1-P13.webp",
+                  "bytes": 157534,
+                  "sha256": "62e16326d57a83bcbe886b66e3ef0b56636963b21226fe80cdb9f51dd3e41c8b",
+                  "mimeType": "image/webp",
+                  "availability": "manifested-external",
+                  "visualStanding": "q02-review-required"
+                },
+                "text": {
+                  "status": "source-required",
+                  "expectedSourceReceiptIds": [
+                    "episode-01-source",
+                    "episode-01-compiled",
+                    "a01c1-lettering",
+                    "q01-dialogue-parity"
+                  ],
+                  "reason": "The exact canonical source and lettering bytes are not present in this Arc checkout. No dialogue, caption, or sound-effect text has been reconstructed from derivative ledgers."
+                },
+                "auditProjection": {
+                  "authority": "derived-q01-q02",
+                  "location": "Courier exchange, Hima",
+                  "actorIds": [
+                    "BOOK"
+                  ],
+                  "summary": "Book's damaged ship approaches a dense courier exchange built from cargo, repair, and route infrastructure.",
+                  "sourceReceiptIds": [
+                    "q01-causal-ledger",
+                    "a01c1-art-audit"
+                  ]
+                }
+              },
+              {
+                "id": "E01-C1-P14",
+                "ordinal": 14,
+                "chapterId": "E01-C1",
+                "previousPanelId": "E01-C1-P13",
+                "nextPanelId": "E01-C1-P15",
+                "asset": {
+                  "id": "asset:E01-C1-P14",
+                  "path": "site/assets/art/A01C1/panels/E01-C1-P14.webp",
+                  "bytes": 75034,
+                  "sha256": "d999826c3a54595dadb4ad64d541e48ca38c2d459c832361a09b71fcead38ee7",
+                  "mimeType": "image/webp",
+                  "availability": "manifested-external",
+                  "visualStanding": "q02-review-required"
+                },
+                "text": {
+                  "status": "source-required",
+                  "expectedSourceReceiptIds": [
+                    "episode-01-source",
+                    "episode-01-compiled",
+                    "a01c1-lettering",
+                    "q01-dialogue-parity"
+                  ],
+                  "reason": "The exact canonical source and lettering bytes are not present in this Arc checkout. No dialogue, caption, or sound-effect text has been reconstructed from derivative ledgers."
+                },
+                "auditProjection": {
+                  "authority": "derived-q01-q02",
+                  "location": "Courier exchange",
+                  "actorIds": [
+                    "BOOK",
+                    "BURNHAM",
+                    "RECIPIENT"
+                  ],
+                  "summary": "Book delivers the protected seed stock while Burnham observes how essential goods move through the exchange.",
+                  "sourceReceiptIds": [
+                    "q01-causal-ledger",
+                    "a01c1-art-audit"
+                  ]
+                }
+              },
+              {
+                "id": "E01-C1-P15",
+                "ordinal": 15,
+                "chapterId": "E01-C1",
+                "previousPanelId": "E01-C1-P14",
+                "nextPanelId": "E01-C1-P16",
+                "asset": {
+                  "id": "asset:E01-C1-P15",
+                  "path": "site/assets/art/A01C1/panels/E01-C1-P15.webp",
+                  "bytes": 76094,
+                  "sha256": "e526ef85aaac97d8e3f2f39802fd140b24d7d8094979fb331c167f3dc13cee7c",
+                  "mimeType": "image/webp",
+                  "availability": "manifested-external",
+                  "visualStanding": "q02-review-required"
+                },
+                "text": {
+                  "status": "source-required",
+                  "expectedSourceReceiptIds": [
+                    "episode-01-source",
+                    "episode-01-compiled",
+                    "a01c1-lettering",
+                    "q01-dialogue-parity"
+                  ],
+                  "reason": "The exact canonical source and lettering bytes are not present in this Arc checkout. No dialogue, caption, or sound-effect text has been reconstructed from derivative ledgers."
+                },
+                "auditProjection": {
+                  "authority": "derived-q01-q02",
+                  "location": "Courier exchange",
+                  "actorIds": [
+                    "BOOK",
+                    "BURNHAM"
+                  ],
+                  "summary": "Burnham watches one safe corridor close and food-route prices rise, learning that route access is political power.",
+                  "sourceReceiptIds": [
+                    "q01-causal-ledger",
+                    "a01c1-art-audit"
+                  ]
+                }
+              },
+              {
+                "id": "E01-C1-P16",
+                "ordinal": 16,
+                "chapterId": "E01-C1",
+                "previousPanelId": "E01-C1-P15",
+                "nextPanelId": "E01-C1-P17",
+                "asset": {
+                  "id": "asset:E01-C1-P16",
+                  "path": "site/assets/art/A01C1/panels/E01-C1-P16.webp",
+                  "bytes": 85728,
+                  "sha256": "622eddc76e6e8a8461104b4c908b61c1623d5211b0d55bb68d2669a2feaa0d75",
+                  "mimeType": "image/webp",
+                  "availability": "manifested-external",
+                  "visualStanding": "q02-review-required"
+                },
+                "text": {
+                  "status": "source-required",
+                  "expectedSourceReceiptIds": [
+                    "episode-01-source",
+                    "episode-01-compiled",
+                    "a01c1-lettering",
+                    "q01-dialogue-parity"
+                  ],
+                  "reason": "The exact canonical source and lettering bytes are not present in this Arc checkout. No dialogue, caption, or sound-effect text has been reconstructed from derivative ledgers."
+                },
+                "auditProjection": {
+                  "authority": "derived-q01-q02",
+                  "location": "Salvage stall",
+                  "actorIds": [
+                    "BOOK",
+                    "BURNHAM"
+                  ],
+                  "summary": "Burnham finds a scorched Starfleet flight recorder among timing crystals and stripped ship parts.",
+                  "sourceReceiptIds": [
+                    "q01-causal-ledger",
+                    "a01c1-art-audit"
+                  ]
+                }
+              },
+              {
+                "id": "E01-C1-P17",
+                "ordinal": 17,
+                "chapterId": "E01-C1",
+                "previousPanelId": "E01-C1-P16",
+                "nextPanelId": "E01-C1-P18",
+                "asset": {
+                  "id": "asset:E01-C1-P17",
+                  "path": "site/assets/art/A01C1/panels/E01-C1-P17.webp",
+                  "bytes": 127090,
+                  "sha256": "f253d98a74ab39f997b9964ced8da3041ad77bd08fc47eafdd70ae475fd30de1",
+                  "mimeType": "image/webp",
+                  "availability": "manifested-external",
+                  "visualStanding": "q02-review-required"
+                },
+                "text": {
+                  "status": "source-required",
+                  "expectedSourceReceiptIds": [
+                    "episode-01-source",
+                    "episode-01-compiled",
+                    "a01c1-lettering",
+                    "q01-dialogue-parity"
+                  ],
+                  "reason": "The exact canonical source and lettering bytes are not present in this Arc checkout. No dialogue, caption, or sound-effect text has been reconstructed from derivative ledgers."
+                },
+                "auditProjection": {
+                  "authority": "derived-q01-q02",
+                  "location": "Salvage stall",
+                  "actorIds": [
+                    "BOOK",
+                    "BURNHAM",
+                    "MAREL"
+                  ],
+                  "summary": "Marel prices the recorder as useful timing hardware rather than historical evidence and lifts it out of Burnham's reach.",
+                  "sourceReceiptIds": [
+                    "q01-causal-ledger",
+                    "a01c1-art-audit"
+                  ]
+                }
+              },
+              {
+                "id": "E01-C1-P18",
+                "ordinal": 18,
+                "chapterId": "E01-C1",
+                "previousPanelId": "E01-C1-P17",
+                "nextPanelId": "E01-C2-P19",
+                "asset": {
+                  "id": "asset:E01-C1-P18",
+                  "path": "site/assets/art/A01C1/panels/E01-C1-P18.webp",
+                  "bytes": 156574,
+                  "sha256": "bbc44fa48c0d98a9bd816d5d1bff5ce40d0d393fbfdb124cfb3bc20dc9422f69",
+                  "mimeType": "image/webp",
+                  "availability": "manifested-external",
+                  "visualStanding": "q02-review-required"
+                },
+                "text": {
+                  "status": "source-required",
+                  "expectedSourceReceiptIds": [
+                    "episode-01-source",
+                    "episode-01-compiled",
+                    "a01c1-lettering",
+                    "q01-dialogue-parity"
+                  ],
+                  "reason": "The exact canonical source and lettering bytes are not present in this Arc checkout. No dialogue, caption, or sound-effect text has been reconstructed from derivative ledgers."
+                },
+                "auditProjection": {
+                  "authority": "derived-q01-q02",
+                  "location": "Salvage stall",
+                  "actorIds": [
+                    "BOOK",
+                    "BURNHAM",
+                    "MAREL"
+                  ],
+                  "summary": "Burnham trades her ancient long-range rescue beacon for the recorder, choosing recoverable evidence over passive hope.",
+                  "sourceReceiptIds": [
+                    "q01-causal-ledger",
+                    "a01c1-art-audit"
+                  ]
+                }
+              }
+            ],
+            "plates": [
+              {
+                "id": "A01C1-plate-01",
+                "ordinal": 1,
+                "chapterId": "E01-C1",
+                "asset": {
+                  "id": "asset:A01C1-plate-01",
+                  "path": "site/assets/art/A01C1/plates/A01C1-plate-01.webp",
+                  "bytes": 862840,
+                  "sha256": "84863e1a1316df5bcb2f1b2347f5b3e64acf469f4246d7bf94c4e58a831e854f",
+                  "mimeType": "image/webp",
+                  "availability": "manifested-external",
+                  "visualStanding": "q02-review-required"
+                },
+                "panelMapping": {
+                  "status": "source-required",
+                  "expectedSourceReceiptIds": [
+                    "a01c1-scroll-plates"
+                  ],
+                  "reason": "The exact plate composition manifest is hash-bound but not present in this checkout; no panel range is inferred from plate numbering."
+                }
+              },
+              {
+                "id": "A01C1-plate-02",
+                "ordinal": 2,
+                "chapterId": "E01-C1",
+                "asset": {
+                  "id": "asset:A01C1-plate-02",
+                  "path": "site/assets/art/A01C1/plates/A01C1-plate-02.webp",
+                  "bytes": 723480,
+                  "sha256": "98e7a65cb2714e4729578484ba85233a96ead04d8e5585924162df90cc379602",
+                  "mimeType": "image/webp",
+                  "availability": "manifested-external",
+                  "visualStanding": "q02-review-required"
+                },
+                "panelMapping": {
+                  "status": "source-required",
+                  "expectedSourceReceiptIds": [
+                    "a01c1-scroll-plates"
+                  ],
+                  "reason": "The exact plate composition manifest is hash-bound but not present in this checkout; no panel range is inferred from plate numbering."
+                }
+              },
+              {
+                "id": "A01C1-plate-03",
+                "ordinal": 3,
+                "chapterId": "E01-C1",
+                "asset": {
+                  "id": "asset:A01C1-plate-03",
+                  "path": "site/assets/art/A01C1/plates/A01C1-plate-03.webp",
+                  "bytes": 495162,
+                  "sha256": "1241cd3f0e5f2bc510f769d176172f98c10ccb11c2518082e8dc553821b64443",
+                  "mimeType": "image/webp",
+                  "availability": "manifested-external",
+                  "visualStanding": "q02-review-required"
+                },
+                "panelMapping": {
+                  "status": "source-required",
+                  "expectedSourceReceiptIds": [
+                    "a01c1-scroll-plates"
+                  ],
+                  "reason": "The exact plate composition manifest is hash-bound but not present in this checkout; no panel range is inferred from plate numbering."
+                }
+              },
+              {
+                "id": "A01C1-plate-04",
+                "ordinal": 4,
+                "chapterId": "E01-C1",
+                "asset": {
+                  "id": "asset:A01C1-plate-04",
+                  "path": "site/assets/art/A01C1/plates/A01C1-plate-04.webp",
+                  "bytes": 406360,
+                  "sha256": "ed3959583e75708bac91cdf7d3405819417ec1307a6e4964635557e14906382e",
+                  "mimeType": "image/webp",
+                  "availability": "manifested-external",
+                  "visualStanding": "q02-review-required"
+                },
+                "panelMapping": {
+                  "status": "source-required",
+                  "expectedSourceReceiptIds": [
+                    "a01c1-scroll-plates"
+                  ],
+                  "reason": "The exact plate composition manifest is hash-bound but not present in this checkout; no panel range is inferred from plate numbering."
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "notes": {
+    "implementationPurpose": "Establish the reusable canonical-story Lego pieces with the complete Chapter 1 panel inventory. This object must be extended by adding ordinary chapters and panels, not replaced by a bespoke Episode 1 model.",
+    "noSimulation": true,
+    "noChoices": true
+  }
+}

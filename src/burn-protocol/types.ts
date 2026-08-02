@@ -19,8 +19,14 @@ export interface BurnProtocolIdentity {
 export interface BurnProtocolEstate {
   release: string;
   archiveReceiptId: string;
+  /** Compatibility pointer to the first canonical episode source receipt. */
   canonicalSourceReceiptId: string;
+  /** Complete ordered canonical episode-source custody for a multi-episode cartridge. */
+  canonicalSourceReceiptIds?: string[];
+  /** Compatibility pointer to the first compiled episode source receipt. */
   compiledSourceReceiptId: string;
+  /** Complete ordered compiled episode-source custody for a multi-episode cartridge. */
+  compiledSourceReceiptIds?: string[];
   productionStanding: BurnProtocolProductionStanding;
   missingRequiredReceiptIds: string[];
   boundary: string;

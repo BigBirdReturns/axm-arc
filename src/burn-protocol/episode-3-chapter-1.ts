@@ -5,6 +5,7 @@ import type {
 } from "../canonical-story/types.js";
 import { appendBurnProtocolEpisode } from "./assembly.js";
 import { BURN_PROTOCOL_THROUGH_EPISODE_2_SOURCE } from "./episode-2.js";
+import { parseBurnProtocol } from "./schema.js";
 
 interface AssetRow {
   number: number;
@@ -66,6 +67,52 @@ const PLATES: PlateRow[] = [
   { ordinal: 3, bytes: 632808, sha256: "e17b782aa1435803ef2e31a55bb2432a3ddee78b6be0fe16da9b8efc5fd3b9fb" },
   { ordinal: 4, bytes: 631940, sha256: "8fcfc3b0027472219993fea2956f48847b9821aa3b45bde5f7a7bd66ae146d94" },
 ];
+
+const BURN_PROTOCOL_THROUGH_EPISODE_2_WITH_RECOVERED_PLATE_4 = (() => {
+  const source = structuredClone(BURN_PROTOCOL_THROUGH_EPISODE_2_SOURCE);
+  const chapter = source.canonicalStory.episodes
+    .find((episode) => episode.id === "E02")
+    ?.chapters.find((candidate) => candidate.id === "E02-C3");
+  if (!chapter) throw new Error("Episode 2 Chapter 3 is missing from the accepted source.");
+  if (!chapter.plates.some((plate) => plate.id === "A02C3-plate-04")) {
+    chapter.plates.push({
+      id: "A02C3-plate-04",
+      ordinal: 4,
+      chapterId: "E02-C3",
+      asset: {
+        id: "asset:A02C3-plate-04",
+        path: "site/assets/art/A02C3/plates/A02C3-plate-04.webp",
+        bytes: 332220,
+        sha256: "ea21b4b95e72da8c8d8372bdf1b76c65ec8d97c88dd14aa266094458cfa3d65d",
+        mimeType: "image/webp",
+        availability: "manifested-external",
+        visualStanding: "q02-review-required",
+      },
+      panelMapping: {
+        status: "source-required",
+        expectedSourceReceiptIds: ["a02c3-scroll-plates"],
+        reason: "The exact A02C3 scroll-plate composition map is not present. Plate-to-panel ranges cannot be inferred from asset order.",
+      },
+    });
+  }
+  source.estate.missingRequiredReceiptIds = source.estate.missingRequiredReceiptIds
+    .filter((receiptId) => receiptId !== "a02c3-art-manifest");
+  source.estate.boundary = "Panel order, the E01-to-E02 seam, both Episode 2 chapter seams, and exact manifested custody for all sixty Episode 2 panels and twelve Episode 2 plates are explicit through E02-C3-P60. Canonical text and all plate mappings remain blocked until the named source bytes are supplied.";
+  const priorNotes = source.notes && typeof source.notes === "object" && !Array.isArray(source.notes)
+    ? source.notes
+    : {};
+  source.notes = {
+    ...priorNotes,
+    assetLedgerRecovery: {
+      id: "A02C3-plate-04",
+      path: "site/assets/art/A02C3/plates/A02C3-plate-04.webp",
+      bytes: 332220,
+      sha256: "ea21b4b95e72da8c8d8372bdf1b76c65ec8d97c88dd14aa266094458cfa3d65d",
+      authority: "v0.62.0-file-manifest",
+    },
+  };
+  return parseBurnProtocol(source);
+})();
 
 export const BURN_PROTOCOL_EPISODE_3_CHAPTER_1: CanonicalStoryChapter = {
   id: "E03-C1",
@@ -141,7 +188,7 @@ export const BURN_PROTOCOL_EPISODE_3_THROUGH_CHAPTER_1: CanonicalStoryEpisode = 
 };
 
 export const BURN_PROTOCOL_THROUGH_EPISODE_3_CHAPTER_1_SOURCE = appendBurnProtocolEpisode(
-  BURN_PROTOCOL_THROUGH_EPISODE_2_SOURCE,
+  BURN_PROTOCOL_THROUGH_EPISODE_2_WITH_RECOVERED_PLATE_4,
   {
     identity: {
       id: "burn-protocol",
@@ -162,7 +209,7 @@ export const BURN_PROTOCOL_THROUGH_EPISODE_3_CHAPTER_1_SOURCE = appendBurnProtoc
       "episode-02-compiled",
     ],
     missingRequiredReceiptIds: [
-      ...BURN_PROTOCOL_THROUGH_EPISODE_2_SOURCE.estate.missingRequiredReceiptIds,
+      ...BURN_PROTOCOL_THROUGH_EPISODE_2_WITH_RECOVERED_PLATE_4.estate.missingRequiredReceiptIds,
       "episode-03-source",
     ],
     boundary: "Panel order, both completed prior episodes, the E02-to-E03 seam, Episode 3 Chapter 1, and manifested custody for all twenty A03C1 panels and four A03C1 plates are explicit through E03-C1-P20. The exact Episode 3 compiled reader receipt, canonical text, and plate mappings remain blocked until their source bytes are supplied.",
@@ -174,6 +221,12 @@ export const BURN_PROTOCOL_THROUGH_EPISODE_3_CHAPTER_1_SOURCE = appendBurnProtoc
       stableSeriesIdentity: "burn-protocol",
       episodeBoundary: "E02-C3-P60 -> E03-C1-P01",
       nextCanonicalPanelId: "E03-C2-P21",
+      inheritedAssetLedgerRecovery: {
+        id: "A02C3-plate-04",
+        path: "site/assets/art/A02C3/plates/A02C3-plate-04.webp",
+        bytes: 332220,
+        sha256: "ea21b4b95e72da8c8d8372bdf1b76c65ec8d97c88dd14aa266094458cfa3d65d",
+      },
       sourceLedgerGaps: [
         {
           id: "episode-03-compiled",

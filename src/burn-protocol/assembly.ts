@@ -1,5 +1,6 @@
 import type {
   CanonicalStoryChapter,
+  CanonicalStoryEpisode,
   CanonicalStorySourceReceipt,
 } from "../canonical-story/types.js";
 import type { JsonValue } from "../engine/types.js";
@@ -9,25 +10,29 @@ import type {
   BurnProtocolSource,
 } from "./types.js";
 
-export interface BurnProtocolChapterAmendment {
+interface BurnProtocolAmendmentBase {
   identity: BurnProtocolIdentity;
   storyVersion: string;
   sourceReceipts: CanonicalStorySourceReceipt[];
   missingRequiredReceiptIds: string[];
   boundary: string;
+  notes?: JsonValue;
+}
+
+export interface BurnProtocolChapterAmendment extends BurnProtocolAmendmentBase {
   episodeId: string;
   episodeComplete?: boolean;
   nextChapterId: string | null;
   chapter: CanonicalStoryChapter;
-  notes?: JsonValue;
 }
 
-/** Add one ordinary chapter to an existing Burn source. The final combined
- * source is revalidated through burn-protocol/1, so a chapter cannot bypass
- * receipt custody, panel-chain law, or the fixed no-choice story authority. */
-export function appendBurnProtocolChapter(
+export interface BurnProtocolEpisodeAmendment extends BurnProtocolAmendmentBase {
+  episode: CanonicalStoryEpisode;
+}
+
+function applyCommonAmendment(
   previous: BurnProtocolSource,
-  amendment: BurnProtocolChapterAmendment,
+  amendment: BurnProtocolAmendmentBase,
 ): BurnProtocolSource {
   const source = structuredClone(previous);
   source.identity = structuredClone(amendment.identity);
@@ -42,12 +47,26 @@ export function appendBurnProtocolChapter(
   );
   for (const receipt of amendment.sourceReceipts) {
     if (receiptIds.has(receipt.id)) {
-      throw new Error(`Burn chapter amendment duplicates source receipt "${receipt.id}".`);
+      throw new Error(`Burn amendment duplicates source receipt "${receipt.id}".`);
     }
     receiptIds.add(receipt.id);
     source.canonicalStory.sourceReceipts.push(structuredClone(receipt));
   }
 
+  source.notes = amendment.notes === undefined
+    ? source.notes
+    : structuredClone(amendment.notes);
+  return source;
+}
+
+/** Add one ordinary chapter to an existing Burn source. The final combined
+ * source is revalidated through burn-protocol/1, so a chapter cannot bypass
+ * receipt custody, panel-chain law, or the fixed no-choice story authority. */
+export function appendBurnProtocolChapter(
+  previous: BurnProtocolSource,
+  amendment: BurnProtocolChapterAmendment,
+): BurnProtocolSource {
+  const source = applyCommonAmendment(previous, amendment);
   const episode = source.canonicalStory.episodes.find(
     (candidate) => candidate.id === amendment.episodeId,
   );
@@ -61,9 +80,23 @@ export function appendBurnProtocolChapter(
   episode.chapters.push(structuredClone(amendment.chapter));
   episode.complete = amendment.episodeComplete ?? episode.complete;
   episode.nextChapterId = amendment.nextChapterId;
-  source.notes = amendment.notes === undefined
-    ? source.notes
-    : structuredClone(amendment.notes);
+  return parseBurnProtocol(source);
+}
 
+/** Add one ordinary episode to the same Burn source and cartridge identity.
+ * The accepted source is revalidated after assembly, so the new episode must
+ * satisfy global ordering, cross-episode continuity, receipt custody, panel
+ * identity, and fixed no-choice authority before it can compile into an Arc. */
+export function appendBurnProtocolEpisode(
+  previous: BurnProtocolSource,
+  amendment: BurnProtocolEpisodeAmendment,
+): BurnProtocolSource {
+  const source = applyCommonAmendment(previous, amendment);
+  if (source.canonicalStory.episodes.some(
+    (episode) => episode.id === amendment.episode.id,
+  )) {
+    throw new Error(`Burn episode amendment duplicates episode "${amendment.episode.id}".`);
+  }
+  source.canonicalStory.episodes.push(structuredClone(amendment.episode));
   return parseBurnProtocol(source);
 }

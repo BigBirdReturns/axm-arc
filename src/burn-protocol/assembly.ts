@@ -16,6 +16,7 @@ export interface BurnProtocolChapterAmendment {
   missingRequiredReceiptIds: string[];
   boundary: string;
   episodeId: string;
+  episodeComplete?: boolean;
   nextChapterId: string | null;
   chapter: CanonicalStoryChapter;
   notes?: JsonValue;
@@ -58,6 +59,7 @@ export function appendBurnProtocolChapter(
   }
 
   episode.chapters.push(structuredClone(amendment.chapter));
+  episode.complete = amendment.episodeComplete ?? episode.complete;
   episode.nextChapterId = amendment.nextChapterId;
   source.notes = amendment.notes === undefined
     ? source.notes

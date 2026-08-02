@@ -42,7 +42,9 @@ export interface CanonicalStorySourceReceipt {
   available: boolean;
 }
 
-export interface CanonicalStoryAssetReference {
+export interface CanonicalStoryManifestedAssetReference {
+  /** Existing v1 assets omit this field; when present it is explicit. */
+  status?: "manifested";
   id: string;
   path: string;
   bytes: number;
@@ -51,6 +53,22 @@ export interface CanonicalStoryAssetReference {
   availability: CanonicalStoryAssetAvailability;
   visualStanding: CanonicalStoryVisualStanding;
 }
+
+export interface CanonicalStorySourceRequiredAssetReference {
+  status: "source-required";
+  id: string;
+  path: string;
+  expectedBytes?: number;
+  mimeType: "image/png" | "image/jpeg" | "image/webp";
+  availability: "manifested-external";
+  visualStanding: "missing";
+  expectedSourceReceiptIds: string[];
+  reason: string;
+}
+
+export type CanonicalStoryAssetReference =
+  | CanonicalStoryManifestedAssetReference
+  | CanonicalStorySourceRequiredAssetReference;
 
 export interface CanonicalStoryCaption {
   id: string;

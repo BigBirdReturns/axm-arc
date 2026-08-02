@@ -34,7 +34,9 @@ const BurnProtocolSchema: z.ZodType<BurnProtocolSource> = z.object({
     release: z.string().regex(/^\d+\.\d+\.\d+$/),
     archiveReceiptId: NonEmpty,
     canonicalSourceReceiptId: NonEmpty,
+    canonicalSourceReceiptIds: z.array(NonEmpty).min(1).optional(),
     compiledSourceReceiptId: NonEmpty,
+    compiledSourceReceiptIds: z.array(NonEmpty).min(1).optional(),
     productionStanding: z.enum(["source-ledger-only", "canonical-source-complete"]),
     missingRequiredReceiptIds: z.array(NonEmpty),
     boundary: NonEmpty,
@@ -47,6 +49,14 @@ export type BurnProtocolValidation =
   | { ok: true; source: BurnProtocolSource }
   | { ok: false; errors: string[] };
 
+function duplicateValues(values: readonly string[]): string[] {
+  const counts = new Map<string, number>();
+  for (const value of values) counts.set(value, (counts.get(value) ?? 0) + 1);
+  return [...counts.entries()]
+    .filter(([, count]) => count > 1)
+    .map(([value]) => value);
+}
+
 function semanticErrors(source: BurnProtocolSource): string[] {
   const errors: string[] = [];
   const story = parseCanonicalStory(source.canonicalStory);
@@ -58,12 +68,39 @@ function semanticErrors(source: BurnProtocolSource): string[] {
   }
 
   const receiptById = new Map(story.sourceReceipts.map((receipt) => [receipt.id, receipt]));
-  for (const [path, receiptId] of [
+  const canonicalSourceReceiptIds = source.estate.canonicalSourceReceiptIds
+    ?? [source.estate.canonicalSourceReceiptId];
+  const compiledSourceReceiptIds = source.estate.compiledSourceReceiptIds
+    ?? [source.estate.compiledSourceReceiptId];
+
+  if (!canonicalSourceReceiptIds.includes(source.estate.canonicalSourceReceiptId)) {
+    errors.push(
+      `[estate.canonicalSourceReceiptIds] Must include compatibility receipt "${source.estate.canonicalSourceReceiptId}".`,
+    );
+  }
+  if (!compiledSourceReceiptIds.includes(source.estate.compiledSourceReceiptId)) {
+    errors.push(
+      `[estate.compiledSourceReceiptIds] Must include compatibility receipt "${source.estate.compiledSourceReceiptId}".`,
+    );
+  }
+  for (const duplicate of duplicateValues(canonicalSourceReceiptIds)) {
+    errors.push(`[estate.canonicalSourceReceiptIds] Duplicate source receipt "${duplicate}".`);
+  }
+  for (const duplicate of duplicateValues(compiledSourceReceiptIds)) {
+    errors.push(`[estate.compiledSourceReceiptIds] Duplicate source receipt "${duplicate}".`);
+  }
+
+  const requiredReceiptPointers: Array<readonly [string, string]> = [
     ["estate.archiveReceiptId", source.estate.archiveReceiptId],
-    ["estate.canonicalSourceReceiptId", source.estate.canonicalSourceReceiptId],
-    ["estate.compiledSourceReceiptId", source.estate.compiledSourceReceiptId],
-  ] as const) {
-    if (!receiptById.has(receiptId)) errors.push(`[${path}] Unknown source receipt "${receiptId}".`);
+    ...canonicalSourceReceiptIds.map((receiptId, index) =>
+      [`estate.canonicalSourceReceiptIds.${index}`, receiptId] as const),
+    ...compiledSourceReceiptIds.map((receiptId, index) =>
+      [`estate.compiledSourceReceiptIds.${index}`, receiptId] as const),
+  ];
+  for (const [path, receiptId] of requiredReceiptPointers) {
+    if (!receiptById.has(receiptId)) {
+      errors.push(`[${path}] Unknown source receipt "${receiptId}".`);
+    }
   }
 
   for (const receiptId of source.estate.missingRequiredReceiptIds) {
@@ -93,13 +130,34 @@ function semanticErrors(source: BurnProtocolSource): string[] {
     }
   }
 
-  for (const episode of story.episodes) {
+  for (const [episodeIndex, episode] of story.episodes.entries()) {
     if (!/^E\d{2}$/.test(episode.id)) {
       errors.push(`[canonicalStory.episodes] Burn episode id "${episode.id}" is not E##.`);
     }
     const presentChapterIds = new Set(episode.chapters.map((chapter) => chapter.id));
     if (episode.nextChapterId !== null && presentChapterIds.has(episode.nextChapterId)) {
       errors.push(`[canonicalStory.episodes.${episode.id}.nextChapterId] The next unpublished chapter is already present.`);
+    }
+
+    const previousEpisode = story.episodes[episodeIndex - 1];
+    if (previousEpisode) {
+      const previousChapter = previousEpisode.chapters.at(-1)!;
+      const openingChapter = episode.chapters[0]!;
+      if (!previousEpisode.complete) {
+        errors.push(
+          `[canonicalStory.episodes.${previousEpisode.id}.complete] A later episode cannot follow an incomplete episode.`,
+        );
+      }
+      if (previousChapter.nextPanelId !== openingChapter.openingPanelId) {
+        errors.push(
+          `[canonicalStory.episodes.${previousEpisode.id}.${previousChapter.id}.nextPanelId] Expected next episode opening "${openingChapter.openingPanelId}".`,
+        );
+      }
+      if (openingChapter.previousPanelId !== previousChapter.terminalPanelId) {
+        errors.push(
+          `[canonicalStory.episodes.${episode.id}.${openingChapter.id}.previousPanelId] Expected previous episode terminal "${previousChapter.terminalPanelId}".`,
+        );
+      }
     }
 
     for (const [chapterIndex, chapter] of episode.chapters.entries()) {

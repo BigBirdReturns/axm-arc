@@ -159,14 +159,17 @@ function duplicateValues(values: readonly string[]): string[] {
   return [...counts.entries()].filter(([, count]) => count > 1).map(([value]) => value);
 }
 
-function orderedObjectIds(
-  values: readonly { id: string; ordinal: number }[],
+function orderedObjectIds<T extends { id: string }>(
+  values: readonly T[],
+  orderOf: (value: T) => number,
+  orderField: string,
   path: string,
   errors: string[],
 ): void {
   for (const [index, value] of values.entries()) {
-    if (value.ordinal !== index + 1) {
-      errors.push(`[${path}.${index}.ordinal] Expected ${index + 1}, received ${value.ordinal}.`);
+    const actual = orderOf(value);
+    if (actual !== index + 1) {
+      errors.push(`[${path}.${index}.${orderField}] Expected ${index + 1}, received ${actual}.`);
     }
   }
 }
@@ -191,7 +194,7 @@ function semanticErrors(source: CanonicalStorySource): string[] {
 
   const episodeIds = source.episodes.map((episode) => episode.id);
   for (const id of duplicateValues(episodeIds)) errors.push(`[episodes] Duplicate episode "${id}".`);
-  orderedObjectIds(source.episodes, "episodes", errors);
+  orderedObjectIds(source.episodes, (episode) => episode.number, "number", "episodes", errors);
 
   const globalChapterIds: string[] = [];
   const globalPanelIds: string[] = [];
@@ -199,7 +202,13 @@ function semanticErrors(source: CanonicalStorySource): string[] {
 
   for (const [episodeIndex, episode] of source.episodes.entries()) {
     const episodePath = `episodes.${episodeIndex}`;
-    orderedObjectIds(episode.chapters, `${episodePath}.chapters`, errors);
+    orderedObjectIds(
+      episode.chapters,
+      (chapter) => chapter.number,
+      "number",
+      `${episodePath}.chapters`,
+      errors,
+    );
     if (episode.complete && episode.nextChapterId !== null) {
       errors.push(`[${episodePath}.nextChapterId] A complete episode cannot declare a next unpublished chapter.`);
     }
@@ -210,8 +219,20 @@ function semanticErrors(source: CanonicalStorySource): string[] {
     for (const [chapterIndex, chapter] of episode.chapters.entries()) {
       const chapterPath = `${episodePath}.chapters.${chapterIndex}`;
       globalChapterIds.push(chapter.id);
-      orderedObjectIds(chapter.panels, `${chapterPath}.panels`, errors);
-      orderedObjectIds(chapter.plates, `${chapterPath}.plates`, errors);
+      orderedObjectIds(
+        chapter.panels,
+        (panel) => panel.ordinal,
+        "ordinal",
+        `${chapterPath}.panels`,
+        errors,
+      );
+      orderedObjectIds(
+        chapter.plates,
+        (plate) => plate.ordinal,
+        "ordinal",
+        `${chapterPath}.plates`,
+        errors,
+      );
 
       if (chapter.panels[0]?.id !== chapter.openingPanelId) {
         errors.push(`[${chapterPath}.openingPanelId] Does not match the first panel.`);
@@ -259,7 +280,13 @@ function semanticErrors(source: CanonicalStorySource): string[] {
             ["dialogue", panel.text.dialogue],
             ["soundEffects", panel.text.soundEffects],
           ] as const) {
-            orderedObjectIds(records, `${panelPath}.text.${label}`, errors);
+            orderedObjectIds(
+              records,
+              (record) => record.order,
+              "order",
+              `${panelPath}.text.${label}`,
+              errors,
+            );
             for (const id of duplicateValues(records.map((record) => record.id))) {
               errors.push(`[${panelPath}.text.${label}] Duplicate text id "${id}".`);
             }

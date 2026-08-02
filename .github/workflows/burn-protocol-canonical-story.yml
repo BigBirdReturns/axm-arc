@@ -1,4 +1,4 @@
-name: Burn Protocol canonical through Episode 3
+name: Burn Protocol canonical through Episode 4 Chapter 1
 
 on:
   pull_request:
@@ -11,7 +11,7 @@ on:
       - 'tests/source-planes/registry.test.ts'
       - 'tools/build-burn-protocol-*.ts'
   push:
-    branches: [feature/burn-protocol-canonical-story-episode-3-v1]
+    branches: [feature/burn-protocol-canonical-story-episode-4-chapter-1-v1]
     paths:
       - '.github/workflows/burn-protocol-canonical-story.yml'
       - 'src/canonical-story/**'
@@ -30,7 +30,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  qualify-through-episode-3:
+  qualify-through-episode-4-chapter-1:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
@@ -55,91 +55,94 @@ jobs:
           set -euo pipefail
           npm run typecheck | tee "$RUNNER_TEMP/typecheck.log"
           npm test -- \
-            tests/canonical-story/burn-protocol-episode-3-chapter-1.test.ts \
-            tests/canonical-story/burn-protocol-episode-3-chapter-2.test.ts \
             tests/canonical-story/burn-protocol-episode-3.test.ts \
+            tests/canonical-story/burn-protocol-episode-4-chapter-1.test.ts \
             tests/source-planes/registry.test.ts \
             | tee "$RUNNER_TEMP/focused-tests.log"
 
-      - name: Rebuild the complete Episode 3 publication twice
+      - name: Rebuild the Episode 4 Chapter 1 publication twice
         run: |
           set -euo pipefail
           publication_a="$RUNNER_TEMP/publication-a"
           publication_b="$RUNNER_TEMP/publication-b"
-          npx vite-node tools/build-burn-protocol-episode-3.ts "$publication_a" \
+          npx vite-node tools/build-burn-protocol-episode-4-chapter-1.ts "$publication_a" \
             | tee "$RUNNER_TEMP/publication-a.log"
-          npx vite-node tools/build-burn-protocol-episode-3.ts "$publication_b" \
+          npx vite-node tools/build-burn-protocol-episode-4-chapter-1.ts "$publication_b" \
             | tee "$RUNNER_TEMP/publication-b.log"
           diff -ru "$publication_a" "$publication_b"
           (cd "$publication_a" && sha256sum -c SHA256SUMS)
-          printf 'BURN_THROUGH_EPISODE_3_PUBLICATION=%s\n' "$publication_a" >> "$GITHUB_ENV"
+          printf 'BURN_THROUGH_EPISODE_4_CHAPTER_1_PUBLICATION=%s\n' "$publication_a" >> "$GITHUB_ENV"
 
-      - name: Assert corpus-native series law through Prime Incident
+      - name: Assert corpus-native Episode 4 Chapter 1 law
         run: |
           set -euo pipefail
           node <<'NODE'
           const fs = require('node:fs');
           const path = require('node:path');
-          const root = process.env.BURN_THROUGH_EPISODE_3_PUBLICATION;
-          const prefix = 'burn-protocol-through-episode-03';
+          const root = process.env.BURN_THROUGH_EPISODE_4_CHAPTER_1_PUBLICATION;
+          const prefix = 'burn-protocol-through-episode-04-chapter-01';
           const arc = JSON.parse(fs.readFileSync(path.join(root, `${prefix}.arc.json`), 'utf8'));
           const source = JSON.parse(fs.readFileSync(path.join(root, `${prefix}.burn.json`), 'utf8'));
           const coverage = JSON.parse(fs.readFileSync(path.join(root, `${prefix}.coverage.json`), 'utf8'));
-          const [episode1, episode2, episode3] = source.canonicalStory.episodes;
-          const [headquarters, lockout, primeIncident] = episode3.chapters;
+          const episodes = source.canonicalStory.episodes;
+          const episode3 = episodes[2];
+          const episode4 = episodes[3];
+          const chapter = episode4.chapters[0];
           const fail = (message) => { throw new Error(message); };
           if (arc.meta.id !== 'burn-protocol') fail('Stable series identity drift.');
           if (arc.challenges.length !== 0 || arc.roles.length !== 0) fail('Simulation law entered the canonical story.');
           if (source.canonicalStory.authority.choicePolicy !== 'none') fail('Canonical path admits choices.');
-          if (source.canonicalStory.episodes.length !== 3) fail('Episode extent drift.');
-          if (![episode1, episode2, episode3].every((episode) => episode.complete)) fail('Episode completion drift.');
-          if (![episode1, episode2, episode3].every((episode) => episode.nextChapterId === null)) fail('Completed episode retained an unpublished chapter pointer.');
-          if (episode3.title !== 'The Omega Thread' || episode3.chapters.length !== 3) fail('Episode 3 structure drift.');
-          if (headquarters.title !== 'Headquarters' || lockout.title !== 'Lockout' || primeIncident.title !== 'Prime Incident') {
-            fail('Episode 3 chapter identity drift.');
+          if (episodes.length !== 4 || episodes.slice(0, 3).some((episode) => !episode.complete)) fail('Prior episode authority drift.');
+          if (episode4.id !== 'E04' || episode4.title !== 'Fractured Allegiances') fail('Episode 4 identity drift.');
+          if (episode4.complete !== false || episode4.nextChapterId !== 'E04-C2') fail('Episode 4 extent drift.');
+          if (episode4.chapters.length !== 1 || chapter.title !== "Osyraa's Offer") fail('Episode 4 Chapter 1 identity drift.');
+          if (chapter.openingPanelId !== 'E04-C1-P01' || chapter.terminalPanelId !== 'E04-C1-P20') fail('A04C1 panel extent drift.');
+          if (chapter.panels.length !== 20 || chapter.plates.length !== 4) fail('A04C1 asset extent drift.');
+          if (episode3.chapters[2].nextPanelId !== chapter.openingPanelId
+              || chapter.previousPanelId !== episode3.chapters[2].terminalPanelId) {
+            fail('E03 to E04 seam drift.');
           }
-          if (![headquarters, lockout, primeIncident].every((chapter) => chapter.panels.length === 20)) fail('Episode 3 panel extent drift.');
-          if (![headquarters, lockout, primeIncident].every((chapter) => chapter.plates.length === 4)) fail('Episode 3 plate extent drift.');
-          if (headquarters.nextPanelId !== lockout.openingPanelId || lockout.previousPanelId !== headquarters.terminalPanelId) {
-            fail('Headquarters to Lockout seam drift.');
+          if (chapter.nextPanelId !== 'E04-C2-P21') fail('Episode 4 Chapter 2 continuation drift.');
+          if (coverage.episodes !== 4 || coverage.chapters !== 10 || coverage.panels !== 200 || coverage.plates !== 40) {
+            fail('Combined corpus extent drift.');
           }
-          if (lockout.nextPanelId !== primeIncident.openingPanelId || primeIncident.previousPanelId !== lockout.terminalPanelId) {
-            fail('Lockout to Prime Incident seam drift.');
-          }
-          if (primeIncident.terminalPanelId !== 'E03-C3-P60' || primeIncident.nextPanelId !== 'E04-C1-P01') {
-            fail('Episode 3 terminal or Episode 4 continuation drift.');
-          }
-          if (coverage.episodes !== 3 || coverage.chapters !== 9 || coverage.panels !== 180 || coverage.plates !== 36) {
-            fail('Complete series extent drift.');
-          }
-          if (coverage.unresolvedTextPanels !== 180 || coverage.unresolvedPlateMappings !== 36) {
+          if (coverage.unresolvedTextPanels !== 200 || coverage.unresolvedPlateMappings !== 40) {
             fail('Unavailable expression was silently promoted.');
           }
           if (coverage.choiceNodes !== 0 || coverage.productionReady !== false) fail('Canonical authority or readiness drift.');
-          if (JSON.stringify(coverage.incompleteEpisodeIds) !== JSON.stringify([])) fail('Complete Episode 3 reported incomplete.');
-          if (JSON.stringify(coverage.continuationPanelIds) !== JSON.stringify(['E04-C1-P01'])) {
-            fail('Internal seams were misclassified as external continuations.');
+          if (JSON.stringify(coverage.incompleteEpisodeIds) !== JSON.stringify(['E04'])) fail('Episode completion ledger drift.');
+          if (JSON.stringify(coverage.continuationPanelIds) !== JSON.stringify(['E04-C2-P21'])) {
+            fail('Internal episode seam was misclassified as external continuation.');
           }
           if (!Array.isArray(coverage.sourceRequiredAssets) || coverage.sourceRequiredAssets.length !== 1
               || coverage.sourceRequiredAssets[0].id !== 'asset:E03-C2-P31') {
             fail('The inherited P31 custody gap was lost or multiplied.');
           }
-          const p31 = lockout.panels.find((panel) => panel.id === 'E03-C2-P31');
-          if (!p31 || p31.asset.status !== 'source-required' || 'sha256' in p31.asset) {
-            fail('E03-C2-P31 acquired fabricated custody.');
+          if (!chapter.panels.every((panel) => panel.text.status === 'source-required')) {
+            fail('A04C1 canonical text was reconstructed without source bytes.');
           }
-          if (source.canonicalStory.sourceReceipts.some((receipt) => receipt.id === 'a03c3-lettering')) {
-            fail('Unreceipted A03C3 lettering source was invented.');
+          if (!chapter.plates.every((plate) => plate.panelMapping.status === 'source-required')) {
+            fail('A04C1 plate mappings were inferred without source bytes.');
           }
-          if (source.canonicalStory.sourceReceipts.some((receipt) => receipt.id === 'episode-03-compiled')) {
-            fail('Unreceipted compiled Episode 3 source was invented.');
+          const receiptById = new Map(source.canonicalStory.sourceReceipts.map((receipt) => [receipt.id, receipt]));
+          for (const [id, expected] of [
+            ['episode-04-source', ['source/episodes/episode-04.json', 111285, 'a6c18aef5acdbc4108b955ebfa5c50e6be2b08adb49987502f9a0bd533c9bdda']],
+            ['episode-04-compiled', ['site/data/episode-04.json', 164954, 'a92f19d2b04e8589da86471ad81771a68710111105e3e80dca8279c9aa570884']],
+            ['a04c1-lettering-source', ['source/art/A04C1/lettering.json', 25330, '2c825035d0fc05dd3e8fc6151f75df70c4cd8745f8686ad3b80e4ebaa78cd093']],
+            ['a04c1-scroll-plates', ['manifests/a04c1-scroll-plates.json', 1521, 'bca6a43a880eb30433f9c3f0665c3b1e22fc38a4bbe725167e1c41b5e48fecc0']],
+          ]) {
+            const receipt = receiptById.get(id);
+            if (!receipt || receipt.path !== expected[0] || receipt.bytes !== expected[1]
+                || receipt.sha256 !== expected[2] || receipt.available !== false) {
+              fail(`Receipt drift for ${id}.`);
+            }
           }
           if (JSON.stringify(source.estate.canonicalSourceReceiptIds) !== JSON.stringify([
-            'episode-01-source', 'episode-02-source', 'episode-03-source',
+            'episode-01-source', 'episode-02-source', 'episode-03-source', 'episode-04-source',
           ])) fail('Canonical source custody drift.');
           if (JSON.stringify(source.estate.compiledSourceReceiptIds) !== JSON.stringify([
-            'episode-01-compiled', 'episode-02-compiled',
-          ])) fail('Compiled source custody was fabricated or drifted.');
+            'episode-01-compiled', 'episode-02-compiled', 'episode-04-compiled',
+          ])) fail('Compiled source custody drift or fabricated Episode 3 receipt.');
           NODE
 
       - name: Complete Arc regression and production build
@@ -148,13 +151,13 @@ jobs:
           npm test | tee "$RUNNER_TEMP/full-tests.log"
           npm run build | tee "$RUNNER_TEMP/build.log"
 
-      - name: Retain Episode 3 qualification
+      - name: Retain Episode 4 Chapter 1 qualification
         if: always()
         run: |
           set -euo pipefail
-          root="burn-protocol-canonical-through-episode-3-qualification"
+          root="burn-protocol-canonical-through-episode-4-chapter-1-qualification"
           mkdir -p "$root"
-          cp -R "${BURN_THROUGH_EPISODE_3_PUBLICATION:-$RUNNER_TEMP/publication-a}" "$root/publication" 2>/dev/null || true
+          cp -R "${BURN_THROUGH_EPISODE_4_CHAPTER_1_PUBLICATION:-$RUNNER_TEMP/publication-a}" "$root/publication" 2>/dev/null || true
           cp "$RUNNER_TEMP"/typecheck.log "$root/" 2>/dev/null || true
           cp "$RUNNER_TEMP"/focused-tests.log "$root/" 2>/dev/null || true
           cp "$RUNNER_TEMP"/publication-a.log "$root/" 2>/dev/null || true
@@ -168,11 +171,11 @@ jobs:
             | sed "s#  $root/#  #" \
             > "$root/SHA256SUMS"
 
-      - name: Upload Episode 3 qualification
+      - name: Upload Episode 4 Chapter 1 qualification
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: burn-protocol-canonical-through-episode-3-qualification
-          path: burn-protocol-canonical-through-episode-3-qualification
+          name: burn-protocol-canonical-through-episode-4-chapter-1-qualification
+          path: burn-protocol-canonical-through-episode-4-chapter-1-qualification
           if-no-files-found: error
           retention-days: 30

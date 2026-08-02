@@ -9,3 +9,4 @@ export * from "./episode-2.js";
 export * from "./episode-3-chapter-1.js";
 export * from "./episode-3-chapter-2.js";
 export * from "./episode-3-chapter-3.js";
+export * from "./episode-4-chapter-1.js";

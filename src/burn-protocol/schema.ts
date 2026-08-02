@@ -97,10 +97,29 @@ function semanticErrors(source: BurnProtocolSource): string[] {
     if (!/^E\d{2}$/.test(episode.id)) {
       errors.push(`[canonicalStory.episodes] Burn episode id "${episode.id}" is not E##.`);
     }
-    for (const chapter of episode.chapters) {
+    const presentChapterIds = new Set(episode.chapters.map((chapter) => chapter.id));
+    if (episode.nextChapterId !== null && presentChapterIds.has(episode.nextChapterId)) {
+      errors.push(`[canonicalStory.episodes.${episode.id}.nextChapterId] The next unpublished chapter is already present.`);
+    }
+
+    for (const [chapterIndex, chapter] of episode.chapters.entries()) {
       if (!new RegExp(`^${episode.id}-C\\d+$`).test(chapter.id)) {
         errors.push(`[canonicalStory.episodes.${episode.id}] Chapter "${chapter.id}" does not belong to the episode.`);
       }
+      const previousChapter = episode.chapters[chapterIndex - 1];
+      if (previousChapter) {
+        if (previousChapter.nextPanelId !== chapter.openingPanelId) {
+          errors.push(
+            `[canonicalStory.episodes.${episode.id}.${previousChapter.id}.nextPanelId] Expected next chapter opening "${chapter.openingPanelId}".`,
+          );
+        }
+        if (chapter.previousPanelId !== previousChapter.terminalPanelId) {
+          errors.push(
+            `[canonicalStory.episodes.${episode.id}.${chapter.id}.previousPanelId] Expected previous chapter terminal "${previousChapter.terminalPanelId}".`,
+          );
+        }
+      }
+
       for (const panel of chapter.panels) {
         if (!new RegExp(`^${chapter.id}-P\\d{2,3}$`).test(panel.id)) {
           errors.push(`[canonicalStory.episodes.${episode.id}.${chapter.id}] Panel "${panel.id}" does not belong to the chapter.`);

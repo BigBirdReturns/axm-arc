@@ -20,7 +20,8 @@ const SourceReceiptSchema = z.object({
   available: z.boolean(),
 }).strict();
 
-const AssetSchema = z.object({
+const ManifestedAssetSchema = z.object({
+  status: z.literal("manifested").optional(),
   id: NonEmpty,
   path: NonEmpty,
   bytes: PositiveInteger,
@@ -29,6 +30,20 @@ const AssetSchema = z.object({
   availability: z.enum(["manifested-external", "embedded"]),
   visualStanding: z.enum(["accepted", "q02-review-required", "missing"]),
 }).strict();
+
+const SourceRequiredAssetSchema = z.object({
+  status: z.literal("source-required"),
+  id: NonEmpty,
+  path: NonEmpty,
+  expectedBytes: PositiveInteger.optional(),
+  mimeType: z.enum(["image/png", "image/jpeg", "image/webp"]),
+  availability: z.literal("manifested-external"),
+  visualStanding: z.literal("missing"),
+  expectedSourceReceiptIds: z.array(NonEmpty).min(1),
+  reason: NonEmpty,
+}).strict();
+
+const AssetSchema = z.union([ManifestedAssetSchema, SourceRequiredAssetSchema]);
 
 const CaptionSchema = z.object({
   id: NonEmpty,
@@ -261,6 +276,15 @@ function semanticErrors(source: CanonicalStorySource): string[] {
           errors.push(`[${panelPath}.nextPanelId] Expected ${JSON.stringify(expectedNext)}.`);
         }
 
+        if (panel.asset.status === "source-required") {
+          receiptReferences(
+            panel.asset.expectedSourceReceiptIds,
+            receiptIds,
+            `${panelPath}.asset.expectedSourceReceiptIds`,
+            errors,
+          );
+        }
+
         const refs = panel.text.status === "resolved"
           ? panel.text.sourceReceiptIds
           : panel.text.expectedSourceReceiptIds;
@@ -299,6 +323,14 @@ function semanticErrors(source: CanonicalStorySource): string[] {
         globalPlateIds.push(plate.id);
         if (plate.chapterId !== chapter.id) {
           errors.push(`[${platePath}.chapterId] Expected "${chapter.id}", received "${plate.chapterId}".`);
+        }
+        if (plate.asset.status === "source-required") {
+          receiptReferences(
+            plate.asset.expectedSourceReceiptIds,
+            receiptIds,
+            `${platePath}.asset.expectedSourceReceiptIds`,
+            errors,
+          );
         }
         const refs = plate.panelMapping.status === "resolved"
           ? plate.panelMapping.sourceReceiptIds

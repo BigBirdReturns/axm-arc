@@ -1,0 +1,136 @@
+name: Burn Protocol canonical Chapter 1
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/burn-protocol-canonical-story.yml'
+      - 'src/canonical-story/**'
+      - 'src/burn-protocol/**'
+      - 'src/source-planes/registry.ts'
+      - 'tests/canonical-story/**'
+      - 'tests/source-planes/registry.test.ts'
+      - 'tools/build-burn-protocol-chapter-1.ts'
+  push:
+    branches: [feature/burn-protocol-canonical-story-chapter-1-v1]
+    paths:
+      - '.github/workflows/burn-protocol-canonical-story.yml'
+      - 'src/canonical-story/**'
+      - 'src/burn-protocol/**'
+      - 'src/source-planes/registry.ts'
+      - 'tests/canonical-story/**'
+      - 'tests/source-planes/registry.test.ts'
+      - 'tools/build-burn-protocol-chapter-1.ts'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qualify-chapter-1:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out exact candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+          show-progress: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck and focused canonical-story contracts
+        run: |
+          set -euo pipefail
+          npm run typecheck | tee "$RUNNER_TEMP/typecheck.log"
+          npm test -- \
+            tests/canonical-story/burn-protocol-chapter-1.test.ts \
+            tests/source-planes/registry.test.ts \
+            | tee "$RUNNER_TEMP/focused-tests.log"
+
+      - name: Rebuild Chapter 1 publication twice
+        run: |
+          set -euo pipefail
+          publication_a="$RUNNER_TEMP/publication-a"
+          publication_b="$RUNNER_TEMP/publication-b"
+          npx vite-node tools/build-burn-protocol-chapter-1.ts "$publication_a" \
+            | tee "$RUNNER_TEMP/publication-a.log"
+          npx vite-node tools/build-burn-protocol-chapter-1.ts "$publication_b" \
+            | tee "$RUNNER_TEMP/publication-b.log"
+          diff -ru "$publication_a" "$publication_b"
+          (cd "$publication_a" && sha256sum -c SHA256SUMS)
+          printf 'BURN_CHAPTER_1_PUBLICATION=%s\n' "$publication_a" >> "$GITHUB_ENV"
+
+      - name: Assert corpus-native publication boundary
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const root = process.env.BURN_CHAPTER_1_PUBLICATION;
+          const arc = JSON.parse(fs.readFileSync(path.join(root, 'burn-protocol-episode-01-chapter-01.arc.json'), 'utf8'));
+          const source = JSON.parse(fs.readFileSync(path.join(root, 'burn-protocol-episode-01-chapter-01.burn.json'), 'utf8'));
+          const coverage = JSON.parse(fs.readFileSync(path.join(root, 'burn-protocol-episode-01-chapter-01.coverage.json'), 'utf8'));
+          const chapter = source.canonicalStory.episodes[0].chapters[0];
+          const fail = (message) => { throw new Error(message); };
+          if (arc.challenges.length !== 0) fail('Canonical story Arc contains simulation challenges.');
+          if (arc.roles.length !== 0) fail('Canonical story Arc contains simulation roles.');
+          if (source.canonicalStory.authority.choicePolicy !== 'none') fail('Canonical path admits choices.');
+          if (chapter.panels.length !== 18) fail('Chapter 1 does not contain 18 panel slots.');
+          if (chapter.plates.length !== 4) fail('Chapter 1 does not contain 4 plate assets.');
+          if (chapter.openingPanelId !== 'E01-C1-P01') fail('Opening panel drift.');
+          if (chapter.terminalPanelId !== 'E01-C1-P18') fail('Terminal panel drift.');
+          if (chapter.nextPanelId !== 'E01-C2-P19') fail('Chapter 2 continuation drift.');
+          if (coverage.unresolvedTextPanels !== 18) fail('Unavailable source text was silently promoted.');
+          if (coverage.unresolvedPlateMappings !== 4) fail('Unavailable plate maps were silently inferred.');
+          if (coverage.choiceNodes !== 0) fail('Coverage contains choice nodes.');
+          const ids = chapter.panels.map((panel) => panel.id);
+          const expected = Array.from({ length: 18 }, (_, index) => `E01-C1-P${String(index + 1).padStart(2, '0')}`);
+          if (JSON.stringify(ids) !== JSON.stringify(expected)) fail('Panel identity or order drift.');
+          NODE
+
+      - name: Complete Arc regression and production build
+        run: |
+          set -euo pipefail
+          npm test | tee "$RUNNER_TEMP/full-tests.log"
+          npm run build | tee "$RUNNER_TEMP/build.log"
+
+      - name: Retain Chapter 1 qualification
+        if: always()
+        run: |
+          set -euo pipefail
+          root="burn-protocol-canonical-chapter-1-qualification"
+          mkdir -p "$root"
+          cp -R "${BURN_CHAPTER_1_PUBLICATION:-$RUNNER_TEMP/publication-a}" "$root/publication" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/typecheck.log "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/focused-tests.log "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/publication-a.log "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/publication-b.log "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/full-tests.log "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/build.log "$root/" 2>/dev/null || true
+          printf '%s\n' "${{ github.event.pull_request.head.sha || github.sha }}" > "$root/arc-candidate-sha.txt"
+          find "$root" -type f ! -name SHA256SUMS -print0 \
+            | sort -z \
+            | xargs -0 sha256sum \
+            | sed "s#  $root/#  #" \
+            > "$root/SHA256SUMS"
+
+      - name: Upload Chapter 1 qualification
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: burn-protocol-canonical-chapter-1-qualification
+          path: burn-protocol-canonical-chapter-1-qualification
+          if-no-files-found: error
+          retention-days: 30

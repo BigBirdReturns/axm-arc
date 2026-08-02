@@ -1,4 +1,4 @@
-name: Burn Protocol canonical Chapter 1
+name: Burn Protocol canonical through Chapter 2
 
 on:
   pull_request:
@@ -10,8 +10,9 @@ on:
       - 'tests/canonical-story/**'
       - 'tests/source-planes/registry.test.ts'
       - 'tools/build-burn-protocol-chapter-1.ts'
+      - 'tools/build-burn-protocol-chapter-2.ts'
   push:
-    branches: [feature/burn-protocol-canonical-story-chapter-1-v1]
+    branches: [feature/burn-protocol-canonical-story-chapter-2-v1]
     paths:
       - '.github/workflows/burn-protocol-canonical-story.yml'
       - 'src/canonical-story/**'
@@ -20,6 +21,7 @@ on:
       - 'tests/canonical-story/**'
       - 'tests/source-planes/registry.test.ts'
       - 'tools/build-burn-protocol-chapter-1.ts'
+      - 'tools/build-burn-protocol-chapter-2.ts'
   workflow_dispatch:
 
 permissions:
@@ -30,7 +32,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  qualify-chapter-1:
+  qualify-through-chapter-2:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -56,48 +58,54 @@ jobs:
           npm run typecheck | tee "$RUNNER_TEMP/typecheck.log"
           npm test -- \
             tests/canonical-story/burn-protocol-chapter-1.test.ts \
+            tests/canonical-story/burn-protocol-chapter-2.test.ts \
             tests/source-planes/registry.test.ts \
             | tee "$RUNNER_TEMP/focused-tests.log"
 
-      - name: Rebuild Chapter 1 publication twice
+      - name: Rebuild the two-chapter publication twice
         run: |
           set -euo pipefail
           publication_a="$RUNNER_TEMP/publication-a"
           publication_b="$RUNNER_TEMP/publication-b"
-          npx vite-node tools/build-burn-protocol-chapter-1.ts "$publication_a" \
+          npx vite-node tools/build-burn-protocol-chapter-2.ts "$publication_a" \
             | tee "$RUNNER_TEMP/publication-a.log"
-          npx vite-node tools/build-burn-protocol-chapter-1.ts "$publication_b" \
+          npx vite-node tools/build-burn-protocol-chapter-2.ts "$publication_b" \
             | tee "$RUNNER_TEMP/publication-b.log"
           diff -ru "$publication_a" "$publication_b"
           (cd "$publication_a" && sha256sum -c SHA256SUMS)
-          printf 'BURN_CHAPTER_1_PUBLICATION=%s\n' "$publication_a" >> "$GITHUB_ENV"
+          printf 'BURN_THROUGH_CHAPTER_2_PUBLICATION=%s\n' "$publication_a" >> "$GITHUB_ENV"
 
-      - name: Assert corpus-native publication boundary
+      - name: Assert corpus-native cross-chapter law
         run: |
           set -euo pipefail
           node <<'NODE'
           const fs = require('node:fs');
           const path = require('node:path');
-          const root = process.env.BURN_CHAPTER_1_PUBLICATION;
-          const arc = JSON.parse(fs.readFileSync(path.join(root, 'burn-protocol-episode-01-chapter-01.arc.json'), 'utf8'));
-          const source = JSON.parse(fs.readFileSync(path.join(root, 'burn-protocol-episode-01-chapter-01.burn.json'), 'utf8'));
-          const coverage = JSON.parse(fs.readFileSync(path.join(root, 'burn-protocol-episode-01-chapter-01.coverage.json'), 'utf8'));
-          const chapter = source.canonicalStory.episodes[0].chapters[0];
+          const root = process.env.BURN_THROUGH_CHAPTER_2_PUBLICATION;
+          const prefix = 'burn-protocol-episode-01-through-chapter-02';
+          const arc = JSON.parse(fs.readFileSync(path.join(root, `${prefix}.arc.json`), 'utf8'));
+          const source = JSON.parse(fs.readFileSync(path.join(root, `${prefix}.burn.json`), 'utf8'));
+          const coverage = JSON.parse(fs.readFileSync(path.join(root, `${prefix}.coverage.json`), 'utf8'));
+          const [chapter1, chapter2] = source.canonicalStory.episodes[0].chapters;
           const fail = (message) => { throw new Error(message); };
+          if (arc.meta.id !== 'burn-protocol') fail('Stable series identity drift.');
           if (arc.challenges.length !== 0) fail('Canonical story Arc contains simulation challenges.');
           if (arc.roles.length !== 0) fail('Canonical story Arc contains simulation roles.');
           if (source.canonicalStory.authority.choicePolicy !== 'none') fail('Canonical path admits choices.');
-          if (chapter.panels.length !== 18) fail('Chapter 1 does not contain 18 panel slots.');
-          if (chapter.plates.length !== 4) fail('Chapter 1 does not contain 4 plate assets.');
-          if (chapter.openingPanelId !== 'E01-C1-P01') fail('Opening panel drift.');
-          if (chapter.terminalPanelId !== 'E01-C1-P18') fail('Terminal panel drift.');
-          if (chapter.nextPanelId !== 'E01-C2-P19') fail('Chapter 2 continuation drift.');
-          if (coverage.unresolvedTextPanels !== 18) fail('Unavailable source text was silently promoted.');
-          if (coverage.unresolvedPlateMappings !== 4) fail('Unavailable plate maps were silently inferred.');
+          if (source.canonicalStory.episodes[0].chapters.length !== 2) fail('Two chapters were not assembled.');
+          if (chapter1.panels.length !== 18 || chapter2.panels.length !== 20) fail('Panel extent drift.');
+          if (chapter1.plates.length !== 4 || chapter2.plates.length !== 4) fail('Plate extent drift.');
+          if (chapter1.nextPanelId !== chapter2.openingPanelId) fail('P18 to P19 chapter seam drift.');
+          if (chapter2.previousPanelId !== chapter1.terminalPanelId) fail('Reverse chapter seam drift.');
+          if (chapter2.terminalPanelId !== 'E01-C2-P38') fail('Chapter 2 terminal drift.');
+          if (chapter2.nextPanelId !== 'E01-C3-P39') fail('Chapter 3 continuation drift.');
+          if (coverage.panels !== 38 || coverage.plates !== 8) fail('Coverage extent drift.');
+          if (coverage.unresolvedTextPanels !== 38) fail('Unavailable source text was silently promoted.');
+          if (coverage.unresolvedPlateMappings !== 8) fail('Unavailable plate maps were silently inferred.');
           if (coverage.choiceNodes !== 0) fail('Coverage contains choice nodes.');
-          const ids = chapter.panels.map((panel) => panel.id);
-          const expected = Array.from({ length: 18 }, (_, index) => `E01-C1-P${String(index + 1).padStart(2, '0')}`);
-          if (JSON.stringify(ids) !== JSON.stringify(expected)) fail('Panel identity or order drift.');
+          if (JSON.stringify(coverage.continuationPanelIds) !== JSON.stringify(['E01-C3-P39'])) {
+            fail('Internal P19 seam was misclassified as an unpublished continuation.');
+          }
           NODE
 
       - name: Complete Arc regression and production build
@@ -106,13 +114,13 @@ jobs:
           npm test | tee "$RUNNER_TEMP/full-tests.log"
           npm run build | tee "$RUNNER_TEMP/build.log"
 
-      - name: Retain Chapter 1 qualification
+      - name: Retain through-Chapter-2 qualification
         if: always()
         run: |
           set -euo pipefail
-          root="burn-protocol-canonical-chapter-1-qualification"
+          root="burn-protocol-canonical-through-chapter-2-qualification"
           mkdir -p "$root"
-          cp -R "${BURN_CHAPTER_1_PUBLICATION:-$RUNNER_TEMP/publication-a}" "$root/publication" 2>/dev/null || true
+          cp -R "${BURN_THROUGH_CHAPTER_2_PUBLICATION:-$RUNNER_TEMP/publication-a}" "$root/publication" 2>/dev/null || true
           cp "$RUNNER_TEMP"/typecheck.log "$root/" 2>/dev/null || true
           cp "$RUNNER_TEMP"/focused-tests.log "$root/" 2>/dev/null || true
           cp "$RUNNER_TEMP"/publication-a.log "$root/" 2>/dev/null || true
@@ -126,11 +134,11 @@ jobs:
             | sed "s#  $root/#  #" \
             > "$root/SHA256SUMS"
 
-      - name: Upload Chapter 1 qualification
+      - name: Upload through-Chapter-2 qualification
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: burn-protocol-canonical-chapter-1-qualification
-          path: burn-protocol-canonical-chapter-1-qualification
+          name: burn-protocol-canonical-through-chapter-2-qualification
+          path: burn-protocol-canonical-through-chapter-2-qualification
           if-no-files-found: error
           retention-days: 30

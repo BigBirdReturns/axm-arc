@@ -93,10 +93,34 @@ function semanticErrors(source: BurnProtocolSource): string[] {
     }
   }
 
-  for (const episode of story.episodes) {
-    if (!/^E\d{2}$/.test(episode.id)) {
-      errors.push(`[canonicalStory.episodes] Burn episode id "${episode.id}" is not E##.`);
+  for (const [episodeIndex, episode] of story.episodes.entries()) {
+    const expectedEpisodeId = `E${String(episode.number).padStart(2, "0")}`;
+    if (episode.id !== expectedEpisodeId) {
+      errors.push(
+        `[canonicalStory.episodes.${episodeIndex}.id] Expected "${expectedEpisodeId}", received "${episode.id}".`,
+      );
     }
+
+    const previousEpisode = story.episodes[episodeIndex - 1];
+    if (previousEpisode) {
+      const priorChapter = previousEpisode.chapters.at(-1);
+      const openingChapter = episode.chapters[0];
+      if (!priorChapter || !openingChapter) {
+        errors.push(`[canonicalStory.episodes.${episode.id}] Episode continuity requires both terminal and opening chapters.`);
+      } else {
+        if (priorChapter.nextPanelId !== openingChapter.openingPanelId) {
+          errors.push(
+            `[canonicalStory.episodes.${previousEpisode.id}.${priorChapter.id}.nextPanelId] Expected next episode opening "${openingChapter.openingPanelId}".`,
+          );
+        }
+        if (openingChapter.previousPanelId !== priorChapter.terminalPanelId) {
+          errors.push(
+            `[canonicalStory.episodes.${episode.id}.${openingChapter.id}.previousPanelId] Expected previous episode terminal "${priorChapter.terminalPanelId}".`,
+          );
+        }
+      }
+    }
+
     const presentChapterIds = new Set(episode.chapters.map((chapter) => chapter.id));
     if (episode.nextChapterId !== null && presentChapterIds.has(episode.nextChapterId)) {
       errors.push(`[canonicalStory.episodes.${episode.id}.nextChapterId] The next unpublished chapter is already present.`);

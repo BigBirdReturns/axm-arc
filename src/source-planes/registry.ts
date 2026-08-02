@@ -23,8 +23,20 @@ import {
   readCommonShipPocketExtension,
   validateCommonShipPocket,
 } from "../common-ship/index.js";
+import {
+  BURN_PROTOCOL_CHAPTER_1_SOURCE,
+  BURN_PROTOCOL_EXTENSION_KEY,
+  BURN_PROTOCOL_SOURCE_FORMAT,
+  compileBurnProtocol,
+  recoverBurnProtocol,
+  validateBurnProtocol,
+} from "../burn-protocol/index.js";
 
-export type SourcePlaneId = "godscar-pocket" | "dark-tomb-pocket" | "common-ship-pocket";
+export type SourcePlaneId =
+  | "godscar-pocket"
+  | "dark-tomb-pocket"
+  | "common-ship-pocket"
+  | "burn-protocol";
 
 export type SourcePlaneValidation =
   | { ok: true; source: unknown }
@@ -73,7 +85,9 @@ function clone<T>(value: T): T {
   return structuredClone(value);
 }
 
-function normalizeValidation<T>(result: { ok: true; source: T } | { ok: false; errors: string[] }): SourcePlaneValidation {
+function normalizeValidation<T>(
+  result: { ok: true; source: T } | { ok: false; errors: string[] },
+): SourcePlaneValidation {
   return result.ok ? { ok: true, source: result.source } : result;
 }
 
@@ -126,6 +140,20 @@ const DEFINITIONS: readonly SourcePlaneDefinition[] = Object.freeze([
     validate: (input) => normalizeValidation(validateCommonShipPocket(input)),
     compile: compileCommonShipPocket,
     recover: readCommonShipPocketExtension,
+  },
+  {
+    id: "burn-protocol",
+    format: BURN_PROTOCOL_SOURCE_FORMAT,
+    extensionKey: BURN_PROTOCOL_EXTENSION_KEY,
+    label: "The Burn Protocol",
+    shortLabel: "Burn",
+    description: "Canonical serialized-story source built from exact episodes, chapters, ordered panel slots, lettering, plate maps, and source custody.",
+    sourceFileExtension: ".burn.json",
+    arcFileExtension: ".arc.json",
+    starter: () => clone(BURN_PROTOCOL_CHAPTER_1_SOURCE),
+    validate: (input) => normalizeValidation(validateBurnProtocol(input)),
+    compile: compileBurnProtocol,
+    recover: recoverBurnProtocol,
   },
 ]);
 
@@ -207,13 +235,20 @@ export function inspectArcSourcePlanes(arc: Arc): SourcePlaneInspection[] {
         inspections.push({ definition, status: "valid", source });
       }
     } catch (error) {
-      inspections.push({ definition, status: "invalid", errors: [(error as Error).message] });
+      inspections.push({
+        definition,
+        status: "invalid",
+        errors: [(error as Error).message],
+      });
     }
   }
   return inspections;
 }
 
-export function recoverRegisteredSourcePlane(arc: Arc, id: SourcePlaneId): unknown | null {
+export function recoverRegisteredSourcePlane(
+  arc: Arc,
+  id: SourcePlaneId,
+): unknown | null {
   const definition = sourcePlaneById(id);
   if (!definition) return null;
   return definition.recover(arc);

@@ -156,14 +156,14 @@ jobs:
           include-hidden-files: true
 
   harvest:
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'push'
     name: sweep remote custody and recover E04C3 when present
     runs-on: ubuntu-24.04
     env:
       HARVEST_REPOSITORIES: ${{ inputs.repositories || 'BigBirdReturns/axm-arc,BigBirdReturns/axm-world' }}
       HARVEST_ARTIFACTS: ${{ inputs.artifacts || '' }}
       HARVEST_RELEASE_ASSETS: ${{ inputs.release_assets || '' }}
-      HARVEST_MAX_REMOTE_ITEMS: ${{ inputs.max_remote_items || '100' }}
+      HARVEST_MAX_REMOTE_ITEM: ${{ inputs.max_remote_items || '100' }}
       HARVEST_REQUIRE_SOURCE: ${{ inputs.require_source && 'true' || 'false' }}
       GITHUB_TOKEN: ${{ secrets.BURN_SOURCE_TOKEN || github.token }}
     steps:

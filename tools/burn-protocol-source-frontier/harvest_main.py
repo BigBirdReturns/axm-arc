@@ -235,7 +235,13 @@ def main(argv: Sequence[str] | None = None) -> int:
                     ):
                         break
 
-        status = found_status or "source-not-found"
+        transport_failures = sum(result.outcome == "download-refused" for result in checked)
+        if found_status is not None:
+            status = found_status
+        elif discovery_errors or transport_failures:
+            status = "harvest-error"
+        else:
+            status = "source-not-found"
         receipt = {
             "format": FORMAT,
             "toolVersion": TOOL_VERSION,
@@ -254,20 +260,25 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "candidates": len(checked),
                 "downloadedBytes": downloaded,
                 "discoveryErrors": len(discovery_errors),
+                "transportFailures": transport_failures,
             },
             "discoveryErrors": discovery_errors,
             "authority": {
                 "humanWorkstationRequired": False,
                 "admission": "exact-contract-parent-only",
                 "canonicalInference": "none",
-                "sourceAbsence": "does-not-authorize-fabrication",
+                "sourceAbsence": "requires-complete-enumeration-and-download-and-does-not-authorize-fabrication",
             },
         }
         write_receipt(output, receipt)
         print(json.dumps(receipt, indent=2, sort_keys=True))
         if status == "source-not-found" and args.require_source:
             return 4
-        return 0 if status != "source-required" else 3
+        if status == "source-required":
+            return 3
+        if status == "harvest-error":
+            return 2
+        return 0
     except Exception:
         if output.exists():
             shutil.rmtree(output, ignore_errors=True)

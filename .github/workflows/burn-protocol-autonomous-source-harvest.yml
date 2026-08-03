@@ -289,28 +289,30 @@ jobs:
           artifact_id = os.environ.get("HARVEST_ARTIFACT_ID") or "unavailable"
           artifact_url = os.environ.get("HARVEST_ARTIFACT_URL") or "unavailable"
           artifact_digest = os.environ.get("HARVEST_ARTIFACT_DIGEST") or "unavailable"
-          body = f"""## Autonomous Burn source sweep · `{status}`
-
-```text
-run ID                 {os.environ['GITHUB_RUN_ID']}
-run attempt            {os.environ.get('GITHUB_RUN_ATTEMPT', '1')}
-event                  {os.environ['GITHUB_EVENT_NAME']}
-exact candidate        {os.environ['GITHUB_SHA']}
-exit code              {os.environ.get('HARVEST_EXIT_CODE') or 'unavailable'}
-checked candidates     {summary.get('candidates', 0)}
-downloaded bytes       {summary.get('downloadedBytes', 0)}
-discovery errors       {summary.get('discoveryErrors', 0)}
-found identity         {found}
-artifact ID            {artifact_id}
-artifact digest        {artifact_digest}
-frontier               E05-C1-P01
-workstation action     none
-```
-
-Run: {run_url}
-
-Artifact: {artifact_url}
-"""
+          body = "\n".join([
+              f"## Autonomous Burn source sweep · `{status}`",
+              "",
+              "```text",
+              f"run ID                 {os.environ['GITHUB_RUN_ID']}",
+              f"run attempt            {os.environ.get('GITHUB_RUN_ATTEMPT', '1')}",
+              f"event                  {os.environ['GITHUB_EVENT_NAME']}",
+              f"exact candidate        {os.environ['GITHUB_SHA']}",
+              f"exit code              {os.environ.get('HARVEST_EXIT_CODE') or 'unavailable'}",
+              f"checked candidates     {summary.get('candidates', 0)}",
+              f"downloaded bytes       {summary.get('downloadedBytes', 0)}",
+              f"discovery errors       {summary.get('discoveryErrors', 0)}",
+              f"found identity         {found}",
+              f"artifact ID            {artifact_id}",
+              f"artifact digest        {artifact_digest}",
+              "frontier               E05-C1-P01",
+              "workstation action     none",
+              "```",
+              "",
+              f"Run: {run_url}",
+              "",
+              f"Artifact: {artifact_url}",
+              "",
+          ])
           payload = json.dumps({"body": body}).encode("utf-8")
           request = urllib.request.Request(
               (

@@ -35,6 +35,11 @@ class BurnSourceHarvestWorkflowTests(unittest.TestCase):
         self.assertIn("optional discovery errors", workflow)
         self.assertIn("BURN_SOURCE_REPOSITORIES", workflow)
         self.assertIn("BURN_SOURCE_OPTIONAL_REPOSITORIES", workflow)
+        self.assertIn("approved_packet_set_sha256s:", workflow)
+        self.assertIn("BURN_APPROVED_PACKET_SET_SHA256S", workflow)
+        self.assertIn('--approved-packet-set-sha256 "$digest"', workflow)
+        self.assertIn("packet-set candidates", workflow)
+        self.assertIn("found packet set", workflow)
 
 
 if __name__ == "__main__":

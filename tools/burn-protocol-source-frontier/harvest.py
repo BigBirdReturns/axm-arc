@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Autonomously harvest the exact Burn Protocol source parent from remote custody.
+"""Harvest the exact Burn parent or an externally approved frontier packet set.
 
-A remote name or location never grants standing. Every candidate is delegated
-to the landed fail-closed recovery authority and only the contract-pinned parent
-byte count and SHA-256 can produce E04C3 frontier packets.
+A remote name or location never grants standing. Exact-parent candidates are
+delegated to the fail-closed recovery authority. Recovered packet families are
+byte-verified independently and acquire transport standing only through an
+external packet-set SHA-256 pin. Neither path authorizes canonical inference.
 """
 
 from __future__ import annotations

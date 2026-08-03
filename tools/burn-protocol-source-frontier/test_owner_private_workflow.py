@@ -25,6 +25,11 @@ class BurnOwnerPrivateWorkflowTests(unittest.TestCase):
             "--optional-repository",
             "optional discovery errors",
             "workstation action         none",
+            "approved_packet_set_sha256s:",
+            "BURN_APPROVED_PACKET_SET_SHA256S",
+            '--approved-packet-set-sha256 "$digest"',
+            "packet-set candidates",
+            "found packet set",
         ):
             self.assertIn(expected, workflow)
         self.assertIn("default: BigBirdReturns", workflow)
@@ -39,6 +44,9 @@ class BurnOwnerPrivateWorkflowTests(unittest.TestCase):
             document,
         )
         self.assertIn("A transport or owner-resolution failure can never appear as source absence.", document)
+        self.assertIn("packet-set-approval-required", document)
+        self.assertIn("BURN_APPROVED_PACKET_SET_SHA256S", document)
+        self.assertIn("does not promote a packet set using a digest learned from the same candidate", document)
 
 
 if __name__ == "__main__":

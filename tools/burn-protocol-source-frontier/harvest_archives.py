@@ -105,6 +105,38 @@ def nested_zip_candidates(
     yield from walk(archive_path, identity, 0)
 
 
+def has_packet_set_markers(candidate: Path) -> bool:
+    """Cheaply identify wrapper ZIPs that may contain one recovery root.
+
+    This is only a performance preflight. The packet-set verifier still owns
+    path safety, CRC, manifest, receipt, and payload authority.
+    """
+
+    try:
+        archive = zipfile.ZipFile(candidate)
+    except (OSError, zipfile.BadZipFile, zipfile.LargeZipFile):
+        return False
+    with archive:
+        names: set[str] = set()
+        try:
+            for info in archive.infolist():
+                if info.is_dir():
+                    continue
+                names.add(normalize_zip_member(info.filename))
+        except HarvestError:
+            return False
+    for name in names:
+        if not name.endswith("RECOVERY_RECEIPT.json"):
+            continue
+        prefix = name[: -len("RECOVERY_RECEIPT.json")]
+        if (
+            f"{prefix}SELECTED_MANIFEST.json" in names
+            and f"{prefix}SHA256SUMS" in names
+        ):
+            return True
+    return False
+
+
 def copy_tree(source: Path, destination: Path) -> None:
     if destination.exists():
         shutil.rmtree(destination)
@@ -134,6 +166,40 @@ def run_recovery(
             "--max-packet-bytes",
             str(packet_limit),
         ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    detail = (result.stderr or result.stdout).strip()
+    if len(detail) > 2000:
+        detail = detail[-2000:]
+    return result.returncode, detail, output
+
+
+def run_packet_set_verification(
+    candidate: Path,
+    contract: Path,
+    verifier_tool: Path,
+    temporary_root: Path,
+    approved_digest: str | None = None,
+) -> tuple[int, str, Path]:
+    output = temporary_root / "packet-set-verification"
+    if output.exists():
+        shutil.rmtree(output)
+    arguments = [
+        sys.executable,
+        str(verifier_tool),
+        "--input",
+        str(candidate),
+        "--contract",
+        str(contract),
+        "--output",
+        str(output),
+    ]
+    if approved_digest is not None:
+        arguments.extend(["--approved-packet-set-sha256", approved_digest])
+    result = subprocess.run(
+        arguments,
         text=True,
         capture_output=True,
         check=False,

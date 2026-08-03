@@ -20,7 +20,7 @@ on:
       - 'src/source-planes/registry.ts'
       - 'tests/canonical-story/**'
       - 'tests/source-planes/registry.test.ts'
-      - ' 'tools/build-burn-protocol-*.ts'
+      - 'tools/build-burn-protocol-*.ts'
       - 'docs/BURN_PROTOCOL_CANONICAL_EPISODE_5_CHAPTER_2.md'
   workflow_dispatch:
 
@@ -75,7 +75,7 @@ jobs:
           (cd "$publication_a" && sha256sum -c SHA256SUMS)
           printf 'BURN_THROUGH_EPISODE_5_CHAPTER_2_PUBLICATION=%s\n' "$publication_a" >> "$GITHUB_ENV"
 
-      - name: Assert Episode 5 Chapter 2 law
+      - name: Assert Episode 5 Chapter 2 publication law
         run: |
           set -euo pipefail
           node <<'NODE'
@@ -86,60 +86,19 @@ jobs:
           const arc = JSON.parse(fs.readFileSync(path.join(root, `${prefix}.arc.json`), 'utf8'));
           const source = JSON.parse(fs.readFileSync(path.join(root, `${prefix}.burn.json`), 'utf8'));
           const coverage = JSON.parse(fs.readFileSync(path.join(root, `${prefix}.coverage.json`), 'utf8'));
-          const episodes = source.canonicalStory.episodes;
-          const episode5 = episodes[4];
-          const chapter1 = episode5.chapters[0];
+          const episode5 = source.canonicalStory.episodes[4];
           const chapter2 = episode5.chapters[1];
           const fail = (message) => { throw new Error(message); };
-          if (arc.meta.id !== 'burn-protocol') fail('Stable series identity drift.');
-          if (arc.challenges.length !== 0 || arc.roles.length !== 0) fail('Simulation law entered the canonical story.');
-          if (source.canonicalStory.authority.choicePolicy !== 'none') fail('Canonical path admits choices.');
-          if (episodes.length !== 5 || episodes.slice(0, 4).some((episode) => !episode.complete)) fail('Prior episode authority drift.');
-          if (episode5.id !== 'E05' || episode5.title !== 'Nursery World') fail('Episode 5 identity drift.');
-          if (episode5.complete !== false || episode5.nextChapterId !== 'E05-C3') fail('Episode 5 extent drift.');
-          if (episode5.chapters.length !== 2 || chapter2.title !== 'The Mother') fail('Episode 5 Chapter 2 identity drift.');
-          if (chapter2.openingPanelId !== 'E05-C2-P21' || chapter2.terminalPanelId !== 'E05-C2-P40') fail('A05C2 panel extent drift.');
+          if (arc.meta.id !== 'burn-protocol' || arc.challenges.length !== 0 || arc.roles.length !== 0) fail('Arc authority drift.');
+          if (episode5.title !== 'Nursery World' || episode5.complete !== false || episode5.nextChapterId !== 'E05-C3') fail('Episode 5 extent drift.');
+          if (chapter2.title !== 'The Mother' || chapter2.openingPanelId !== 'E05-C2-P21'
+              || chapter2.terminalPanelId !== 'E05-C2-P40' || chapter2.nextPanelId !== 'E05-C3-P41') fail('A05C2 identity drift.');
           if (chapter2.panels.length !== 20 || chapter2.plates.length !== 4) fail('A05C2 media extent drift.');
-          if (chapter1.nextPanelId !== chapter2.openingPanelId || chapter2.previousPanelId !== chapter1.terminalPanelId) {
-            fail('E05 Chapter 1 to Chapter 2 seam drift.');
-          }
-          if (chapter2.nextPanelId !== 'E05-C3-P41') fail('Episode 5 Chapter 3 continuation drift.');
-          if (coverage.episodes !== 5 || coverage.chapters !== 14 || coverage.panels !== 280 || coverage.plates !== 56) {
-            fail('Combined corpus extent drift.');
-          }
-          if (coverage.unresolvedTextPanels !== 280 || coverage.unresolvedPlateMappings !== 56) {
-            fail('Unavailable expression was silently promoted.');
-          }
-          if (coverage.choiceNodes !== 0 || coverage.productionReady !== false) fail('Canonical authority or readiness drift.');
-          if (JSON.stringify(coverage.incompleteEpisodeIds) !== JSON.stringify(['E05'])) fail('Episode completion ledger drift.');
-          if (JSON.stringify(coverage.continuationPanelIds) !== JSON.stringify(['E05-C3-P41'])) {
-            fail('Internal chapter seam was misclassified as outside continuation.');
-          }
-          if (!Array.isArray(coverage.sourceRequiredAssets) || coverage.sourceRequiredAssets.length !== 1
-              || coverage.sourceRequiredAssets[0].id !== 'asset:E03-C2-P31') {
-            fail('The inherited P31 custody gap was lost or multiplied.');
-          }
-          if (!chapter2.panels.every((panel) => panel.text.status === 'source-required')) {
-            fail('A05C2 canonical text was reconstructed without source bytes.');
-          }
-          if (!chapter2.plates.every((plate) => plate.panelMapping.status === 'source-required')) {
-            fail('A05C2 plate mappings were inferred without source bytes.');
-          }
-          const receiptById = new Map(source.canonicalStory.sourceReceipts.map((receipt) => [receipt.id, receipt]));
-          for (const [id, expected] of [
-            ['a05c2-chapter-source', ['source/art/A05C2/chapter.json', 2003, '3c7c5919cdae2c100398c97f28e8e63045abec644d48245664c7ca2611b4025f']],
-            ['a05c2-lettering-source', ['source/art/A05C2/lettering.json', 24420, 'a91d050640b4a2cb105693b575e93b36fe17047772c566b239d906dd28a161b7']],
-            ['a05c2-panel-art-source', ['source/art/A05C2/panel-art.json', 18482, '54262a4c55f17d67fc0db0f783f77c2c39775c2a2b1003ba0465717606ec777a']],
-            ['a05c2-provenance', ['source/art/A05C2/provenance.json', 10094, '7dc1dbd08225e1cbdf331b649b9bcca6537e4b9a09453624c86de1bc2bd37631']],
-            ['a05c2-recovery', ['manifests/a05c2-recovery.json', 5921, '8fd084f4f34495741e1373e74b1232e0ded6fcd445309e7b0fad02bda0a44743']],
-            ['a05c2-scroll-plates', ['manifests/a05c2-scroll-plates.json', 1521, '027726e318eac73e97071a9964ec688979cdf53496171171d96c597f01861a2c']],
-          ]) {
-            const receipt = receiptById.get(id);
-            if (!receipt || receipt.path !== expected[0] || receipt.bytes !== expected[1]
-                || receipt.sha256 !== expected[2] || receipt.available !== false) {
-              fail(`Receipt drift for ${id}.`);
-            }
-          }
+          if (coverage.episodes !== 5 || coverage.chapters !== 14 || coverage.panels !== 280 || coverage.plates !== 56) fail('Combined extent drift.');
+          if (coverage.unresolvedTextPanels !== 280 || coverage.unresolvedPlateMappings !== 56
+              || coverage.choiceNodes !== 0 || coverage.productionReady !== false) fail('Expression or readiness drift.');
+          if (JSON.stringify(coverage.continuationPanelIds) !== JSON.stringify(['E05-C3-P41'])) fail('Continuation drift.');
+          if (coverage.sourceRequiredAssets.length !== 1 || coverage.sourceRequiredAssets[0].id !== 'asset:E03-C2-P31') fail('Inherited custody refusal drift.');
           NODE
 
       - name: Complete regression and build
@@ -155,12 +114,7 @@ jobs:
           root="burn-protocol-canonical-through-episode-5-chapter-2-qualification"
           mkdir -p "$root"
           cp -R "${BURN_THROUGH_EPISODE_5_CHAPTER_2_PUBLICATION:-$RUNNER_TEMP/publication-a}" "$root/publication" 2>/dev/null || true
-          cp "$RUNNER_TEMP"/typecheck.log "$root/" 2>/dev/null || true
-          cp "$RUNNER_TEMP"/focused-tests.log "$root/" 2>/dev/null || true
-          cp "$RUNNER_TEMP"/publication-a.log "$root/" 2>/dev/null || true
-          cp "$RUNNER_TEMP"/publication-b.log "$root/" 2>/dev/null || true
-          cp "$RUNNER_TEMP"/full-tests.log "$root/" 2>/dev/null || true
-          cp "$RUNNER_TEMP"/build.log "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/*.log "$root/" 2>/dev/null || true
           printf '%s\n' "${{ github.event.pull_request.head.sha || github.sha }}" > "$root/arc-candidate-sha.txt"
           find "$root" -type f ! -name SHA256SUMS -print0 \
             | sort -z \

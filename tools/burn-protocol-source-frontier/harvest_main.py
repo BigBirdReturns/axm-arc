@@ -41,7 +41,7 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser.add_argument(
         "--contract",
         type=Path,
-        default=here / "contracts" / "e04c3-source-intake.contract.json",
+        default=here / "contracts" / "e05c1-source-intake.contract.json",
         help="Pinned recovery contract.",
     )
     parser.add_argument("--candidate", action="append", default=[], type=Path, help="Local candidate ZIP; repeatable.")

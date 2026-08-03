@@ -20,7 +20,7 @@ Star_Trek_Discovery_The_Burn_Protocol_Web_Series_v0.62.0.zip
 sha256:f67dcd2c632720566e38b04c0a6b844188de24c967a77a4be31978a5ff82349a
 ```
 
-Repository identities, artifact names, release names, URLs, and filenames are discovery hints only.
+Repository identities, artifact names, release names, URLs, and filenames are discovery hints only. A retained recovery packet family is also a candidate, but internal consistency does not grant source standing. `verify_packet_set.py` computes its exact identity, and only an independently supplied packet-set SHA-256 may grant transport standing.
 
 ## Required public custody
 
@@ -67,7 +67,10 @@ Dispatch inputs and repository variables can replace the defaults:
 BURN_SOURCE_REPOSITORIES
 BURN_SOURCE_OWNERS
 BURN_SOURCE_OPTIONAL_REPOSITORIES
+BURN_APPROVED_PACKET_SET_SHA256S
 ```
+
+The packet-set variable and matching `approved_packet_set_sha256s` dispatch input accept comma-separated exact identities. They are external approval records. The workflow does not promote a packet set using a digest learned from the same candidate.
 
 No workstation checkout, local command, or manual file movement is required.
 
@@ -85,6 +88,8 @@ required discovery errors
 optional discovery errors
 transport failures
 exact-parent recovery packets, when present
+packet-set candidate identities and standing
+approved packet-set verification, when present
 SHA256SUMS
 ```
 
@@ -96,6 +101,15 @@ verified-frontier-evidence
 
 source-required
   exact parent admitted, but one or more E05C1 evidence requirements remain absent
+
+verified-frontier-packet-set
+  an externally pinned packet family passed complete byte verification and carries verified frontier evidence
+
+source-required-packet-set
+  an externally pinned packet family passed complete byte verification, but its underlying recovery remains incomplete
+
+packet-set-approval-required
+  a complete packet family was found and identified, but no external approval pin grants transport standing
 
 source-not-found
   public owner scope resolved completely, every selected required candidate downloaded and inspected, and no exact parent matched; inaccessible optional repositories remain explicitly outside this claim
@@ -125,6 +139,8 @@ cross-origin credential stripping
 transport failure law
 nested landing-kit recovery
 exact-parent and manifest verification
+packet-set identity, payload, wrapper, and external-approval law
+packet-set discovery without parent restaging
 E05C1 exact-path contract
 ```
 

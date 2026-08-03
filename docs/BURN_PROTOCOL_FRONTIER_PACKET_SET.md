@@ -136,4 +136,21 @@ unsafe wrapper refusal
 
 The evidence tier is custody-mechanism implementation; the venue is the frontier packet-set branch; the target is an independently transportable E05C1 recovery packet family; the upside is that the exact parent must be opened once rather than moved through every later system; the downside is that an external packet-set pin becomes an additional reviewed custody record; the failure mode is allowing internal consistency to masquerade as parent-derived source authority.
 
+## Autonomous discovery
+
+The landed autonomous and owner/private harvesters treat a recovery packet family as a separate candidate class after exact-parent recovery fails. A cheap marker preflight prevents unrelated ZIPs from invoking the full verifier. A matching wrapper is then verified byte-for-byte.
+
+```text
+no external pin
+  → packet-set-approval-required
+  → identity and remote candidate receipt published
+
+matching external pin
+  → verified-frontier-packet-set or source-required-packet-set
+  → packet-set verification retained
+  → source amendment still separate
+```
+
+The accepted pins enter only through `--approved-packet-set-sha256`, the `approved_packet_set_sha256s` workflow input, or `BURN_APPROVED_PACKET_SET_SHA256S`. A candidate can never supply its own approval. Exact-parent recovery has precedence when a candidate contains both the parent and packet material. Discovery or transport failures still outrank an unapproved packet candidate and remain `harvest-error`.
+
 The control question is whether an exact-parent recovery can publish one approved E05C1 packet-set identity that the Arc amendment and unchanged World receiver can consume without moving the complete estate again.

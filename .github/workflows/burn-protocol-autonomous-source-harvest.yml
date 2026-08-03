@@ -15,6 +15,11 @@ on:
         required: false
         default: BigBirdReturns/axm-chat,BigBirdReturns/spectra-genesis,BigBirdReturns/axm-bloodstream,BigBirdReturns/chatgpt-web
         type: string
+      approved_packet_set_sha256s:
+        description: Optional comma-separated externally admitted frontier packet-set SHA-256 identities.
+        required: false
+        default: ""
+        type: string
       artifacts:
         description: Optional comma-separated explicit Actions artifacts in owner/repo:id form.
         required: false
@@ -143,6 +148,7 @@ jobs:
               "authority": {
                   "humanWorkstationRequired": False,
                   "parentAdmission": "exact-byte-count-and-sha256-only",
+                  "packetSetAdmission": "external-sha256-pin-only",
                   "canonicalInference": "none",
               },
           }
@@ -174,6 +180,7 @@ jobs:
     env:
       HARVEST_REPOSITORIES: ${{ inputs.repositories || vars.BURN_SOURCE_REPOSITORIES || 'BigBirdReturns/axm-arc,BigBirdReturns/axm-world,BigBirdReturns/axm,BigBirdReturns/axm-core,BigBirdReturns/axm-tools,BigBirdReturns/axm-fleet,BigBirdReturns/axm-console,BigBirdReturns/axm-aide' }}
       HARVEST_OPTIONAL_REPOSITORIES: ${{ inputs.optional_repositories || vars.BURN_SOURCE_OPTIONAL_REPOSITORIES || 'BigBirdReturns/axm-chat,BigBirdReturns/spectra-genesis,BigBirdReturns/axm-bloodstream,BigBirdReturns/chatgpt-web' }}
+      HARVEST_APPROVED_PACKET_SET_SHA256S: ${{ inputs.approved_packet_set_sha256s || vars.BURN_APPROVED_PACKET_SET_SHA256S || '' }}
       HARVEST_ARTIFACTS: ${{ inputs.artifacts || '' }}
       HARVEST_RELEASE_ASSETS: ${{ inputs.release_assets || '' }}
       HARVEST_MAX_REMOTE_ITEMS: ${{ inputs.max_remote_items || '100' }}
@@ -206,6 +213,11 @@ jobs:
           for raw in "${optional_repositories[@]}"; do
             repository="$(printf '%s' "$raw" | xargs)"
             if [ -n "$repository" ]; then args+=(--optional-repository "$repository"); fi
+          done
+          IFS=',' read -ra packet_set_sha256s <<< "$HARVEST_APPROVED_PACKET_SET_SHA256S"
+          for raw in "${packet_set_sha256s[@]}"; do
+            digest="$(printf '%s' "$raw" | xargs)"
+            if [ -n "$digest" ]; then args+=(--approved-packet-set-sha256 "$digest"); fi
           done
           IFS=',' read -ra artifacts <<< "$HARVEST_ARTIFACTS"
           for raw in "${artifacts[@]}"; do
@@ -329,7 +341,10 @@ jobs:
               f"discovery errors       {summary.get('discoveryErrors', 0)}",
               f"optional discovery errors {summary.get('optionalDiscoveryErrors', 0)}",
               f"transport failures     {summary.get('transportFailures', 0)}",
+              f"packet-set candidates  {summary.get('packetSetCandidates', 0)}",
+              f"approved packet sets   {summary.get('approvedPacketSets', 0)}",
               f"found identity         {found}",
+              f"found packet set       {receipt.get('foundPacketSetSha256') or 'none'}",
               f"artifact ID            {artifact_id}",
               f"artifact digest        {artifact_digest}",
               "frontier               E05-C1-P01",

@@ -10,6 +10,16 @@ on:
         required: false
         default: BigBirdReturns/axm-arc,BigBirdReturns/axm-world
         type: string
+      owners:
+        description: Comma-separated GitHub accounts whose public repository estates should be enumerated.
+        required: false
+        default: BigBirdReturns
+        type: string
+      max_owner_repositories:
+        description: Maximum public repositories enumerated per owner.
+        required: false
+        default: "100"
+        type: string
       artifacts:
         description: Optional comma-separated explicit Actions artifacts in owner/repo:id form.
         required: false
@@ -168,6 +178,8 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       HARVEST_REPOSITORIES: ${{ inputs.repositories || 'BigBirdReturns/axm-arc,BigBirdReturns/axm-world' }}
+      HARVEST_OWNERS: ${{ inputs.owners || 'BigBirdReturns' }}
+      HARVEST_MAX_OWNER_REPOSITORIES: ${{ inputs.max_owner_repositories || '100' }}
       HARVEST_ARTIFACTS: ${{ inputs.artifacts || '' }}
       HARVEST_RELEASE_ASSETS: ${{ inputs.release_assets || '' }}
       HARVEST_MAX_REMOTE_ITEMS: ${{ inputs.max_remote_items || '100' }}
@@ -190,7 +202,13 @@ jobs:
           args=(
             --output burn-protocol-source-harvest
             --max-remote-items "$HARVEST_MAX_REMOTE_ITEMS"
+            --max-owner-repositories "$HARVEST_MAX_OWNER_REPOSITORIES"
           )
+          IFS=',' read -ra owners <<< "$HARVEST_OWNERS"
+          for raw in "${owners[@]}"; do
+            owner="$(printf '%s' "$raw" | xargs)"
+            if [ -n "$owner" ]; then args+=(--owner "$owner"); fi
+          done
           IFS=',' read -ra repositories <<< "$HARVEST_REPOSITORIES"
           for raw in "${repositories[@]}"; do
             repository="$(printf '%s' "$raw" | xargs)"
@@ -303,6 +321,7 @@ jobs:
               f"event                  {os.environ['GITHUB_EVENT_NAME']}",
               f"exact candidate        {os.environ['GITHUB_SHA']}",
               f"exit code              {os.environ.get('HARVEST_EXIT_CODE') or 'unavailable'}",
+              f"checked repositories   {summary.get('repositories', 0)}",
               f"checked candidates     {summary.get('candidates', 0)}",
               f"downloaded bytes       {summary.get('downloadedBytes', 0)}",
               f"discovery errors       {summary.get('discoveryErrors', 0)}",

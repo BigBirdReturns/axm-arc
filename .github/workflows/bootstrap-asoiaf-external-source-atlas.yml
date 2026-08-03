@@ -1,0 +1,92 @@
+name: Bootstrap ASOIAF external source atlas
+
+on:
+  push:
+    branches:
+      - feature/asoiaf-external-source-atlas-v1
+    paths:
+      - 'tools/asoiaf-external-source-atlas-stage.b64.part-*'
+      - '.github/workflows/bootstrap-asoiaf-external-source-atlas.yml'
+  pull_request:
+    branches:
+      - feature/asoiaf-conversation-synthesis-v1
+    paths:
+      - 'tools/asoiaf-external-source-atlas-stage.b64.part-*'
+      - '.github/workflows/bootstrap-asoiaf-external-source-atlas.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: asoiaf-external-source-atlas-bootstrap
+  cancel-in-progress: false
+
+jobs:
+  materialize:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out exact atlas branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/asoiaf-external-source-atlas-v1
+          fetch-depth: 0
+
+      - name: Detect staged payload
+        id: staged
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -f tools/asoiaf-external-source-atlas-stage.b64.part-00 ]]; then
+            echo 'present=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'present=false' >> "$GITHUB_OUTPUT"
+            echo 'External source atlas payload already materialized.'
+          fi
+
+      - name: Decode and verify external source atlas
+        if: steps.staged.outputs.present == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          part0="$RUNNER_TEMP/part-00.normalized"
+          part1="$RUNNER_TEMP/part-01.normalized"
+          tr -d '\r\n' < tools/asoiaf-external-source-atlas-stage.b64.part-00 > "$part0"
+          tr -d '\r\n' < tools/asoiaf-external-source-atlas-stage.b64.part-01 > "$part1"
+          test "$(wc -c < "$part0" | tr -d ' ')" = '12000'
+          test "$(wc -c < "$part1" | tr -d ' ')" = '103060'
+          test "$(sha256sum "$part0" | cut -d' ' -f1)" = '7c339288182d57c6ea47ffa6b312a2c0797dbf9c350589a64e3ceae4aa33f39f'
+          test "$(sha256sum "$part1" | cut -d' ' -f1)" = 'd1352962df2e96da330d3496094bfb5beec7da84034273f03366694d95f25245'
+          encoded="$RUNNER_TEMP/asoiaf-external-source-atlas-stage.b64"
+          cat "$part0" "$part1" > "$encoded"
+          test "$(wc -c < "$encoded" | tr -d ' ')" = '115060'
+          payload="$RUNNER_TEMP/asoiaf-external-source-atlas-stage.tar.gz"
+          base64 --decode "$encoded" > "$payload"
+          printf '%s  %s\n' \
+            'd1bcb5e09accf3b174c73e1da9e8a7af31e87fc95f65277d616d2b056d24c7bb' \
+            "$payload" \
+            | sha256sum -c -
+          tar -xzf "$payload" -C .
+
+      - name: Replace transport with source atlas implementation
+        if: steps.staged.outputs.present == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f tools/asoiaf-external-source-atlas-stage.b64.part-*
+          rmdir tools 2>/dev/null || true
+          # The workflow token may not create a permanent workflow definition.
+          # The connected GitHub authority installs that file after this commit.
+          rm -f .github/workflows/asoiaf-external-source-atlas.yml
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          if git diff --cached --quiet; then
+            echo 'No materialized changes were produced.' >&2
+            exit 1
+          fi
+          git commit -m 'Add ASOIAF external source atlas and harvest router'
+          git push origin HEAD:feature/asoiaf-external-source-atlas-v1

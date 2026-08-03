@@ -34,22 +34,14 @@ on:
     paths:
       - ".github/workflows/burn-protocol-autonomous-source-harvest.yml"
       - "docs/BURN_PROTOCOL_AUTONOMOUS_SOURCE_HARVEST.md"
-      - "tools/burn-protocol-source-frontier/harvest.py"
-      - "tools/burn-protocol-source-frontier/test_harvest.py"
-      - "tools/burn-protocol-source-frontier/recover.py"
-      - "tools/burn-protocol-source-frontier/test_recover.py"
-      - "tools/burn-protocol-source-frontier/contracts/**"
+      - "tools/burn-protocol-source-frontier/**"
   push:
     branches:
       - main
     paths:
       - ".github/workflows/burn-protocol-autonomous-source-harvest.yml"
       - "docs/BURN_PROTOCOL_AUTONOMOUS_SOURCE_HARVEST.md"
-      - "tools/burn-protocol-source-frontier/harvest.py"
-      - "tools/burn-protocol-source-frontier/test_harvest.py"
-      - "tools/burn-protocol-source-frontier/recover.py"
-      - "tools/burn-protocol-source-frontier/test_recover.py"
-      - "tools/burn-protocol-source-frontier/contracts/**"
+      - "tools/burn-protocol-source-frontier/**"
 
 permissions:
   actions: read
@@ -89,11 +81,8 @@ jobs:
       - name: Compile source recovery and autonomous harvesting tools
         shell: bash
         run: >-
-          python -m py_compile
-          tools/burn-protocol-source-frontier/recover.py
-          tools/burn-protocol-source-frontier/harvest.py
-          tools/burn-protocol-source-frontier/test_recover.py
-          tools/burn-protocol-source-frontier/test_harvest.py
+          python -m compileall -q
+          tools/burn-protocol-source-frontier
 
       - name: Exercise exact-parent, remote custody, determinism, and refusal law
         shell: bash
@@ -120,13 +109,11 @@ jobs:
 
           root = Path(os.environ["QUALIFICATION_ROOT"])
           root.mkdir(parents=True, exist_ok=True)
+          tools = Path("tools/burn-protocol-source-frontier")
           files = [
               Path(".github/workflows/burn-protocol-autonomous-source-harvest.yml"),
               Path("docs/BURN_PROTOCOL_AUTONOMOUS_SOURCE_HARVEST.md"),
-              Path("tools/burn-protocol-source-frontier/harvest.py"),
-              Path("tools/burn-protocol-source-frontier/test_harvest.py"),
-              Path("tools/burn-protocol-source-frontier/recover.py"),
-              Path("tools/burn-protocol-source-frontier/test_recover.py"),
+              *sorted(tools.glob("*.py")),
               Path("tools/burn-protocol-source-frontier/contracts/e04c2-source-intake.contract.json"),
               Path("autonomous-source-harvest-tests.log"),
           ]

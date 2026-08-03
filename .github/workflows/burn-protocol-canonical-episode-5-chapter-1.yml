@@ -1,0 +1,167 @@
+name: Burn Protocol canonical through Episode 5 Chapter 1
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/burn-protocol-canonical-episode-5-chapter-1.yml'
+      - 'src/canonical-story/**'
+      - 'src/burn-protocol/**'
+      - 'src/source-planes/registry.ts'
+      - 'tests/canonical-story/**'
+      - 'tests/source-planes/registry.test.ts'
+      - 'tools/build-burn-protocol-*.ts'
+      - 'docs/BURN_PROTOCOL_CANONICAL_EPISODE_5_CHAPTER_1.md'
+  push:
+    branches:
+      - feature/burn-protocol-canonical-story-episode-5-chapter-1-v1
+    paths:
+      - '.github/workflows/burn-protocol-canonical-episode-5-chapter-1.yml'
+      - 'src/canonical-story/**'
+      - 'src/burn-protocol/**'
+      - 'src/source-planes/registry.ts'
+      - 'tests/canonical-story/**'
+      - 'tests/source-planes/registry.test.ts'
+      - 'tools/build-burn-protocol-*.ts'
+      - 'docs/BURN_PROTOCOL_CANONICAL_EPISODE_5_CHAPTER_1.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qualify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out exact candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+          show-progress: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck and focused contracts
+        run: |
+          set -euo pipefail
+          npm run typecheck | tee "$RUNNER_TEMP/typecheck.log"
+          npm test -- \
+            tests/canonical-story/burn-protocol-episode-4-chapter-3.test.ts \
+            tests/canonical-story/burn-protocol-episode-5-chapter-1.test.ts \
+            tests/source-planes/registry.test.ts \
+            | tee "$RUNNER_TEMP/focused-tests.log"
+
+      - name: Build deterministic publication twice
+        run: |
+          set -euo pipefail
+          publication_a="$RUNNER_TEMP/publication-a"
+          publication_b="$RUNNER_TEMP/publication-b"
+          npx vite-node tools/build-burn-protocol-episode-5-chapter-1.ts "$publication_a" \
+            | tee "$RUNNER_TEMP/publication-a.log"
+          npx vite-node tools/build-burn-protocol-episode-5-chapter-1.ts "$publication_b" \
+            | tee "$RUNNER_TEMP/publication-b.log"
+          diff -ru "$publication_a" "$publication_b"
+          (cd "$publication_a" && sha256sum -c SHA256SUMS)
+          printf 'BURN_E05C1_PUBLICATION=%s\n' "$publication_a" >> "$GITHUB_ENV"
+
+      - name: Assert Episode 5 Chapter 1 law
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const root = process.env.BURN_E05C1_PUBLICATION;
+          const prefix = 'burn-protocol-through-episode-05-chapter-01';
+          const arc = JSON.parse(fs.readFileSync(path.join(root, `${prefix}.arc.json`), 'utf8'));
+          const source = JSON.parse(fs.readFileSync(path.join(root, `${prefix}.burn.json`), 'utf8'));
+          const coverage = JSON.parse(fs.readFileSync(path.join(root, `${prefix}.coverage.json`), 'utf8'));
+          const episodes = source.canonicalStory.episodes;
+          const episode4 = episodes[3];
+          const episode5 = episodes[4];
+          const chapter = episode5.chapters[0];
+          const fail = (message) => { throw new Error(message); };
+
+          if (arc.meta.id !== 'burn-protocol') fail('Stable series identity drift.');
+          if (arc.challenges.length !== 0 || arc.roles.length !== 0) fail('Simulation law entered the canonical story.');
+          if (source.canonicalStory.authority.choicePolicy !== 'none') fail('Canonical path admits choices.');
+          if (episodes.length !== 5 || episodes.slice(0, 4).some((episode) => !episode.complete)) fail('Prior episode authority drift.');
+          if (episode5.id !== 'E05' || episode5.title !== 'Nursery World') fail('Episode 5 identity drift.');
+          if (episode5.complete !== false || episode5.nextChapterId !== 'E05-C2') fail('Episode 5 extent drift.');
+          if (episode5.chapters.length !== 1 || chapter.title !== 'The Song') fail('Episode 5 Chapter 1 identity drift.');
+          if (chapter.openingPanelId !== 'E05-C1-P01' || chapter.terminalPanelId !== 'E05-C1-P20') fail('A05C1 panel extent drift.');
+          if (chapter.panels.length !== 20 || chapter.plates.length !== 4) fail('A05C1 media extent drift.');
+          if (episode4.chapters[2].nextPanelId !== chapter.openingPanelId
+              || chapter.previousPanelId !== episode4.chapters[2].terminalPanelId) fail('E04 to E05 seam drift.');
+          if (chapter.nextPanelId !== 'E05-C2-P21') fail('Episode 5 Chapter 2 continuation drift.');
+          if (coverage.episodes !== 5 || coverage.chapters !== 13 || coverage.panels !== 260 || coverage.plates !== 52) fail('Combined extent drift.');
+          if (coverage.unresolvedTextPanels !== 260 || coverage.unresolvedPlateMappings !== 52) fail('Expression was promoted without source bytes.');
+          if (coverage.choiceNodes !== 0 || coverage.productionReady !== false) fail('Authority or readiness drift.');
+          if (JSON.stringify(coverage.incompleteEpisodeIds) !== JSON.stringify(['E05'])) fail('Episode completion ledger drift.');
+          if (JSON.stringify(coverage.continuationPanelIds) !== JSON.stringify(['E05-C2-P21'])) fail('Continuation ledger drift.');
+          if (!Array.isArray(coverage.sourceRequiredAssets) || coverage.sourceRequiredAssets.length !== 1
+              || coverage.sourceRequiredAssets[0].id !== 'asset:E03-C2-P31') fail('Inherited P31 custody gap drift.');
+          if (!chapter.panels.every((panel) => panel.text.status === 'source-required')) fail('A05C1 text was reconstructed.');
+          if (!chapter.plates.every((plate) => plate.panelMapping.status === 'source-required')) fail('A05C1 plate mappings were inferred.');
+
+          const receipts = new Map(source.canonicalStory.sourceReceipts.map((receipt) => [receipt.id, receipt]));
+          const expected = {
+            'q01-dialogue-parity': ['manifests/q01-dialogue-parity.json', 763244, '212493c941469d673f410d2e5771c91a5db1a59f8fc483238246cfd5d2084b7e'],
+            'q01-causal-ledger': ['manifests/q01-causal-ledger.json', 1493256, 'fd9ec4a4bc4b42e2a97351d34eff07e462f14aabff9db5a88cf5886cd747a9cc'],
+            'episode-05-source': ['source/episodes/episode-05.json', 102175, 'b0c738dfe510dc04437f9b0edfddcb9a5faa254d13109875470d02f0c1591fd7'],
+            'episode-05-compiled': ['site/data/episode-05.json', 155844, 'd9dac19f58a7cedeacdb3af2cf52c95be327cd4eddfc578a8459bffef3e2ebc1'],
+            'a05c1-lettering-source': ['source/art/A05C1/lettering.json', 23862, 'ad0ad5f24c5e594f4c6875acafda820838775849c9e664be1c5cbfee2755f7c7'],
+            'a05c1-scroll-plates': ['manifests/a05c1-scroll-plates.json', 1521, '6a399d9ffb32176f95aec7dde5e68cb7922747d5b45906d1bd816e1d679077b0'],
+          };
+          for (const [id, [expectedPath, bytes, sha256]] of Object.entries(expected)) {
+            const receipt = receipts.get(id);
+            if (!receipt || receipt.path !== expectedPath || receipt.bytes !== bytes
+                || receipt.sha256 !== sha256 || receipt.available !== false) fail(`Receipt drift for ${id}.`);
+          }
+          NODE
+
+      - name: Complete regression and build
+        run: |
+          set -euo pipefail
+          npm test | tee "$RUNNER_TEMP/full-tests.log"
+          npm run build | tee "$RUNNER_TEMP/build.log"
+
+      - name: Retain qualification
+        if: always()
+        run: |
+          set -euo pipefail
+          root="burn-protocol-canonical-through-episode-5-chapter-1-qualification"
+          mkdir -p "$root"
+          cp -R "${BURN_E05C1_PUBLICATION:-$RUNNER_TEMP/publication-a}" "$root/publication" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/typecheck.log "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/focused-tests.log "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/publication-a.log "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/publication-b.log "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/full-tests.log "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/build.log "$root/" 2>/dev/null || true
+          printf '%s\n' "${{ github.event.pull_request.head.sha || github.sha }}" > "$root/arc-candidate-sha.txt"
+          find "$root" -type f ! -name SHA256SUMS -print0 \
+            | sort -z \
+            | xargs -0 sha256sum \
+            | sed "s#  $root/#  #" \
+            > "$root/SHA256SUMS"
+
+      - name: Upload qualification
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: burn-protocol-canonical-through-episode-5-chapter-1-qualification
+          path: burn-protocol-canonical-through-episode-5-chapter-1-qualification
+          if-no-files-found: error
+          retention-days: 30

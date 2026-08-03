@@ -54,12 +54,45 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          declare -A expected_sha=(
+            [part-00]='b2b543139f32b897d716241e398e3ef6990ed2f8ec1f5f03083f2cd0f8c94c18'
+            [part-01]='aef43b8ee7e1eef74c3e4f709ad83bf53a5420bfc5eec193765c979902de832b'
+            [part-02]='b61783ded2362e763f449472e1915c0a6cada7be76c98d27eb43af9147526ee1'
+            [part-03]='b7850fc4618ea8b785e96768960450003fbd105a5eee927b23f5f5c8a72b7506'
+            [part-04]='a3cfb70c5f56858806d2308b6af99a0613e3562c9ef8feb91b31c906e4dc0b77'
+            [part-05]='1b1e6396bf05c22e87ee6f47ad189bf91f799c7077f020e6427fc3349b98bbcc'
+            [part-06]='02c0213f1a7186874dfaf59d75ba078a89161cdec37bb7a1d8c28aca16cfe597'
+            [part-07]='f5f5fdde03163d2524bc7bc5c2c86559b4317b1ea0b651997c519486536ed820'
+            [part-08]='abfd5346440161b61c4a63d633b0e7e76bf60c68371ddb7dafabe5d0f0998046'
+            [part-09]='9fae55f6f76d168119fd417ed945b1b1a0af4218bc6f4d69853b43d97269a6a0'
+            [part-10]='2be6ed1813f0ce520555adf8d2cbfb49dd65db002e73abad9419eb872cc32674'
+            [part-11]='f08f0dd548fe0f71d1bb2db0a64b2f6aade88d68a19664adead2fd1e768ef69c'
+            [part-12]='9801d6f04268fa04503f405ff3a8292d5b21b2229d1a75dba918b3ef277b46c0'
+          )
+          declare -A expected_bytes=(
+            [part-00]=8000 [part-01]=8000 [part-02]=8000 [part-03]=8000
+            [part-04]=8000 [part-05]=8000 [part-06]=8000 [part-07]=8000
+            [part-08]=8000 [part-09]=8000 [part-10]=8000 [part-11]=8000
+            [part-12]=3856
+          )
+
+          encoded="$RUNNER_TEMP/asoiaf-model-recall-stage.b64"
+          : > "$encoded"
+          for source in tools/asoiaf-recall-stage.b64.part-*; do
+            key="${source##*.}"
+            normalized="$RUNNER_TEMP/$key.normalized"
+            tr -d '\r\n' < "$source" | sed 's/---11---//g' > "$normalized"
+            actual_bytes="$(wc -c < "$normalized" | tr -d ' ')"
+            actual_sha="$(sha256sum "$normalized" | cut -d' ' -f1)"
+            printf '%s bytes=%s sha256=%s\n' "$key" "$actual_bytes" "$actual_sha"
+            test "$actual_bytes" = "${expected_bytes[$key]}"
+            test "$actual_sha" = "${expected_sha[$key]}"
+            cat "$normalized" >> "$encoded"
+          done
+
+          test "$(wc -c < "$encoded" | tr -d ' ')" = '99856'
           payload="$RUNNER_TEMP/asoiaf-model-recall-stage.tar.xz"
-          cat tools/asoiaf-recall-stage.b64.part-* \
-            | tr -d '\r\n' \
-            | sed 's/---11---//g' \
-            | base64 --decode \
-            > "$payload"
+          base64 --decode "$encoded" > "$payload"
           printf '%s  %s\n' \
             'ca4a5258f26bf0b263066ac5caf729779f52b71874a9b1f527682980f91ed730' \
             "$payload" \

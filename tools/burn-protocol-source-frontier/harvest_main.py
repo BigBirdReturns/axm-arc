@@ -28,7 +28,6 @@ from harvest_common import (
 )
 from harvest_remote import (
     discover_actions_artifacts,
-    discover_owner_repositories,
     discover_release_assets,
     explicit_artifact_candidate,
     explicit_release_candidate,
@@ -53,18 +52,12 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
         type=Path,
         help="Recursively scan local ZIPs in this directory; repeatable.",
     )
-    parser.add_argument("--repository", action="append", default=[], help="GitHub repository owner/name; repeatable.")
+    parser.add_argument("--repository", action="append", default=[], help="Required GitHub repository owner/name; repeatable.")
     parser.add_argument(
-        "--owner",
+        "--optional-repository",
         action="append",
         default=[],
-        help="Enumerate public repositories owned by this GitHub account; repeatable.",
-    )
-    parser.add_argument(
-        "--max-owner-repositories",
-        type=int,
-        default=100,
-        help="Maximum public repositories enumerated per owner.",
+        help="Best-effort GitHub repository owner/name; inaccessible discovery is recorded but does not invalidate required-scope absence.",
     )
     parser.add_argument("--artifact", action="append", default=[], help="Actions artifact owner/repo:id; repeatable.")
     parser.add_argument("--release-asset", action="append", default=[], help="Release asset owner/repo:id; repeatable.")
@@ -86,7 +79,6 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv or [])
     if (
         args.max_remote_items <= 0
-        or args.max_owner_repositories <= 0
         or args.max_candidate_bytes <= 0
         or args.total_download_bytes <= 0
         or args.max_nested_depth < 0
@@ -109,10 +101,16 @@ def main(argv: Sequence[str] | None = None) -> int:
     recovery_tool = Path(__file__).resolve().parent / "recover.py"
     checked: list[CandidateResult] = []
     discovery_errors: list[str] = []
+    optional_discovery_errors: list[str] = []
+    required_repositories = list(dict.fromkeys(args.repository))
+    optional_repositories = [
+        repository
+        for repository in dict.fromkeys(args.optional_repository)
+        if repository not in required_repositories
+    ]
     found_status: str | None = None
     found_identity: str | None = None
     downloaded = 0
-    repositories = list(dict.fromkeys(args.repository))
 
     def examine(candidate_path: Path, *, kind: str, identity: str, name: str, known_hash: str | None = None) -> bool:
         nonlocal found_status, found_identity
@@ -182,25 +180,27 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         remote_candidates = []
         if found_status is None:
-            for owner in args.owner:
-                try:
-                    repositories.extend(
-                        discover_owner_repositories(api, owner, args.max_owner_repositories)
-                    )
-                except HarvestError as exc:
-                    discovery_errors.append(str(exc))
-            repositories = list(dict.fromkeys(repositories))
             remote_candidates.extend(explicit_artifact_candidate(args.github_api_url, value) for value in args.artifact)
             remote_candidates.extend(explicit_release_candidate(args.github_api_url, value) for value in args.release_asset)
-            for repository in repositories:
+
+            def discover_repository(repository: str, errors: list[str]) -> None:
                 try:
-                    remote_candidates.extend(discover_actions_artifacts(api, repository, pattern, args.max_remote_items))
+                    remote_candidates.extend(
+                        discover_actions_artifacts(api, repository, pattern, args.max_remote_items)
+                    )
                 except HarvestError as exc:
-                    discovery_errors.append(str(exc))
+                    errors.append(str(exc))
                 try:
-                    remote_candidates.extend(discover_release_assets(api, repository, pattern, args.max_remote_items))
+                    remote_candidates.extend(
+                        discover_release_assets(api, repository, pattern, args.max_remote_items)
+                    )
                 except HarvestError as exc:
-                    discovery_errors.append(str(exc))
+                    errors.append(str(exc))
+
+            for repository in required_repositories:
+                discover_repository(repository, discovery_errors)
+            for repository in optional_repositories:
+                discover_repository(repository, optional_discovery_errors)
 
             unique = {candidate.identity: candidate for candidate in remote_candidates}
             remote_candidates = sorted(
@@ -277,22 +277,31 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "sha256": str(parent["sha256"]),
             },
             "foundIdentity": found_identity,
-            "owners": list(args.owner),
-            "repositories": repositories,
+            "repositories": required_repositories,
+            "optionalRepositories": optional_repositories,
+            "scope": {
+                "requiredRepositories": required_repositories,
+                "optionalRepositories": optional_repositories,
+                "requiredDiscoveryComplete": not discovery_errors,
+                "optionalDiscoveryComplete": not optional_discovery_errors,
+                "sourceNotFoundAuthority": "required-repositories-only",
+            },
             "checked": [asdict(result) for result in checked],
             "summary": {
                 "candidates": len(checked),
-                "repositories": len(repositories),
                 "downloadedBytes": downloaded,
                 "discoveryErrors": len(discovery_errors),
                 "transportFailures": transport_failures,
+                "optionalDiscoveryErrors": len(optional_discovery_errors),
             },
             "discoveryErrors": discovery_errors,
+            "optionalDiscoveryErrors": optional_discovery_errors,
             "authority": {
                 "humanWorkstationRequired": False,
                 "admission": "exact-contract-parent-only",
                 "canonicalInference": "none",
-                "sourceAbsence": "requires-complete-enumeration-and-download-and-does-not-authorize-fabrication",
+                "sourceAbsence": "requires-complete-required-repository-enumeration-and-download-and-does-not-authorize-fabrication",
+                "optionalRepositoryGaps": "recorded-separately-and-excluded-from-required-scope-absence-authority",
             },
         }
         write_receipt(output, receipt)

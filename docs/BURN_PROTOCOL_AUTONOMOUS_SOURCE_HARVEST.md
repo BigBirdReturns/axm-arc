@@ -45,22 +45,35 @@ The Episode 5 script is required through the manifest-selected `canonical-script
 
 `.github/workflows/burn-protocol-autonomous-source-harvest.yml` runs every twelve hours, on qualifying `main` pushes, and through GitHub-native dispatch.
 
-The default sweep starts with the explicit Arc and World repositories and also enumerates the public repository estate owned by `BigBirdReturns`:
+The default required sweep covers the public repositories most likely to retain project source, build, tool, fleet, console, or aide custody:
 
 ```text
-explicit repositories
-  BigBirdReturns/axm-arc
-  BigBirdReturns/axm-world
-
-owner enumeration
-  BigBirdReturns
+BigBirdReturns/axm-arc
+BigBirdReturns/axm-world
+BigBirdReturns/axm
+BigBirdReturns/axm-core
+BigBirdReturns/axm-tools
+BigBirdReturns/axm-fleet
+BigBirdReturns/axm-console
+BigBirdReturns/axm-aide
 ```
 
-Owner enumeration grants discovery scope only. Every artifact or release name still passes through the bounded Burn/source/estate/handoff/frontier candidate filter, every download remains subject to per-candidate and total byte ceilings, and only the exact parent byte count and SHA-256 can grant source standing. A broader repository map therefore increases recall without weakening admission.
+The default best-effort sweep also attempts the connected private repositories most likely to retain chat, rehydration, bloodstream, or web-session custody:
 
-For each repository it inspects recent, non-expired GitHub Actions artifacts and GitHub release assets. Candidate names are bounded by a Burn/source/estate/handoff/frontier filter before download. Exact Actions artifact IDs and release asset IDs can also be supplied in `owner/repo:id` form. Downloaded artifacts are searched through bounded nested ZIP layers, so an exact parent inside a landing kit or retained source package can be recovered without restaging it.
+```text
+BigBirdReturns/axm-chat
+BigBirdReturns/spectra-genesis
+BigBirdReturns/axm-bloodstream
+BigBirdReturns/chatgpt-web
+```
 
-The ordinary repository token is used by default. A repository secret named `BURN_SOURCE_TOKEN`, when present, is preferred for cross-repository private-artifact access. Inaccessible repositories and objects are recorded in the harvest receipt.
+Required and best-effort repositories have different absence standing. A discovery failure in a required repository makes the sweep `harvest-error`. An inaccessible best-effort repository is recorded under `optionalDiscoveryErrors` and cannot weaken or enlarge the required-scope `source-not-found` claim. If a best-effort repository is accessible, its selected artifacts are downloaded and inspected under the same exact-parent, byte-budget, and transport-failure law as every required repository.
+
+The workflow-dispatch inputs can replace both lists. Repository variables `BURN_SOURCE_REPOSITORIES` and `BURN_SOURCE_OPTIONAL_REPOSITORIES` can also replace the scheduled and landing-push defaults without changing code.
+
+For each repository the harvester inspects recent, non-expired GitHub Actions artifacts and GitHub release assets. Candidate names are bounded by a Burn/source/estate/handoff/frontier filter before download. Exact Actions artifact IDs and release asset IDs can also be supplied in `owner/repo:id` form. Downloaded artifacts are searched through bounded nested ZIP layers, so an exact parent inside a landing kit or retained source package can be recovered without restaging it.
+
+The ordinary repository token is used by default. A repository secret named `BURN_SOURCE_TOKEN`, when present, is preferred for cross-repository private-artifact access. Required discovery errors, best-effort discovery errors, and candidate transport failures are reported separately.
 
 ## Download and credential boundary
 
@@ -105,7 +118,7 @@ source-required
   exact parent admitted, but the required evidence family remains incomplete
 
 source-not-found
-  remote custody was completely enumerated and every selected candidate was downloaded and inspected, but none matched the exact parent
+  required repository custody was completely enumerated and every selected candidate was downloaded and inspected, but none matched the exact parent; any inaccessible best-effort repositories remain explicitly outside that absence authority
 
 harvest-error
   enumeration, artifact or release download, nested inspection, or workflow execution was incomplete; transport refusal can never be reported as source absence
@@ -113,7 +126,7 @@ harvest-error
 
 A scheduled or landing-push `source-not-found` sweep remains green and auditable. It is not a human action item and does not authorize inferred Episode 5 content. A manually dispatched run can set `require_source=true` to retain the same receipt while making absence a failing control signal.
 
-Each sweep also posts an addressable summary to GitHub issue #212 with the run ID, exact candidate SHA, trigger, status, repository, candidate and byte counts, discovery-error and transport-failure counts, artifact ID, artifact URL, artifact digest, and current frontier. The uploaded artifact remains the authoritative byte package.
+Each sweep also posts an addressable summary to GitHub issue #212 with the run ID, exact candidate SHA, trigger, status, required and best-effort repository counts, candidate and byte counts, required discovery errors, best-effort discovery errors, transport failures, artifact ID, artifact URL, artifact digest, and current frontier. The uploaded artifact remains the authoritative byte package.
 
 ## Qualification
 
@@ -127,7 +140,6 @@ sub-limit packet splitting
 source-required classification
 manifest, exact-path, and ZIP-path refusal law
 recursive local candidate sweep
-GitHub owner repository enumeration
 GitHub Actions artifact discovery and download
 GitHub artifact versus release-asset media negotiation
 explicit artifact lookup without listing
@@ -136,7 +148,11 @@ candidate, nested-archive, and total download ceilings
 bounded recursive landing-kit inspection
 cross-origin bearer-token and API-header stripping
 transport failure cannot become source absence
-audited source absence
+required repository discovery failure remains fatal
+best-effort repository discovery gaps remain explicit and non-authoritative
+accessible best-effort custody can supply the exact parent
+workflow defaults retain the expanded custody scope
+audited required-scope source absence
 ```
 
 No production Burn source, private media byte, inferred Episode 5 title, inferred panel count, or inferred continuity is committed by this mechanism.

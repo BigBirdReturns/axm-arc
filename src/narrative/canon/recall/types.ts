@@ -29,6 +29,10 @@ export type CanonRecallKind =
   | "endpoint"
   | "question";
 
+export type CanonRecallGenerator =
+  | "language-model-recall"
+  | "conversation-synthesis";
+
 export type CanonRecallValue = CanonScalar | CanonScalar[];
 
 export interface CanonRecallCandidate {
@@ -50,7 +54,7 @@ export interface CanonRecallPacket {
   id: string;
   universeId: string;
   scope: string;
-  generatedBy: "language-model-recall";
+  generatedBy: CanonRecallGenerator;
   knowledgeCutoff: string;
   authority: "none";
   compilationEligible: false;

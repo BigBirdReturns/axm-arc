@@ -1,0 +1,264 @@
+name: Burn Protocol autonomous source harvest
+
+on:
+  schedule:
+    - cron: "17 */12 * * *"
+  workflow_dispatch:
+    inputs:
+      repositories:
+        description: Comma-separated repositories whose Actions artifacts and release assets should be swept.
+        required: false
+        default: BigBirdReturns/axm-arc,BigBirdReturns/axm-world
+        type: string
+      artifacts:
+        description: Optional comma-separated explicit Actions artifacts in owner/repo:id form.
+        required: false
+        default: ""
+        type: string
+      release_assets:
+        description: Optional comma-separated explicit release assets in owner/repo:id form.
+        required: false
+        default: ""
+        type: string
+      max_remote_items:
+        description: Maximum recent artifacts and releases inspected per repository.
+        required: false
+        default: "100"
+        type: string
+      require_source:
+        description: Fail the dispatch after retaining the audit receipt when the exact parent is absent.
+        required: false
+        default: false
+        type: boolean
+  pull_request:
+    paths:
+      - ".github/workflows/burn-protocol-autonomous-source-harvest.yml"
+      - "docs/BURN_PROTOCOL_AUTONOMOUS_SOURCE_HARVEST.md"
+      - "tools/burn-protocol-source-frontier/**"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/burn-protocol-autonomous-source-harvest.yml"
+      - "docs/BURN_PROTOCOL_AUTONOMOUS_SOURCE_HARVEST.md"
+      - "tools/burn-protocol-source-frontier/**"
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: burn-protocol-autonomous-source-harvest-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qualify:
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    name: autonomous harvester qualification (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-24.04
+          - windows-latest
+    steps:
+      - name: Check out exact candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+
+      - name: Record exact candidate identity
+        shell: bash
+        run: git rev-parse HEAD
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compile source recovery and autonomous harvesting tools
+        shell: bash
+        run: >-
+          python -m compileall -q
+          tools/burn-protocol-source-frontier
+
+      - name: Exercise exact-parent, remote custody, determinism, and refusal law
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m unittest discover \
+            -s tools/burn-protocol-source-frontier \
+            -p "test_*.py" \
+            -v 2>&1 | tee autonomous-source-harvest-tests.log
+
+      - name: Retain exact qualification receipt
+        shell: bash
+        env:
+          QUALIFICATION_ROOT: burn-protocol-autonomous-source-harvest-qualification-${{ matrix.os }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          import shutil
+          import subprocess
+          from pathlib import Path
+
+          root = Path(os.environ["QUALIFICATION_ROOT"])
+          root.mkdir(parents=True, exist_ok=True)
+          tools = Path("tools/burn-protocol-source-frontier")
+          files = [
+              Path(".github/workflows/burn-protocol-autonomous-source-harvest.yml"),
+              Path("docs/BURN_PROTOCOL_AUTONOMOUS_SOURCE_HARVEST.md"),
+              *sorted(tools.glob("*.py")),
+              Path("tools/burn-protocol-source-frontier/contracts/e04c3-source-intake.contract.json"),
+              Path("autonomous-source-harvest-tests.log"),
+          ]
+          for source in files:
+              target = root / source
+              target.parent.mkdir(parents=True, exist_ok=True)
+              shutil.copy2(source, target)
+          head = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+          receipt = {
+              "format": "burn-protocol-autonomous-source-harvest-qualification/1",
+              "status": "pass",
+              "candidate": head,
+              "runner": os.environ.get("RUNNER_OS"),
+              "tests": 20,
+              "authority": {
+                  "humanWorkstationRequired": False,
+                  "parentAdmission": "exact-byte-count-and-sha256-only",
+                  "canonicalInference": "none",
+              },
+          }
+          (root / "QUALIFICATION_RECEIPT.json").write_text(
+              json.dumps(receipt, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          lines = []
+          for path in sorted(root.rglob("*")):
+              if path.is_file() and path.name != "SHA256SUMS":
+                  digest = hashlib.sha256(path.read_bytes()).hexdigest()
+                  lines.append(f"{digest}  {path.relative_to(root).as_posix()}")
+          (root / "SHA256SUMS").write_text("\n".join(lines) + "\n", encoding="utf-8")
+          PY
+
+      - name: Upload autonomous harvester qualification
+        uses: actions/upload-artifact@v4
+        with:
+          name: burn-protocol-autonomous-source-harvest-qualification-${{ matrix.os }}
+          path: burn-protocol-autonomous-source-harvest-qualification-${{ matrix.os }}
+          if-no-files-found: error
+          retention-days: 30
+          include-hidden-files: true
+
+  harvest:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    name: sweep remote custody and recover E04C3 when present
+    runs-on: ubuntu-24.04
+    env:
+      HARVEST_REPOSITORIES: ${{ inputs.repositories || 'BigBirdReturns/axm-arc,BigBirdReturns/axm-world' }}
+      HARVEST_ARTIFACTS: ${{ inputs.artifacts || '' }}
+      HARVEST_RELEASE_ASSETS: ${{ inputs.release_assets || '' }}
+      HARVEST_MAX_REMOTE_ITEMS: ${{ inputs.max_remote_items || '100' }}
+      HARVEST_REQUIRE_SOURCE: ${{ inputs.require_source && 'true' || 'false' }}
+      GITHUB_TOKEN: ${{ secrets.BURN_SOURCE_TOKEN || github.token }}
+    steps:
+      - name: Check out landed harvester
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Sweep Actions artifacts and release assets
+        id: harvest
+        shell: bash
+        run: |
+          set -uo pipefail
+          args=(
+            --output burn-protocol-source-harvest
+            --max-remote-items "$HARVEST_MAX_REMOTE_ITEMS"
+          )
+          IFS=',' read -ra repositories <<< "$HARVEST_REPOSITORIES"
+          for raw in "${repositories[@]}"; do
+            repository="$(printf '%s' "$raw" | xargs)"
+            if [ -n "$repository" ]; then args+=(--repository "$repository"); fi
+          done
+          IFS=',' read -ra artifacts <<< "$HARVEST_ARTIFACTS"
+          for raw in "${artifacts[@]}"; do
+            artifact="$(printf '%s' "$raw" | xargs)"
+            if [ -n "$artifact" ]; then args+=(--artifact "$artifact"); fi
+          done
+          IFS=',' read -ra release_assets <<< "$HARVEST_RELEASE_ASSETS"
+          for raw in "${release_assets[@]}"; do
+            asset="$(printf '%s' "$raw" | xargs)"
+            if [ -n "$asset" ]; then args+=(--release-asset "$asset"); fi
+          done
+          if [ "$HARVEST_REQUIRE_SOURCE" = "true" ]; then args+=(--require-source); fi
+
+          set +e
+          python tools/burn-protocol-source-frontier/harvest.py "${args[@]}" \
+            2>&1 | tee autonomous-source-harvest.log
+          code=${PIPESTATUS[0]}
+          set -e
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+
+          if [ ! -d burn-protocol-source-harvest ]; then
+            mkdir -p burn-protocol-source-harvest
+            python - "$code" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+          Path("burn-protocol-source-harvest/HARVEST_RECEIPT.json").write_text(
+              json.dumps({
+                  "format": "burn-protocol-autonomous-source-harvest/1",
+                  "status": "harvest-error",
+                  "exitCode": int(sys.argv[1]),
+              }, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+          fi
+          cp autonomous-source-harvest.log burn-protocol-source-harvest/
+          python - <<'PY'
+          import hashlib
+          from pathlib import Path
+          root = Path("burn-protocol-source-harvest")
+          lines = []
+          for path in sorted(root.rglob("*")):
+              if path.is_file() and path.name != "SHA256SUMS":
+                  lines.append(
+                      f"{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.relative_to(root).as_posix()}"
+                  )
+          (root / "SHA256SUMS").write_text("\n".join(lines) + "\n", encoding="utf-8")
+          PY
+
+      - name: Upload harvest audit and verified packets
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: burn-protocol-autonomous-source-harvest
+          path: burn-protocol-source-harvest
+          if-no-files-found: error
+          retention-days: 30
+          include-hidden-files: true
+
+      - name: Preserve custody failure semantics
+        if: always()
+        shell: bash
+        env:
+          HARVEST_EXIT_CODE: ${{ steps.harvest.outputs.exit_code }}
+        run: |
+          case "${HARVEST_EXIT_CODE:-2}" in
+            0|3) exit 0 ;;
+            4)
+              if [ "$HARVEST_REQUIRE_SOURCE" = "true" ]; then exit 4; fi
+              exit 0
+              ;;
+            *) exit "${HARVEST_EXIT_CODE:-2}" ;;
+          esac

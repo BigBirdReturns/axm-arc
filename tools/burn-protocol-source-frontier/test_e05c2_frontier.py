@@ -6,17 +6,16 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parent
+REPO = ROOT.parent.parent
 CONTRACT = ROOT / "contracts" / "e05c2-source-intake.contract.json"
-WORKFLOW = (
-    ROOT.parent.parent
-    / ".github"
-    / "workflows"
-    / "burn-protocol-e05c2-source-harvest.yml"
+RETIRED_WORKFLOW = (
+    REPO / ".github" / "workflows" / "burn-protocol-e05c2-source-harvest.yml"
 )
+ACTIVE = ROOT / "active-frontier.json"
 
 
-class Episode5Chapter2FrontierTest(unittest.TestCase):
-    def test_contract_is_exactly_bound_to_e05c2(self) -> None:
+class Episode5Chapter2FrontierCompatibilityTest(unittest.TestCase):
+    def test_historical_contract_remains_exactly_bound_to_e05c2(self) -> None:
         contract = json.loads(CONTRACT.read_text(encoding="utf-8"))
         self.assertEqual(
             contract["format"],
@@ -45,14 +44,16 @@ class Episode5Chapter2FrontierTest(unittest.TestCase):
         )
         self.assertFalse(contract["evidenceBoundary"]["exactBytesOrHashesClaimed"])
 
-    def test_workflow_uses_the_e05c2_contract_without_workstation_action(self) -> None:
-        workflow = WORKFLOW.read_text(encoding="utf-8")
-        self.assertIn("e05c2-source-intake.contract.json", workflow)
-        self.assertIn("E05-C2-P21", workflow)
-        self.assertIn("workstation action         none", workflow)
-        self.assertIn('cron: "37 */12 * * *"', workflow)
-        self.assertNotIn("e05c1-source-intake.contract.json", workflow)
+    def test_landed_chapter_two_workflow_is_retired_from_execution(self) -> None:
+        active = json.loads(ACTIVE.read_text(encoding="utf-8"))
+        self.assertEqual(active["acceptedThrough"], "E05-C2-P40")
+        self.assertEqual(active["frontier"], "E05-C3-P41")
+        self.assertFalse(RETIRED_WORKFLOW.exists())
+        self.assertIn(
+            RETIRED_WORKFLOW.relative_to(REPO).as_posix(),
+            active["supersededWorkflowPaths"],
+        )
 
 
 if __name__ == "__main__":
-    unittest.main()
+    unittest.main(verbosity=2)

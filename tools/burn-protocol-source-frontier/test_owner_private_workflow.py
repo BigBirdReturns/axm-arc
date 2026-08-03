@@ -1,15 +1,19 @@
 from __future__ import annotations
 
+import json
 import unittest
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-WORKFLOW = HERE.parents[1] / ".github" / "workflows" / "burn-protocol-owner-private-source-harvest.yml"
-DOC = HERE.parents[1] / "docs" / "BURN_PROTOCOL_OWNER_PRIVATE_SOURCE_HARVEST.md"
+REPO = HERE.parent.parent
+WORKFLOW = REPO / ".github" / "workflows" / "burn-protocol-e05c3-source-harvest.yml"
+DOC = REPO / "docs" / "BURN_PROTOCOL_OWNER_PRIVATE_SOURCE_HARVEST.md"
+AUTONOMOUS_DOC = REPO / "docs" / "BURN_PROTOCOL_AUTONOMOUS_SOURCE_HARVEST.md"
+ACTIVE = HERE / "active-frontier.json"
 
 
 class BurnOwnerPrivateWorkflowTests(unittest.TestCase):
-    def test_workflow_unions_public_owner_and_private_best_effort_custody(self) -> None:
+    def test_active_workflow_preserves_public_owner_and_private_best_effort_custody(self) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")
         for expected in (
             "BigBirdReturns/axm-arc",
@@ -25,28 +29,26 @@ class BurnOwnerPrivateWorkflowTests(unittest.TestCase):
             "--optional-repository",
             "optional discovery errors",
             "workstation action         none",
-            "approved_packet_set_sha256s:",
-            "BURN_APPROVED_PACKET_SET_SHA256S",
+            "BURN_APPROVED_E05C3_PACKET_SET_SHA256S",
             '--approved-packet-set-sha256 "$digest"',
-            "packet-set candidates",
-            "found packet set",
         ):
             self.assertIn(expected, workflow)
         self.assertIn("default: BigBirdReturns", workflow)
-        self.assertIn("burn-protocol-owner-private-source-harvest", workflow)
 
-    def test_document_preserves_exact_parent_and_e05c1_frontier(self) -> None:
-        document = DOC.read_text(encoding="utf-8")
-        self.assertIn("E04-C3-P60 → E05-C1-P01", document)
-        self.assertIn("641,627,846 bytes", document)
-        self.assertIn(
-            "f67dcd2c632720566e38b04c0a6b844188de24c967a77a4be31978a5ff82349a",
-            document,
-        )
-        self.assertIn("A transport or owner-resolution failure can never appear as source absence.", document)
-        self.assertIn("packet-set-approval-required", document)
-        self.assertIn("BURN_APPROVED_PACKET_SET_SHA256S", document)
-        self.assertIn("does not promote a packet set using a digest learned from the same candidate", document)
+    def test_documents_preserve_parent_law_and_record_supersession(self) -> None:
+        owner = DOC.read_text(encoding="utf-8")
+        autonomous = AUTONOMOUS_DOC.read_text(encoding="utf-8")
+        active = json.loads(ACTIVE.read_text(encoding="utf-8"))
+        for document in (owner, autonomous):
+            self.assertIn("E05-C3-P41", document)
+            self.assertIn("641,627,846 bytes", document)
+            self.assertIn(
+                "f67dcd2c632720566e38b04c0a6b844188de24c967a77a4be31978a5ff82349a",
+                document,
+            )
+            self.assertIn("retired", document)
+        self.assertIn("A transport or owner-resolution failure can never appear as source absence.", owner)
+        self.assertEqual(len(active["supersededWorkflowPaths"]), 3)
 
 
 if __name__ == "__main__":

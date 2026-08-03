@@ -1,76 +1,32 @@
-# The Burn Protocol Episode 5 Chapter 2 source frontier
+# The Burn Protocol Episode 5 Chapter 2 source frontier — landed history
 
-## Current accepted extent
-
-The landed Arc and World receiver are qualified through:
+This frontier transaction established repository-owned intake at `E05-C2-P21`. The source-ledger chapter subsequently landed through Arc PR #227 as:
 
 ```text
 Episode 5: Nursery World
-Chapter 1: The Song
-E05-C1-P01 through E05-C1-P20
+Chapter 2: The Mother
+E05-C2-P21 through E05-C2-P40
+next outside continuation E05-C3-P41
 ```
 
-The exact next canonical position is:
+The historical E05C2 recovery contract remains in Git for reproducibility and compatibility verification:
 
 ```text
-E05-C2-P21
+tools/burn-protocol-source-frontier/contracts/e05c2-source-intake.contract.json
 ```
 
-No Chapter 2 title, terminal panel, plate count, canonical text, plate composition, source byte, or media byte is authorized by this transaction.
-
-## Repository-owned intake
-
-The workflow `.github/workflows/burn-protocol-e05c2-source-harvest.yml` performs a scheduled, push-triggered, and dispatchable custody search without requiring a user workstation. It resolves the bounded public repository estate for `BigBirdReturns`, attempts the configured best-effort private repositories, and delegates every selected object to the existing fail-closed recovery and packet-set verification tools.
-
-The exact parent authority remains:
+Its former production workflow is retired:
 
 ```text
-Star_Trek_Discovery_The_Burn_Protocol_Web_Series_v0.62.0.zip
-641,627,846 bytes
-sha256:f67dcd2c632720566e38b04c0a6b844188de24c967a77a4be31978a5ff82349a
+retired  .github/workflows/burn-protocol-e05c2-source-harvest.yml
 ```
 
-An independently approved packet-set SHA-256 may provide transport standing under the already landed packet-set law. Internal consistency, artifact names, repository names, URLs, and candidate filenames cannot self-approve source.
-
-## E05C2 evidence family
-
-The contract requires exact parent-manifest receipts for the Episode 5 canonical and compiled objects together with the Chapter 2 family:
+The sole active source frontier is now recorded in:
 
 ```text
-source/episodes/episode-05.json
-site/data/episode-05.json
-source/art/A05C2/chapter.json
-source/art/A05C2/lettering.json
-source/art/A05C2/panel-art.json
-source/art/A05C2/provenance.json
-manifests/a05c2-recovery.json
-manifests/a05c2-scroll-plates.json
-site/assets/art/A05C2/panels/E05-C2-P21.webp
-site/assets/art/A05C2/plates/A05C2-plate-01.webp
+tools/burn-protocol-source-frontier/active-frontier.json
 ```
 
-The Episode 5 script remains required through the manifest-selected `canonical-script-render` classification. Its filename is not inferred from Chapter 1 or narrative summaries.
+and documented by `docs/BURN_PROTOCOL_EPISODE_5_CHAPTER_3_FRONTIER.md`. The E05C2 contract and prior sweep receipts remain evidence of the earlier custody boundary; they have no current schedule, push trigger, dispatch surface, or issue-publishing authority.
 
-## Result law
-
-```text
-verified-frontier-evidence
-  exact parent admitted and every required E05C2 evidence class is present
-
-verified-frontier-packet-set
-  independently approved packet set passed complete byte verification
-
-source-required or source-required-packet-set
-  exact custody is genuine but the required E05C2 evidence family is incomplete
-
-packet-set-approval-required
-  internally exact packet family was found without an independent approval pin
-
-source-not-found
-  required public scope was completely enumerated and inspected with no exact parent or approved packet family
-
-harvest-error
-  owner resolution, required discovery, transport, nested inspection, or verification was incomplete
-```
-
-No result authorizes a `burn-protocol/1` amendment by itself. The next content transaction remains separately reviewed source-ledger construction, deterministic Arc publication, and receipt through the unchanged World `SequenceHost`.
+The original authority law remains unchanged. Only the exact 641,627,846-byte parent with SHA-256 `f67dcd2c632720566e38b04c0a6b844188de24c967a77a4be31978a5ff82349a`, or an independently approved packet set verified against the named contract, could grant custody standing. Neither the historical sweep nor the later source-ledger amendment reconstructed canonical text or plate mappings.

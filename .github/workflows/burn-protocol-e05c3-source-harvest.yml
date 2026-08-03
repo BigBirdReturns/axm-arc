@@ -1,4 +1,4 @@
-name: Burn Protocol Episode 5 Chapter 2 source frontier
+name: Burn Protocol active source frontier — Episode 5 Chapter 3
 
 on:
   schedule:
@@ -20,8 +20,18 @@ on:
         required: false
         default: BigBirdReturns/axm-chat,BigBirdReturns/spectra-genesis,BigBirdReturns/axm-bloodstream,BigBirdReturns/chatgpt-web
         type: string
+      artifacts:
+        description: Optional comma-separated explicit Actions artifacts in owner/repo:id form.
+        required: false
+        default: ""
+        type: string
+      release_assets:
+        description: Optional comma-separated explicit release assets in owner/repo:id form.
+        required: false
+        default: ""
+        type: string
       approved_packet_set_sha256s:
-        description: Optional comma-separated independently approved E05C2 packet-set SHA-256 identities.
+        description: Optional comma-separated independently approved E05C3 packet-set SHA-256 identities.
         required: false
         default: ""
         type: string
@@ -36,25 +46,27 @@ on:
         default: "100"
         type: string
       require_source:
-        description: Fail after retaining the audit receipt when E05C2 source remains absent.
+        description: Fail after retaining the audit receipt when E05C3 source remains absent.
         required: false
         default: false
         type: boolean
   pull_request:
     paths:
-      - ".github/workflows/burn-protocol-e05c2-source-harvest.yml"
-      - "docs/BURN_PROTOCOL_EPISODE_5_CHAPTER_2_FRONTIER.md"
-      - "tools/burn-protocol-source-frontier/contracts/e05c2-source-intake.contract.json"
-      - "tools/burn-protocol-source-frontier/test_e05c2_frontier.py"
+      - ".github/workflows/burn-protocol-e05c3-source-harvest.yml"
+      - "docs/BURN_PROTOCOL_EPISODE_5_CHAPTER_3_FRONTIER.md"
+      - "tools/burn-protocol-source-frontier/active-frontier.json"
+      - "tools/burn-protocol-source-frontier/contracts/e05c3-source-intake.contract.json"
+      - "tools/burn-protocol-source-frontier/test_e05c3_frontier.py"
       - "tools/burn-protocol-source-frontier/**"
   push:
     branches:
       - main
     paths:
-      - ".github/workflows/burn-protocol-e05c2-source-harvest.yml"
-      - "docs/BURN_PROTOCOL_EPISODE_5_CHAPTER_2_FRONTIER.md"
-      - "tools/burn-protocol-source-frontier/contracts/e05c2-source-intake.contract.json"
-      - "tools/burn-protocol-source-frontier/test_e05c2_frontier.py"
+      - ".github/workflows/burn-protocol-e05c3-source-harvest.yml"
+      - "docs/BURN_PROTOCOL_EPISODE_5_CHAPTER_3_FRONTIER.md"
+      - "tools/burn-protocol-source-frontier/active-frontier.json"
+      - "tools/burn-protocol-source-frontier/contracts/e05c3-source-intake.contract.json"
+      - "tools/burn-protocol-source-frontier/test_e05c3_frontier.py"
       - "tools/burn-protocol-source-frontier/**"
 
 permissions:
@@ -63,13 +75,13 @@ permissions:
   issues: write
 
 concurrency:
-  group: burn-protocol-e05c2-source-harvest-${{ github.event.pull_request.number || github.ref }}
+  group: burn-protocol-active-source-frontier-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
   qualify:
     if: github.event_name == 'pull_request' || github.event_name == 'push'
-    name: E05C2 source-frontier qualification (${{ matrix.os }})
+    name: E05C3 source-frontier qualification (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -93,18 +105,20 @@ jobs:
         shell: bash
         run: python -m compileall -q tools/burn-protocol-source-frontier
 
-      - name: Exercise E05C2 contract and workflow law
+      - name: Exercise E05C3 contract and workflow law
         shell: bash
         run: |
           set -euo pipefail
           python -m unittest \
-            tools/burn-protocol-source-frontier/test_e05c2_frontier.py \
-            -v 2>&1 | tee e05c2-source-frontier-tests.log
+            tools/burn-protocol-source-frontier/test_e05c3_frontier.py \
+            tools/burn-protocol-source-frontier/test_harvest_workflow.py \
+            tools/burn-protocol-source-frontier/test_owner_private_workflow.py \
+            -v 2>&1 | tee e05c3-source-frontier-tests.log
 
       - name: Retain exact qualification receipt
         shell: bash
         env:
-          QUALIFICATION_ROOT: burn-protocol-e05c2-source-frontier-qualification-${{ matrix.os }}
+          QUALIFICATION_ROOT: burn-protocol-e05c3-source-frontier-qualification-${{ matrix.os }}
           QUALIFICATION_OS: ${{ matrix.os }}
         run: |
           set -euo pipefail
@@ -119,30 +133,51 @@ jobs:
 
           root = Path(os.environ["QUALIFICATION_ROOT"])
           root.mkdir(parents=True, exist_ok=True)
+          active_path = Path("tools/burn-protocol-source-frontier/active-frontier.json")
+          active = json.loads(active_path.read_text(encoding="utf-8"))
+          contract_path = Path(active["contractPath"])
+          contract = json.loads(contract_path.read_text(encoding="utf-8"))
+          if active["frontier"] != contract["evidenceBoundary"]["continuationPanelId"]:
+              raise SystemExit("active frontier does not match its recovery contract")
+          if active["workflowPath"] != ".github/workflows/burn-protocol-e05c3-source-harvest.yml":
+              raise SystemExit("active frontier does not name this workflow")
+
           files = [
-              Path(".github/workflows/burn-protocol-e05c2-source-harvest.yml"),
+              Path(active["workflowPath"]),
+              active_path,
+              contract_path,
+              Path("docs/BURN_PROTOCOL_EPISODE_5_CHAPTER_3_FRONTIER.md"),
               Path("docs/BURN_PROTOCOL_EPISODE_5_CHAPTER_2_FRONTIER.md"),
-              Path("tools/burn-protocol-source-frontier/contracts/e05c2-source-intake.contract.json"),
-              Path("tools/burn-protocol-source-frontier/test_e05c2_frontier.py"),
-              Path("e05c2-source-frontier-tests.log"),
+              Path("docs/BURN_PROTOCOL_AUTONOMOUS_SOURCE_HARVEST.md"),
+              Path("docs/BURN_PROTOCOL_OWNER_PRIVATE_SOURCE_HARVEST.md"),
+              Path("docs/BURN_PROTOCOL_SOURCE_FRONTIER_RECOVERY.md"),
+              Path("tools/burn-protocol-source-frontier/test_e05c3_frontier.py"),
+              Path("tools/burn-protocol-source-frontier/test_harvest_workflow.py"),
+              Path("tools/burn-protocol-source-frontier/test_owner_private_workflow.py"),
+              Path("e05c3-source-frontier-tests.log"),
           ]
           for source in files:
               target = root / source
               target.parent.mkdir(parents=True, exist_ok=True)
               shutil.copy2(source, target)
 
-          log = Path("e05c2-source-frontier-tests.log").read_text(encoding="utf-8")
+          log = Path("e05c3-source-frontier-tests.log").read_text(encoding="utf-8")
           match = re.search(r"Ran (\d+) tests? in", log)
           if match is None or "OK" not in log:
               raise SystemExit("qualification log does not contain a complete passing receipt")
 
           receipt = {
-              "format": "burn-protocol-e05c2-source-frontier-qualification/1",
+              "format": "burn-protocol-e05c3-source-frontier-qualification/1",
               "status": "pass",
               "candidate": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
               "runner": os.environ["QUALIFICATION_OS"],
               "tests": int(match.group(1)),
-              "frontier": "E05-C2-P21",
+              "frontier": active["frontier"],
+              "activeFrontier": {
+                  "path": active_path.as_posix(),
+                  "contractPath": contract_path.as_posix(),
+                  "workflowPath": active["workflowPath"],
+              },
               "authority": {
                   "humanWorkstationRequired": False,
                   "parentAdmission": "exact-byte-count-and-sha256-only",
@@ -163,24 +198,26 @@ jobs:
           (root / "SHA256SUMS").write_text("\n".join(lines) + "\n", encoding="utf-8")
           PY
 
-      - name: Upload E05C2 source-frontier qualification
+      - name: Upload E05C3 source-frontier qualification
         uses: actions/upload-artifact@v4
         with:
-          name: burn-protocol-e05c2-source-frontier-qualification-${{ matrix.os }}
-          path: burn-protocol-e05c2-source-frontier-qualification-${{ matrix.os }}
+          name: burn-protocol-e05c3-source-frontier-qualification-${{ matrix.os }}
+          path: burn-protocol-e05c3-source-frontier-qualification-${{ matrix.os }}
           if-no-files-found: error
           retention-days: 30
           include-hidden-files: true
 
   harvest:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'push'
-    name: resolve public and private custody, then recover E05C2
+    name: resolve public and private custody, then recover E05C3
     runs-on: ubuntu-24.04
     env:
       HARVEST_REPOSITORIES: ${{ inputs.repositories || vars.BURN_SOURCE_REPOSITORIES || 'BigBirdReturns/axm-arc,BigBirdReturns/axm-world' }}
       HARVEST_OWNERS: ${{ inputs.owners || vars.BURN_SOURCE_OWNERS || 'BigBirdReturns' }}
       HARVEST_OPTIONAL_REPOSITORIES: ${{ inputs.optional_repositories || vars.BURN_SOURCE_OPTIONAL_REPOSITORIES || 'BigBirdReturns/axm-chat,BigBirdReturns/spectra-genesis,BigBirdReturns/axm-bloodstream,BigBirdReturns/chatgpt-web' }}
-      HARVEST_APPROVED_PACKET_SET_SHA256S: ${{ inputs.approved_packet_set_sha256s || vars.BURN_APPROVED_E05C2_PACKET_SET_SHA256S || '' }}
+      HARVEST_ARTIFACTS: ${{ inputs.artifacts || '' }}
+      HARVEST_RELEASE_ASSETS: ${{ inputs.release_assets || '' }}
+      HARVEST_APPROVED_PACKET_SET_SHA256S: ${{ inputs.approved_packet_set_sha256s || vars.BURN_APPROVED_E05C3_PACKET_SET_SHA256S || '' }}
       HARVEST_MAX_OWNER_REPOSITORIES: ${{ inputs.max_owner_repositories || '100' }}
       HARVEST_MAX_REMOTE_ITEMS: ${{ inputs.max_remote_items || '100' }}
       HARVEST_REQUIRE_SOURCE: ${{ inputs.require_source && 'true' || 'false' }}
@@ -194,13 +231,13 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Resolve owner scope and sweep E05C2 custody
+      - name: Resolve owner scope and sweep E05C3 custody
         id: harvest
         shell: bash
         run: |
           set -uo pipefail
           scope_args=(
-            --output burn-e05c2-owner-scope.json
+            --output burn-e05c3-owner-scope.json
             --max-owner-repositories "$HARVEST_MAX_OWNER_REPOSITORIES"
           )
           IFS=',' read -ra owners <<< "$HARVEST_OWNERS"
@@ -214,35 +251,45 @@ jobs:
             if [ -n "$repository" ]; then scope_args+=(--repository "$repository"); fi
           done
 
-          mkdir -p burn-protocol-e05c2-source-harvest
+          mkdir -p burn-protocol-e05c3-source-harvest
           set +e
           python tools/burn-protocol-source-frontier/resolve_owner_scope.py "${scope_args[@]}" \
-            2>&1 | tee e05c2-owner-scope.log
+            2>&1 | tee e05c3-owner-scope.log
           scope_code=${PIPESTATUS[0]}
           set -e
 
           code=2
           if [ "$scope_code" -eq 0 ]; then
-            python - <<'PY' > e05c2-required-repositories.txt
+            python - <<'PY' > e05c3-required-repositories.txt
           import json
           from pathlib import Path
-          scope = json.loads(Path("burn-e05c2-owner-scope.json").read_text(encoding="utf-8"))
+          scope = json.loads(Path("burn-e05c3-owner-scope.json").read_text(encoding="utf-8"))
           for repository in scope["repositories"]:
               print(repository)
           PY
 
             args=(
-              --output burn-protocol-e05c2-source-harvest
-              --contract tools/burn-protocol-source-frontier/contracts/e05c2-source-intake.contract.json
+              --output burn-protocol-e05c3-source-harvest
+              --contract tools/burn-protocol-source-frontier/contracts/e05c3-source-intake.contract.json
               --max-remote-items "$HARVEST_MAX_REMOTE_ITEMS"
             )
             while IFS= read -r repository; do
               if [ -n "$repository" ]; then args+=(--repository "$repository"); fi
-            done < e05c2-required-repositories.txt
+            done < e05c3-required-repositories.txt
             IFS=',' read -ra optional_repositories <<< "$HARVEST_OPTIONAL_REPOSITORIES"
             for raw in "${optional_repositories[@]}"; do
               repository="$(printf '%s' "$raw" | xargs)"
               if [ -n "$repository" ]; then args+=(--optional-repository "$repository"); fi
+            done
+            IFS=',' read -ra artifacts <<< "$HARVEST_ARTIFACTS"
+            for raw in "${artifacts[@]}"; do
+              artifact="$(printf '%s' "$raw" | xargs)"
+              if [ -n "$artifact" ]; then args+=(--artifact "$artifact"); fi
+            done
+            IFS=',' read -ra release_assets <<< "$HARVEST_RELEASE_ASSETS"
+            for raw in "${release_assets[@]}"; do
+              asset="$(printf '%s' "$raw" | xargs)"
+              if [ -n "$asset" ]; then args+=(--release-asset "$asset"); fi
             done
             IFS=',' read -ra packet_sets <<< "$HARVEST_APPROVED_PACKET_SET_SHA256S"
             for raw in "${packet_sets[@]}"; do
@@ -251,23 +298,23 @@ jobs:
             done
             if [ "$HARVEST_REQUIRE_SOURCE" = "true" ]; then args+=(--require-source); fi
 
-            rmdir burn-protocol-e05c2-source-harvest
+            rmdir burn-protocol-e05c3-source-harvest
             set +e
             python tools/burn-protocol-source-frontier/harvest.py "${args[@]}" \
-              2>&1 | tee e05c2-source-harvest.log
+              2>&1 | tee e05c3-source-harvest.log
             code=${PIPESTATUS[0]}
             set -e
           fi
 
-          if [ ! -d burn-protocol-e05c2-source-harvest ]; then
-            mkdir -p burn-protocol-e05c2-source-harvest
+          if [ ! -d burn-protocol-e05c3-source-harvest ]; then
+            mkdir -p burn-protocol-e05c3-source-harvest
           fi
           python - "$code" "$scope_code" <<'PY'
           import json
           import sys
           from pathlib import Path
 
-          root = Path("burn-protocol-e05c2-source-harvest")
+          root = Path("burn-protocol-e05c3-source-harvest")
           receipt_path = root / "HARVEST_RECEIPT.json"
           try:
               receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
@@ -277,7 +324,16 @@ jobs:
                   "status": "harvest-error",
                   "exitCode": int(sys.argv[1]),
               }
-          receipt["frontier"] = "E05-C2-P21"
+          active = json.loads(
+              Path("tools/burn-protocol-source-frontier/active-frontier.json")
+              .read_text(encoding="utf-8")
+          )
+          receipt["frontier"] = active["frontier"]
+          receipt["activeFrontier"] = {
+              "format": active["format"],
+              "contractPath": active["contractPath"],
+              "workflowPath": active["workflowPath"],
+          }
           receipt["scopeResolution"] = {
               "status": "pass" if int(sys.argv[2]) == 0 else "failed",
               "exitCode": int(sys.argv[2]),
@@ -294,17 +350,17 @@ jobs:
           )
           PY
 
-          cp e05c2-owner-scope.log burn-protocol-e05c2-source-harvest/
-          if [ -f burn-e05c2-owner-scope.json ]; then
-            cp burn-e05c2-owner-scope.json burn-protocol-e05c2-source-harvest/
+          cp e05c3-owner-scope.log burn-protocol-e05c3-source-harvest/
+          if [ -f burn-e05c3-owner-scope.json ]; then
+            cp burn-e05c3-owner-scope.json burn-protocol-e05c3-source-harvest/
           fi
-          if [ -f e05c2-source-harvest.log ]; then
-            cp e05c2-source-harvest.log burn-protocol-e05c2-source-harvest/
+          if [ -f e05c3-source-harvest.log ]; then
+            cp e05c3-source-harvest.log burn-protocol-e05c3-source-harvest/
           fi
           python - <<'PY'
           import hashlib
           from pathlib import Path
-          root = Path("burn-protocol-e05c2-source-harvest")
+          root = Path("burn-protocol-e05c3-source-harvest")
           lines = []
           for path in sorted(root.rglob("*")):
               if path.is_file() and path.name != "SHA256SUMS":
@@ -315,18 +371,18 @@ jobs:
           PY
           echo "exit_code=$code" >> "$GITHUB_OUTPUT"
 
-      - name: Upload authoritative E05C2 custody audit
+      - name: Upload authoritative E05C3 custody audit
         id: upload-harvest
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: burn-protocol-e05c2-source-harvest
-          path: burn-protocol-e05c2-source-harvest
+          name: burn-protocol-e05c3-source-harvest
+          path: burn-protocol-e05c3-source-harvest
           if-no-files-found: error
           retention-days: 30
           include-hidden-files: true
 
-      - name: Publish E05C2 audit ledger
+      - name: Publish E05C3 audit ledger
         if: always()
         shell: bash
         env:
@@ -343,13 +399,13 @@ jobs:
           from pathlib import Path
 
           receipt = json.loads(
-              Path("burn-protocol-e05c2-source-harvest/HARVEST_RECEIPT.json")
+              Path("burn-protocol-e05c3-source-harvest/HARVEST_RECEIPT.json")
               .read_text(encoding="utf-8")
           )
           summary = receipt.get("summary") if isinstance(receipt.get("summary"), dict) else {}
           status = str(receipt.get("status") or "harvest-error")
           body = "\n".join([
-              f"## Episode 5 Chapter 2 Burn source sweep · `{status}`",
+              f"## Episode 5 Chapter 3 Burn source sweep · `{status}`",
               "",
               "```text",
               f"run ID                     {os.environ['GITHUB_RUN_ID']}",
@@ -368,7 +424,7 @@ jobs:
               f"found packet set           {receipt.get('foundPacketSetSha256') or 'none'}",
               f"artifact ID                {os.environ.get('HARVEST_ARTIFACT_ID') or 'unavailable'}",
               f"artifact digest            {os.environ.get('HARVEST_ARTIFACT_DIGEST') or 'unavailable'}",
-              "frontier                   E05-C2-P21",
+              f"frontier                   {receipt.get('frontier') or 'unavailable'}",
               "workstation action         none",
               "```",
               "",
@@ -385,7 +441,7 @@ jobs:
                   "Accept": "application/vnd.github+json",
                   "Authorization": f"Bearer {os.environ['GH_TOKEN']}",
                   "Content-Type": "application/json",
-                  "User-Agent": "burn-protocol-e05c2-source-harvester/1",
+                  "User-Agent": "burn-protocol-e05c3-source-harvester/1",
                   "X-GitHub-Api-Version": "2022-11-28",
               },
           )

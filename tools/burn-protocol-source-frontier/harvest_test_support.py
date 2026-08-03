@@ -56,7 +56,16 @@ class FixtureApiHandler(BaseHTTPRequestHandler):
         self.wfile.write(value)
 
     def do_GET(self) -> None:
-        if self.path.startswith("/repos/fixture/repo/actions/artifacts?"):
+        if self.path.startswith("/users/fixture/repos?"):
+            self._json([
+                {"full_name": "fixture/decoy", "archived": False},
+                {"full_name": "fixture/repo", "archived": False},
+            ])
+        elif self.path.startswith("/repos/fixture/decoy/actions/artifacts?"):
+            self._json({"artifacts": []})
+        elif self.path.startswith("/repos/fixture/decoy/releases?"):
+            self._json([])
+        elif self.path.startswith("/repos/fixture/repo/actions/artifacts?"):
             self._json({
                 "artifacts": [{
                     "id": 42,

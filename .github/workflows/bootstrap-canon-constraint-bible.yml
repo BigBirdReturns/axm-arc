@@ -7,6 +7,12 @@ on:
     paths:
       - tools/canon-stage.b64.part-*
       - .github/workflows/bootstrap-canon-constraint-bible.yml
+  pull_request:
+    branches:
+      - qualify/narrative-rails-baseline-v1
+    paths:
+      - tools/canon-stage.b64.part-*
+      - .github/workflows/bootstrap-canon-constraint-bible.yml
 
 permissions:
   contents: write
@@ -17,6 +23,7 @@ concurrency:
 
 jobs:
   materialize:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:

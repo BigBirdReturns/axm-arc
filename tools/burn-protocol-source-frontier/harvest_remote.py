@@ -29,6 +29,28 @@ def page_items(api: GitHubApi, path: str, key: str, maximum: int) -> Iterator[di
         page += 1
 
 
+def discover_owner_repositories(
+    api: GitHubApi,
+    owner: str,
+    maximum: int,
+) -> Iterator[str]:
+    """Enumerate public repositories owned by one GitHub account.
+
+    Repository identity grants discovery scope only. Artifact and release names
+    still pass through the bounded candidate filter, and downloaded bytes still
+    require exact parent admission.
+    """
+    quoted = urllib.parse.quote(owner, safe="")
+    seen: set[str] = set()
+    path = f"/users/{quoted}/repos?type=owner&sort=updated&direction=desc"
+    for repository in page_items(api, path, "repositories", maximum):
+        full_name = repository.get("full_name")
+        if not isinstance(full_name, str) or "/" not in full_name or full_name in seen:
+            continue
+        seen.add(full_name)
+        yield full_name
+
+
 def discover_actions_artifacts(
     api: GitHubApi,
     repository: str,

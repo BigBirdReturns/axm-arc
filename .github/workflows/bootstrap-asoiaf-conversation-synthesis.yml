@@ -1,0 +1,108 @@
+name: Bootstrap ASOIAF conversation synthesis
+
+on:
+  push:
+    branches:
+      - feature/asoiaf-conversation-synthesis-v1
+    paths:
+      - 'tools/asoiaf-conversation-stage.b64.part-*'
+      - '.github/workflows/bootstrap-asoiaf-conversation-synthesis.yml'
+  pull_request:
+    branches:
+      - feature/asoiaf-reconciliation-floor-v1
+    paths:
+      - 'tools/asoiaf-conversation-stage.b64.part-*'
+      - '.github/workflows/bootstrap-asoiaf-conversation-synthesis.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: asoiaf-conversation-synthesis-bootstrap
+  cancel-in-progress: false
+
+jobs:
+  materialize:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out exact conversation branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/asoiaf-conversation-synthesis-v1
+          fetch-depth: 0
+
+      - name: Detect staged payload
+        id: staged
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -f tools/asoiaf-conversation-stage.b64.part-00 ]]; then
+            echo 'present=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'present=false' >> "$GITHUB_OUTPUT"
+            echo 'Conversation synthesis payload already materialized.'
+          fi
+
+      - name: Decode and verify conversation synthesis
+        if: steps.staged.outputs.present == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          parts=(
+            tools/asoiaf-conversation-stage.b64.part-00
+            tools/asoiaf-conversation-stage.b64.part-01
+            tools/asoiaf-conversation-stage.b64.part-02
+            tools/asoiaf-conversation-stage.b64.part-03
+            tools/asoiaf-conversation-stage.b64.part-04
+            tools/asoiaf-conversation-stage.b64.part-05
+            tools/asoiaf-conversation-stage.b64.part-06
+          )
+          expected_sha=(
+            9462b6b4b611d56f22c7a1796fe471ab5ae2eaa9f71fbc1b1dd2da24b6068891
+            9a4860160bf1acf2be4c3b7e435e2d341d89469ff075b3b1c6997026bcdd3e5f
+            dbd9fae953192e7cc0215f30676fdc0c3a6a29c6ea004a9b5ff46bc2232ece5c
+            3b40d0953eae4cde5ff922fde96389125f600cf222e329f585910f4d247c8df9
+            01aabdaaeaa4780a10e681bc6322a20c42c757afb3d73391c15041438cf23eff
+            c320b6711f1dc50dc06e4b1611b63b6aa1165e01a13be5d179ab7357068887c0
+            c7f585a757b04f9469bcf310f786d13a4d4e92dac008135f19f7ac1b41c6c4c5
+          )
+          expected_bytes=(4000 4000 4000 4000 4000 4000 2968)
+          encoded="$RUNNER_TEMP/asoiaf-conversation-synthesis-stage.b64"
+          : > "$encoded"
+          for index in "${!parts[@]}"; do
+            source="${parts[$index]}"
+            normalized="$RUNNER_TEMP/part-$index.normalized"
+            tr -d '\r\n' < "$source" > "$normalized"
+            test "$(wc -c < "$normalized" | tr -d ' ')" = "${expected_bytes[$index]}"
+            test "$(sha256sum "$normalized" | cut -d' ' -f1)" = "${expected_sha[$index]}"
+            cat "$normalized" >> "$encoded"
+          done
+          test "$(wc -c < "$encoded" | tr -d ' ')" = '26968'
+          payload="$RUNNER_TEMP/asoiaf-conversation-synthesis-stage.tar.gz"
+          base64 --decode "$encoded" > "$payload"
+          printf '%s  %s\n' \
+            '4991e74dafd2f7a94f9f4245e3adf5a8d5f5a93ccf0473532e3c23059f9d56dc' \
+            "$payload" \
+            | sha256sum -c -
+          tar -xzf "$payload" -C .
+
+      - name: Replace transport with conversation synthesis estate
+        if: steps.staged.outputs.present == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f tools/asoiaf-conversation-stage.b64.part-*
+          rmdir tools 2>/dev/null || true
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          if git diff --cached --quiet; then
+            echo 'No materialized changes were produced.' >&2
+            exit 1
+          fi
+          git commit -m 'Add ASOIAF conversation synthesis estate'
+          git push origin HEAD:feature/asoiaf-conversation-synthesis-v1

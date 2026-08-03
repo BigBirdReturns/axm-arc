@@ -45,12 +45,18 @@ The Episode 5 script is required through the manifest-selected `canonical-script
 
 `.github/workflows/burn-protocol-autonomous-source-harvest.yml` runs every twelve hours, on qualifying `main` pushes, and through GitHub-native dispatch.
 
-The default sweep covers:
+The default sweep starts with the explicit Arc and World repositories and also enumerates the public repository estate owned by `BigBirdReturns`:
 
 ```text
-BigBirdReturns/axm-arc
-BigBirdReturns/axm-world
+explicit repositories
+  BigBirdReturns/axm-arc
+  BigBirdReturns/axm-world
+
+owner enumeration
+  BigBirdReturns
 ```
+
+Owner enumeration grants discovery scope only. Every artifact or release name still passes through the bounded Burn/source/estate/handoff/frontier candidate filter, every download remains subject to per-candidate and total byte ceilings, and only the exact parent byte count and SHA-256 can grant source standing. A broader repository map therefore increases recall without weakening admission.
 
 For each repository it inspects recent, non-expired GitHub Actions artifacts and GitHub release assets. Candidate names are bounded by a Burn/source/estate/handoff/frontier filter before download. Exact Actions artifact IDs and release asset IDs can also be supplied in `owner/repo:id` form. Downloaded artifacts are searched through bounded nested ZIP layers, so an exact parent inside a landing kit or retained source package can be recovered without restaging it.
 
@@ -107,7 +113,7 @@ harvest-error
 
 A scheduled or landing-push `source-not-found` sweep remains green and auditable. It is not a human action item and does not authorize inferred Episode 5 content. A manually dispatched run can set `require_source=true` to retain the same receipt while making absence a failing control signal.
 
-Each sweep also posts an addressable summary to GitHub issue #212 with the run ID, exact candidate SHA, trigger, status, candidate and byte counts, artifact ID, artifact URL, artifact digest, and current frontier. The uploaded artifact remains the authoritative byte package.
+Each sweep also posts an addressable summary to GitHub issue #212 with the run ID, exact candidate SHA, trigger, status, repository, candidate and byte counts, artifact ID, artifact URL, artifact digest, and current frontier. The uploaded artifact remains the authoritative byte package.
 
 ## Qualification
 
@@ -121,6 +127,7 @@ sub-limit packet splitting
 source-required classification
 manifest, exact-path, and ZIP-path refusal law
 recursive local candidate sweep
+GitHub owner repository enumeration
 GitHub Actions artifact discovery and download
 explicit artifact lookup without listing
 explicit release-asset lookup

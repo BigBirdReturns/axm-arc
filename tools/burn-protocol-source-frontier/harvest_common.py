@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-TOOL_VERSION = "1.0.1"
+TOOL_VERSION = "1.1.0"
 FORMAT = "burn-protocol-autonomous-source-harvest/1"
 DEFAULT_NAME_PATTERN = r"(?i)(burn|protocol|estate|handoff|source|frontier|episode|local-estate)"
 DEFAULT_MAX_CANDIDATE_BYTES = 1_073_741_824

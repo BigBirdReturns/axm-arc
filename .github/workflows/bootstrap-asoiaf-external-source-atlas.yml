@@ -52,14 +52,17 @@ jobs:
         run: |
           set -euo pipefail
           encoded=tools/asoiaf-external-source-atlas-stage.b64
-          test "$(wc -c < "$encoded" | tr -d ' ')" = '115060'
-          test "$(sha256sum "$encoded" | cut -d' ' -f1)" = 'c01cb9921cfcfbfd095c319fc5ceb6dad0f1887f1e34b17da9ca7dc1a349da8b'
+          normalized="$RUNNER_TEMP/asoiaf-external-source-atlas-stage.normalized.b64"
+          tr -d '\r\n' < "$encoded" > "$normalized"
+          test "$(wc -c < "$normalized" | tr -d ' ')" = '115060'
+          test "$(sha256sum "$normalized" | cut -d' ' -f1)" = 'c01cb9921cfcfbfd095c319fc5ceb6dad0f1887f1e34b17da9ca7dc1a349da8b'
           payload="$RUNNER_TEMP/asoiaf-external-source-atlas-stage.tar.gz"
-          base64 --decode "$encoded" > "$payload"
+          base64 --decode "$normalized" > "$payload"
           printf '%s  %s\n' \
             'd1bcb5e09accf3b174c73e1da9e8a7af31e87fc95f65277d616d2b056d24c7bb' \
             "$payload" \
             | sha256sum -c -
+          tar -tzf "$payload" >/dev/null
           tar -xzf "$payload" -C .
 
       - name: Replace transport with source atlas implementation

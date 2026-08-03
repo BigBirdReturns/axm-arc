@@ -6,19 +6,14 @@ on:
   workflow_dispatch:
     inputs:
       repositories:
-        description: Comma-separated repositories whose Actions artifacts and release assets should be swept.
+        description: Comma-separated required repositories whose Actions artifacts and release assets should be swept.
         required: false
-        default: BigBirdReturns/axm-arc,BigBirdReturns/axm-world
+        default: BigBirdReturns/axm-arc,BigBirdReturns/axm-world,BigBirdReturns/axm,BigBirdReturns/axm-core,BigBirdReturns/axm-tools,BigBirdReturns/axm-fleet,BigBirdReturns/axm-console,BigBirdReturns/axm-aide
         type: string
-      owners:
-        description: Comma-separated GitHub accounts whose public repository estates should be enumerated.
+      optional_repositories:
+        description: Comma-separated best-effort repositories; inaccessible discovery is recorded without weakening required-scope absence law.
         required: false
-        default: BigBirdReturns
-        type: string
-      max_owner_repositories:
-        description: Maximum public repositories enumerated per owner.
-        required: false
-        default: "100"
+        default: BigBirdReturns/axm-chat,BigBirdReturns/spectra-genesis,BigBirdReturns/axm-bloodstream,BigBirdReturns/chatgpt-web
         type: string
       artifacts:
         description: Optional comma-separated explicit Actions artifacts in owner/repo:id form.
@@ -177,9 +172,8 @@ jobs:
     name: sweep remote custody and recover E05C1 when present
     runs-on: ubuntu-24.04
     env:
-      HARVEST_REPOSITORIES: ${{ inputs.repositories || 'BigBirdReturns/axm-arc,BigBirdReturns/axm-world' }}
-      HARVEST_OWNERS: ${{ inputs.owners || 'BigBirdReturns' }}
-      HARVEST_MAX_OWNER_REPOSITORIES: ${{ inputs.max_owner_repositories || '100' }}
+      HARVEST_REPOSITORIES: ${{ inputs.repositories || vars.BURN_SOURCE_REPOSITORIES || 'BigBirdReturns/axm-arc,BigBirdReturns/axm-world,BigBirdReturns/axm,BigBirdReturns/axm-core,BigBirdReturns/axm-tools,BigBirdReturns/axm-fleet,BigBirdReturns/axm-console,BigBirdReturns/axm-aide' }}
+      HARVEST_OPTIONAL_REPOSITORIES: ${{ inputs.optional_repositories || vars.BURN_SOURCE_OPTIONAL_REPOSITORIES || 'BigBirdReturns/axm-chat,BigBirdReturns/spectra-genesis,BigBirdReturns/axm-bloodstream,BigBirdReturns/chatgpt-web' }}
       HARVEST_ARTIFACTS: ${{ inputs.artifacts || '' }}
       HARVEST_RELEASE_ASSETS: ${{ inputs.release_assets || '' }}
       HARVEST_MAX_REMOTE_ITEMS: ${{ inputs.max_remote_items || '100' }}
@@ -202,17 +196,16 @@ jobs:
           args=(
             --output burn-protocol-source-harvest
             --max-remote-items "$HARVEST_MAX_REMOTE_ITEMS"
-            --max-owner-repositories "$HARVEST_MAX_OWNER_REPOSITORIES"
           )
-          IFS=',' read -ra owners <<< "$HARVEST_OWNERS"
-          for raw in "${owners[@]}"; do
-            owner="$(printf '%s' "$raw" | xargs)"
-            if [ -n "$owner" ]; then args+=(--owner "$owner"); fi
-          done
           IFS=',' read -ra repositories <<< "$HARVEST_REPOSITORIES"
           for raw in "${repositories[@]}"; do
             repository="$(printf '%s' "$raw" | xargs)"
             if [ -n "$repository" ]; then args+=(--repository "$repository"); fi
+          done
+          IFS=',' read -ra optional_repositories <<< "$HARVEST_OPTIONAL_REPOSITORIES"
+          for raw in "${optional_repositories[@]}"; do
+            repository="$(printf '%s' "$raw" | xargs)"
+            if [ -n "$repository" ]; then args+=(--optional-repository "$repository"); fi
           done
           IFS=',' read -ra artifacts <<< "$HARVEST_ARTIFACTS"
           for raw in "${artifacts[@]}"; do
@@ -303,6 +296,14 @@ jobs:
               }
 
           summary = receipt.get("summary") if isinstance(receipt.get("summary"), dict) else {}
+          required_repositories = (
+              receipt.get("repositories") if isinstance(receipt.get("repositories"), list) else []
+          )
+          optional_repositories = (
+              receipt.get("optionalRepositories")
+              if isinstance(receipt.get("optionalRepositories"), list)
+              else []
+          )
           status = str(receipt.get("status") or "harvest-error")
           found = str(receipt.get("foundIdentity") or "none")
           run_url = (
@@ -321,10 +322,12 @@ jobs:
               f"event                  {os.environ['GITHUB_EVENT_NAME']}",
               f"exact candidate        {os.environ['GITHUB_SHA']}",
               f"exit code              {os.environ.get('HARVEST_EXIT_CODE') or 'unavailable'}",
-              f"checked repositories   {summary.get('repositories', 0)}",
+              f"required repositories  {len(required_repositories)}",
+              f"optional repositories  {len(optional_repositories)}",
               f"checked candidates     {summary.get('candidates', 0)}",
               f"downloaded bytes       {summary.get('downloadedBytes', 0)}",
               f"discovery errors       {summary.get('discoveryErrors', 0)}",
+              f"optional discovery errors {summary.get('optionalDiscoveryErrors', 0)}",
               f"transport failures     {summary.get('transportFailures', 0)}",
               f"found identity         {found}",
               f"artifact ID            {artifact_id}",

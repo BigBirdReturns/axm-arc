@@ -12,6 +12,11 @@ import narrativeFunctions from "./data/narrative-functions.json";
 import adaptationDeltas from "./data/adaptation-deltas.json";
 import endgameCoordinates from "./data/endgame-coordinates.json";
 import smallfolkSystems from "./data/smallfolk-systems.json";
+import conversationDanceFamilyPolitics from "./data/conversation-dance-family-politics.json";
+import conversationVarysFireReligion from "./data/conversation-varys-fire-religion.json";
+import conversationDanceEndpointAdaptation from "./data/conversation-dance-endpoint-adaptation.json";
+import conversationAsoiafEndgame from "./data/conversation-asoiaf-endgame.json";
+import conversationMethod from "./data/conversation-method.json";
 import sourceHints from "./data/source-hints.json";
 
 export const ASOIAF_MODEL_RECALL_PACKETS = [
@@ -26,6 +31,19 @@ export const ASOIAF_MODEL_RECALL_PACKETS = [
   endgameCoordinates,
   smallfolkSystems,
 ] as unknown as CanonRecallPacket[];
+
+export const ASOIAF_CONVERSATION_SYNTHESIS_PACKETS = [
+  conversationDanceFamilyPolitics,
+  conversationVarysFireReligion,
+  conversationDanceEndpointAdaptation,
+  conversationAsoiafEndgame,
+  conversationMethod,
+] as unknown as CanonRecallPacket[];
+
+export const ASOIAF_RECALL_ESTATE_PACKETS = [
+  ...ASOIAF_MODEL_RECALL_PACKETS,
+  ...ASOIAF_CONVERSATION_SYNTHESIS_PACKETS,
+];
 
 export const ASOIAF_RECALL_SOURCE_HINTS =
   sourceHints as CanonRecallSourceHint[];

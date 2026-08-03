@@ -103,5 +103,19 @@
     "id": "HISTORICAL-ANALOGUE",
     "label": "Historical, religious, logistical, and institutional analogue family",
     "standing": "requires-bounded-source"
+  },
+  {
+    "category": "conversation-synthesis",
+    "continuityHint": "analysis",
+    "id": "CHAT-HOTD-VARYS-RHLLOR",
+    "label": "Recent House of the Dragon, Varys, R'hllor, and sacrificial-magic discussion",
+    "standing": "placeholder-only"
+  },
+  {
+    "category": "conversation-synthesis",
+    "continuityHint": "analysis",
+    "id": "CHAT-ASOIAF-ENDGAME-BIBLE",
+    "label": "Recent ASOIAF ending and deterministic adaptation-bible discussion",
+    "standing": "placeholder-only"
   }
 ]

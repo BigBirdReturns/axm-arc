@@ -46,6 +46,7 @@ on:
 permissions:
   actions: read
   contents: read
+  issues: write
 
 concurrency:
   group: burn-protocol-autonomous-source-harvest-${{ github.event.pull_request.number || github.ref }}
@@ -163,7 +164,7 @@ jobs:
       HARVEST_REPOSITORIES: ${{ inputs.repositories || 'BigBirdReturns/axm-arc,BigBirdReturns/axm-world' }}
       HARVEST_ARTIFACTS: ${{ inputs.artifacts || '' }}
       HARVEST_RELEASE_ASSETS: ${{ inputs.release_assets || '' }}
-      HARVEST_MAX_REMOTE_ITEM: ${{ inputs.max_remote_items || '100' }}
+      HARVEST_MAX_REMOTE_ITEMS: ${{ inputs.max_remote_items || '100' }}
       HARVEST_REQUIRE_SOURCE: ${{ inputs.require_source && 'true' || 'false' }}
       GITHUB_TOKEN: ${{ secrets.BURN_SOURCE_TOKEN || github.token }}
     steps:
@@ -239,6 +240,7 @@ jobs:
           PY
 
       - name: Upload harvest audit and verified packets
+        id: upload-harvest
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -247,6 +249,91 @@ jobs:
           if-no-files-found: error
           retention-days: 30
           include-hidden-files: true
+
+      - name: Publish harvest audit ledger
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HARVEST_LEDGER_ISSUE: "212"
+          HARVEST_ARTIFACT_ID: ${{ steps.upload-harvest.outputs.artifact-id }}
+          HARVEST_ARTIFACT_URL: ${{ steps.upload-harvest.outputs.artifact-url }}
+          HARVEST_ARTIFACT_DIGEST: ${{ steps.upload-harvest.outputs.artifact-digest }}
+          HARVEST_EXIT_CODE: ${{ steps.harvest.outputs.exit_code }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import urllib.request
+          from pathlib import Path
+
+          receipt_path = Path("burn-protocol-source-harvest/HARVEST_RECEIPT.json")
+          try:
+              receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+          except (OSError, json.JSONDecodeError) as exc:
+              receipt = {
+                  "status": "harvest-error",
+                  "summary": {},
+                  "receiptError": str(exc),
+              }
+
+          summary = receipt.get("summary") if isinstance(receipt.get("summary"), dict) else {}
+          status = str(receipt.get("status") or "harvest-error")
+          checked = summary.get("candidates", 0)
+          downloaded = summary.get("downloadedBytes", 0)
+          discovery_errors = summary.get("discoveryErrors", 0)
+          found_identity = receipt.get("foundIdentity") or "none"
+          artifact_id = os.environ.get("HARVEST_ARTIFACT_ID") or "unavailable"
+          artifact_url = os.environ.get("HARVEST_ARTIFACT_URL") or "unavailable"
+          artifact_digest = os.environ.get("HARVEST_ARTIFACT_DIGEST") or "unavailable"
+          run_url = (
+              f"{os.environ['GITHUB_SERVER_URL']}/{os.environ['GITHUB_REPOSITORY']}"
+              f"/actions/runs/{os.environ['GITHUB_RUN_ID']}"
+          )
+          body = f"""## Autonomous Burn source sweep · `{status}`
+
+          ```text
+          run ID             {os.environ['GITHUB_RUN_ID']}
+          run attempt        {os.environ.get('GITHUB_RUN_ATTEMPT', '1')}
+          event              {os.environ['GITHUB_EVENT_NAME']}
+          exact candidate    {os.environ['GITHUB_SHA']}
+          exit code          {os.environ.get('HARVEST_EXIT_CODE') or 'unavailable'}
+          checked candidates {checked}
+          downloaded bytes   {downloaded}
+          discovery errors   {discovery_errors}
+          found identity     {found_identity}
+          artifact ID        {artifact_id}
+          artifact digest    {artifact_digest}
+          frontier           E04-C3-P41
+          workstation action none
+          ```
+
+          Run: {run_url}
+
+          Artifact: {artifact_url}
+          """
+          body = "\n".join(line.strip() for line in body.splitlines()).strip() + "\n"
+          payload = json.dumps({"body": body}).encode("utf-8")
+          request = urllib.request.Request(
+              (
+                  f"{os.environ['GITHUB_API_URL'].rstrip('/')}"
+                  f"/repos/{os.environ['GITHUB_REPOSITORY']}"
+                  f"/issues/{os.environ['HARVEST_LEDGER_ISSUE']}/comments"
+              ),
+              data=payload,
+              method="POST",
+              headers={
+                  "Accept": "application/vnd.github+json",
+                  "Authorization": f"Bearer {os.environ['GH_TOKEN']}",
+                  "Content-Type": "application/json",
+                  "User-Agent": "burn-protocol-source-harvester/1",
+                  "X-GitHub-Api-Version": "2022-11-28",
+              },
+          )
+          with urllib.request.urlopen(request, timeout=30) as response:
+              if response.status not in {200, 201}:
+                  raise RuntimeError(f"Unexpected issue-comment status: {response.status}")
+          PY
 
       - name: Preserve custody failure semantics
         if: always()

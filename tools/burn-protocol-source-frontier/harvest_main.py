@@ -28,6 +28,7 @@ from harvest_common import (
 )
 from harvest_remote import (
     discover_actions_artifacts,
+    discover_owner_repositories,
     discover_release_assets,
     explicit_artifact_candidate,
     explicit_release_candidate,
@@ -53,6 +54,18 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
         help="Recursively scan local ZIPs in this directory; repeatable.",
     )
     parser.add_argument("--repository", action="append", default=[], help="GitHub repository owner/name; repeatable.")
+    parser.add_argument(
+        "--owner",
+        action="append",
+        default=[],
+        help="Enumerate public repositories owned by this GitHub account; repeatable.",
+    )
+    parser.add_argument(
+        "--max-owner-repositories",
+        type=int,
+        default=100,
+        help="Maximum public repositories enumerated per owner.",
+    )
     parser.add_argument("--artifact", action="append", default=[], help="Actions artifact owner/repo:id; repeatable.")
     parser.add_argument("--release-asset", action="append", default=[], help="Release asset owner/repo:id; repeatable.")
     parser.add_argument("--github-api-url", default=os.getenv("GITHUB_API_URL", "https://api.github.com"))
@@ -73,6 +86,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv or [])
     if (
         args.max_remote_items <= 0
+        or args.max_owner_repositories <= 0
         or args.max_candidate_bytes <= 0
         or args.total_download_bytes <= 0
         or args.max_nested_depth < 0
@@ -98,6 +112,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     found_status: str | None = None
     found_identity: str | None = None
     downloaded = 0
+    repositories = list(dict.fromkeys(args.repository))
 
     def examine(candidate_path: Path, *, kind: str, identity: str, name: str, known_hash: str | None = None) -> bool:
         nonlocal found_status, found_identity
@@ -167,9 +182,17 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         remote_candidates = []
         if found_status is None:
+            for owner in args.owner:
+                try:
+                    repositories.extend(
+                        discover_owner_repositories(api, owner, args.max_owner_repositories)
+                    )
+                except HarvestError as exc:
+                    discovery_errors.append(str(exc))
+            repositories = list(dict.fromkeys(repositories))
             remote_candidates.extend(explicit_artifact_candidate(args.github_api_url, value) for value in args.artifact)
             remote_candidates.extend(explicit_release_candidate(args.github_api_url, value) for value in args.release_asset)
-            for repository in args.repository:
+            for repository in repositories:
                 try:
                     remote_candidates.extend(discover_actions_artifacts(api, repository, pattern, args.max_remote_items))
                 except HarvestError as exc:
@@ -254,10 +277,12 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "sha256": str(parent["sha256"]),
             },
             "foundIdentity": found_identity,
-            "repositories": list(args.repository),
+            "owners": list(args.owner),
+            "repositories": repositories,
             "checked": [asdict(result) for result in checked],
             "summary": {
                 "candidates": len(checked),
+                "repositories": len(repositories),
                 "downloadedBytes": downloaded,
                 "discoveryErrors": len(discovery_errors),
                 "transportFailures": transport_failures,

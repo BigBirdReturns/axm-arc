@@ -7,6 +7,12 @@ on:
     paths:
       - '.packet-harvest/**'
       - '.github/workflows/apply-packet-harvest-content.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.packet-harvest/**'
+      - '.github/workflows/apply-packet-harvest-content.yml'
 
 permissions:
   contents: write
@@ -17,9 +23,10 @@ concurrency:
 
 jobs:
   apply:
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
     steps:
-      - name: Check out bootstrap commit
+      - name: Check out bootstrap branch
         uses: actions/checkout@v4
         with:
           ref: feature/burn-protocol-packet-set-harvest-v1

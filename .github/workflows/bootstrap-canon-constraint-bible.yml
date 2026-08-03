@@ -37,8 +37,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          for part in tools/canon-stage.b64.part-*; do
+            printf '%s  ' "$part"
+            tr -d '\r\n' < "$part" | sha256sum | cut -d' ' -f1
+          done
           payload="$RUNNER_TEMP/canon-stage.tar.gz"
           cat tools/canon-stage.b64.part-* | tr -d '\r\n' | base64 --decode > "$payload"
+          sha256sum "$payload"
           printf '%s  %s\n' \
             '7884a2aedc33c587a08e77c415bb7ed54707a91104baedeef853d286f7b0f0ca' \
             "$payload" \

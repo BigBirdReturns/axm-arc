@@ -1,0 +1,51 @@
+{
+  "format": "burn-protocol-source-frontier-recovery-contract/1",
+  "parent": {
+    "basename": "Star_Trek_Discovery_The_Burn_Protocol_Web_Series_v0.62.0.zip",
+    "bytes": 641627846,
+    "manifestBasename": "v0.62.0-file-manifest.json",
+    "sha256": "f67dcd2c632720566e38b04c0a6b844188de24c967a77a4be31978a5ff82349a"
+  },
+  "release": "0.62.0",
+  "selection": {
+    "episode": 5,
+    "chapter": 2,
+    "tokens": [
+      "episode-05",
+      "e05-c2",
+      "a05c2"
+    ],
+    "expectedPaths": [
+      "source/episodes/episode-05.json",
+      "site/data/episode-05.json",
+      "source/art/A05C2/chapter.json",
+      "source/art/A05C2/lettering.json",
+      "source/art/A05C2/panel-art.json",
+      "source/art/A05C2/provenance.json",
+      "manifests/a05c2-recovery.json",
+      "manifests/a05c2-scroll-plates.json",
+      "site/assets/art/A05C2/panels/E05-C2-P21.webp",
+      "site/assets/art/A05C2/plates/A05C2-plate-01.webp"
+    ],
+    "requiredClassifications": {
+      "canonical-episode-source": 1,
+      "compiled-reader-source": 1,
+      "canonical-script-render": 1,
+      "chapter-source": 1,
+      "canonical-lettering": 1,
+      "chapter-panel-art-source": 1,
+      "chapter-provenance": 1,
+      "chapter-recovery-receipt": 1,
+      "plate-map": 1,
+      "panel-raster": 1,
+      "plate-raster": 1
+    }
+  },
+  "evidenceBoundary": {
+    "status": "source-required",
+    "continuationPanelId": "E05-C2-P21",
+    "pathNames": "selected from the exact parent manifest by bounded Episode 5 and Chapter 2 identity tokens; the exact Episode 5 source, compiled reader, A05C2 source family, opening panel, and opening plate paths must all be present, while the Episode 5 script filename is admitted only through the manifest-selected canonical-script-render classification",
+    "exactBytesOrHashesClaimed": false,
+    "rule": "The recovery tool must verify the exact parent archive or an independently approved packet set, verify every emitted file against the authoritative manifest byte count and SHA-256, and require every expected Episode 5 Chapter 2 and A05C2 path. Missing expected paths or classifications produce source-required status and exit code 3; contradictory custody fails with exit code 2."
+  }
+}

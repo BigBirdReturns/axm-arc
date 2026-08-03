@@ -18,6 +18,11 @@ const FORBIDDEN_NORMALIZED_KEYS = new Set([
   "verbatim",
 ]);
 
+const ALLOWED_GENERATORS = new Set<CanonRecallPacket["generatedBy"]>([
+  "language-model-recall",
+  "conversation-synthesis",
+]);
+
 function finding(
   code: string,
   severity: CanonRecallFinding["severity"],
@@ -109,9 +114,14 @@ export function validateCanonRecallPacket(packet: CanonRecallPacket): CanonRecal
       ),
     );
   }
-  if (packet.generatedBy !== "language-model-recall") {
+  if (!ALLOWED_GENERATORS.has(packet.generatedBy)) {
     findings.push(
-      finding("invalid-generator", "error", packet.id, "generatedBy must preserve language-model-recall"),
+      finding(
+        "invalid-generator",
+        "error",
+        packet.id,
+        `generatedBy must be one of ${[...ALLOWED_GENERATORS].join(", ")}`,
+      ),
     );
   }
   if (packet.authority !== "none") {

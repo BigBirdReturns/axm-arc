@@ -109,6 +109,7 @@ jobs:
           output = pathlib.Path(sys.argv[4])
           value = source.read_text(encoding="utf-8").replace("\r", "").replace("\n", "")
           value = value.replace("---11---", "")
+          alphabet = string.ascii_uppercase + string.ascii_lowercase + string.digits + "+/="
 
           def digest(candidate: str) -> str:
               return hashlib.sha256(candidate.encode("ascii")).hexdigest()
@@ -117,8 +118,25 @@ jobs:
           action = "exact"
           if len(repaired) == expected_bytes and digest(repaired) == expected_sha:
               pass
+          elif len(repaired) == expected_bytes:
+              found = None
+              for index, original in enumerate(repaired):
+                  prefix = repaired[:index]
+                  suffix = repaired[index + 1:]
+                  for character in alphabet:
+                      if character == original:
+                          continue
+                      candidate = prefix + character + suffix
+                      if digest(candidate) == expected_sha:
+                          found = candidate
+                          action = f"replaced {original!r} with {character!r} at offset {index}"
+                          break
+                  if found is not None:
+                      break
+              if found is None:
+                  raise SystemExit(f"{source}: one-byte substitution did not satisfy {expected_sha}")
+              repaired = found
           elif len(repaired) == expected_bytes - 1:
-              alphabet = string.ascii_uppercase + string.ascii_lowercase + string.digits + "+/="
               found = None
               for index in range(expected_bytes):
                   prefix = repaired[:index]
@@ -132,7 +150,7 @@ jobs:
                   if found is not None:
                       break
               if found is None:
-                  raise SystemExit(f"{source}: one-byte repair did not satisfy {expected_sha}")
+                  raise SystemExit(f"{source}: one-byte insertion did not satisfy {expected_sha}")
               repaired = found
           elif len(repaired) == expected_bytes + 1:
               found = None

@@ -48,6 +48,23 @@ class BurnSourceHarvesterRemoteTests(unittest.TestCase):
             archive.writestr(zip_info(f"nested/{PARENT_BASENAME}"), parent.read_bytes())
         return parent, contract, artifact
 
+    def test_owner_sweep_enumerates_repositories_before_artifact_discovery(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            _, contract, artifact = self.artifact_with_parent(root)
+            with FixtureServer(artifact.read_bytes()) as api_url:
+                output = root / "harvest"
+                result = run_harvest(
+                    "--owner", "fixture", "--github-api-url", api_url,
+                    "--contract", str(contract), "--output", str(output),
+                )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            receipt = read_receipt(output)
+            self.assertEqual(receipt["owners"], ["fixture"])
+            self.assertEqual(receipt["repositories"], ["fixture/decoy", "fixture/repo"])
+            self.assertEqual(receipt["summary"]["repositories"], 2)
+            self.assertEqual(receipt["foundIdentity"], "fixture/repo:artifact:42")
+
     def test_github_artifact_sweep_downloads_and_recovers_exact_parent(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)

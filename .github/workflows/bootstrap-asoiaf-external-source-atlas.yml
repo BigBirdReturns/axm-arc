@@ -5,13 +5,13 @@ on:
     branches:
       - feature/asoiaf-external-source-atlas-v1
     paths:
-      - 'tools/asoiaf-external-source-atlas-stage.b64.part-*'
+      - 'tools/asoiaf-external-source-atlas-stage.b64'
       - '.github/workflows/bootstrap-asoiaf-external-source-atlas.yml'
   pull_request:
     branches:
       - feature/asoiaf-conversation-synthesis-v1
     paths:
-      - 'tools/asoiaf-external-source-atlas-stage.b64.part-*'
+      - 'tools/asoiaf-external-source-atlas-stage.b64'
       - '.github/workflows/bootstrap-asoiaf-external-source-atlas.yml'
   workflow_dispatch:
 
@@ -39,7 +39,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [[ -f tools/asoiaf-external-source-atlas-stage.b64.part-00 ]]; then
+          if [[ -f tools/asoiaf-external-source-atlas-stage.b64 ]]; then
             echo 'present=true' >> "$GITHUB_OUTPUT"
           else
             echo 'present=false' >> "$GITHUB_OUTPUT"
@@ -51,42 +51,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          parts=(
-            tools/asoiaf-external-source-atlas-stage.b64.part-00
-            tools/asoiaf-external-source-atlas-stage.b64.part-01
-            tools/asoiaf-external-source-atlas-stage.b64.part-02
-            tools/asoiaf-external-source-atlas-stage.b64.part-03
-            tools/asoiaf-external-source-atlas-stage.b64.part-04
-            tools/asoiaf-external-source-atlas-stage.b64.part-05
-            tools/asoiaf-external-source-atlas-stage.b64.part-06
-            tools/asoiaf-external-source-atlas-stage.b64.part-07
-            tools/asoiaf-external-source-atlas-stage.b64.part-08
-            tools/asoiaf-external-source-atlas-stage.b64.part-09
-          )
-          expected_sha=(
-            7c339288182d57c6ea47ffa6b312a2c0797dbf9c350589a64e3ceae4aa33f39f
-            74fd8a5379f94ed3886883160e0c8188c6f8c2113a3de481d5e554f5512cc73b
-            007f8a901b26a9c6763ab0b17583c5822e77495a429ba289275e49867cd09b55
-            5b66caa95904b428f3e5bb0a48078d3da2050f50158484efdb6d10510ccfa302
-            a299ec0fff077823db9c16a5ed60557813bebf76dc8084cd14fa2910949fc618
-            b2643ebc57ed3b3c0e188856c7331b490a961f422ed73dd23efc2b821fdb7aef
-            ea35b32dca8c927e3a19be9a10e73cd64c95f9d91f7f8f1c336b0e18f688f7a2
-            6fa1f77fc2e281f5cf5018a47cd78e090ac9a258f336ce672ec285958b3e1949
-            63004472fe85aa3dfbf4e5e4f721827990884522e834eae72193ab2bb3361b30
-            97a71fedb61ca18ce0d4c62a2e0a99e93c16fbeac97fc29a71accf22213892f3
-          )
-          expected_bytes=(12000 12000 12000 12000 12000 12000 12000 12000 12000 7060)
-          encoded="$RUNNER_TEMP/asoiaf-external-source-atlas-stage.b64"
-          : > "$encoded"
-          for index in "${!parts[@]}"; do
-            source="${parts[$index]}"
-            normalized="$RUNNER_TEMP/part-$index.normalized"
-            tr -d '\r\n' < "$source" > "$normalized"
-            test "$(wc -c < "$normalized" | tr -d ' ')" = "${expected_bytes[$index]}"
-            test "$(sha256sum "$normalized" | cut -d' ' -f1)" = "${expected_sha[$index]}"
-            cat "$normalized" >> "$encoded"
-          done
+          encoded=tools/asoiaf-external-source-atlas-stage.b64
           test "$(wc -c < "$encoded" | tr -d ' ')" = '115060'
+          test "$(sha256sum "$encoded" | cut -d' ' -f1)" = 'c01cb9921cfcfbfd095c319fc5ceb6dad0f1887f1e34b17da9ca7dc1a349da8b'
           payload="$RUNNER_TEMP/asoiaf-external-source-atlas-stage.tar.gz"
           base64 --decode "$encoded" > "$payload"
           printf '%s  %s\n' \
@@ -100,10 +67,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          rm -f tools/asoiaf-external-source-atlas-stage.b64.part-*
+          rm -f tools/asoiaf-external-source-atlas-stage.b64
           rmdir tools 2>/dev/null || true
-          # The workflow token may not create a permanent workflow definition.
-          # The connected GitHub authority installs that file after this commit.
           rm -f .github/workflows/asoiaf-external-source-atlas.yml
           git diff --check
           git config user.name 'github-actions[bot]'

@@ -1,4 +1,4 @@
-name: Burn Protocol canonical through Episode 4 Chapter 1
+name: Burn Protocol canonical through Episode 4 Chapter 2
 
 on:
   pull_request:
@@ -11,7 +11,7 @@ on:
       - 'tests/source-planes/registry.test.ts'
       - 'tools/build-burn-protocol-*.ts'
   push:
-    branches: [feature/burn-protocol-canonical-story-episode-4-chapter-1-v1]
+    branches: [feature/burn-protocol-canonical-story-episode-4-chapter-2-v1]
     paths:
       - '.github/workflows/burn-protocol-canonical-story.yml'
       - 'src/canonical-story/**'
@@ -30,7 +30,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  qualify-through-episode-4-chapter-1:
+  qualify-through-episode-4-chapter-2:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
@@ -57,85 +57,112 @@ jobs:
           npm test -- \
             tests/canonical-story/burn-protocol-episode-3.test.ts \
             tests/canonical-story/burn-protocol-episode-4-chapter-1.test.ts \
+            tests/canonical-story/burn-protocol-episode-4-chapter-2.test.ts \
             tests/source-planes/registry.test.ts \
             | tee "$RUNNER_TEMP/focused-tests.log"
 
-      - name: Rebuild the Episode 4 Chapter 1 publication twice
+      - name: Rebuild the Episode 4 Chapter 2 publication twice
         run: |
           set -euo pipefail
           publication_a="$RUNNER_TEMP/publication-a"
           publication_b="$RUNNER_TEMP/publication-b"
-          npx vite-node tools/build-burn-protocol-episode-4-chapter-1.ts "$publication_a" \
+          npx vite-node tools/build-burn-protocol-episode-4-chapter-2.ts "$publication_a" \
             | tee "$RUNNER_TEMP/publication-a.log"
-          npx vite-node tools/build-burn-protocol-episode-4-chapter-1.ts "$publication_b" \
+          npx vite-node tools/build-burn-protocol-episode-4-chapter-2.ts "$publication_b" \
             | tee "$RUNNER_TEMP/publication-b.log"
           diff -ru "$publication_a" "$publication_b"
           (cd "$publication_a" && sha256sum -c SHA256SUMS)
-          printf 'BURN_THROUGH_EPISODE_4_CHAPTER_1_PUBLICATION=%s\n' "$publication_a" >> "$GITHUB_ENV"
+          printf 'BURN_THROUGH_EPISODE_4_CHAPTER_2_PUBLICATION=%s\n' "$publication_a" >> "$GITHUB_ENV"
 
-      - name: Assert corpus-native Episode 4 Chapter 1 law
+      - name: Assert corpus-native Episode 4 Chapter 2 law
         run: |
           set -euo pipefail
           node <<'NODE'
           const fs = require('node:fs');
           const path = require('node:path');
-          const root = process.env.BURN_THROUGH_EPISODE_4_CHAPTER_1_PUBLICATION;
-          const prefix = 'burn-protocol-through-episode-04-chapter-01';
+          const root = process.env.BURN_THROUGH_EPISODE_4_CHAPTER_2_PUBLICATION;
+          const prefix = 'burn-protocol-through-episode-04-chapter-02';
           const arc = JSON.parse(fs.readFileSync(path.join(root, `${prefix}.arc.json`), 'utf8'));
           const source = JSON.parse(fs.readFileSync(path.join(root, `${prefix}.burn.json`), 'utf8'));
           const coverage = JSON.parse(fs.readFileSync(path.join(root, `${prefix}.coverage.json`), 'utf8'));
           const episodes = source.canonicalStory.episodes;
           const episode3 = episodes[2];
           const episode4 = episodes[3];
-          const chapter = episode4.chapters[0];
+          const [osyraaOffer, georgiouPattern] = episode4.chapters;
           const fail = (message) => { throw new Error(message); };
           if (arc.meta.id !== 'burn-protocol') fail('Stable series identity drift.');
           if (arc.challenges.length !== 0 || arc.roles.length !== 0) fail('Simulation law entered the canonical story.');
           if (source.canonicalStory.authority.choicePolicy !== 'none') fail('Canonical path admits choices.');
           if (episodes.length !== 4 || episodes.slice(0, 3).some((episode) => !episode.complete)) fail('Prior episode authority drift.');
           if (episode4.id !== 'E04' || episode4.title !== 'Fractured Allegiances') fail('Episode 4 identity drift.');
-          if (episode4.complete !== false || episode4.nextChapterId !== 'E04-C2') fail('Episode 4 extent drift.');
-          if (episode4.chapters.length !== 1 || chapter.title !== "Osyraa's Offer") fail('Episode 4 Chapter 1 identity drift.');
-          if (chapter.openingPanelId !== 'E04-C1-P01' || chapter.terminalPanelId !== 'E04-C1-P20') fail('A04C1 panel extent drift.');
-          if (chapter.panels.length !== 20 || chapter.plates.length !== 4) fail('A04C1 asset extent drift.');
-          if (episode3.chapters[2].nextPanelId !== chapter.openingPanelId
-              || chapter.previousPanelId !== episode3.chapters[2].terminalPanelId) {
+          if (episode4.complete !== false || episode4.nextChapterId !== 'E04-C3') fail('Episode 4 extent drift.');
+          if (episode4.chapters.length !== 2) fail('Episode 4 chapter extent drift.');
+          if (osyraaOffer.title !== "Osyraa's Offer" || georgiouPattern.title !== "Georgiou's Pattern") {
+            fail('Episode 4 chapter identity drift.');
+          }
+          if (osyraaOffer.nextPanelId !== georgiouPattern.openingPanelId
+              || georgiouPattern.previousPanelId !== osyraaOffer.terminalPanelId) {
+            fail('Osyraa Offer to Georgiou Pattern seam drift.');
+          }
+          if (episode3.chapters[2].nextPanelId !== osyraaOffer.openingPanelId
+              || osyraaOffer.previousPanelId !== episode3.chapters[2].terminalPanelId) {
             fail('E03 to E04 seam drift.');
           }
-          if (chapter.nextPanelId !== 'E04-C2-P21') fail('Episode 4 Chapter 2 continuation drift.');
-          if (coverage.episodes !== 4 || coverage.chapters !== 10 || coverage.panels !== 200 || coverage.plates !== 40) {
+          if (georgiouPattern.openingPanelId !== 'E04-C2-P21'
+              || georgiouPattern.terminalPanelId !== 'E04-C2-P40'
+              || georgiouPattern.nextPanelId !== 'E04-C3-P41') {
+            fail('A04C2 panel extent or continuation drift.');
+          }
+          if (georgiouPattern.panels.length !== 20 || georgiouPattern.plates.length !== 4) {
+            fail('A04C2 media extent drift.');
+          }
+          if (coverage.episodes !== 4 || coverage.chapters !== 11 || coverage.panels !== 220 || coverage.plates !== 44) {
             fail('Combined corpus extent drift.');
           }
-          if (coverage.unresolvedTextPanels !== 200 || coverage.unresolvedPlateMappings !== 40) {
+          if (coverage.unresolvedTextPanels !== 220 || coverage.unresolvedPlateMappings !== 44) {
             fail('Unavailable expression was silently promoted.');
           }
           if (coverage.choiceNodes !== 0 || coverage.productionReady !== false) fail('Canonical authority or readiness drift.');
           if (JSON.stringify(coverage.incompleteEpisodeIds) !== JSON.stringify(['E04'])) fail('Episode completion ledger drift.');
-          if (JSON.stringify(coverage.continuationPanelIds) !== JSON.stringify(['E04-C2-P21'])) {
-            fail('Internal episode seam was misclassified as external continuation.');
+          if (JSON.stringify(coverage.continuationPanelIds) !== JSON.stringify(['E04-C3-P41'])) {
+            fail('Internal chapter seam was misclassified as external continuation.');
           }
           if (!Array.isArray(coverage.sourceRequiredAssets) || coverage.sourceRequiredAssets.length !== 1
               || coverage.sourceRequiredAssets[0].id !== 'asset:E03-C2-P31') {
             fail('The inherited P31 custody gap was lost or multiplied.');
           }
-          if (!chapter.panels.every((panel) => panel.text.status === 'source-required')) {
-            fail('A04C1 canonical text was reconstructed without source bytes.');
+          if (!georgiouPattern.panels.every((panel) => panel.text.status === 'source-required')) {
+            fail('A04C2 canonical text was reconstructed without source bytes.');
           }
-          if (!chapter.plates.every((plate) => plate.panelMapping.status === 'source-required')) {
-            fail('A04C1 plate mappings were inferred without source bytes.');
+          if (!georgiouPattern.plates.every((plate) => plate.panelMapping.status === 'source-required')) {
+            fail('A04C2 plate mappings were inferred without source bytes.');
           }
           const receiptById = new Map(source.canonicalStory.sourceReceipts.map((receipt) => [receipt.id, receipt]));
           for (const [id, expected] of [
-            ['episode-04-source', ['source/episodes/episode-04.json', 111285, 'a6c18aef5acdbc4108b955ebfa5c50e6be2b08adb49987502f9a0bd533c9bdda']],
-            ['episode-04-compiled', ['site/data/episode-04.json', 164954, 'a92f19d2b04e8589da86471ad81771a68710111105e3e80dca8279c9aa570884']],
-            ['a04c1-lettering-source', ['source/art/A04C1/lettering.json', 25330, '2c825035d0fc05dd3e8fc6151f75df70c4cd8745f8686ad3b80e4ebaa78cd093']],
-            ['a04c1-scroll-plates', ['manifests/a04c1-scroll-plates.json', 1521, 'bca6a43a880eb30433f9c3f0665c3b1e22fc38a4bbe725167e1c41b5e48fecc0']],
+            ['a04c2-chapter-source', ['source/art/A04C2/chapter.json', 2011, '072d60a661e01ddd8669c729eab0f545d43648241f91ab77e2b671c1c1812553']],
+            ['a04c2-lettering-source', ['source/art/A04C2/lettering.json', 28727, '7dc95ce86cdf38616177a2ad6bf743981f57f29223907c464aae5c8cba008636']],
+            ['a04c2-panel-art-source', ['source/art/A04C2/panel-art.json', 18482, '90573aae72c7a1893322323d4a3fbff4db970ab36b70f928182644566670ce05']],
+            ['a04c2-provenance', ['source/art/A04C2/provenance.json', 10094, '386a50372e2f5ddda8d3f4b02ef81b52ee0417316e5adc1e4595fe070856975a']],
+            ['a04c2-recovery', ['manifests/a04c2-recovery.json', 5921, 'c5920c4018fa0aeb46b616b32061dc90de2845d03501faba7612f96d1bcb0c53']],
+            ['a04c2-scroll-plates', ['manifests/a04c2-scroll-plates.json', 1521, 'f3e9d4be5dbf8e2f788357c7d909349d846072da983a124fb56edeef3dabf3f3']],
           ]) {
             const receipt = receiptById.get(id);
             if (!receipt || receipt.path !== expected[0] || receipt.bytes !== expected[1]
                 || receipt.sha256 !== expected[2] || receipt.available !== false) {
               fail(`Receipt drift for ${id}.`);
             }
+          }
+          const firstPanel = georgiouPattern.panels[0].asset;
+          const lastPanel = georgiouPattern.panels[19].asset;
+          if (firstPanel.path !== 'site/assets/art/A04C2/panels/E04-C2-P21.webp'
+              || firstPanel.bytes !== 179966
+              || firstPanel.sha256 !== 'af5e1b520c32d8a7c7c9fb2af529dd9c3bf68f940e38779c1240ab0ac53a67e6') {
+            fail('A04C2 opening panel custody drift.');
+          }
+          if (lastPanel.path !== 'site/assets/art/A04C2/panels/E04-C2-P40.webp'
+              || lastPanel.bytes !== 147124
+              || lastPanel.sha256 !== '0030e166fc6518998d9fba4416f8497649a528cdb1bc149a5e97eb8175c9f218') {
+            fail('A04C2 terminal panel custody drift.');
           }
           if (JSON.stringify(source.estate.canonicalSourceReceiptIds) !== JSON.stringify([
             'episode-01-source', 'episode-02-source', 'episode-03-source', 'episode-04-source',
@@ -151,13 +178,13 @@ jobs:
           npm test | tee "$RUNNER_TEMP/full-tests.log"
           npm run build | tee "$RUNNER_TEMP/build.log"
 
-      - name: Retain Episode 4 Chapter 1 qualification
+      - name: Retain Episode 4 Chapter 2 qualification
         if: always()
         run: |
           set -euo pipefail
-          root="burn-protocol-canonical-through-episode-4-chapter-1-qualification"
+          root="burn-protocol-canonical-through-episode-4-chapter-2-qualification"
           mkdir -p "$root"
-          cp -R "${BURN_THROUGH_EPISODE_4_CHAPTER_1_PUBLICATION:-$RUNNER_TEMP/publication-a}" "$root/publication" 2>/dev/null || true
+          cp -R "${BURN_THROUGH_EPISODE_4_CHAPTER_2_PUBLICATION:-$RUNNER_TEMP/publication-a}" "$root/publication" 2>/dev/null || true
           cp "$RUNNER_TEMP"/typecheck.log "$root/" 2>/dev/null || true
           cp "$RUNNER_TEMP"/focused-tests.log "$root/" 2>/dev/null || true
           cp "$RUNNER_TEMP"/publication-a.log "$root/" 2>/dev/null || true
@@ -171,11 +198,11 @@ jobs:
             | sed "s#  $root/#  #" \
             > "$root/SHA256SUMS"
 
-      - name: Upload Episode 4 Chapter 1 qualification
+      - name: Upload Episode 4 Chapter 2 qualification
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: burn-protocol-canonical-through-episode-4-chapter-1-qualification
-          path: burn-protocol-canonical-through-episode-4-chapter-1-qualification
+          name: burn-protocol-canonical-through-episode-4-chapter-2-qualification
+          path: burn-protocol-canonical-through-episode-4-chapter-2-qualification
           if-no-files-found: error
           retention-days: 30

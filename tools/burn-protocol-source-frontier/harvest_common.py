@@ -10,13 +10,15 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-TOOL_VERSION = "1.0.0"
+TOOL_VERSION = "1.0.1"
 FORMAT = "burn-protocol-autonomous-source-harvest/1"
 DEFAULT_NAME_PATTERN = r"(?i)(burn|protocol|estate|handoff|source|frontier|episode|local-estate)"
 DEFAULT_MAX_CANDIDATE_BYTES = 1_073_741_824
 DEFAULT_TOTAL_DOWNLOAD_BYTES = 4_294_967_296
 DEFAULT_MAX_REMOTE_ITEMS = 100
 USER_AGENT = "burn-protocol-source-harvester/1"
+GITHUB_JSON_ACCEPT = "application/vnd.github+json"
+BINARY_ACCEPT = "application/octet-stream"
 
 
 class HarvestError(RuntimeError):
@@ -100,11 +102,16 @@ class SafeRedirectHandler(urllib.request.HTTPRedirectHandler):
             raise HarvestError(f"Refusing HTTPS downgrade redirect to {newurl}.")
         if (old.scheme, old.hostname, old.port) != (new.scheme, new.hostname, new.port):
             for key in list(redirected.headers):
-                if key.lower() in {"authorization", "proxy-authorization"}:
+                if key.lower() in {"authorization", "proxy-authorization", "accept"}:
                     redirected.remove_header(key)
             for key in list(redirected.unredirected_hdrs):
-                if key.lower() in {"authorization", "proxy-authorization"}:
+                if key.lower() in {"authorization", "proxy-authorization", "accept"}:
                     redirected.unredirected_hdrs.pop(key, None)
+            # GitHub's artifact endpoint redirects to signed object storage.
+            # The REST endpoint requires GitHub's JSON media type, while the
+            # cross-origin object URL should receive neither credentials nor
+            # that API-specific negotiation header.
+            redirected.add_header("Accept", "*/*")
         return redirected
 
 
@@ -120,9 +127,9 @@ class GitHubApi:
         self.timeout = timeout
         self.opener = urllib.request.build_opener(SafeRedirectHandler())
 
-    def _headers(self, *, binary: bool = False) -> dict[str, str]:
+    def _headers(self, *, accept: str = GITHUB_JSON_ACCEPT) -> dict[str, str]:
         headers = {
-            "Accept": "application/octet-stream" if binary else "application/vnd.github+json",
+            "Accept": accept,
             "User-Agent": USER_AGENT,
             "X-GitHub-Api-Version": "2022-11-28",
         }
@@ -144,7 +151,14 @@ class GitHubApi:
             raise HarvestError(f"GitHub API request failed for {path}: {exc}") from exc
 
     def download(self, url: str, destination: Path, max_bytes: int) -> tuple[int, str]:
-        request = urllib.request.Request(self._absolute(url), headers=self._headers(binary=True))
+        absolute_url = self._absolute(url)
+        path = urllib.parse.urlparse(absolute_url).path.rstrip("/")
+        # GitHub's Actions artifact archive endpoint documents the normal
+        # GitHub JSON media type and responds with a redirect. Release-asset
+        # downloads use the binary media type instead.
+        artifact_archive = re.search(r"/actions/artifacts/[^/]+/zip$", path) is not None
+        accept = GITHUB_JSON_ACCEPT if artifact_archive else BINARY_ACCEPT
+        request = urllib.request.Request(absolute_url, headers=self._headers(accept=accept))
         digest = hashlib.sha256()
         total = 0
         try:

@@ -72,7 +72,7 @@ refuses HTTPS-to-HTTP redirect downgrade
 permits plain HTTP only for loopback qualification fixtures
 ```
 
-GitHub artifact downloads redirect to signed object-storage URLs. Cross-origin credential stripping is a tested security property.
+GitHub Actions artifact archive requests use GitHub’s REST media type and follow the documented redirect to signed storage. The redirected request strips credentials and replaces API-specific content negotiation before downloading bytes. Release-asset downloads retain their binary media type.
 
 ## Result and audit law
 
@@ -99,15 +99,15 @@ source-required
   exact parent admitted, but the required evidence family remains incomplete
 
 source-not-found
-  the remote sweep completed and no candidate matched the exact parent
+  remote custody was completely enumerated and every selected candidate was downloaded and inspected, but none matched the exact parent
 
 harvest-error
-  remote enumeration, download, or workflow execution failed before a normal receipt
+  enumeration, artifact or release download, nested inspection, or workflow execution was incomplete; transport refusal can never be reported as source absence
 ```
 
 A scheduled or landing-push `source-not-found` sweep remains green and auditable. It is not a human action item and does not authorize inferred Episode 5 content. A manually dispatched run can set `require_source=true` to retain the same receipt while making absence a failing control signal.
 
-Each sweep also posts an addressable summary to GitHub issue #212 with the run ID, exact candidate SHA, trigger, status, candidate and byte counts, artifact ID, artifact URL, artifact digest, and current frontier. The uploaded artifact remains the authoritative byte package.
+Each sweep also posts an addressable summary to GitHub issue #212 with the run ID, exact candidate SHA, trigger, status, candidate and byte counts, discovery-error and transport-failure counts, artifact ID, artifact URL, artifact digest, and current frontier. The uploaded artifact remains the authoritative byte package.
 
 ## Qualification
 
@@ -122,11 +122,13 @@ source-required classification
 manifest, exact-path, and ZIP-path refusal law
 recursive local candidate sweep
 GitHub Actions artifact discovery and download
+GitHub artifact versus release-asset media negotiation
 explicit artifact lookup without listing
 explicit release-asset lookup
 candidate, nested-archive, and total download ceilings
 bounded recursive landing-kit inspection
-cross-origin bearer-token stripping
+cross-origin bearer-token and API-header stripping
+transport failure cannot become source absence
 audited source absence
 ```
 

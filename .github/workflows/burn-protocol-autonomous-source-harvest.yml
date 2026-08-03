@@ -104,6 +104,7 @@ jobs:
           import hashlib
           import json
           import os
+          import re
           import shutil
           import subprocess
           from pathlib import Path
@@ -123,12 +124,16 @@ jobs:
               target.parent.mkdir(parents=True, exist_ok=True)
               shutil.copy2(source, target)
           head = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+          self_test = Path("autonomous-source-harvest-tests.log").read_text(encoding="utf-8")
+          match = re.search(r"Ran (\d+) tests? in", self_test)
+          if match is None or "OK" not in self_test:
+              raise SystemExit("qualification log does not contain a complete passing receipt")
           receipt = {
               "format": "burn-protocol-autonomous-source-harvest-qualification/1",
               "status": "pass",
               "candidate": head,
               "runner": os.environ.get("RUNNER_OS"),
-              "tests": 20,
+              "tests": int(match.group(1)),
               "frontier": "E05-C1-P01",
               "authority": {
                   "humanWorkstationRequired": False,
@@ -301,6 +306,7 @@ jobs:
               f"checked candidates     {summary.get('candidates', 0)}",
               f"downloaded bytes       {summary.get('downloadedBytes', 0)}",
               f"discovery errors       {summary.get('discoveryErrors', 0)}",
+              f"transport failures     {summary.get('transportFailures', 0)}",
               f"found identity         {found}",
               f"artifact ID            {artifact_id}",
               f"artifact digest        {artifact_digest}",

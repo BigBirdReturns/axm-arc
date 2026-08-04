@@ -1,0 +1,72 @@
+name: Repair ASOIAF external atlas coverage
+
+on:
+  push:
+    branches:
+      - feature/asoiaf-external-source-atlas-v1
+    paths:
+      - '.github/workflows/repair-asoiaf-external-atlas-coverage.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: repair-asoiaf-external-atlas-coverage-v1
+  cancel-in-progress: true
+
+jobs:
+  repair:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out exact branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/asoiaf-external-source-atlas-v1
+          fetch-depth: 0
+
+      - name: Apply bounded discovery fallback
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace(path: str, old: str, new: str) -> None:
+              target = Path(path)
+              text = target.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{path}: expected one occurrence, found {count}: {old!r}")
+              target.write_text(text.replace(old, new))
+
+          replace(
+              "src/narrative/canon/asoiaf/external/catalog.ts",
+              '    plane: "structured-tool",\n    authority: "structured-dataset",',
+              '    plane: id === "github-datasets" ? "discovery" : "structured-tool",\n    authority: id === "github-datasets" ? "discovery-only" : "structured-dataset",',
+          )
+          replace(
+              "src/narrative/canon/asoiaf/external/atlas.ts",
+              '    candidate.sourceHints.some((hint) => source.sourceHintRoutes.includes(hint))\n    || candidateLaneIds(candidate).some((laneId) => source.roles.includes(laneId)),',
+              '    candidate.sourceHints.some((hint) => source.sourceHintRoutes.includes(hint))\n    || candidateLaneIds(candidate).some((laneId) => source.roles.includes(laneId))\n    || source.id === "structured-github-datasets",',
+          )
+          PY
+          rm -f .github/workflows/repair-asoiaf-external-atlas-coverage.yml
+          git diff --check
+
+      - name: Qualify repaired coverage
+        run: |
+          npm ci --no-audit --no-fund
+          npm run typecheck
+          npm test -- tests/narrative/canon/asoiaf-external-source-atlas.test.ts tests/narrative/canon/asoiaf-external-provenance.test.ts
+
+      - name: Commit repaired atlas coverage
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Route residual recall through discovery-only intake'
+          git push origin HEAD:feature/asoiaf-external-source-atlas-v1

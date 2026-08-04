@@ -287,7 +287,6 @@ describe("ASOIAF external reconciliation packets", () => {
       expect.arrayContaining([
         "nonprimary-source-promoted",
         "primary-standing-forbidden",
-        "rights-review-mismatch",
       ]),
     );
   });

@@ -93,3 +93,5 @@ The permanent workflow runs on a weekly schedule with read-only repository permi
 The evidence tier is source-health and maintenance-mechanism qualification. The venue is this stacked draft. The target is source availability, refresh, rights, cache, receipt, ledger, and attribution control, not a claim that all registered sources are healthy or already collected. The upside is a collector that can operate for years without forgetting failed endpoints, silently losing receipts, accumulating invisible attribution debt, or repeatedly hammering completed routes. The downside is explicit maintenance work and unresolved rights queues. The failure mode is either allowing a stale or corrupted source projection to feed review, or mistaking a healthy route for authoritative evidence.
 
 The control question is whether every source can age, move, fail, recover, change terms, accumulate debt, or retire while its complete history and current collection eligibility remain mechanically distinguishable from its evidentiary authority.
+
+<!-- same-repository repair trigger: remove the unreachable retired switch arm, then discard this child branch -->

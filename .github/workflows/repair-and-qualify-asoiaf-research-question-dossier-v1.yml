@@ -1,0 +1,719 @@
+name: Repair and qualify ASOIAF research question dossier v1
+
+on:
+  push:
+    branches:
+      - feature/asoiaf-research-question-dossier-v1
+    paths:
+      - '.github/workflows/repair-and-qualify-asoiaf-research-question-dossier-v1.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: repair-and-qualify-asoiaf-research-question-dossier-v1
+  cancel-in-progress: false
+
+jobs:
+  repair_qualify_and_push:
+    if: github.repository == 'BigBirdReturns/axm-arc' && github.ref_name == 'feature/asoiaf-research-question-dossier-v1'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Check out exact research-dossier branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/asoiaf-research-question-dossier-v1
+          fetch-depth: 0
+          show-progress: false
+
+      - name: Bind exact repair transaction
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$GITHUB_REF_NAME" = 'feature/asoiaf-research-question-dossier-v1'
+          test -z "$(git status --porcelain)"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Apply exact type and nested-integrity repairs
+        id: repair
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          python - <<'PY' 2>&1 | tee "$RUNNER_TEMP/repair.log"
+          from pathlib import Path
+
+          module = Path('tools/lib/asoiaf-research-question-dossier.ts')
+          tests = Path('tests/narrative/canon/asoiaf-research-question-dossier.test.ts')
+
+          def replace_once(target: Path, old: str, new: str) -> None:
+              text = target.read_text(encoding='utf-8')
+              if new in text:
+                  return
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(
+                      f'{target}: expected one repair target, found {count}: {old[:220]!r}'
+                  )
+              target.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          replace_once(
+              module,
+              '''const ANALOGUE_CONTINUITIES = new Set<AsoiafExternalContinuity>([
+            "analysis",
+            "historical-analogue",
+            "scientific-analogue",
+          ]);
+          ''',
+              '''const ANALOGUE_CONTINUITIES = new Set<AsoiafExternalContinuity>([
+            "analysis",
+            "historical-analogue",
+            "scientific-analogue",
+          ]);
+
+          const ADMISSION_REASONS_BY_OUTCOME: Record<
+            AsoiafStructuredObservationAdmission["outcome"],
+            ReadonlySet<AsoiafStructuredObservationAdmission["reason"]>
+          > = {
+            "admit-to-review": new Set([
+              "exact-identity-and-question-match",
+              "bounded-relevant-metadata",
+            ]),
+            "reject-off-topic": new Set([
+              "off-topic-query-collision",
+              "continuity-mismatch",
+              "unsupported-question-lane",
+            ]),
+            "defer-insufficient-identity": new Set([
+              "insufficient-work-identity",
+              "insufficient-question-relevance",
+            ]),
+          };
+
+          const ADMISSION_EFFECT_BY_OUTCOME: Record<
+            AsoiafStructuredObservationAdmission["outcome"],
+            AsoiafStructuredObservationAdmission["evidence"][number]["effect"]
+          > = {
+            "admit-to-review": "supports-admission",
+            "reject-off-topic": "supports-rejection",
+            "defer-insufficient-identity": "unresolved",
+          };
+          ''',
+          )
+
+          replace_once(
+              module,
+              '''function routeCore(
+            route: AsoiafResearchRoute,
+          ): Omit<AsoiafResearchRoute, "routeFingerprint"> {
+            const { routeFingerprint: _fingerprint, ...core } = route;
+            return core;
+          }
+          ''',
+              '''function routeCore(
+            route: AsoiafResearchRoute,
+          ): Omit<AsoiafResearchRoute, "routeFingerprint"> {
+            const { routeFingerprint: _fingerprint, ...core } = route;
+            return core;
+          }
+
+          function questionCore(
+            question: AsoiafResearchQuestion,
+          ): Omit<AsoiafResearchQuestion, "questionId"> {
+            const { questionId: _questionId, ...core } = question;
+            return core;
+          }
+          ''',
+          )
+
+          replace_once(
+              module,
+              '''function admissionCore(
+            admission: AsoiafStructuredObservationAdmission,
+          ): Omit<
+            AsoiafStructuredObservationAdmission,
+            "admissionId" | "admissionFingerprint"
+          > {
+            const {
+              admissionId: _admissionId,
+              admissionFingerprint: _fingerprint,
+              ...core
+            } = admission;
+            return core;
+          }
+          ''',
+              '''function admissionCore(
+            admission: AsoiafStructuredObservationAdmission,
+          ): Omit<
+            AsoiafStructuredObservationAdmission,
+            "admissionId" | "admissionFingerprint"
+          > {
+            const {
+              admissionId: _admissionId,
+              admissionFingerprint: _fingerprint,
+              ...core
+            } = admission;
+            return core;
+          }
+
+          function privateReferenceCore(
+            reference: AsoiafPrivateResearchReference,
+          ): Omit<AsoiafPrivateResearchReference, "referenceId"> {
+            const { referenceId: _referenceId, ...core } = reference;
+            return core;
+          }
+
+          function recallReferenceCore(
+            reference: AsoiafRecallResearchReference,
+          ): Omit<AsoiafRecallResearchReference, "referenceId"> {
+            const { referenceId: _referenceId, ...core } = reference;
+            return core;
+          }
+
+          function gapCore(
+            gap: AsoiafResearchGap,
+          ): Omit<AsoiafResearchGap, "gapId"> {
+            const { gapId: _gapId, ...core } = gap;
+            return core;
+          }
+          ''',
+          )
+
+          replace_once(
+              module,
+              '      reference.snippetDigest !== null\n      && !validDigest(reference.snippetDigest)',
+              '      reference.snippetDigest != null\n      && !validDigest(reference.snippetDigest)',
+          )
+          replace_once(
+              module,
+              '      reference.snippetCharacters !== null\n      && (!Number.isSafeInteger(reference.snippetCharacters) || reference.snippetCharacters < 1 || reference.snippetCharacters > 2_000)',
+              '      reference.snippetCharacters != null\n      && (!Number.isSafeInteger(reference.snippetCharacters) || reference.snippetCharacters < 1 || reference.snippetCharacters > 2_000)',
+          )
+
+          replace_once(
+              module,
+              '''  if (!validDigest(question.questionDigest)) {
+              findings.push(finding("question-digest", "error", question.questionId, "question digest is malformed"));
+            }
+            if (!nonempty(question.createdBy) || !Number.isFinite(Date.parse(question.createdAt))) {
+          ''',
+              '''  if (!validDigest(question.questionDigest)) {
+              findings.push(finding("question-digest", "error", question.questionId, "question digest is malformed"));
+            }
+            const expectedQuestionId = collectorContentId(
+              "asoiaf-research-question",
+              questionCore(question),
+            );
+            if (question.questionId !== expectedQuestionId) {
+              findings.push(finding("question-identity", "error", question.questionId, "question identity is not content addressed"));
+            }
+            if (!nonempty(question.createdBy) || !Number.isFinite(Date.parse(question.createdAt))) {
+          ''',
+          )
+
+          replace_once(
+              module,
+              '''  const expectedSources = routeSourceIds(route.laneIds, dossier.question.continuityIds);
+            if (JSON.stringify(expectedSources) !== JSON.stringify(route.sourceIds)) {
+              findings.push(finding("route-source-parity", "error", dossier.question.questionId, "route sources differ from the qualified atlas"));
+            }
+          }
+          ''',
+              '''  const expectedRoute = buildRoute(
+              route.laneIds,
+              dossier.question.continuityIds,
+            );
+            if (JSON.stringify(expectedRoute.sourceIds) !== JSON.stringify(route.sourceIds)) {
+              findings.push(finding("route-source-parity", "error", dossier.question.questionId, "route sources differ from the qualified atlas"));
+            }
+            if (
+              JSON.stringify(expectedRoute.continuityPolicies)
+                !== JSON.stringify(route.continuityPolicies)
+              || JSON.stringify(expectedRoute.responsePolicies)
+                !== JSON.stringify(route.responsePolicies)
+            ) {
+              findings.push(finding("route-policy-parity", "error", dossier.question.questionId, "route continuity or response policies differ from the qualified atlas"));
+            }
+          }
+          ''',
+          )
+
+          replace_once(
+              module,
+              '''  for (const reference of dossier.privateReferences) {
+              const source = SOURCES_BY_ID.get(reference.sourceId);
+          ''',
+              '''  for (const reference of dossier.privateReferences) {
+              const source = SOURCES_BY_ID.get(reference.sourceId);
+              const expectedReferenceId = collectorContentId(
+                "asoiaf-private-research-reference",
+                privateReferenceCore(reference),
+              );
+              if (reference.referenceId !== expectedReferenceId) {
+                findings.push(finding("private-reference-identity", "error", reference.referenceId, "private reference identity is not content addressed"));
+              }
+          ''',
+          )
+
+          replace_once(
+              module,
+              '''  for (const reference of dossier.structuredReferences) {
+              const { admission, acquisitionReceipt } = reference;
+              const source = SOURCES_BY_ID.get(reference.sourceId);
+          ''',
+              '''  for (const reference of dossier.structuredReferences) {
+              const { admission, acquisitionReceipt } = reference;
+              const source = SOURCES_BY_ID.get(reference.sourceId);
+              const expectedReferenceId = collectorContentId(
+                "asoiaf-structured-research-reference",
+                {
+                  admissionId: admission.admissionId,
+                  acquisitionReceiptId: acquisitionReceipt.receiptId,
+                  continuityId: reference.continuityId,
+                },
+              );
+              if (reference.referenceId !== expectedReferenceId) {
+                findings.push(finding("structured-reference-identity", "error", reference.referenceId, "structured reference identity is not content addressed"));
+              }
+          ''',
+          )
+
+          replace_once(
+              module,
+              '''    if (admission.admissionId !== expectedAdmissionId) {
+              findings.push(finding("structured-admission-id", "error", reference.referenceId, "structured admission identity is not content addressed"));
+            }
+            if (acquisitionReceipt.format !== ASOIAF_STRUCTURED_ACQUISITION_RECEIPT_FORMAT) {
+          ''',
+              '''    if (admission.admissionId !== expectedAdmissionId) {
+              findings.push(finding("structured-admission-id", "error", reference.referenceId, "structured admission identity is not content addressed"));
+            }
+            const allowedAdmissionReasons = ADMISSION_REASONS_BY_OUTCOME[admission.outcome];
+            if (!allowedAdmissionReasons?.has(admission.reason)) {
+              findings.push(finding("structured-admission-reason", "error", reference.referenceId, "structured admission reason is incompatible with its outcome"));
+            }
+            const requiredAdmissionEffect = ADMISSION_EFFECT_BY_OUTCOME[admission.outcome];
+            if (
+              !requiredAdmissionEffect
+              || !Array.isArray(admission.evidence)
+              || !admission.evidence.some((entry) => entry.effect === requiredAdmissionEffect)
+            ) {
+              findings.push(finding("structured-admission-evidence-effect", "error", reference.referenceId, "structured admission lacks the evidence effect required by its outcome"));
+            }
+            if (acquisitionReceipt.format !== ASOIAF_STRUCTURED_ACQUISITION_RECEIPT_FORMAT) {
+          ''',
+          )
+
+          replace_once(
+              module,
+              '''  for (const reference of dossier.recallReferences) {
+              const entry = RECALL_BY_ID.get(reference.candidateId);
+          ''',
+              '''  for (const reference of dossier.recallReferences) {
+              const entry = RECALL_BY_ID.get(reference.candidateId);
+              const expectedReferenceId = collectorContentId(
+                "asoiaf-recall-research-reference",
+                recallReferenceCore(reference),
+              );
+              if (reference.referenceId !== expectedReferenceId) {
+                findings.push(finding("recall-reference-identity", "error", reference.referenceId, "recall reference identity is not content addressed"));
+              }
+          ''',
+          )
+
+          replace_once(
+              module,
+              '''  for (const gap of dossier.gaps) {
+              if (!LANES_BY_ID.has(gap.laneId)) {
+          ''',
+              '''  for (const gap of dossier.gaps) {
+              const expectedGapId = collectorContentId(
+                "asoiaf-research-gap",
+                gapCore(gap),
+              );
+              if (gap.gapId !== expectedGapId) {
+                findings.push(finding("gap-identity", "error", gap.gapId, "research gap identity is not content addressed"));
+              }
+              if (!LANES_BY_ID.has(gap.laneId)) {
+          ''',
+          )
+
+          replace_once(
+              module,
+              '''export function routeAsoiafResearchQuestion(
+            questionText: string,
+            continuityIds: AsoiafExternalContinuity[],
+            explicitLaneIds?: AsoiafExternalRole[],
+          ): AsoiafResearchRoute {
+            const normalized = normalizeQuestionText(questionText);
+            const laneIds = uniqueSorted(explicitLaneIds ?? inferLaneIds(normalized));
+            return buildRoute(laneIds, uniqueSorted(continuityIds));
+          }
+          ''',
+              '''export function routeAsoiafResearchQuestion(
+            questionText: string,
+            continuityIds: AsoiafExternalContinuity[],
+            explicitLaneIds?: AsoiafExternalRole[],
+          ): AsoiafResearchRoute {
+            const normalized = normalizeQuestionText(questionText);
+            const laneIds = uniqueSorted(explicitLaneIds ?? inferLaneIds(normalized));
+            const selectedContinuities = uniqueSorted(continuityIds);
+            if (laneIds.length === 0) {
+              throw new Error("question routing produced no qualified ASOIAF lane");
+            }
+            if (selectedContinuities.length === 0) {
+              throw new Error("question routing requires at least one continuity");
+            }
+            return buildRoute(laneIds, selectedContinuities);
+          }
+          ''',
+          )
+
+          replace_once(
+              tests,
+              '''  it("refuses a private reference that escapes its exact local locator", () => {
+          ''',
+              '''  it("detects tampered nested question, reference, and gap identities", () => {
+              const dossier = completeDossier();
+              const tampered = {
+                ...dossier,
+                question: {
+                  ...dossier.question,
+                  questionId: "asoiaf-research-question:tampered",
+                },
+                privateReferences: [
+                  {
+                    ...dossier.privateReferences[0]!,
+                    referenceId: "asoiaf-private-research-reference:tampered",
+                  },
+                ],
+                structuredReferences: [
+                  {
+                    ...dossier.structuredReferences[0]!,
+                    referenceId: "asoiaf-structured-research-reference:tampered",
+                  },
+                ],
+                recallReferences: [
+                  {
+                    ...dossier.recallReferences[0]!,
+                    referenceId: "asoiaf-recall-research-reference:tampered",
+                  },
+                ],
+                gaps: [
+                  {
+                    ...dossier.gaps[0]!,
+                    gapId: "asoiaf-research-gap:tampered",
+                  },
+                ],
+              };
+              expect(
+                validateAsoiafResearchQuestionDossier(tampered).map(
+                  (finding) => finding.code,
+                ),
+              ).toEqual(
+                expect.arrayContaining([
+                  "question-identity",
+                  "private-reference-identity",
+                  "structured-reference-identity",
+                  "recall-reference-identity",
+                  "gap-identity",
+                  "dossier-fingerprint",
+                  "dossier-identity",
+                ]),
+              );
+            });
+
+            it("refuses an internally valid admission with incompatible semantics", () => {
+              const receipt = acquisitionReceipt();
+              const original = admission(receipt);
+              const {
+                admissionId: _admissionId,
+                admissionFingerprint: _admissionFingerprint,
+                ...originalCore
+              } = original;
+              const changedCore = {
+                ...originalCore,
+                reason: "off-topic-query-collision" as const,
+                evidence: [
+                  {
+                    field: "container" as const,
+                    value: "Unrelated reference work",
+                    effect: "supports-rejection" as const,
+                    note: "This evidence contradicts the admitted outcome.",
+                  },
+                ],
+              };
+              const admissionFingerprint = sha256(changedCore);
+              const changedAdmission = {
+                ...changedCore,
+                admissionId: collectorContentId(
+                  "asoiaf-structured-observation-admission",
+                  {
+                    observationId: changedCore.observationId,
+                    candidateId: changedCore.candidateId,
+                    admissionFingerprint,
+                  },
+                ),
+                admissionFingerprint,
+              };
+              expect(() =>
+                buildAsoiafResearchQuestionDossier({
+                  questionText: "Who is Varys?",
+                  createdBy: "researcher:jonathan",
+                  createdAt: CREATED_AT,
+                  laneIds: ["entity-resolution"],
+                  continuityIds: [STRUCTURED_CONTINUITY],
+                  structuredReferences: [
+                    {
+                      continuityId: STRUCTURED_CONTINUITY,
+                      acquisitionReceipt: receipt,
+                      admission: changedAdmission,
+                    },
+                  ],
+                }),
+              ).toThrow(/structured-admission-(?:evidence-effect|reason)/);
+            });
+
+            it("refuses a natural-language route with no qualified lane", () => {
+              expect(() =>
+                routeAsoiafResearchQuestion(
+                  "zxqv plmnr tskw",
+                  ["book-main"],
+                ),
+              ).toThrow(/produced no qualified ASOIAF lane/);
+            });
+
+            it("refuses a private reference that escapes its exact local locator", () => {
+          ''',
+          )
+
+          required = {
+              module: [
+                  'question-identity',
+                  'private-reference-identity',
+                  'structured-reference-identity',
+                  'recall-reference-identity',
+                  'gap-identity',
+                  'structured-admission-evidence-effect',
+                  'question routing produced no qualified ASOIAF lane',
+              ],
+              tests: [
+                  'detects tampered nested question, reference, and gap identities',
+                  'refuses an internally valid admission with incompatible semantics',
+                  'refuses a natural-language route with no qualified lane',
+              ],
+          }
+          for target, markers in required.items():
+              content = target.read_text(encoding='utf-8')
+              for marker in markers:
+                  if marker not in content:
+                      raise SystemExit(f'{target}: missing repair marker {marker!r}')
+          print('ASOIAF_RESEARCH_DOSSIER_REPAIR_COMPLETE')
+          PY
+          git diff --check
+
+      - name: Strict TypeScript
+        id: typecheck
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run typecheck 2>&1 | tee "$RUNNER_TEMP/typecheck.log"
+
+      - name: Focused research-dossier qualification
+        id: focused
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npm test -- tests/narrative/canon/asoiaf-research-question-dossier.test.ts \
+            2>&1 | tee "$RUNNER_TEMP/focused-tests.log"
+
+      - name: Text-free operator smoke
+        id: smoke
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          root="$RUNNER_TEMP/research-dossier-smoke"
+          mkdir -p "$root"
+          question='Who is Varys?'
+          npm run --silent asoiaf:research-dossier -- route \
+            --question "$question" \
+            --continuity book-main \
+            --lane entity-resolution \
+            | tee "$root/route.json"
+          cat > "$root/input.json" <<'JSON'
+          {
+            "questionText": "Who is Varys?",
+            "createdBy": "qualification:repair-smoke",
+            "createdAt": "2026-08-04T20:45:00.000Z",
+            "laneIds": ["entity-resolution"],
+            "continuityIds": ["book-main"],
+            "gaps": [
+              {
+                "kind": "private-source-missing",
+                "laneId": "entity-resolution",
+                "continuityId": "book-main",
+                "sourceId": "local-agot",
+                "detail": "No private edition is mounted in this synthetic smoke."
+              }
+            ]
+          }
+          JSON
+          npm run --silent asoiaf:research-dossier -- build \
+            --input "$root/input.json" \
+            --out "$root/dossier.json" \
+            | tee "$root/build.json"
+          npm run --silent asoiaf:research-dossier -- verify \
+            --file "$root/dossier.json" \
+            | tee "$root/verify.json"
+          test "$(jq -r '.ok' "$root/verify.json")" = 'true'
+          test "$(jq -r '.question.questionTextRetained' "$root/dossier.json")" = 'false'
+          ! grep -Fq "$question" "$root/dossier.json"
+          cp "$root/dossier.json" "$RUNNER_TEMP/research-dossier-smoke.json"
+
+      - name: Complete Arc regression
+        id: regression
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee "$RUNNER_TEMP/full-tests.log"
+
+      - name: Production build
+        id: build
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee "$RUNNER_TEMP/build.log"
+
+      - name: Commit exact qualified repair
+        id: candidate
+        if: steps.repair.outcome == 'success' && steps.typecheck.outcome == 'success' && steps.focused.outcome == 'success' && steps.smoke.outcome == 'success' && steps.regression.outcome == 'success' && steps.build.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git restore --worktree -- docs/game 2>/dev/null || true
+          git ls-files --others --exclude-standard -z \
+            | while IFS= read -r -d '' generated; do
+                case "$generated" in
+                  docs/game/*|*.js|*.js.map|*.d.ts) rm -rf "$generated" ;;
+                esac
+              done
+          git diff --check
+          git diff --name-only | sort > "$RUNNER_TEMP/candidate-paths.txt"
+          cat > "$RUNNER_TEMP/expected-paths.txt" <<'PATHS'
+          tests/narrative/canon/asoiaf-research-question-dossier.test.ts
+          tools/lib/asoiaf-research-question-dossier.ts
+          PATHS
+          diff -u "$RUNNER_TEMP/expected-paths.txt" "$RUNNER_TEMP/candidate-paths.txt"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            tests/narrative/canon/asoiaf-research-question-dossier.test.ts \
+            tools/lib/asoiaf-research-question-dossier.ts
+          git diff --cached --check
+          git commit -m 'Harden ASOIAF research dossier identity custody'
+          final_sha="$(git rev-parse HEAD)"
+          test -z "$(git status --porcelain)"
+          git push origin HEAD:feature/asoiaf-research-question-dossier-v1
+          echo "final_sha=$final_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Retain exact repair diagnostics
+        if: always()
+        env:
+          FINAL_SHA: ${{ steps.candidate.outputs.final_sha }}
+          REPAIR: ${{ steps.repair.outcome }}
+          TYPECHECK: ${{ steps.typecheck.outcome }}
+          FOCUSED: ${{ steps.focused.outcome }}
+          SMOKE: ${{ steps.smoke.outcome }}
+          REGRESSION: ${{ steps.regression.outcome }}
+          BUILD: ${{ steps.build.outcome }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          root='asoiaf-research-question-dossier-repair-v1'
+          mkdir -p "$root"
+          cp "$RUNNER_TEMP"/*.log "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP/research-dossier-smoke.json" "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP/candidate-paths.txt" "$root/" 2>/dev/null || true
+          printf '%s\n' "$GITHUB_SHA" > "$root/trigger-sha.txt"
+          printf '%s\n' "${FINAL_SHA:-not-issued}" > "$root/candidate-sha.txt"
+          printf '%s\n' \
+            "repair=$REPAIR" \
+            "typecheck=$TYPECHECK" \
+            "focused=$FOCUSED" \
+            "smoke=$SMOKE" \
+            "regression=$REGRESSION" \
+            "build=$BUILD" \
+            > "$root/outcomes.txt"
+          printf '%s\n' \
+            'nestedIdentities=recomputed' \
+            'questionIdentity=content-addressed' \
+            'admissionSemantics=outcome-reason-evidence-bound' \
+            'questionTextRetained=false' \
+            'answerReady=false' \
+            'authority=none' \
+            'graphEffect=none' \
+            'canonEffect=none' \
+            > "$root/research-dossier-repair-boundary.txt"
+          find "$root" -type f ! -name SHA256SUMS -print0 \
+            | sort -z \
+            | xargs -0 sha256sum \
+            | sed "s#  $root/#  #" \
+            > "$root/SHA256SUMS"
+
+      - name: Upload repair diagnostics
+        if: always()
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: asoiaf-research-question-dossier-repair-v1
+          path: asoiaf-research-question-dossier-repair-v1
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Post bounded repair result
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FINAL_SHA: ${{ steps.candidate.outputs.final_sha }}
+          ARTIFACT_ID: ${{ steps.upload.outputs['artifact-id'] }}
+          ARTIFACT_DIGEST: ${{ steps.upload.outputs['artifact-digest'] }}
+          REPAIR: ${{ steps.repair.outcome }}
+          TYPECHECK: ${{ steps.typecheck.outcome }}
+          FOCUSED: ${{ steps.focused.outcome }}
+          SMOKE: ${{ steps.smoke.outcome }}
+          REGRESSION: ${{ steps.regression.outcome }}
+          BUILD: ${{ steps.build.outcome }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -n "${FINAL_SHA:-}" ]; then
+            gh pr comment 243 --repo "$GITHUB_REPOSITORY" --body \
+              "Research dossier integrity repair is qualified and pushed on candidate \`${FINAL_SHA}\`. TypeScript, the focused dossier suite, the text-free operator smoke, the complete Arc regression, and production build passed. Artifact \`${ARTIFACT_ID}\` has ZIP digest \`${ARTIFACT_DIGEST}\`. Every nested question, private, structured, recall, and gap identity is now recomputed, and structured admission outcome, reason, and evidence semantics are independently verified."
+          else
+            gh pr comment 243 --repo "$GITHUB_REPOSITORY" --body \
+              "Research dossier repair did not issue a candidate. Repair \`${REPAIR}\`, TypeScript \`${TYPECHECK}\`, focused \`${FOCUSED}\`, smoke \`${SMOKE}\`, regression \`${REGRESSION}\`, build \`${BUILD}\`. Artifact \`${ARTIFACT_ID}\` has ZIP digest \`${ARTIFACT_DIGEST}\`. No dossier qualification is claimed."
+            exit 1
+          fi

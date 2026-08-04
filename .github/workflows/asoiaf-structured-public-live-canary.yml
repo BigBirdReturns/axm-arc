@@ -20,7 +20,13 @@ concurrency:
 
 jobs:
   canary:
-    if: github.repository == 'BigBirdReturns/axm-arc' && github.ref_name == 'feature/asoiaf-structured-public-canary-v1'
+    if: >-
+      github.repository == 'BigBirdReturns/axm-arc'
+      && github.ref_name == 'feature/asoiaf-structured-public-canary-v1'
+      && (
+        github.event_name == 'workflow_dispatch'
+        || !contains(github.event.head_commit.message, '[no-live-canary]')
+      )
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
@@ -187,6 +193,7 @@ jobs:
           mkdir -p "$artifact"
           cp -R "$source"/. "$artifact"/
           printf '%s\n' "$GITHUB_SHA" > "$artifact/candidate-sha.txt"
+          printf '%s\n' "$GITHUB_RUN_ID" > "$artifact/workflow-run-id.txt"
           printf '%s\n' \
             'evidenceTier=live-operating-canary' \
             'venue=ephemeral-github-actions-runner' \
@@ -222,8 +229,8 @@ jobs:
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
-          ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
-          ARTIFACT_DIGEST: ${{ steps.upload.outputs.artifact-digest }}
+          ARTIFACT_ID: ${{ steps.upload.outputs['artifact-id'] }}
+          ARTIFACT_DIGEST: ${{ steps.upload.outputs['artifact-digest'] }}
           BATCH_EXIT: ${{ steps.execute.outputs.batch_exit }}
         shell: bash
         run: |
@@ -238,7 +245,7 @@ jobs:
             committed="$(jq -r '.committedRecordCount' "$summary")"
             observations="$(jq -r '.observationCount' "$summary")"
             cat > "$body" <<EOF
-          The artifact-only live structured acquisition canary completed on exact candidate \`${GITHUB_SHA}\`. Four signed plans produced four acquisition receipts with outcomes ${outcomes}. The batch process exit was \`${BATCH_EXIT:-unknown}\`; terminal source outcomes were retained rather than converted into CI claims. The run recorded ${request_count} network requests, ${waited} milliseconds of enforced wait, ${response_bytes} raw response bytes by digest only, ${committed} committed normalized records, and ${observations} collector observations.
+          The artifact-only live structured acquisition canary completed on exact candidate \`${GITHUB_SHA}\` in workflow run \`${GITHUB_RUN_ID}\`. Four signed plans produced four acquisition receipts with outcomes ${outcomes}. The batch process exit was \`${BATCH_EXIT:-unknown}\`; terminal source outcomes were retained rather than converted into CI claims. The run recorded ${request_count} network requests, ${waited} milliseconds of enforced wait, ${response_bytes} raw response bytes by digest only, ${committed} committed normalized records, and ${observations} collector observations.
 
           The complete collector and acquisition estate verified successfully. Every receipt declared \`rawResponseRetained=false\`, \`graphEffect=none\`, and \`canonEffect=none\`. Artifact \`${ARTIFACT_ID}\` has ZIP digest \`${ARTIFACT_DIGEST}\` and contains the signed plans, batch outputs, machine summary, collector ledgers, normalized rights-controlled records, adapter receipts, acquisition receipts, state projection, inventory, and \`SHA256SUMS\`.
 
@@ -246,7 +253,7 @@ jobs:
           EOF
           else
             cat > "$body" <<EOF
-          The live canary did not reach a verified custody summary on candidate \`${GITHUB_SHA}\`. No acquisition qualification or endpoint claim is made. The available diagnostic artifact is \`${ARTIFACT_ID:-not-issued}\` with digest \`${ARTIFACT_DIGEST:-not-issued}\`.
+          The live canary did not reach a verified custody summary on candidate \`${GITHUB_SHA}\` in workflow run \`${GITHUB_RUN_ID}\`. No acquisition qualification or endpoint claim is made. The available diagnostic artifact is \`${ARTIFACT_ID:-not-issued}\` with digest \`${ARTIFACT_DIGEST:-not-issued}\`.
           EOF
           fi
           gh pr comment 242 --repo BigBirdReturns/axm-arc --body-file "$body"

@@ -1,0 +1,137 @@
+name: ASOIAF structured acquisition source health
+
+on:
+  pull_request:
+    paths:
+      - 'tools/lib/asoiaf-structured-acquisition-source-health.ts'
+      - 'tools/asoiaf-structured-acquisition-source-health.ts'
+      - 'tests/narrative/canon/asoiaf-structured-acquisition-source-health.test.ts'
+      - 'tools/lib/asoiaf-external-source-health.ts'
+      - 'tests/narrative/canon/asoiaf-external-source-health.test.ts'
+      - 'docs/ASOIAF_STRUCTURED_ACQUISITION_SOURCE_HEALTH.md'
+      - 'package.json'
+      - '.github/workflows/asoiaf-structured-acquisition-source-health.yml'
+  push:
+    branches:
+      - feature/asoiaf-external-source-health-v1
+    paths:
+      - 'tools/lib/asoiaf-structured-acquisition-source-health.ts'
+      - 'tools/asoiaf-structured-acquisition-source-health.ts'
+      - 'tests/narrative/canon/asoiaf-structured-acquisition-source-health.test.ts'
+      - 'tools/lib/asoiaf-external-source-health.ts'
+      - 'tests/narrative/canon/asoiaf-external-source-health.test.ts'
+      - 'docs/ASOIAF_STRUCTURED_ACQUISITION_SOURCE_HEALTH.md'
+      - 'package.json'
+      - '.github/workflows/asoiaf-structured-acquisition-source-health.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qualify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out exact structured-acquisition health candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+          show-progress: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Strict TypeScript
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run typecheck | tee "$RUNNER_TEMP/typecheck.log"
+
+      - name: Focused acquisition and source-health qualification
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm test -- \
+            tests/narrative/canon/asoiaf-structured-acquisition-source-health.test.ts \
+            tests/narrative/canon/asoiaf-external-source-health.test.ts \
+            | tee "$RUNNER_TEMP/focused-tests.log"
+
+      - name: Read-only operator smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          estate="$RUNNER_TEMP/structured-acquisition-health-estate"
+          npm run --silent asoiaf:structured-acquisition:health -- audit \
+            --root "$estate" \
+            | tee "$RUNNER_TEMP/audit.log"
+          npm run --silent asoiaf:structured-acquisition:health -- verify \
+            --root "$estate" \
+            | tee "$RUNNER_TEMP/verify.log"
+          grep -q '"receiptCount": 0' "$RUNNER_TEMP/audit.log"
+          grep -q '"ok": true' "$RUNNER_TEMP/verify.log"
+          test ! -e "$estate"
+
+      - name: Complete Arc regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm test | tee "$RUNNER_TEMP/full-tests.log"
+
+      - name: Production build
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run build | tee "$RUNNER_TEMP/build.log"
+
+      - name: Retain exact structured-acquisition health qualification
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          root='asoiaf-structured-acquisition-source-health-qualification'
+          mkdir -p "$root"
+          cp "$RUNNER_TEMP"/*.log "$root/" 2>/dev/null || true
+          printf '%s\n' '${{ github.event.pull_request.head.sha || github.sha }}' \
+            > "$root/candidate-sha.txt"
+          printf '%s\n' \
+            'liveNetworkInCI=false' \
+            'estateMutation=false' \
+            'emptyAcquisitionLedger=valid' \
+            'stateFingerprint=required-when-present' \
+            'acquisitionReceiptIdentity=content-addressed' \
+            'adapterReceiptFingerprint=required' \
+            'rawResponseRetained=false' \
+            'observationCandidateParity=required' \
+            'collectorAttemptParity=required' \
+            'cacheReplayOrigin=required' \
+            'cacheReplayRequests=zero' \
+            'routeRobotsResponseDrift=visible' \
+            'graphEffect=none' \
+            'canonEffect=none' \
+            > "$root/structured-acquisition-health-boundary.txt"
+          find "$root" -type f ! -name SHA256SUMS -print0 \
+            | sort -z \
+            | xargs -0 sha256sum \
+            | sed "s#  $root/#  #" \
+            > "$root/SHA256SUMS"
+
+      - name: Upload structured-acquisition health qualification
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: asoiaf-structured-acquisition-source-health-qualification
+          path: asoiaf-structured-acquisition-source-health-qualification
+          if-no-files-found: error
+          retention-days: 30

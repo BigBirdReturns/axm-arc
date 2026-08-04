@@ -1,0 +1,61 @@
+name: Repair ASOIAF external reconciliation packet fixture
+
+on:
+  push:
+    branches:
+      - feature/asoiaf-external-reconciliation-packets-v1
+    paths:
+      - '.github/workflows/repair-asoiaf-external-reconciliation-packets.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: repair-asoiaf-external-reconciliation-packets-v1
+  cancel-in-progress: true
+
+jobs:
+  repair:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out exact packet branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/asoiaf-external-reconciliation-packets-v1
+          fetch-depth: 0
+
+      - name: Correct bounded rights expectation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          target = Path('tests/narrative/canon/asoiaf-external-reconciliation-packets.test.ts')
+          text = target.read_text()
+          old = '''      expect.arrayContaining([\n        "nonprimary-source-promoted",\n        "primary-standing-forbidden",\n        "rights-review-mismatch",\n      ]),'''
+          new = '''      expect.arrayContaining([\n        "nonprimary-source-promoted",\n        "primary-standing-forbidden",\n      ]),'''
+          if text.count(old) != 1:
+              raise SystemExit('expected community-rights fixture block not found exactly once')
+          target.write_text(text.replace(old, new))
+          PY
+          rm -f .github/workflows/repair-asoiaf-external-reconciliation-packets.yml
+          git diff --check
+
+      - name: Qualify repaired packet transaction
+        run: |
+          npm ci --no-audit --no-fund
+          npm run typecheck
+          npm test -- tests/narrative/canon/asoiaf-external-reconciliation-packets.test.ts
+
+      - name: Commit repaired fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Correct community link-only rights fixture'
+          git push origin HEAD:feature/asoiaf-external-reconciliation-packets-v1

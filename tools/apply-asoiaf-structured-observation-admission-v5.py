@@ -17,7 +17,10 @@ DOCS = Path("docs/ASOIAF_STRUCTURED_ACQUISITION_RECONCILIATION.md")
 
 def extract_v3_source_patch() -> str:
     carrier_text = V3_CARRIER.read_text(encoding="utf-8")
-    start = "          python - <<'PY'\n"
+    start = (
+        "          python - <<'PY' 2>&1 | tee "
+        '"$RUNNER_TEMP/patch.log"\n'
+    )
     end = "\n          PY\n"
     if start not in carrier_text or end not in carrier_text:
         raise SystemExit("v3 direct-integration carrier is malformed")

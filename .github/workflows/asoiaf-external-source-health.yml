@@ -22,71 +22,13 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
-  repair_source_health_type:
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-24.04
-    timeout-minutes: 35
-    steps:
-      - name: Check out current source-health branch
-        uses: actions/checkout@v4
-        with:
-          ref: feature/asoiaf-external-source-health-v1
-          fetch-depth: 0
-
-      - name: Apply the bounded narrowing repair and restore read-only workflow law
-        shell: bash
-        run: |
-          set -euo pipefail
-          python - <<'PY'
-          from pathlib import Path
-
-          path = Path('tools/lib/asoiaf-external-source-health.ts')
-          text = path.read_text()
-          old = '''      case "rights-review":
-      case "fresh":
-      case "retired":
-      case "integrity-error":
-        break;'''
-          new = '''      case "rights-review":
-      case "fresh":
-      case "integrity-error":
-        break;'''
-          if text.count(old) != 1:
-              raise SystemExit(f'expected one unreachable retired switch arm, found {text.count(old)}')
-          path.write_text(text.replace(old, new))
-          PY
-          git show HEAD^:.github/workflows/asoiaf-external-source-health.yml \
-            > .github/workflows/asoiaf-external-source-health.yml
-          rm -f .github/workflows/repair-asoiaf-external-source-health-type.yml
-          git diff --check
-
-      - name: Qualify the repaired source-health implementation
-        shell: bash
-        run: |
-          set -euo pipefail
-          npm ci --no-audit --no-fund
-          npm run typecheck
-          npm test -- tests/narrative/canon/asoiaf-external-source-health.test.ts
-          npm test
-          npm run build
-
-      - name: Commit repaired source-health implementation
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A
-          git commit -m 'Repair source-health status narrowing'
-          git push origin HEAD:feature/asoiaf-external-source-health-v1
-
   qualify:
     runs-on: ubuntu-24.04
     timeout-minutes: 35
@@ -108,9 +50,13 @@ jobs:
         run: npm ci --no-audit --no-fund
 
       - name: Strict TypeScript
-        run: npm run typecheck | tee "$RUNNER_TEMP/typecheck.log"
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run typecheck | tee "$RUNNER_TEMP/typecheck.log"
 
       - name: Focused source-health qualification
+        shell: bash
         run: |
           set -euo pipefail
           npm test -- tests/narrative/canon/asoiaf-external-source-health.test.ts \
@@ -141,10 +87,16 @@ jobs:
           cp "$estate/refresh-plan.json" "$RUNNER_TEMP/"
 
       - name: Complete Arc regression
-        run: npm test | tee "$RUNNER_TEMP/full-tests.log"
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm test | tee "$RUNNER_TEMP/full-tests.log"
 
       - name: Production build
-        run: npm run build | tee "$RUNNER_TEMP/build.log"
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run build | tee "$RUNNER_TEMP/build.log"
 
       - name: Retain exact source-health qualification
         if: always()

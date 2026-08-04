@@ -31,6 +31,8 @@ Each plan is produced by the qualified adapter planner, carries its own request 
 
 ## Operating result
 
+The workflow binds the exact canary branch head, requires a clean repository worktree before acquisition, and proves that the worktree remains clean after every artifact-only transaction. The temporary collector estate and every diagnostic or summary file remain under the runner temporary directory.
+
 The workflow does not require every endpoint to return a successful record. Robots denial, route unavailability, oversize response, invalid media, malformed JSON, no normalized records, or another bounded terminal is an observed source result rather than a CI defect. The workflow itself succeeds only when plan generation and validation complete, the acquisition runner terminates honestly, the resulting collector and acquisition estate verifies, the raw response remains absent, and the artifact package is complete.
 
 The retained artifact contains:

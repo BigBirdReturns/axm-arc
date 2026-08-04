@@ -1,4 +1,4 @@
-# one-use repair trigger 2026-08-04
+# one-use repair trigger 2026-08-04-r2
 name: Repair ASOIAF external source atlas
 
 on:
@@ -13,8 +13,8 @@ permissions:
   contents: write
 
 concurrency:
-  group: repair-asoiaf-external-source-atlas
-  cancel-in-progress: false
+  group: repair-asoiaf-external-source-atlas-r2
+  cancel-in-progress: true
 
 jobs:
   repair:

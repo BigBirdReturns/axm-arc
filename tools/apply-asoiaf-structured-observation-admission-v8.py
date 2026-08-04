@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import runpy
+from pathlib import Path
 
 
 V5_APPLICATOR = "tools/apply-asoiaf-structured-observation-admission-v5.py"
@@ -35,6 +36,11 @@ def correct_fixture_targets(source_patch: str) -> str:
     return corrected
 
 
+def normalize_documentation_eof(docs_path: Path) -> None:
+    content = docs_path.read_text(encoding="utf-8")
+    docs_path.write_text(content.rstrip() + "\n", encoding="utf-8")
+
+
 def main() -> None:
     namespace = runpy.run_path(
         V5_APPLICATOR,
@@ -52,8 +58,9 @@ def main() -> None:
     )
     namespace["integrate_permanent_workflow"]()
     namespace["append_documentation"]()
+    normalize_documentation_eof(namespace["DOCS"])
     namespace["verify_markers"]()
-    print("STRUCTURED_OBSERVATION_ADMISSION_V8_INTEGRATION_COMPLETE")
+    print("STRUCTURED_OBSERVATION_ADMISSION_V10_INTEGRATION_COMPLETE")
 
 
 if __name__ == "__main__":

@@ -108,8 +108,8 @@ jobs:
           set -euo pipefail
 
           git restore --worktree -- \
-            .github/workflows/asoiaf-structured-acquisition-reconciliation.yml \
-            docs/game 2>/dev/null || true
+            .github/workflows/asoiaf-structured-acquisition-reconciliation.yml
+          git restore --worktree -- docs/game 2>/dev/null || true
           git ls-files --others --exclude-standard -z \
             | while IFS= read -r -d '' generated; do
                 case "$generated" in

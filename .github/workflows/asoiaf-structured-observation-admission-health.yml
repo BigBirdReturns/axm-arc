@@ -117,12 +117,14 @@ jobs:
             'admissionHistory=append-only' \
             'currentState=fingerprinted-required-when-present' \
             'admissionFilename=portable-fingerprint' \
+            'portableFilesystem=ntfs-safe-required' \
             'acquisitionReceiptParity=required' \
             'collectorObservationParity=required' \
             'collectorCandidateParity=required' \
             'workIdentityEvidence=required' \
             'questionRelevanceEvidence=required' \
             'namedReviewer=required' \
+            'reviewerChange=visible' \
             'dispositionDrift=visible' \
             'admissionAuthority=admission-only' \
             'graphEffect=none' \

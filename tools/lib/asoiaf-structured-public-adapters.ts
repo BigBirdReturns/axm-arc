@@ -993,11 +993,12 @@ export function commitAsoiafStructuredPayload(
   }
   generateCollectorCredits(options.root);
 
-  const outcome = records.length === 0
-    ? "refused"
-    : normalized.rejected.length > 0
-      ? "partial"
-      : "observed";
+  const outcome: AsoiafStructuredAdapterReceipt["outcome"] =
+    records.length === 0
+      ? "refused"
+      : normalized.rejected.length > 0
+        ? "partial"
+        : "observed";
   const core = {
     format: ASOIAF_STRUCTURED_ADAPTER_RECEIPT_FORMAT,
     adapterId: options.adapterId,

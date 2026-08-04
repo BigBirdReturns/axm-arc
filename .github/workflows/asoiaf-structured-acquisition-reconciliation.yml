@@ -4,7 +4,9 @@ on:
   pull_request:
     paths:
       - 'tools/lib/asoiaf-structured-acquisition-reconciliation.ts'
+      - 'tools/lib/asoiaf-structured-observation-admission.ts'
       - 'tests/narrative/canon/asoiaf-structured-acquisition-reconciliation.test.ts'
+      - 'tests/narrative/canon/asoiaf-structured-observation-admission.test.ts'
       - 'src/narrative/canon/asoiaf/external/reconciliation-packets.ts'
       - 'tests/narrative/canon/asoiaf-external-reconciliation-packets.test.ts'
       - 'docs/ASOIAF_STRUCTURED_ACQUISITION_RECONCILIATION.md'
@@ -14,7 +16,9 @@ on:
       - feature/asoiaf-external-reconciliation-packets-v1
     paths:
       - 'tools/lib/asoiaf-structured-acquisition-reconciliation.ts'
+      - 'tools/lib/asoiaf-structured-observation-admission.ts'
       - 'tests/narrative/canon/asoiaf-structured-acquisition-reconciliation.test.ts'
+      - 'tests/narrative/canon/asoiaf-structured-observation-admission.test.ts'
       - 'src/narrative/canon/asoiaf/external/reconciliation-packets.ts'
       - 'tests/narrative/canon/asoiaf-external-reconciliation-packets.test.ts'
       - 'docs/ASOIAF_STRUCTURED_ACQUISITION_RECONCILIATION.md'
@@ -60,6 +64,7 @@ jobs:
         run: |
           set -euo pipefail
           npm test -- \
+            tests/narrative/canon/asoiaf-structured-observation-admission.test.ts \
             tests/narrative/canon/asoiaf-structured-acquisition-reconciliation.test.ts \
             tests/narrative/canon/asoiaf-external-reconciliation-packets.test.ts \
             | tee "$RUNNER_TEMP/focused-tests.log"
@@ -98,6 +103,10 @@ jobs:
             'rawResponseRetained=false' \
             'normalizedObservationDigest=separate' \
             'reviewedObservationParity=required' \
+            'semanticAdmission=fingerprinted-required' \
+            'admissionOutcomes=admit-reject-defer' \
+            'workIdentityEvidence=retained-required' \
+            'questionRelevanceEvidence=retained-required' \
             'rightsReview=named-required' \
             'cacheReplay=zero-request-only' \
             'structuredAuthority=supporting-only' \

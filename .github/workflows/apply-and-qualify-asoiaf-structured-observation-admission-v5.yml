@@ -1,0 +1,212 @@
+name: Apply and qualify ASOIAF structured observation admission v5
+
+on:
+  push:
+    branches:
+      - feature/asoiaf-external-reconciliation-packets-v1
+    paths:
+      - '.github/workflows/apply-and-qualify-asoiaf-structured-observation-admission-v5.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: apply-and-qualify-asoiaf-structured-observation-admission-v5
+  cancel-in-progress: false
+
+jobs:
+  integrate_qualify_and_seal:
+    if: github.repository == 'BigBirdReturns/axm-arc' && github.ref_name == 'feature/asoiaf-external-reconciliation-packets-v1'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Check out exact reconciliation parent
+        uses: actions/checkout@v4
+        with:
+          ref: feature/asoiaf-external-reconciliation-packets-v1
+          fetch-depth: 0
+          show-progress: false
+
+      - name: Bind exact integration transaction
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$GITHUB_REF_NAME" = 'feature/asoiaf-external-reconciliation-packets-v1'
+          test -z "$(git status --porcelain)"
+          test -f .ci/asoiaf-structured-observation-admission-v5.py
+          test -f tools/lib/asoiaf-structured-observation-admission.ts
+          test -f tests/narrative/canon/asoiaf-structured-observation-admission.test.ts
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Integrate fingerprinted semantic admission
+        id: integrate
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          python .ci/asoiaf-structured-observation-admission-v5.py \
+            2>&1 | tee "$RUNNER_TEMP/integration.log"
+          git diff --check
+
+      - name: Strict TypeScript
+        id: typecheck
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run typecheck 2>&1 | tee "$RUNNER_TEMP/typecheck.log"
+
+      - name: Focused admission and reconciliation qualification
+        id: focused
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npm test -- \
+            tests/narrative/canon/asoiaf-structured-observation-admission.test.ts \
+            tests/narrative/canon/asoiaf-structured-acquisition-reconciliation.test.ts \
+            tests/narrative/canon/asoiaf-external-reconciliation-packets.test.ts \
+            2>&1 | tee "$RUNNER_TEMP/focused-tests.log"
+
+      - name: Complete Arc regression
+        id: regression
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee "$RUNNER_TEMP/full-tests.log"
+
+      - name: Production build
+        id: build
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee "$RUNNER_TEMP/build.log"
+
+      - name: Commit and push carrier-free qualified candidate
+        id: candidate
+        if: steps.integrate.outcome == 'success' && steps.typecheck.outcome == 'success' && steps.focused.outcome == 'success' && steps.regression.outcome == 'success' && steps.build.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/apply-and-qualify-asoiaf-structured-observation-admission-v*.yml
+          rm -f .ci/asoiaf-structured-observation-admission-v5.py
+          rmdir .ci 2>/dev/null || true
+          git ls-files --others --exclude-standard -z \
+            | while IFS= read -r -d '' generated; do
+                case "$generated" in
+                  *.js|*.js.map|*.d.ts) rm -f "$generated" ;;
+                esac
+              done
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          test -n "$(git diff --cached --name-only)"
+          if git diff --cached --name-only | grep -E 'apply-and-qualify-asoiaf-structured-observation-admission|asoiaf-structured-observation-admission-v5.py'; then
+            echo 'carrier residue remains staged' >&2
+            exit 1
+          fi
+          git commit -m 'Require structured observation admission before review'
+          final_sha="$(git rev-parse HEAD)"
+          test -z "$(git status --porcelain)"
+          git push origin HEAD:feature/asoiaf-external-reconciliation-packets-v1
+          echo "final_sha=$final_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Retain exact qualification diagnostics
+        if: always()
+        env:
+          FINAL_SHA: ${{ steps.candidate.outputs.final_sha }}
+          INTEGRATE: ${{ steps.integrate.outcome }}
+          TYPECHECK: ${{ steps.typecheck.outcome }}
+          FOCUSED: ${{ steps.focused.outcome }}
+          REGRESSION: ${{ steps.regression.outcome }}
+          BUILD: ${{ steps.build.outcome }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          root='asoiaf-structured-observation-admission-v5-qualification'
+          mkdir -p "$root"
+          cp "$RUNNER_TEMP"/*.log "$root/" 2>/dev/null || true
+          printf '%s\n' "$GITHUB_SHA" > "$root/trigger-sha.txt"
+          printf '%s\n' "${FINAL_SHA:-not-issued}" > "$root/candidate-sha.txt"
+          printf '%s\n' \
+            "integrate=$INTEGRATE" \
+            "typecheck=$TYPECHECK" \
+            "focused=$FOCUSED" \
+            "regression=$REGRESSION" \
+            "build=$BUILD" \
+            > "$root/outcomes.txt"
+          printf '%s\n' \
+            'admissionFormat=axm-asoiaf-structured-observation-admission/1' \
+            'outcomes=admit-reject-defer' \
+            'namedReviewer=required' \
+            'questionLane=required' \
+            'identityEvidence=required' \
+            'relevanceEvidence=required' \
+            'rejectAndDeferPacketConstruction=false' \
+            'admissionAuthority=admission-only' \
+            'structuredAuthority=supporting-only-after-admission' \
+            'carrierResidue=false-on-candidate' \
+            'graphEffect=none-before-compile' \
+            'canonEffect=none-before-compile' \
+            > "$root/admission-boundary.txt"
+          git status --short > "$root/worktree-status.txt"
+          git diff --stat > "$root/worktree-diff-stat.txt"
+          find "$root" -type f ! -name SHA256SUMS -print0 \
+            | sort -z \
+            | xargs -0 sha256sum \
+            | sed "s#  $root/#  #" \
+            > "$root/SHA256SUMS"
+
+      - name: Upload qualification diagnostics
+        if: always()
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: asoiaf-structured-observation-admission-v5-qualification
+          path: asoiaf-structured-observation-admission-v5-qualification
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Post bounded result
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FINAL_SHA: ${{ steps.candidate.outputs.final_sha }}
+          ARTIFACT_ID: ${{ steps.upload.outputs['artifact-id'] }}
+          ARTIFACT_DIGEST: ${{ steps.upload.outputs['artifact-digest'] }}
+          INTEGRATE: ${{ steps.integrate.outcome }}
+          TYPECHECK: ${{ steps.typecheck.outcome }}
+          FOCUSED: ${{ steps.focused.outcome }}
+          REGRESSION: ${{ steps.regression.outcome }}
+          BUILD: ${{ steps.build.outcome }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -n "${FINAL_SHA:-}" ]; then
+            gh pr comment 232 --repo "$GITHUB_REPOSITORY" --body \
+              "Structured observation admission v5 issued carrier-free candidate \`${FINAL_SHA}\`. Strict TypeScript, the focused admission and reconciliation suites, the complete Arc regression, and production build passed. Diagnostic artifact \`${ARTIFACT_ID}\` has ZIP digest \`${ARTIFACT_DIGEST}\`. The permanent bridge requires a fingerprinted named-review disposition of \`admit-to-review\`, \`reject-off-topic\`, or \`defer-insufficient-identity\`; only admitted observations may construct supporting claims, while rejected and deferred observations preserve acquisition custody with \`graphEffect=none\` and \`canonEffect=none\`."
+          else
+            gh pr comment 232 --repo "$GITHUB_REPOSITORY" --body \
+              "Structured observation admission v5 did not issue a candidate. Integration \`${INTEGRATE}\`, TypeScript \`${TYPECHECK}\`, focused suite \`${FOCUSED}\`, regression \`${REGRESSION}\`, build \`${BUILD}\`. Diagnostic artifact \`${ARTIFACT_ID}\` has ZIP digest \`${ARTIFACT_DIGEST}\`. The parent branch was not advanced, and no admission or reconciliation claim is made."
+            exit 1
+          fi

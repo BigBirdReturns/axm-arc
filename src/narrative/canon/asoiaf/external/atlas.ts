@@ -173,7 +173,8 @@ function buildWorkOrder(
 ): AsoiafExternalHarvestWorkOrder {
   const candidateIds = RECALL_CANDIDATES.filter((candidate) =>
     candidate.sourceHints.some((hint) => source.sourceHintRoutes.includes(hint))
-    || candidateLaneIds(candidate).some((laneId) => source.roles.includes(laneId)),
+    || candidateLaneIds(candidate).some((laneId) => source.roles.includes(laneId))
+    || source.id === "structured-github-datasets",
   )
     .map((candidate) => candidate.id)
     .sort(compareCodepoints);

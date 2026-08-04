@@ -98,19 +98,26 @@ export function asoiafExternalObservationId(input: {
   sourceRecordId: string;
   contentDigest: `sha256:${string}`;
 }): string {
-  return `asoiaf-external-observation:${narrativeFingerprint(input).slice(
-    "fnv1a32:".length,
-  )}`;
+  return `asoiaf-external-observation:${narrativeFingerprint({
+    sourceId: input.sourceId,
+    sourceRecordId: input.sourceRecordId,
+    contentDigest: input.contentDigest,
+  }).slice("fnv1a32:".length)}`;
 }
 
 export function containsPrivateContact(value: unknown): boolean {
   const text = JSON.stringify(value);
+  const phoneCandidates = text.match(/\+?\d[\d ().-]{8,}\d/g) ?? [];
   return (
     /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(text)
     || /\b(?:phone|mobile|street[_ -]?address|mailing[_ -]?address|point[_ -]?of[_ -]?contact)\b/i.test(
       text,
     )
-    || /\b\+?\d[\d ().-]{8,}\d\b/.test(text)
+    || phoneCandidates.some(
+      (candidate) =>
+        candidate.replace(/\D/g, "").length >= 10
+        && !/^\d{4}-\d{2}-\d{2}/.test(candidate),
+    )
   );
 }
 

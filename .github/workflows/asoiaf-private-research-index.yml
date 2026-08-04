@@ -1,0 +1,165 @@
+name: ASOIAF private research index
+
+on:
+  pull_request:
+    paths:
+      - 'tools/lib/asoiaf-private-research-index.ts'
+      - 'tools/asoiaf-private-research-index.ts'
+      - 'tests/narrative/canon/asoiaf-private-research-index.test.ts'
+      - 'docs/ASOIAF_PRIVATE_RESEARCH_INDEX.md'
+      - 'package.json'
+      - '.github/workflows/asoiaf-private-research-index.yml'
+  push:
+    branches:
+      - feature/asoiaf-private-research-index-v1
+    paths:
+      - 'tools/lib/asoiaf-private-research-index.ts'
+      - 'tools/asoiaf-private-research-index.ts'
+      - 'tests/narrative/canon/asoiaf-private-research-index.test.ts'
+      - 'docs/ASOIAF_PRIVATE_RESEARCH_INDEX.md'
+      - 'package.json'
+      - '.github/workflows/asoiaf-private-research-index.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qualify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Check out exact private-research candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+          show-progress: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Strict TypeScript
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run typecheck | tee "$RUNNER_TEMP/typecheck.log"
+
+      - name: Focused private-research qualification
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm test -- tests/narrative/canon/asoiaf-private-research-index.test.ts \
+            | tee "$RUNNER_TEMP/focused-tests.log"
+
+      - name: Private retrieval smoke estate
+        shell: bash
+        run: |
+          set -euo pipefail
+          estate="$RUNNER_TEMP/private-research-estate"
+          source="$RUNNER_TEMP/holder-source.txt"
+          cat > "$source" <<'TEXT'
+          PROLOGUE
+          The cold opened beyond the Wall and the dead walked beneath moonlight.
+
+          A ranger listened while the weirwood silence gathered.
+
+          BRAN
+          The boy watched a king pass judgment beneath the old trees.
+
+          CATELYN
+          The household counted grain, guards, ravens, and uncertain loyalties.
+          TEXT
+          npm run asoiaf:local-edition -- intake \
+            --root "$estate" \
+            --source local-agot \
+            --edition ci-private-search-edition \
+            --file "$source" \
+            --at 2026-08-04T00:00:00.000Z \
+            | tee "$RUNNER_TEMP/local-intake.log"
+          npm run asoiaf:private-research -- build \
+            --root "$estate" \
+            --at 2026-08-04T00:01:00.000Z \
+            | tee "$RUNNER_TEMP/index-build.log"
+          npm run asoiaf:private-research -- search \
+            --root "$estate" \
+            --query 'weirwood silence' \
+            --mode all \
+            | tee "$RUNNER_TEMP/query-receipt.json"
+          npm run asoiaf:private-research -- verify \
+            --root "$estate" \
+            | tee "$RUNNER_TEMP/index-verify.log"
+          npm run asoiaf:private-research -- receipt \
+            --root "$estate" \
+            --at 2026-08-04T00:02:00.000Z \
+            --out "$RUNNER_TEMP/private-research-receipt.json" \
+            | tee "$RUNNER_TEMP/receipt.log"
+          grep -q '"ok": true' "$RUNNER_TEMP/index-verify.log"
+          test "$(jq -r '.returnedCount' "$RUNNER_TEMP/query-receipt.json")" = '1'
+          test "$(jq -r '.includeText' "$RUNNER_TEMP/query-receipt.json")" = 'false'
+          cp "$estate/private-research/PRIVATE-RESEARCH-INDEX.json" "$RUNNER_TEMP/"
+          ! grep -Fq "$source" "$RUNNER_TEMP/PRIVATE-RESEARCH-INDEX.json"
+          ! grep -Fq 'holder-source.txt' "$RUNNER_TEMP/PRIVATE-RESEARCH-INDEX.json"
+          ! grep -Fq 'A ranger listened' "$RUNNER_TEMP/query-receipt.json"
+
+      - name: Complete Arc regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm test | tee "$RUNNER_TEMP/full-tests.log"
+
+      - name: Production build
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run build | tee "$RUNNER_TEMP/build.log"
+
+      - name: Retain exact private-research qualification
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          root='asoiaf-private-research-index-qualification'
+          mkdir -p "$root"
+          cp "$RUNNER_TEMP"/*.log "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP/PRIVATE-RESEARCH-INDEX.json" "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP/private-research-receipt.json" "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP/query-receipt.json" "$root/" 2>/dev/null || true
+          printf '%s\n' '${{ github.event.pull_request.head.sha || github.sha }}' \
+            > "$root/candidate-sha.txt"
+          printf '%s\n' \
+            'custody=user-controlled-private' \
+            'indexContainsTerms=true' \
+            'indexContainsParagraphText=false' \
+            'defaultQueryTextDisclosure=false' \
+            'explicitSnippetTransaction=true' \
+            'sourcePathRetained=false' \
+            'sourceFilenameRetained=false' \
+            'graphEffect=none' \
+            'canonEffect=none' \
+            'searchAuthority=none' \
+            > "$root/private-research-boundary.txt"
+          find "$root" -type f ! -name SHA256SUMS -print0 \
+            | sort -z \
+            | xargs -0 sha256sum \
+            | sed "s#  $root/#  #" \
+            > "$root/SHA256SUMS"
+
+      - name: Upload private-research qualification
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: asoiaf-private-research-index-qualification
+          path: asoiaf-private-research-index-qualification
+          if-no-files-found: error
+          retention-days: 30

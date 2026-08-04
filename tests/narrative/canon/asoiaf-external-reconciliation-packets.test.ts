@@ -73,9 +73,8 @@ function primaryAgotPacket(): AsoiafExternalReviewPacket {
         continuityId: "book-main",
         locator: {
           id: "external-locator:agot:bran-1",
-          kind: "chapter-character-range",
-          label: "AGOT reviewed chapter range",
-          path: "AGOT/Bran-I/reviewed-range-1",
+          kind: "chapter",
+          unit: "AGOT/Bran-I/reviewed-range-1",
           start: 1,
           end: 2,
           contentDigest: DIGEST,
@@ -105,17 +104,7 @@ function confirmDecision(packet: AsoiafExternalReviewPacket): AsoiafExternalDeci
         action: "confirm",
         candidateIds: [agotCandidate.id],
         evidenceRecordIds: [claim.evidenceRecordId],
-        promotedRecords: [
-          {
-            id: "external-promoted:agot:bran-1",
-            targetType: "proposition",
-            normalized: {
-              statement: agotCandidate.summary,
-              reconciliationKeys: [agotCandidate.reconciliationKeys[0]!],
-            },
-            sourceEvidenceRecordIds: [claim.evidenceRecordId],
-          },
-        ],
+        promotedRecordIds: [claim.evidenceRecordId],
         rationale:
           "The exact holder-controlled edition and locator confirm the bounded candidate.",
       },
@@ -130,19 +119,42 @@ describe("ASOIAF external reconciliation packets", () => {
       ...packet,
       claims: [...packet.claims].reverse().map((claim) => ({
         ...claim,
+        normalized: Object.fromEntries(
+          Object.entries(claim.normalized).reverse(),
+        ),
         reconciliationKeys: [...claim.reconciliationKeys].reverse(),
         recallCandidateIds: [...claim.recallCandidateIds].reverse(),
       })),
     });
     expect(reordered).toEqual(packet);
     expect(validateAsoiafExternalReviewPacket(packet)).toEqual([]);
+
     const bundle = buildAsoiafExternalEvidenceBundle(packet);
     expect(bundle.sources).toHaveLength(1);
-    expect(bundle.sources[0]?.fileName).toBe("[logical-source:local-agot]");
-    expect(bundle.sources[0]?.fileName).not.toContain(".epub");
-    expect(bundle.sources[0]?.contentDigest).toBe("a".repeat(64));
-    expect(bundle.records[0]?.reviewStatus).toBe("reviewed");
-    expect(bundle.records[0]?.reviewedBy).toBe(REVIEWER);
+    expect(bundle.sources[0]).toEqual(
+      expect.objectContaining({
+        version: "isbn:9780553593716:holder-copy-1",
+        custody: "local-private",
+        digest: "a".repeat(64),
+        fileSizeBytes: 987_654,
+      }),
+    );
+    expect(JSON.stringify(bundle)).not.toContain(".epub");
+    expect(JSON.stringify(bundle)).not.toContain("C:\\");
+    expect(bundle.locators[0]).toEqual(
+      expect.objectContaining({
+        kind: "chapter",
+        unit: "AGOT/Bran-I/reviewed-range-1",
+      }),
+    );
+    expect(bundle.records[0]).toEqual(
+      expect.objectContaining({
+        kind: "state",
+        producedBy: "human",
+        reviewStatus: "reviewed",
+        reviewedBy: REVIEWER,
+      }),
+    );
   });
 
   it("compiles exact primary evidence through the existing canon reconciliation transaction", () => {
@@ -150,6 +162,7 @@ describe("ASOIAF external reconciliation packets", () => {
     const workOrder = buildAsoiafExternalReconciliationWorkOrder(packet);
     expect(workOrder).not.toBeNull();
     expect(workOrder?.candidateIds).toContain(agotCandidate.id);
+
     const receipt = compileAsoiafExternalReconciliationPacket({
       packet,
       decisionInput: confirmDecision(packet),
@@ -159,8 +172,12 @@ describe("ASOIAF external reconciliation packets", () => {
     expect(receipt.canonReceipt?.resolvedCandidateIds).toContain(
       agotCandidate.id,
     );
-    expect(receipt.canonReceipt?.promotedRecords).toHaveLength(1);
-    expect(receipt.findings.filter((entry) => entry.severity === "error")).toEqual([]);
+    expect(receipt.canonReceipt?.promotedRecordIds).toEqual([
+      packet.claims[0]!.evidenceRecordId,
+    ]);
+    expect(
+      receipt.findings.filter((entry) => entry.severity === "error"),
+    ).toEqual([]);
   });
 
   it("refuses collector intake that has not acquired named human review", () => {
@@ -179,6 +196,7 @@ describe("ASOIAF external reconciliation packets", () => {
         "packet-fingerprint",
       ]),
     );
+
     const receipt = compileAsoiafExternalReconciliationPacket({
       packet: invalid,
       decisionInput: confirmDecision(valid),
@@ -249,14 +267,15 @@ describe("ASOIAF external reconciliation packets", () => {
           continuityId: "analysis",
           locator: {
             id: "community-locator:varys",
-            kind: "page-route",
-            label: "Community route",
-            path: "awoiaf/Varys",
+            kind: "record",
+            unit: "awoiaf/Varys",
             start: 1,
             end: 2,
           },
           text: "Community summary offered as if it were primary evidence.",
-          normalized: { reconciliationKeys: [agotCandidate.reconciliationKeys[0]!] },
+          normalized: {
+            reconciliationKeys: [agotCandidate.reconciliationKeys[0]!],
+          },
           reconciliationKeys: [agotCandidate.reconciliationKeys[0]!],
           recallCandidateIds: [agotCandidate.id],
         },
@@ -318,14 +337,15 @@ describe("ASOIAF external reconciliation packets", () => {
           continuityId: "historical-analogue",
           locator: {
             id: "analogue-locator:cybele",
-            kind: "bibliographic-route",
-            label: "Cybele source route",
-            path: "sacred-texts/cybele",
+            kind: "record",
+            unit: "sacred-texts/cybele",
             start: 1,
             end: 2,
           },
           text: "The historical source constrains the ritual analogy.",
-          normalized: { reconciliationKeys: [agotCandidate.reconciliationKeys[0]!] },
+          normalized: {
+            reconciliationKeys: [agotCandidate.reconciliationKeys[0]!],
+          },
           reconciliationKeys: [agotCandidate.reconciliationKeys[0]!],
           recallCandidateIds: [agotCandidate.id],
         },
@@ -341,16 +361,7 @@ describe("ASOIAF external reconciliation packets", () => {
           action: "confirm",
           candidateIds: [agotCandidate.id],
           evidenceRecordIds: ["analogue-evidence:cybele"],
-          promotedRecords: [
-            {
-              id: "external-promoted:analogue",
-              targetType: "proposition",
-              normalized: {
-                reconciliationKeys: [agotCandidate.reconciliationKeys[0]!],
-              },
-              sourceEvidenceRecordIds: ["analogue-evidence:cybele"],
-            },
-          ],
+          promotedRecordIds: ["analogue-evidence:cybele"],
           rationale: "Attempted canon promotion from an analogue.",
         },
       ],

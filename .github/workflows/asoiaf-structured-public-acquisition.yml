@@ -70,18 +70,18 @@ jobs:
           set -euo pipefail
           plan="$RUNNER_TEMP/request-plan.json"
           estate="$RUNNER_TEMP/acquisition-estate"
-          npm run asoiaf:structured-adapter -- plan \
+          npm run --silent asoiaf:structured-adapter -- plan \
             --adapter awoiaf-mediawiki \
             --request-id awoiaf:varys \
             --title Varys \
             > "$plan"
-          npm run asoiaf:structured-acquisition -- validate \
+          npm run --silent asoiaf:structured-acquisition -- validate \
             --plan "$plan" \
             | tee "$RUNNER_TEMP/validate.log"
-          npm run asoiaf:structured-acquisition -- status \
+          npm run --silent asoiaf:structured-acquisition -- status \
             --root "$estate" \
             | tee "$RUNNER_TEMP/status.log"
-          npm run asoiaf:structured-acquisition -- verify \
+          npm run --silent asoiaf:structured-acquisition -- verify \
             --root "$estate" \
             | tee "$RUNNER_TEMP/verify.log"
           grep -q '"ok": true' "$RUNNER_TEMP/validate.log"

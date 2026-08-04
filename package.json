@@ -19,7 +19,8 @@
     "build:clean-room-reference": "vite-node tools/build-clean-room-reference.ts",
     "creator:cli": "vite-node tools/creator-kit-cli.ts --",
     "build:creator-kit": "vite build --config vite.creator-kit.config.ts",
-    "build:creator-recovery-kit": "npm run build:creator-kit && vite-node tools/build-creator-recovery-kit.ts"
+    "build:creator-recovery-kit": "npm run build:creator-kit && vite-node tools/build-creator-recovery-kit.ts",
+    "asoiaf:external:collector": "vite-node tools/asoiaf-external-collector.ts --"
   },
   "dependencies": {
     "react": "^18.3.1",

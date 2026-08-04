@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-BRANCH = "feature/asoiaf-external-reconciliation-packets-v1"
 V3_CARRIER = Path(
     ".github/workflows/apply-and-qualify-asoiaf-structured-observation-admission-v3.yml"
 )
@@ -33,7 +32,6 @@ def extract_v3_source_patch() -> str:
         raise SystemExit("cannot isolate the v3 source and fixture patch")
 
     source_patch = script.split(workflow_marker, 1)[0]
-
     bad_claim_marker = (
         "      || claim.normalized.normalizedObservationDigest !== "
         "binding.normalizedContentDigest\n"
@@ -60,6 +58,8 @@ def extract_v3_source_patch() -> str:
 def integrate_permanent_workflow() -> None:
     lines = PERMANENT_WORKFLOW.read_text(encoding="utf-8").splitlines()
     output: list[str] = []
+    shell_continuation = "\\"
+
     for index, line in enumerate(lines):
         output.append(line)
         following = lines[index + 1] if index + 1 < len(lines) else ""
@@ -85,12 +85,18 @@ def integrate_permanent_workflow() -> None:
             )
 
         if (
-            line == "          npm test -- \\\n"
+            line == f"          npm test -- {shell_continuation}"
             and following
-            == "            tests/narrative/canon/asoiaf-structured-acquisition-reconciliation.test.ts \\\n"
+            == (
+                "            tests/narrative/canon/"
+                "asoiaf-structured-acquisition-reconciliation.test.ts "
+                f"{shell_continuation}"
+            )
         ):
             output.append(
-                "            tests/narrative/canon/asoiaf-structured-observation-admission.test.ts \\\n"
+                "            tests/narrative/canon/"
+                "asoiaf-structured-observation-admission.test.ts "
+                f"{shell_continuation}"
             )
 
         if (
@@ -103,15 +109,29 @@ def integrate_permanent_workflow() -> None:
             indent = line[: len(line) - len(line.lstrip())]
             output.extend(
                 [
-                    f"{indent}'semanticAdmission=fingerprinted-required' \\",
-                    f"{indent}'admissionOutcomes=admit-reject-defer' \\",
-                    f"{indent}'workIdentityEvidence=retained-required' \\",
-                    f"{indent}'questionRelevanceEvidence=retained-required' \\",
+                    (
+                        f"{indent}'semanticAdmission=fingerprinted-required' "
+                        f"{shell_continuation}"
+                    ),
+                    (
+                        f"{indent}'admissionOutcomes=admit-reject-defer' "
+                        f"{shell_continuation}"
+                    ),
+                    (
+                        f"{indent}'workIdentityEvidence=retained-required' "
+                        f"{shell_continuation}"
+                    ),
+                    (
+                        f"{indent}'questionRelevanceEvidence=retained-required' "
+                        f"{shell_continuation}"
+                    ),
                 ]
             )
 
-    rendered = "\n".join(output) + "\n"
-    PERMANENT_WORKFLOW.write_text(rendered, encoding="utf-8")
+    PERMANENT_WORKFLOW.write_text(
+        "\n".join(output) + "\n",
+        encoding="utf-8",
+    )
 
 
 def append_documentation() -> None:

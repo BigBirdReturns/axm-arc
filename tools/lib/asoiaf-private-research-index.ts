@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import {
@@ -190,6 +191,10 @@ interface LoadedPrivateUnit {
 
 const WORD_PATTERN = /[\p{L}\p{N}]+(?:['’.-][\p{L}\p{N}]+)*/gu;
 
+function digestText(text: string): `sha256:${string}` {
+  return `sha256:${crypto.createHash("sha256").update(text, "utf8").digest("hex")}`;
+}
+
 export function privateResearchPaths(root: string): AsoiafPrivateResearchPaths {
   const absolute = path.resolve(root);
   const directory = path.join(absolute, "private-research");
@@ -208,7 +213,8 @@ function normalizeTerm(value: string): string {
 export function tokenizeAsoiafPrivateResearchText(text: string): TokenOccurrence[] {
   const occurrences: TokenOccurrence[] = [];
   let tokenIndex = 0;
-  for (const match of text.matchAll(WORD_PATTERN)) {
+  const pattern = new RegExp(WORD_PATTERN.source, WORD_PATTERN.flags);
+  for (const match of text.matchAll(pattern)) {
     const raw = match[0];
     const start = match.index ?? 0;
     const term = normalizeTerm(raw);
@@ -257,7 +263,7 @@ function readPrivateUnits(
       throw new Error(`private text for ${unit.unitId} is missing or unsafe`);
     }
     const text = fs.readFileSync(target, "utf8");
-    if (sha256(Buffer.from(text, "utf8")) !== unit.textDigest) {
+    if (digestText(text) !== unit.textDigest) {
       throw new Error(`private text for ${unit.unitId} failed digest custody`);
     }
     return {
@@ -333,7 +339,7 @@ export function compileAsoiafPrivateResearchIndex(
     for (const loaded of readPrivateUnits(options.root, manifest)) {
       for (const segment of loaded.segments) {
         const text = loaded.text.slice(segment.startChar, segment.endChar);
-        if (sha256(Buffer.from(text, "utf8")) !== segment.textDigest) {
+        if (digestText(text) !== segment.textDigest) {
           throw new Error(`segment ${segment.segmentId} failed text digest custody`);
         }
         const occurrences = tokenizeAsoiafPrivateResearchText(text);
@@ -478,7 +484,7 @@ function documentPrivateText(
   const segment = unitSegments.find((value) => value.segmentId === document.segmentId);
   if (!segment) throw new Error(`segment ${document.segmentId} is missing`);
   const text = unitText.slice(segment.startChar, segment.endChar);
-  if (sha256(Buffer.from(text, "utf8")) !== document.textDigest) {
+  if (digestText(text) !== document.textDigest) {
     throw new Error(`document ${document.documentId} failed private-text custody`);
   }
   return text;
@@ -516,12 +522,22 @@ export function searchAsoiafPrivateResearchIndex(
     index.documents.map((document) => [document.documentId, document] as const),
   );
   const termsByValue = new Map(index.terms.map((term) => [term.term, term] as const));
-  const candidateDocumentIds = new Set<string>();
-  for (const term of normalizedTerms) {
-    for (const posting of termsByValue.get(term)?.postings ?? []) {
-      candidateDocumentIds.add(posting.documentId);
-    }
-  }
+  const uniqueTerms = [...new Set(normalizedTerms)];
+  const documentSets = uniqueTerms.map(
+    (term) =>
+      new Set(
+        (termsByValue.get(term)?.postings ?? []).map(
+(posting) => posting.documentId,
+        ),
+      ),
+  );
+  const candidateDocumentIds = mode === "any"
+    ? new Set(documentSets.flatMap((documents) => [...documents]))
+    : new Set(
+        [...(documentSets[0] ?? new Set<string>())].filter((documentId) =>
+documentSets.every((documents) => documents.has(documentId)),
+        ),
+      );
 
   const matches: AsoiafPrivateResearchMatch[] = [];
   for (const documentId of candidateDocumentIds) {
@@ -537,7 +553,6 @@ export function searchAsoiafPrivateResearchIndex(
         ?.postings.find((entry) => entry.documentId === documentId);
       if (posting) postingsByTerm.set(term, posting);
     }
-    const uniqueTerms = [...new Set(normalizedTerms)];
     const presentTerms = uniqueTerms.filter((term) => postingsByTerm.has(term));
     const phraseMatches = phraseStarts(normalizedTerms, postingsByTerm);
     if (mode === "all" && presentTerms.length !== uniqueTerms.length) continue;
@@ -567,7 +582,7 @@ export function searchAsoiafPrivateResearchIndex(
       const end = Math.min(text.length, first + contextCharacters);
       const selected = `${start > 0 ? "…" : ""}${text.slice(start, end)}${end < text.length ? "…" : ""}`;
       snippet = selected;
-      snippetDigest = sha256(Buffer.from(selected, "utf8"));
+      snippetDigest = digestText(selected);
     }
     matches.push({
       documentId,
@@ -602,7 +617,7 @@ export function searchAsoiafPrivateResearchIndex(
   const core: Omit<AsoiafPrivateResearchQueryReceipt, "queryFingerprint"> = {
     format: ASOIAF_PRIVATE_RESEARCH_QUERY_RECEIPT_FORMAT,
     indexFingerprint: index.indexFingerprint,
-    queryTextDigest: sha256(Buffer.from(query.text, "utf8")),
+    queryTextDigest: digestText(query.text),
     mode,
     normalizedTerms,
     sourceIds,
@@ -679,11 +694,15 @@ export function verifyAsoiafPrivateResearchIndex(root: string): string[] {
   }
   if (errors.length === 0) {
     try {
+      const allEditions = [
+        ...index.editionBindings,
+        ...index.skippedEditions,
+      ];
       const rebuilt = compileAsoiafPrivateResearchIndex({
         root,
         generatedAt: index.generatedAt,
-        sourceIds: [...new Set(index.editionBindings.map((binding) => binding.sourceId))],
-        editionKeys: index.editionBindings.map((binding) => binding.editionKey),
+        sourceIds: [...new Set(allEditions.map((edition) => edition.sourceId))],
+        editionKeys: allEditions.map((edition) => edition.editionKey),
       });
       if (rebuilt.indexFingerprint !== index.indexFingerprint) {
         errors.push("private-research index no longer matches private edition custody");

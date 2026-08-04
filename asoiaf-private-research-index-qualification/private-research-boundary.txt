@@ -1,0 +1,15 @@
+custody=user-controlled-private
+unitAndSegmentDigest=raw-utf8-sha256
+indexContainsTerms=true
+indexContainsParagraphText=false
+queryModes=all,any,phrase
+sourceEditionContinuityFilters=true
+digestOnlyEditionParity=true
+defaultQueryTextDisclosure=false
+explicitSnippetTransaction=true
+sourcePathRetained=false
+sourceFilenameRetained=false
+graphEffect=none
+canonEffect=none
+searchAuthority=none
+promotion=reviewed-reconciliation-only

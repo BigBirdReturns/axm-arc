@@ -5,6 +5,7 @@ on:
     paths:
       - 'tools/lib/asoiaf-local-edition-intake.ts'
       - 'tools/asoiaf-local-edition-intake.ts'
+      - 'src/types/asoiaf-external-estate-run-result.d.ts'
       - 'tests/narrative/canon/asoiaf-local-edition-intake.test.ts'
       - 'docs/ASOIAF_LOCAL_EDITION_INTAKE.md'
       - 'package.json'
@@ -15,6 +16,7 @@ on:
     paths:
       - 'tools/lib/asoiaf-local-edition-intake.ts'
       - 'tools/asoiaf-local-edition-intake.ts'
+      - 'src/types/asoiaf-external-estate-run-result.d.ts'
       - 'tests/narrative/canon/asoiaf-local-edition-intake.test.ts'
       - 'docs/ASOIAF_LOCAL_EDITION_INTAKE.md'
       - 'package.json'
@@ -50,7 +52,10 @@ jobs:
         run: npm ci --no-audit --no-fund
 
       - name: Strict TypeScript
-        run: npm run typecheck | tee "$RUNNER_TEMP/typecheck.log"
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run typecheck | tee "$RUNNER_TEMP/typecheck.log"
 
       - name: Focused local-edition qualification
         shell: bash
@@ -113,10 +118,16 @@ jobs:
           ! grep -Fq 'holder-source.txt' "$RUNNER_TEMP/edition-manifest.json"
 
       - name: Complete Arc regression
-        run: npm test | tee "$RUNNER_TEMP/full-tests.log"
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm test | tee "$RUNNER_TEMP/full-tests.log"
 
       - name: Production build
-        run: npm run build | tee "$RUNNER_TEMP/build.log"
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run build | tee "$RUNNER_TEMP/build.log"
 
       - name: Retain exact local-edition qualification
         if: always()

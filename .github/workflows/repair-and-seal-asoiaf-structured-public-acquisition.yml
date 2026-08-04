@@ -1,0 +1,850 @@
+name: Repair and seal ASOIAF structured public acquisition
+
+on:
+  push:
+    branches:
+      - feature/asoiaf-structured-public-acquisition-v1
+    paths:
+      - '.github/workflows/repair-and-seal-asoiaf-structured-public-acquisition.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: repair-and-seal-asoiaf-structured-public-acquisition
+  cancel-in-progress: false
+
+jobs:
+  repair_and_seal:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      - name: Check out current structured-acquisition branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/asoiaf-structured-public-acquisition-v1
+          fetch-depth: 0
+          show-progress: false
+
+      - name: Reconcile acquisition, adapter, receipt, and replay custody
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          def ensure(path: str, old: str, new: str) -> None:
+              target = Path(path)
+              text = target.read_text()
+              if new in text:
+                  return
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(
+                      f'{path}: expected one repair target, found {count}: {old[:180]!r}'
+                  )
+              target.write_text(text.replace(old, new, 1))
+
+          core_path = 'tools/lib/asoiaf-structured-public-acquisition.ts'
+          adapter_path = 'tools/lib/asoiaf-structured-public-adapters.ts'
+
+          ensure(
+              core_path,
+              'import fs from "node:fs";\nimport path from "node:path";',
+              'import crypto from "node:crypto";\nimport fs from "node:fs";\nimport path from "node:path";',
+          )
+          ensure(
+              core_path,
+              '''} from "../../src/narrative/canon/asoiaf/external/index.js";
+import {
+  commitAsoiafStructuredPayload,''',
+              '''} from "../../src/narrative/canon/asoiaf/external/index.js";
+import {
+  ASOIAF_EXTERNAL_COLLECTOR_USER_AGENT,
+} from "./asoiaf-external-collector.js";
+import {
+  commitAsoiafStructuredPayload,''',
+          )
+          ensure(
+              core_path,
+              '''  collectorContentId,
+  initializeCollectorEstate,
+  readJson,
+  recordAttempt,
+  recordGap,
+  sha256,
+  writeJsonAtomic,''',
+              '''  collectorContentId,
+  collectorEstatePaths,
+  initializeCollectorEstate,
+  readJson,
+  readNdjson,
+  recordAttempt,
+  recordGap,
+  sha256,
+  updateSourceLedgerRow,
+  verifyCollectorEstate,
+  writeJsonAtomic,''',
+          )
+
+          ensure(
+              core_path,
+              'const ROBOTS_AGENT_TOKEN = "BigBirdReturns-ASOIAF-External-Collector";',
+              '''const SOURCES_BY_ADAPTER: Record<
+  AsoiafStructuredRequestPlan["adapterId"],
+  ReadonlySet<AsoiafStructuredRequestPlan["sourceId"]>
+> = {
+  "wikidata-sparql": new Set<AsoiafStructuredRequestPlan["sourceId"]>([
+    "structured-wikidata",
+  ]),
+  "openlibrary-catalog": new Set<AsoiafStructuredRequestPlan["sourceId"]>([
+    "structured-openlibrary-api",
+  ]),
+  "crossref-works": new Set<AsoiafStructuredRequestPlan["sourceId"]>([
+    "structured-crossref-api",
+  ]),
+  "awoiaf-mediawiki": new Set<AsoiafStructuredRequestPlan["sourceId"]>([
+    "structured-awoiaf-api",
+    "structured-awoiaf-category-api",
+    "structured-awoiaf-search-api",
+  ]),
+};
+
+const SENSITIVE_HEADER_NAMES = new Set([
+  "authorization",
+  "proxy-authorization",
+  "cookie",
+  "set-cookie",
+  "x-api-key",
+  "api-key",
+]);
+
+const ROBOTS_AGENT_TOKEN = "axm-arc";
+
+function digestBytes(value: Uint8Array | string): `sha256:${string}` {
+  return `sha256:${crypto.createHash("sha256").update(value).digest("hex")}`;
+}
+
+function registeredEndpoint(
+  adapterId: AsoiafStructuredRequestPlan["adapterId"],
+  url: URL,
+): boolean {
+  const allowed = ALLOWED_ENDPOINTS[adapterId];
+  return (
+    url.protocol === "https:"
+    && url.hostname === allowed.host
+    && allowed.path.test(url.pathname)
+    && !url.username
+    && !url.password
+    && !url.hash
+  );
+}''',
+          )
+
+          ensure(
+              core_path,
+              '''  }
+}
+
+function statePath(root: string): string {''',
+              '''  }
+}
+
+const DEFAULT_STRUCTURED_ACQUISITION_RUNTIME =
+  new DefaultStructuredAcquisitionRuntime();
+const PACERS_BY_RUNTIME = new WeakMap<
+  AsoiafStructuredAcquisitionRuntime,
+  HostPacer
+>();
+
+function pacerFor(
+  runtime: AsoiafStructuredAcquisitionRuntime,
+): HostPacer {
+  const existing = PACERS_BY_RUNTIME.get(runtime);
+  if (existing) return existing;
+  const pacer = new HostPacer(runtime);
+  PACERS_BY_RUNTIME.set(runtime, pacer);
+  return pacer;
+}
+
+function statePath(root: string): string {''',
+          )
+
+          ensure(
+              core_path,
+              '''  const source = getAsoiafExternalSource(plan.sourceId);
+  if (!source) {
+    errors.push(`unknown atlas source ${plan.sourceId}`);
+  } else if (source.harvestPolicy.mode !== "structured-cache-with-attribution") {
+    errors.push(`${plan.sourceId} does not authorize structured acquisition`);
+  }
+  try {''',
+              '''  const source = getAsoiafExternalSource(plan.sourceId);
+  if (!source) {
+    errors.push(`unknown atlas source ${plan.sourceId}`);
+  } else if (source.harvestPolicy.mode !== "structured-cache-with-attribution") {
+    errors.push(`${plan.sourceId} does not authorize structured acquisition`);
+  }
+  if (!SOURCES_BY_ADAPTER[plan.adapterId].has(plan.sourceId)) {
+    errors.push(`${plan.sourceId} is not registered for adapter ${plan.adapterId}`);
+  }
+  const headersByName = new Map(
+    Object.entries(plan.headers).map(([name, headerValue]) => [
+      name.toLowerCase(),
+      headerValue,
+    ] as const),
+  );
+  if (
+    [...headersByName.keys()].some((name) => SENSITIVE_HEADER_NAMES.has(name))
+  ) {
+    errors.push("request plan contains a credential-bearing header");
+  }
+  if (
+    [...headersByName.values()].some((headerValue) => /[\\r\\n]/.test(headerValue))
+  ) {
+    errors.push("request plan contains a multiline header value");
+  }
+  if (
+    headersByName.get("user-agent") !== ASOIAF_EXTERNAL_COLLECTOR_USER_AGENT
+  ) {
+    errors.push("request plan user agent does not match qualified collector identity");
+  }
+  try {''',
+          )
+          ensure(
+              core_path,
+              '''    if (url.hostname !== allowed.host || !allowed.path.test(url.pathname)) {
+      errors.push(`request plan escaped the registered ${plan.adapterId} endpoint`);
+    }''',
+              '''    if (!registeredEndpoint(plan.adapterId, url)) {
+      errors.push(`request plan escaped the registered ${plan.adapterId} endpoint`);
+    }''',
+          )
+
+          ensure(
+              core_path,
+              '''  retryCount: number;
+  maxRedirects: number;
+}): Promise<FetchTrace> {''',
+              '''  retryCount: number;
+  maxRedirects: number;
+  redirectAllowed?: (url: URL) => boolean;
+}): Promise<FetchTrace> {''',
+          )
+          ensure(
+              core_path,
+              '''      if (redirected.protocol !== "https:" || redirected.origin !== current.origin) {
+        return {
+          response,
+          finalUrl: redirected.toString(),
+          requestCount,
+          waitedMilliseconds,
+          redirectCount,
+          error: "cross-origin or non-HTTPS redirect refused",
+        };
+      }
+      currentUrl = redirected.toString();''',
+              '''      if (redirected.protocol !== "https:" || redirected.origin !== current.origin) {
+        return {
+          response,
+          finalUrl: redirected.toString(),
+          requestCount,
+          waitedMilliseconds,
+          redirectCount,
+          error: "cross-origin or non-HTTPS redirect refused",
+        };
+      }
+      if (input.redirectAllowed && !input.redirectAllowed(redirected)) {
+        return {
+          response,
+          finalUrl: redirected.toString(),
+          requestCount,
+          waitedMilliseconds,
+          redirectCount,
+          error: "redirect escaped the registered endpoint",
+        };
+      }
+      await response.body?.cancel();
+      currentUrl = redirected.toString();''',
+          )
+          ensure(
+              core_path,
+              '''      const delay = retryAfter
+        ?? Math.min(30_000, 1_000 * 2 ** transientAttempt);
+      await input.runtime.sleep(delay);''',
+              '''      const delay = retryAfter
+        ?? Math.min(30_000, 1_000 * 2 ** transientAttempt);
+      await response.body?.cancel();
+      await input.runtime.sleep(delay);''',
+          )
+
+          ensure(
+              core_path,
+              '''    retryCount: input.retryCount,
+    maxRedirects: input.maxRedirects,
+  });''',
+              '''    retryCount: input.retryCount,
+    maxRedirects: input.maxRedirects,
+    redirectAllowed: (redirected) =>
+      redirected.origin === target.origin
+      && redirected.pathname === "/robots.txt",
+  });''',
+          )
+          ensure(
+              core_path,
+              '  const digest = sha256(Buffer.from(text, "utf8"));',
+              '  const digest = digestBytes(text);',
+          )
+          ensure(
+              core_path,
+              '    digest: sha256(buffer),',
+              '    digest: digestBytes(buffer),',
+          )
+
+          ensure(
+              core_path,
+              '''function receiptCore(
+  receipt: AsoiafStructuredAcquisitionReceipt,
+): Omit<AsoiafStructuredAcquisitionReceipt, "receiptFingerprint"> {
+  const { receiptFingerprint: _fingerprint, ...core } = receipt;
+  return core;
+}''',
+              '''function receiptCore(
+  receipt: AsoiafStructuredAcquisitionReceipt,
+): Omit<AsoiafStructuredAcquisitionReceipt, "receiptFingerprint" | "receiptId"> {
+  const {
+    receiptFingerprint: _fingerprint,
+    receiptId: _receiptId,
+    ...core
+  } = receipt;
+  return core;
+}''',
+          )
+
+          ensure(
+              core_path,
+              '''function terminalResult(input: {''',
+              '''function recordAcquisitionAttempt(
+  input: Parameters<typeof recordAttempt>[0],
+): CollectorAttemptRecord {
+  const attempt = recordAttempt(input);
+  updateSourceLedgerRow(input.root, input.sourceId, (row) => ({
+    ...row,
+    firstAttemptAt: row.firstAttemptAt ?? input.startedAt,
+    lastAttemptAt: input.completedAt,
+    attemptCount: row.attemptCount + 1,
+  }));
+  return attempt;
+}
+
+function terminalResult(input: {''',
+          )
+          ensure(
+              core_path,
+              '''  const attempt = recordAttempt({
+    root: input.root,
+    sourceId: input.plan.sourceId,
+    sourceRecordId: input.plan.requestId,
+    startedAt: input.retrievedAt,
+    completedAt: input.completedAt,
+    outcome: terminal.attempt.outcome,
+    requestCount: input.requestCount,
+    cacheHit: false,
+    receiptUri: written.receiptUri,
+    observationId: null,
+    gapId: terminal.gap.gapId,
+  });
+  return {
+    receipt: written.receipt,
+    cacheHit: false,
+    adapterResult: null,
+    attempt,
+    gap: terminal.gap,
+  };''',
+              '''  return {
+    receipt: written.receipt,
+    cacheHit: false,
+    adapterResult: null,
+    attempt: terminal.attempt,
+    gap: terminal.gap,
+  };''',
+          )
+
+          ensure(
+              core_path,
+              '  const runtime = options.runtime ?? new DefaultStructuredAcquisitionRuntime();',
+              '  const runtime = options.runtime ?? DEFAULT_STRUCTURED_ACQUISITION_RUNTIME;',
+          )
+          ensure(
+              core_path,
+              '  const pacer = new HostPacer(runtime);',
+              '  const pacer = pacerFor(runtime);',
+          )
+
+          ensure(
+              core_path,
+              '''    if (completed) {
+      const target = safeEstatePath(options.root, completed.receiptUri);
+      if (!target || !fs.existsSync(target)) {
+        throw new Error("structured acquisition state references a missing receipt");
+      }
+      const prior = readJson<AsoiafStructuredAcquisitionReceipt>(target, null as never);
+      if (
+        prior.receiptFingerprint !== sha256(receiptCore(prior))
+        || prior.planFingerprint !== options.plan.planFingerprint
+      ) {
+        throw new Error("structured acquisition replay receipt failed custody");
+      }
+      const attempt = recordAttempt({
+        root: options.root,
+        sourceId: options.plan.sourceId,
+        sourceRecordId: options.plan.requestId,
+        startedAt: retrievedAt,
+        completedAt: retrievedAt,
+        outcome: "cache-hit",
+        requestCount: 0,
+        cacheHit: true,
+        receiptUri: completed.receiptUri,
+        observationId: prior.observationIds[0] ?? null,
+        gapId: null,
+      });
+      return {
+        receipt: { ...prior, outcome: "cache-hit" },
+        cacheHit: true,
+        adapterResult: null,
+        attempt,
+        gap: null,
+      };
+    }''',
+              '''    if (completed) {
+      const target = safeEstatePath(options.root, completed.receiptUri);
+      if (!target || !fs.existsSync(target)) {
+        throw new Error("structured acquisition state references a missing receipt");
+      }
+      const prior = readJson<AsoiafStructuredAcquisitionReceipt>(target, null as never);
+      if (
+        prior.receiptFingerprint !== sha256(receiptCore(prior))
+        || prior.planFingerprint !== options.plan.planFingerprint
+        || (prior.outcome !== "observed" && prior.outcome !== "partial")
+      ) {
+        throw new Error("structured acquisition replay receipt failed custody");
+      }
+      const replay = writeReceipt(options.root, {
+        format: ASOIAF_STRUCTURED_ACQUISITION_RECEIPT_FORMAT,
+        planFingerprint: options.plan.planFingerprint,
+        adapterId: options.plan.adapterId,
+        sourceId: options.plan.sourceId,
+        requestId: options.plan.requestId,
+        requestedUrl: options.plan.url,
+        finalUrl: prior.finalUrl,
+        retrievedAt,
+        completedAt: retrievedAt,
+        requestCount: 0,
+        waitedMilliseconds: 0,
+        redirectCount: 0,
+        robotsUrl: prior.robotsUrl,
+        robotsStatus: prior.robotsStatus,
+        robotsDigest: prior.robotsDigest,
+        httpStatus: prior.httpStatus,
+        responseMediaType: prior.responseMediaType,
+        responseBytes: prior.responseBytes,
+        sourceResponseDigest: prior.sourceResponseDigest,
+        adapterReceiptFingerprint: prior.adapterReceiptFingerprint,
+        committedRecordCount: prior.committedRecordCount,
+        observationIds: [...prior.observationIds],
+        candidateIds: [...prior.candidateIds],
+        gapId: null,
+        outcome: "cache-hit",
+        rawResponseRetained: false,
+        graphEffect: "none",
+        canonEffect: "none",
+      });
+      const attempt = recordAcquisitionAttempt({
+        root: options.root,
+        sourceId: options.plan.sourceId,
+        sourceRecordId: options.plan.requestId,
+        startedAt: retrievedAt,
+        completedAt: retrievedAt,
+        outcome: "cache-hit",
+        requestCount: 0,
+        cacheHit: true,
+        receiptUri: replay.receiptUri,
+        observationId: prior.observationIds[0] ?? null,
+        gapId: null,
+      });
+      return {
+        receipt: replay.receipt,
+        cacheHit: true,
+        adapterResult: null,
+        attempt,
+        gap: null,
+      };
+    }''',
+          )
+
+          ensure(
+              core_path,
+              '''    retryCount: source.harvestPolicy.retryCount,
+    maxRedirects: options.maxRedirects ?? 3,
+  });
+  const requestCount = robots.requestCount + trace.requestCount;''',
+              '''    retryCount: source.harvestPolicy.retryCount,
+    maxRedirects: options.maxRedirects ?? 3,
+    redirectAllowed: (redirected) =>
+      registeredEndpoint(options.plan.adapterId, redirected),
+  });
+  const requestCount = robots.requestCount + trace.requestCount;''',
+          )
+
+          ensure(
+              core_path,
+              '''    payload: bounded.payload,
+    retrievedAt: completedAt,''',
+              '''    payload: bounded.payload,
+    sourceResponseDigest: bounded.digest,
+    sourceResponseBytes: bounded.bytes,
+    retrievedAt: completedAt,''',
+          )
+          ensure(
+              core_path,
+              '''  const attempt = recordAttempt({
+    root: options.root,
+    sourceId: options.plan.sourceId,
+    sourceRecordId: options.plan.requestId,''',
+              '''  const attempt = recordAcquisitionAttempt({
+    root: options.root,
+    sourceId: options.plan.sourceId,
+    sourceRecordId: options.plan.requestId,''',
+          )
+
+          ensure(
+              core_path,
+              '''  includeText?: boolean;
+  maxTextCharacters?: number;
+}): Promise<AsoiafStructuredAcquisitionResult[]> {''',
+              '''  includeText?: boolean;
+  maxTextCharacters?: number;
+  maxRedirects?: number;
+}): Promise<AsoiafStructuredAcquisitionResult[]> {''',
+          )
+          ensure(
+              core_path,
+              '''        includeText: input.includeText,
+        maxTextCharacters: input.maxTextCharacters,
+      }),''',
+              '''        includeText: input.includeText,
+        maxTextCharacters: input.maxTextCharacters,
+        maxRedirects: input.maxRedirects,
+      }),''',
+          )
+
+          core = Path(core_path)
+          text = core.read_text()
+          export_marker = 'export function readAsoiafStructuredAcquisitionState('
+          if export_marker not in text:
+              text += '''
+
+export function readAsoiafStructuredAcquisitionState(
+  root: string,
+): AsoiafStructuredAcquisitionState {
+  return readState(root);
+}
+
+export function listAsoiafStructuredAcquisitionReceipts(
+  root: string,
+): AsoiafStructuredAcquisitionReceipt[] {
+  const directory = receiptDirectory(root);
+  if (!fs.existsSync(directory)) return [];
+  return fs
+    .readdirSync(directory, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.endsWith(".json"))
+    .map((entry) =>
+      readJson<AsoiafStructuredAcquisitionReceipt>(
+        path.join(directory, entry.name),
+        null as never,
+      ),
+    )
+    .sort(
+      (left, right) =>
+        left.requestId.localeCompare(right.requestId)
+        || left.completedAt.localeCompare(right.completedAt)
+        || left.receiptId.localeCompare(right.receiptId),
+    );
+}
+
+export function verifyAsoiafStructuredAcquisitionEstate(
+  root: string,
+): string[] {
+  initializeCollectorEstate(root);
+  const errors: string[] = [];
+  let state: AsoiafStructuredAcquisitionState | null = null;
+  try {
+    state = readState(root);
+  } catch (error) {
+    errors.push(error instanceof Error ? error.message : String(error));
+  }
+
+  const receiptsByUri = new Map<string, AsoiafStructuredAcquisitionReceipt>();
+  const receiptIds = new Set<string>();
+  const directory = receiptDirectory(root);
+  if (fs.existsSync(directory)) {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      if (!entry.isFile() || !entry.name.endsWith(".json")) continue;
+      const target = path.join(directory, entry.name);
+      try {
+        const receipt = readJson<AsoiafStructuredAcquisitionReceipt>(
+          target,
+          null as never,
+        );
+        const subject = receipt.receiptId || entry.name;
+        if (receipt.format !== ASOIAF_STRUCTURED_ACQUISITION_RECEIPT_FORMAT) {
+          errors.push(`${subject}: invalid acquisition receipt format`);
+        }
+        const expectedFingerprint = sha256(receiptCore(receipt));
+        if (receipt.receiptFingerprint !== expectedFingerprint) {
+          errors.push(`${subject}: acquisition receipt fingerprint mismatch`);
+        }
+        const expectedId = collectorContentId(
+          "asoiaf-structured-acquisition-receipt",
+          {
+            requestId: receipt.requestId,
+            planFingerprint: receipt.planFingerprint,
+            receiptFingerprint: receipt.receiptFingerprint,
+          },
+        );
+        if (receipt.receiptId !== expectedId) {
+          errors.push(`${subject}: acquisition receipt identity mismatch`);
+        }
+        if (receiptIds.has(receipt.receiptId)) {
+          errors.push(`${subject}: duplicate acquisition receipt identity`);
+        }
+        receiptIds.add(receipt.receiptId);
+        if (receipt.rawResponseRetained !== false) {
+          errors.push(`${subject}: acquisition receipt claims raw response retention`);
+        }
+        if (receipt.graphEffect !== "none" || receipt.canonEffect !== "none") {
+          errors.push(`${subject}: acquisition receipt acquired graph or canon effect`);
+        }
+        if (!SOURCES_BY_ADAPTER[receipt.adapterId].has(receipt.sourceId)) {
+          errors.push(`${subject}: adapter and atlas source identity mismatch`);
+        }
+        try {
+          const requested = new URL(receipt.requestedUrl);
+          if (!registeredEndpoint(receipt.adapterId, requested)) {
+            errors.push(`${subject}: requested URL escaped its registered endpoint`);
+          }
+          if (receipt.robotsUrl !== `${requested.origin}/robots.txt`) {
+            errors.push(`${subject}: robots URL does not match requested origin`);
+          }
+        } catch {
+          errors.push(`${subject}: requested URL is invalid`);
+        }
+        if (receipt.committedRecordCount !== receipt.observationIds.length) {
+          errors.push(`${subject}: committed-record and observation counts differ`);
+        }
+        if (receipt.committedRecordCount !== receipt.candidateIds.length) {
+          errors.push(`${subject}: committed-record and candidate counts differ`);
+        }
+        if (
+          ["observed", "partial", "cache-hit"].includes(receipt.outcome)
+          && (!receipt.sourceResponseDigest || !receipt.adapterReceiptFingerprint)
+        ) {
+          errors.push(`${subject}: successful receipt lacks response or adapter custody`);
+        }
+        if (receipt.outcome === "cache-hit" && receipt.requestCount !== 0) {
+          errors.push(`${subject}: cache replay performed network requests`);
+        }
+        receiptsByUri.set(relativeEstateUri(root, target), receipt);
+      } catch (error) {
+        errors.push(
+          `${entry.name}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
+  }
+
+  if (state) {
+    const requestIds = new Set<string>();
+    for (const entry of state.entries) {
+      if (requestIds.has(entry.requestId)) {
+        errors.push(`state duplicates request ${entry.requestId}`);
+      }
+      requestIds.add(entry.requestId);
+      const target = safeEstatePath(root, entry.receiptUri);
+      const receipt = target && fs.existsSync(target)
+        ? receiptsByUri.get(entry.receiptUri)
+          ?? readJson<AsoiafStructuredAcquisitionReceipt>(target, null as never)
+        : null;
+      if (!receipt) {
+        errors.push(`state request ${entry.requestId} references a missing receipt`);
+        continue;
+      }
+      if (
+        receipt.requestId !== entry.requestId
+        || receipt.planFingerprint !== entry.planFingerprint
+        || receipt.completedAt !== entry.completedAt
+        || receipt.outcome !== entry.outcome
+      ) {
+        errors.push(`state request ${entry.requestId} disagrees with its receipt`);
+      }
+      if (receipt.outcome !== "observed" && receipt.outcome !== "partial") {
+        errors.push(`state request ${entry.requestId} is not a successful acquisition`);
+      }
+    }
+  }
+
+  const gaps = new Set(
+    readNdjson<CollectorGapRecord>(collectorEstatePaths(root).gaps)
+      .map((gap) => gap.gapId),
+  );
+  for (const receipt of receiptsByUri.values()) {
+    if (receipt.gapId && !gaps.has(receipt.gapId)) {
+      errors.push(`${receipt.receiptId}: acquisition gap is missing`);
+    }
+  }
+  errors.push(
+    ...verifyCollectorEstate(root).map((error) => `collector: ${error}`),
+  );
+  return [...new Set(errors)].sort();
+}
+'''
+              core.write_text(text)
+
+          ensure(
+              adapter_path,
+              '''  payload: unknown;
+  retrievedAt?: string;''',
+              '''  payload: unknown;
+  sourceResponseDigest?: `sha256:${string}`;
+  sourceResponseBytes?: number;
+  retrievedAt?: string;''',
+          )
+          ensure(
+              adapter_path,
+              '''  const sourceResponseDigest = sha256(input.payload);
+  const context: NormalizationContext = {''',
+              '''  const sourceResponseDigest =
+    input.sourceResponseDigest ?? sha256(input.payload);
+  if (!/^sha256:[a-f0-9]{64}$/.test(sourceResponseDigest)) {
+    throw new Error("structured adapter requires a lowercase SHA-256 response digest");
+  }
+  const context: NormalizationContext = {''',
+          )
+          ensure(
+              adapter_path,
+              '''  const serializedInput = JSON.stringify(options.payload);
+  const sourceResponseBytes = Buffer.byteLength(serializedInput, "utf8");
+  const sourceResponseDigest = sha256(options.payload);''',
+              '''  const serializedInput = JSON.stringify(options.payload);
+  const sourceResponseBytes = options.sourceResponseBytes
+    ?? Buffer.byteLength(serializedInput, "utf8");
+  const sourceResponseDigest = options.sourceResponseDigest
+    ?? sha256(options.payload);
+  if (
+    !Number.isSafeInteger(sourceResponseBytes)
+    || sourceResponseBytes < 0
+  ) {
+    throw new Error("structured adapter response byte count is invalid");
+  }
+  if (!/^sha256:[a-f0-9]{64}$/.test(sourceResponseDigest)) {
+    throw new Error("structured adapter requires a lowercase SHA-256 response digest");
+  }''',
+          )
+          PY
+          git diff --check
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Qualify repaired structured acquisition
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          npm run typecheck | tee "$RUNNER_TEMP/typecheck.log"
+          npm test -- tests/narrative/canon/asoiaf-structured-public-acquisition.test.ts \
+            | tee "$RUNNER_TEMP/focused-tests.log"
+          npm test | tee "$RUNNER_TEMP/full-tests.log"
+          npm run build | tee "$RUNNER_TEMP/build.log"
+
+      - name: Build exact qualification receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          root='asoiaf-structured-public-acquisition-qualification'
+          mkdir -p "$root"
+          cp "$RUNNER_TEMP"/*.log "$root/"
+          candidate="$(git rev-parse HEAD)"
+          printf '%s\n' "$candidate" > "$root/candidate-sha.txt"
+          printf '%s\n' \
+            'networkAcquisition=qualified-synthetic-runtime' \
+            'liveNetworkInCI=false' \
+            'registeredEndpointsOnly=true' \
+            'adapterSourceBinding=required' \
+            'credentialBearingHeaders=false' \
+            'robotsRequired=true' \
+            'hostDelayFloorMilliseconds=1500' \
+            'retryAfterHonored=true' \
+            'crossOriginRedirects=false' \
+            'responseSizeBounded=true' \
+            'rawResponseDigest=raw-bytes-sha256' \
+            'rawResponseRetained=false' \
+            'normalizedRetention=rights-controlled' \
+            'cacheReplay=zero-network-valid-receipt' \
+            'batchPacer=shared' \
+            'collectorAttemptParity=required' \
+            'graphEffect=none' \
+            'canonEffect=none' \
+            > "$root/structured-acquisition-boundary.txt"
+          find "$root" -type f ! -name SHA256SUMS -print0 \
+            | sort -z \
+            | xargs -0 sha256sum \
+            | sed "s#  $root/#  #" \
+            > "$root/SHA256SUMS"
+
+      - name: Upload exact qualification
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: asoiaf-structured-public-acquisition-qualification
+          path: asoiaf-structured-public-acquisition-qualification
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Commit qualified implementation and remove repair workflow
+        id: commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/repair-and-seal-asoiaf-structured-public-acquisition.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Qualify structured acquisition policy and receipt custody'
+          git push origin HEAD:feature/asoiaf-structured-public-acquisition-v1
+          echo "final_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Post durable qualification receipt
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+          ARTIFACT_DIGEST: ${{ steps.upload.outputs.artifact-digest }}
+          FINAL_SHA: ${{ steps.commit.outputs.final_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          body="$RUNNER_TEMP/qualification-comment.md"
+          cat > "$body" <<EOF
+          Structured public acquisition qualification is closed on candidate \`${FINAL_SHA}\`. Strict TypeScript, the focused synthetic acquisition suite, the complete Arc regression suite, and the production build passed. Qualification artifact \`${ARTIFACT_ID}\` has ZIP digest \`${ARTIFACT_DIGEST}\`.
+
+          The qualified runtime confines every signed plan to its registered adapter, atlas source, HTTPS host and path, and credential-free header surface; evaluates robots policy; shares the source host-delay floor across robots, data, retries, redirects, and batch boundaries; honors \`Retry-After\`; refuses cross-origin or unregistered redirects; bounds response size and JSON media; binds the adapter to the raw response byte SHA-256; retains no raw response; preserves collector attempt parity; and issues a new valid zero-network receipt for cache replay. Acquisition remains \`graphEffect=none\` and \`canonEffect=none\`.
+
+          The evidence tier is structured acquisition, normalization, and custody qualification over deterministic synthetic runtimes. It does not certify the truth of an ASOIAF proposition and does not permit endpoint availability or normalized reference data to bypass reviewed reconciliation. The control question remains whether every record can identify its signed plan, robots and pacing law, exact raw response, retained fields and rights rule, collector observation, candidate, receipt, and later reviewer transaction.
+          EOF
+          gh pr comment 239 --repo BigBirdReturns/axm-arc --body-file "$body"

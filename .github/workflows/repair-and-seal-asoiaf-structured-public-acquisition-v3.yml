@@ -1,0 +1,204 @@
+name: Repair and seal ASOIAF structured public acquisition v3
+
+on:
+  push:
+    branches:
+      - feature/asoiaf-structured-public-acquisition-v1
+    paths:
+      - '.github/workflows/repair-and-seal-asoiaf-structured-public-acquisition-v3.yml'
+  pull_request:
+    branches:
+      - feature/asoiaf-structured-public-acquisition-v1
+    paths:
+      - '.github/workflows/repair-and-seal-asoiaf-structured-public-acquisition-v3.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: repair-and-seal-asoiaf-structured-public-acquisition
+  cancel-in-progress: false
+
+jobs:
+  repair_and_seal:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      - name: Check out current structured-acquisition branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/asoiaf-structured-public-acquisition-v1
+          fetch-depth: 0
+          show-progress: false
+
+      - name: Apply complete acquisition and request-plan identity reconciliation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          carrier = Path(
+              '.github/workflows/repair-and-seal-asoiaf-structured-public-acquisition.yml'
+          )
+          text = carrier.read_text()
+          start_marker = "          python - <<'PY'\n"
+          end_marker = "\n          PY\n"
+          if start_marker not in text or end_marker not in text:
+              raise SystemExit('structured-acquisition v1 repair carrier is malformed')
+          extracted = text.split(start_marker, 1)[1].split(end_marker, 1)[0]
+          script = "\n".join(
+              line[10:] if line.startswith("          ") else line
+              for line in extracted.splitlines()
+          )
+          exec(compile(script, '<structured-acquisition-repair>', 'exec'), {})
+
+          def ensure(path: str, old: str, new: str) -> None:
+              target = Path(path)
+              value = target.read_text()
+              if new in value:
+                  return
+              count = value.count(old)
+              if count != 1:
+                  raise SystemExit(
+                      f'{path}: expected one v3 repair target, found {count}: {old[:160]!r}'
+                  )
+              target.write_text(value.replace(old, new, 1))
+
+          adapter = 'tools/lib/asoiaf-structured-public-adapters.ts'
+          acquisition = 'tools/lib/asoiaf-structured-public-acquisition.ts'
+          ensure(
+              adapter,
+              '''  adapterId: AsoiafStructuredAdapterId;
+  sourceId: AsoiafStructuredAdapterSourceId;
+  method: "GET";''',
+              '''  adapterId: AsoiafStructuredAdapterId;
+  sourceId: AsoiafStructuredAdapterSourceId;
+  requestId: string;
+  method: "GET";''',
+          )
+          ensure(
+              adapter,
+              '''    adapterId: input.adapterId,
+    sourceId,
+    method: "GET" as const,''',
+              '''    adapterId: input.adapterId,
+    sourceId,
+    requestId: input.requestId,
+    method: "GET" as const,''',
+          )
+          ensure(
+              acquisition,
+              '''        completedAt: retrievedAt,
+        outcome: "cache-hit",
+        requestCount: 0,
+        cacheHit: true,
+        receiptUri: replay.receiptUri,''',
+              '''        completedAt: retrievedAt,
+        outcome: "cache-replay",
+        requestCount: 0,
+        cacheHit: true,
+        receiptUri: replay.receiptUri,''',
+          )
+          PY
+          git diff --check
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Qualify repaired structured acquisition
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          npm run typecheck | tee "$RUNNER_TEMP/typecheck.log"
+          npm test -- tests/narrative/canon/asoiaf-structured-public-acquisition.test.ts \
+            | tee "$RUNNER_TEMP/focused-tests.log"
+          npm test | tee "$RUNNER_TEMP/full-tests.log"
+          npm run build | tee "$RUNNER_TEMP/build.log"
+
+      - name: Build exact qualification receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          root='asoiaf-structured-public-acquisition-qualification'
+          mkdir -p "$root"
+          cp "$RUNNER_TEMP"/*.log "$root/"
+          candidate="$(git rev-parse HEAD)"
+          printf '%s\n' "$candidate" > "$root/candidate-sha.txt"
+          printf '%s\n' \
+            'networkAcquisition=qualified-synthetic-runtime' \
+            'liveNetworkInCI=false' \
+            'requestIdentity=signed-plan-field' \
+            'registeredEndpointsOnly=true' \
+            'adapterSourceBinding=required' \
+            'credentialBearingHeaders=false' \
+            'robotsRequired=true' \
+            'hostDelayFloorMilliseconds=1500' \
+            'retryAfterHonored=true' \
+            'crossOriginRedirects=false' \
+            'responseSizeBounded=true' \
+            'rawResponseDigest=raw-bytes-sha256' \
+            'rawResponseRetained=false' \
+            'normalizedRetention=rights-controlled' \
+            'cacheReplay=zero-network-valid-receipt' \
+            'batchPacer=shared' \
+            'collectorAttemptParity=required' \
+            'graphEffect=none' \
+            'canonEffect=none' \
+            > "$root/structured-acquisition-boundary.txt"
+          find "$root" -type f ! -name SHA256SUMS -print0 \
+            | sort -z \
+            | xargs -0 sha256sum \
+            | sed "s#  $root/#  #" \
+            > "$root/SHA256SUMS"
+
+      - name: Upload exact qualification
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: asoiaf-structured-public-acquisition-qualification
+          path: asoiaf-structured-public-acquisition-qualification
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Commit qualified implementation and remove repair carriers
+        id: commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/repair-and-seal-asoiaf-structured-public-acquisition.yml
+          rm -f .github/workflows/repair-and-seal-asoiaf-structured-public-acquisition-v2.yml
+          rm -f .github/workflows/repair-and-seal-asoiaf-structured-public-acquisition-v3.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Qualify structured acquisition policy and receipt custody'
+          git push origin HEAD:feature/asoiaf-structured-public-acquisition-v1
+          echo "final_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Post durable qualification receipt
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+          ARTIFACT_DIGEST: ${{ steps.upload.outputs.artifact-digest }}
+          FINAL_SHA: ${{ steps.commit.outputs.final_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          body="$RUNNER_TEMP/qualification-comment.md"
+          cat > "$body" <<EOF
+          Structured public acquisition qualification is closed on candidate \`${FINAL_SHA}\`. Strict TypeScript, the focused synthetic acquisition suite, the complete Arc regression suite, and the production build passed. Qualification artifact \`${ARTIFACT_ID}\` has ZIP digest \`${ARTIFACT_DIGEST}\`.
+
+          The qualified runtime binds durable request identity into the signed plan; confines every plan to its registered adapter, atlas source, HTTPS host and path, and credential-free header surface; evaluates robots policy; shares the source host-delay floor across robots, data, retries, redirects, and batch boundaries; honors \`Retry-After\`; refuses cross-origin or unregistered redirects; bounds response size and JSON media; binds the adapter to the raw response byte SHA-256; retains no raw response; preserves collector attempt parity; and issues a new valid zero-network receipt for cache replay. Acquisition remains \`graphEffect=none\` and \`canonEffect=none\`.
+
+          The evidence tier is structured acquisition, normalization, and custody qualification over deterministic synthetic runtimes. It does not certify the truth of an ASOIAF proposition and does not permit endpoint availability or normalized reference data to bypass reviewed reconciliation. The control question remains whether every record can identify its signed plan, robots and pacing law, exact raw response, retained fields and rights rule, collector observation, candidate, receipt, and later reviewer transaction.
+          EOF
+          gh pr comment 239 --repo BigBirdReturns/axm-arc --body-file "$body"

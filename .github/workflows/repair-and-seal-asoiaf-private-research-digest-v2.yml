@@ -1,3 +1,4 @@
+# same-repository child trigger for the parent private-research repair
 name: Repair and seal ASOIAF private research digest custody v2
 
 on:

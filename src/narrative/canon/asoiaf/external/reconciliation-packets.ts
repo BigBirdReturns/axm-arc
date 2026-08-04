@@ -1,5 +1,6 @@
 import {
   compareCodepoints,
+  orderRecordKeysDeep,
   orderedStrings,
 } from "../../../../engine/determinism.js";
 import { narrativeFingerprint } from "../../../fingerprint.js";
@@ -7,13 +8,10 @@ import {
   ASOIAF_RECALL_ESTATE_PACKETS,
   ASOIAF_RECALL_SOURCE_HINTS,
 } from "../recall/index.js";
-import {
-  asoiafExternalCandidateId,
-  asoiafExternalObservationId,
-  getAsoiafExternalSource,
-  getAsoiafExternalWorkOrder,
-  isSha256Digest,
-} from "./index.js";
+import type {
+  CanonRecallKind,
+  CanonRecallValue,
+} from "../../recall/index.js";
 import {
   buildCanonReconciliationWorkOrder,
   canonEvidenceBundleFingerprint,
@@ -21,14 +19,24 @@ import {
   CANON_EVIDENCE_BUNDLE_FORMAT,
   CANON_REVIEW_DECISION_SET_FORMAT,
   type CanonEvidenceBundle,
+  type CanonEvidenceCustody,
+  type CanonEvidenceLocatorKind,
   type CanonEvidenceRecord,
+  type CanonEvidenceSource,
   type CanonReconciliationReceipt,
   type CanonReconciliationWorkOrder,
   type CanonReviewDecision,
   type CanonReviewDecisionSet,
-  type CanonSourceEvidence,
-  type CanonSourceLocator,
 } from "../../reconcile/index.js";
+import {
+  asoiafExternalCandidateId,
+  asoiafExternalObservationId,
+  isSha256Digest,
+} from "./canonical.js";
+import {
+  getAsoiafExternalSource,
+  getAsoiafExternalWorkOrder,
+} from "./atlas.js";
 import type {
   AsoiafExternalAuthorityClass,
   AsoiafExternalContinuity,
@@ -77,11 +85,10 @@ export interface AsoiafExternalRightsReview {
 
 export interface AsoiafExternalExactLocator {
   id: string;
-  kind: string;
-  label: string;
-  path: string;
-  start: number;
-  end: number;
+  kind: CanonEvidenceLocatorKind;
+  unit: string;
+  start?: number;
+  end?: number;
   contentDigest?: `sha256:${string}`;
 }
 
@@ -94,7 +101,7 @@ export interface AsoiafExternalReviewedClaim {
   continuityId: AsoiafExternalContinuity;
   locator: AsoiafExternalExactLocator;
   text: string;
-  normalized: Record<string, unknown>;
+  normalized: Record<string, CanonRecallValue>;
   reconciliationKeys: string[];
   recallCandidateIds: string[];
 }
@@ -202,6 +209,16 @@ const PRIMARY_KINDS_BY_AUTHORITY: Partial<
   "official-bibliography": new Set(["publication-record"]),
 };
 
+const NONPRIMARY_AUTHORITIES = new Set<AsoiafExternalAuthorityClass>([
+  "structured-dataset",
+  "community-reference",
+  "community-analysis",
+  "discussion-provenance",
+  "scholarly-analogue",
+  "archival-custody",
+  "discovery-only",
+]);
+
 function finding(
   code: string,
   severity: AsoiafExternalPacketFinding["severity"],
@@ -214,11 +231,17 @@ function finding(
 function sortedFindings(
   findings: readonly AsoiafExternalPacketFinding[],
 ): AsoiafExternalPacketFinding[] {
+  const rank: Record<AsoiafExternalPacketFinding["severity"], number> = {
+    error: 0,
+    warning: 1,
+    notice: 2,
+  };
   return [...findings].sort(
     (left, right) =>
-      compareCodepoints(left.severity, right.severity)
+      rank[left.severity] - rank[right.severity]
       || compareCodepoints(left.code, right.code)
-      || compareCodepoints(left.subjectId, right.subjectId),
+      || compareCodepoints(left.subjectId, right.subjectId)
+      || compareCodepoints(left.detail, right.detail),
   );
 }
 
@@ -237,7 +260,7 @@ function packetCore(input: AsoiafExternalReviewPacketInput) {
       .map((claim) => ({
         ...claim,
         locator: { ...claim.locator },
-        normalized: { ...claim.normalized },
+        normalized: orderRecordKeysDeep(claim.normalized),
         reconciliationKeys: orderedStrings(claim.reconciliationKeys),
         recallCandidateIds: orderedStrings(claim.recallCandidateIds),
       }))
@@ -302,23 +325,44 @@ function workOrderForSource(
   );
 }
 
+function validLocator(locator: AsoiafExternalExactLocator): boolean {
+  if (!locator.id.trim() || !locator.unit.trim()) return false;
+  if ((locator.start === undefined) !== (locator.end === undefined)) return false;
+  if (locator.start !== undefined && (!Number.isFinite(locator.start) || locator.start < 0)) {
+    return false;
+  }
+  if (locator.end !== undefined && (!Number.isFinite(locator.end) || locator.end < 0)) {
+    return false;
+  }
+  return !(
+    locator.start !== undefined
+    && locator.end !== undefined
+    && locator.start > locator.end
+  );
+}
+
 export function validateAsoiafExternalReviewPacket(
   packet: AsoiafExternalReviewPacket,
 ): AsoiafExternalPacketFinding[] {
   const findings: AsoiafExternalPacketFinding[] = [];
   const source = getAsoiafExternalSource(packet.sourceId);
   const externalWorkOrder = getAsoiafExternalWorkOrder(packet.sourceId);
-  const expectedPacket = buildAsoiafExternalReviewPacket(packet);
+  const expectedFingerprint = narrativeFingerprint(packetCore(packet));
 
   if (packet.format !== ASOIAF_EXTERNAL_REVIEW_PACKET_FORMAT) {
     findings.push(
       finding("packet-format", "error", packet.id, "review packet format is invalid"),
     );
   }
+  if (packet.universeId !== "asoiaf") {
+    findings.push(
+      finding("packet-universe", "error", packet.id, "review packet universe must be asoiaf"),
+    );
+  }
   if (!packet.id.trim()) {
     findings.push(finding("packet-id", "error", "packet", "packet id is empty"));
   }
-  if (packet.packetFingerprint !== expectedPacket.packetFingerprint) {
+  if (packet.packetFingerprint !== expectedFingerprint) {
     findings.push(
       finding(
         "packet-fingerprint",
@@ -370,22 +414,21 @@ export function validateAsoiafExternalReviewPacket(
         "observation requires a lowercase SHA-256 digest",
       ),
     );
-  } else {
-    const expectedObservationId = asoiafExternalObservationId({
+  } else if (
+    asoiafExternalObservationId({
       sourceId: observation.sourceId,
       sourceRecordId: observation.sourceRecordId,
       contentDigest: observation.contentDigest,
-    });
-    if (expectedObservationId !== observation.observationId) {
-      findings.push(
-        finding(
-          "observation-identity",
-          "error",
-          observation.observationId,
-          "observation identity is not bound to source, record, and content digest",
-        ),
-      );
-    }
+    }) !== observation.observationId
+  ) {
+    findings.push(
+      finding(
+        "observation-identity",
+        "error",
+        observation.observationId,
+        "observation identity is not bound to source, record, and content digest",
+      ),
+    );
   }
   if (
     observation.collectorCandidateId
@@ -403,10 +446,7 @@ export function validateAsoiafExternalReviewPacket(
       ),
     );
   }
-  if (
-    observation.graphEffect !== "none"
-    || observation.canonEffect !== "none"
-  ) {
+  if (observation.graphEffect !== "none" || observation.canonEffect !== "none") {
     findings.push(
       finding(
         "collector-authority-leak",
@@ -429,7 +469,9 @@ export function validateAsoiafExternalReviewPacket(
   if (
     !observation.reviewerId.trim()
     || !observation.reviewedAt.trim()
+    || !observation.retrievedAt.trim()
     || !observation.receiptUri.trim()
+    || !Number.isInteger(observation.responseBytes)
     || observation.responseBytes <= 0
   ) {
     findings.push(
@@ -437,7 +479,7 @@ export function validateAsoiafExternalReviewPacket(
         "incomplete-observation-review",
         "error",
         observation.observationId,
-        "reviewer, review time, receipt, and positive source byte count are required",
+        "reviewer, timestamps, receipt, and positive source byte count are required",
       ),
     );
   }
@@ -473,7 +515,7 @@ export function validateAsoiafExternalReviewPacket(
   }
   const claimIds = new Set<string>();
   const evidenceIds = new Set<string>();
-  const recallCandidateIds = new Set(externalWorkOrder.candidateIds);
+  const routedCandidateIds = new Set(externalWorkOrder.candidateIds);
   for (const claim of packet.claims) {
     if (claimIds.has(claim.id)) {
       findings.push(
@@ -517,18 +559,13 @@ export function validateAsoiafExternalReviewPacket(
         ),
       );
     }
-    if (
-      !claim.locator.id.trim()
-      || !claim.locator.path.trim()
-      || claim.locator.start < 0
-      || claim.locator.end <= claim.locator.start
-    ) {
+    if (!validLocator(claim.locator)) {
       findings.push(
         finding(
           "invalid-claim-locator",
           "error",
           claim.id,
-          "claim requires a bounded exact locator",
+          "claim requires a valid exact locator",
         ),
       );
     }
@@ -566,7 +603,7 @@ export function validateAsoiafExternalReviewPacket(
       );
     }
     for (const candidateId of claim.recallCandidateIds) {
-      if (!recallCandidateIds.has(candidateId)) {
+      if (!routedCandidateIds.has(candidateId)) {
         findings.push(
           finding(
             "claim-candidate-outside-source-work-order",
@@ -592,13 +629,7 @@ export function validateAsoiafExternalReviewPacket(
       }
       if (
         source.rightsMode === "link-only"
-        || source.authorityClass === "discovery-only"
-        || source.authorityClass === "structured-dataset"
-        || source.authorityClass === "community-reference"
-        || source.authorityClass === "community-analysis"
-        || source.authorityClass === "discussion-provenance"
-        || source.authorityClass === "scholarly-analogue"
-        || source.authorityClass === "archival-custody"
+        || NONPRIMARY_AUTHORITIES.has(source.authorityClass)
       ) {
         findings.push(
           finding(
@@ -609,20 +640,9 @@ export function validateAsoiafExternalReviewPacket(
           ),
         );
       }
-    } else {
+    } else if (NONPRIMARY_AUTHORITIES.has(source.authorityClass)) {
       const expected = expectedEvidenceRole(source.authorityClass);
-      if (
-        [
-          "community-reference",
-          "community-analysis",
-          "discussion-provenance",
-          "scholarly-analogue",
-          "structured-dataset",
-          "archival-custody",
-          "discovery-only",
-        ].includes(source.authorityClass)
-        && claim.authorityRole !== expected
-      ) {
+      if (claim.authorityRole !== expected) {
         findings.push(
           finding(
             "supporting-role-mismatch",
@@ -636,6 +656,31 @@ export function validateAsoiafExternalReviewPacket(
   }
 
   return sortedFindings(findings);
+}
+
+function claimKindToCanonKind(kind: AsoiafExternalClaimKind): CanonRecallKind {
+  switch (kind) {
+    case "fictional-event":
+    case "adaptation-event":
+      return "event";
+    case "world-state":
+    case "publication-record":
+      return "state";
+    case "actor-knowledge":
+      return "knowledge";
+    case "lineage":
+      return "relation";
+    default:
+      return "proposition";
+  }
+}
+
+function evidenceCustody(
+  rightsMode: AsoiafExternalRightsMode,
+): CanonEvidenceCustody {
+  if (rightsMode === "user-controlled-private") return "local-private";
+  if (rightsMode === "cc-by" || rightsMode === "cc-by-sa") return "licensed";
+  return "public";
 }
 
 export function buildAsoiafExternalEvidenceBundle(
@@ -653,31 +698,26 @@ export function buildAsoiafExternalEvidenceBundle(
   }
   const source = getAsoiafExternalSource(packet.sourceId)!;
   const observation = packet.observation;
-  const sourceEvidenceId = `external-source:${packet.sourceId}:${narrativeFingerprint({
+  const evidenceSourceId = `external-source:${packet.sourceId}:${narrativeFingerprint({
     sourceRecordId: observation.sourceRecordId,
     contentDigest: observation.contentDigest,
   }).replace("fnv1a32:", "")}`;
-  const sourceEvidence: CanonSourceEvidence = {
-    id: sourceEvidenceId,
+  const evidenceSource: CanonEvidenceSource = {
+    id: evidenceSourceId,
+    title: source.label,
+    version: observation.sourceRecordId,
     universeId: "asoiaf",
     continuityId: packet.continuityId,
+    custody: evidenceCustody(source.rightsMode),
     sourceHintIds: orderedStrings(source.sourceHintRoutes),
-    title: source.label,
-    editionOrVersion: observation.sourceRecordId,
-    custodyClass:
-      source.rightsMode === "user-controlled-private"
-        ? "holder-controlled-private"
-        : "bounded-public-observation",
-    fileName: `[logical-source:${packet.sourceId}]`,
-    fileBytes: observation.responseBytes,
-    contentDigest: observation.contentDigest.slice("sha256:".length),
+    digest: observation.contentDigest.slice("sha256:".length),
+    fileSizeBytes: observation.responseBytes,
   };
-  const locators: CanonSourceLocator[] = packet.claims.map((claim) => ({
+  const locators = packet.claims.map((claim) => ({
     id: claim.locator.id,
-    sourceId: sourceEvidenceId,
+    sourceId: evidenceSourceId,
     kind: claim.locator.kind,
-    label: claim.locator.label,
-    path: claim.locator.path,
+    unit: claim.locator.unit,
     start: claim.locator.start,
     end: claim.locator.end,
     contentDigest: (
@@ -686,13 +726,14 @@ export function buildAsoiafExternalEvidenceBundle(
   }));
   const records: CanonEvidenceRecord[] = packet.claims.map((claim) => ({
     id: claim.evidenceRecordId,
-    sourceId: sourceEvidenceId,
-    continuityId: packet.continuityId,
+    sourceId: evidenceSourceId,
     locatorIds: [claim.locator.id],
+    continuityId: packet.continuityId,
+    kind: claimKindToCanonKind(claim.claimKind),
     label: claim.label,
-    text: claim.text,
-    normalized: {
+    normalized: orderRecordKeysDeep({
       ...claim.normalized,
+      reviewedStatement: claim.text,
       externalObservationId: observation.observationId,
       externalCollectorCandidateId: observation.collectorCandidateId,
       externalClaimKind: claim.claimKind,
@@ -700,10 +741,11 @@ export function buildAsoiafExternalEvidenceBundle(
       externalSourceId: packet.sourceId,
       externalSourceRecordId: observation.sourceRecordId,
       externalReceiptUri: observation.receiptUri,
+      externalLocatorUnit: claim.locator.unit,
       reconciliationKeys: orderedStrings(claim.reconciliationKeys),
-    },
+    }),
     reconciliationKeys: orderedStrings(claim.reconciliationKeys),
-    extractionMethod: "human-reviewed-external-observation",
+    producedBy: "human",
     reviewStatus: "reviewed",
     reviewedBy: observation.reviewerId,
   }));
@@ -711,11 +753,7 @@ export function buildAsoiafExternalEvidenceBundle(
     format: CANON_EVIDENCE_BUNDLE_FORMAT,
     id: `asoiaf-external-evidence:${packet.id}`,
     universeId: "asoiaf",
-    extractionRunId: observation.observationId,
-    extractedAt: observation.retrievedAt,
-    reviewPolicy:
-      "external observations require source-specific rights review, exact locators, and named human review before canon reconciliation",
-    sources: [sourceEvidence],
+    sources: [evidenceSource],
     locators,
     records,
   };
@@ -735,13 +773,11 @@ export function bindAsoiafExternalDecisionSet(
   return {
     format: CANON_REVIEW_DECISION_SET_FORMAT,
     id: input.id,
-    universeId: "asoiaf",
     workOrderId: workOrder.id,
     workOrderFingerprint: workOrder.workOrderFingerprint,
     evidenceBundleId: evidenceBundle.id,
     evidenceBundleFingerprint: canonEvidenceBundleFingerprint(evidenceBundle),
     reviewerId: input.reviewerId,
-    reviewedAt: input.reviewedAt,
     decisions: [...input.decisions].sort((left, right) =>
       compareCodepoints(left.id, right.id),
     ),
@@ -753,11 +789,24 @@ function decisionAuthorityFindings(
   input: AsoiafExternalDecisionInput,
 ): AsoiafExternalPacketFinding[] {
   const findings: AsoiafExternalPacketFinding[] = [];
+  if (!input.id.trim() || !input.reviewerId.trim() || !input.reviewedAt.trim()) {
+    findings.push(
+      finding(
+        "incomplete-decision-review",
+        "error",
+        input.id || "decision-input",
+        "decision identity, reviewer, and review time are required",
+      ),
+    );
+  }
   const claimsByEvidenceId = new Map(
     packet.claims.map((claim) => [claim.evidenceRecordId, claim] as const),
   );
   for (const decision of input.decisions) {
     if (decision.action === "defer") continue;
+    const citedClaims = decision.evidenceRecordIds
+      .map((evidenceId) => claimsByEvidenceId.get(evidenceId))
+      .filter((claim): claim is AsoiafExternalReviewedClaim => claim !== undefined);
     for (const evidenceId of decision.evidenceRecordIds) {
       const claim = claimsByEvidenceId.get(evidenceId);
       if (!claim) {
@@ -776,6 +825,36 @@ function decisionAuthorityFindings(
             "error",
             decision.id,
             `${evidenceId} enters as ${claim.authorityRole} and cannot adjudicate a canon candidate`,
+          ),
+        );
+      }
+    }
+    for (const candidateId of decision.candidateIds) {
+      if (
+        !citedClaims.some((claim) =>
+          claim.authorityRole === "primary"
+          && claim.recallCandidateIds.includes(candidateId)
+        )
+      ) {
+        findings.push(
+          finding(
+            "decision-candidate-outside-packet-claim",
+            "error",
+            decision.id,
+            `${candidateId} is not adjudicated by a cited primary packet claim`,
+          ),
+        );
+      }
+    }
+    for (const promotedRecordId of decision.promotedRecordIds) {
+      const claim = claimsByEvidenceId.get(promotedRecordId);
+      if (!claim || claim.authorityRole !== "primary") {
+        findings.push(
+          finding(
+            "decision-promotes-nonprimary-record",
+            "error",
+            decision.id,
+            `${promotedRecordId} is not a primary reviewed packet record`,
           ),
         );
       }
@@ -860,12 +939,12 @@ export function compileAsoiafExternalReconciliationPacket(input: {
   const recallCandidates = ASOIAF_RECALL_ESTATE_PACKETS.flatMap(
     (packet) => packet.candidates,
   );
-  const canonReceipt = compileCanonReconciliation(
+  const canonReceipt = compileCanonReconciliation({
     workOrder,
     recallCandidates,
     evidenceBundle,
     decisionSet,
-  );
+  });
   const findings: AsoiafExternalPacketFinding[] = [
     ...preflight,
     ...canonReceipt.findings.map((entry) => ({

@@ -13,23 +13,25 @@ def correct_fixture_targets(source_patch: str) -> str:
             "      rawResponseRetained: false,\n",
             "        normalizedContentDigest: NORMALIZED_DIGEST,\n"
             "        rawResponseRetained: false,\n",
+            1,
         ),
         (
             "        normalizedObservationDigest: NORMALIZED_DIGEST,\n"
             "      acquisitionRawResponseRetained: false,\n",
             "        normalizedObservationDigest: NORMALIZED_DIGEST,\n"
             "        acquisitionRawResponseRetained: false,\n",
+            2,
         ),
     )
     corrected = source_patch
-    for old, new in replacements:
+    for old, new, expected in replacements:
         count = corrected.count(old)
-        if count != 1:
+        if count != expected:
             raise SystemExit(
-                "expected one malformed v3 fixture target, "
+                f"expected {expected} malformed v3 fixture target copies, "
                 f"found {count}: {old!r}"
             )
-        corrected = corrected.replace(old, new, 1)
+        corrected = corrected.replace(old, new)
     return corrected
 
 

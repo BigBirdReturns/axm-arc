@@ -5,8 +5,11 @@ import {
 import { narrativeFingerprint } from "../../../fingerprint.js";
 import type {
   AsoiafExternalAccessMethod,
+  AsoiafExternalAuthorityClass,
   AsoiafExternalCollectionCandidate,
   AsoiafExternalCollectionObservation,
+  AsoiafExternalContentClass,
+  AsoiafExternalContinuity,
   AsoiafExternalQueryLane,
   AsoiafExternalRole,
   AsoiafExternalSource,
@@ -31,9 +34,13 @@ export function canonicalAsoiafExternalSource(
 ): AsoiafExternalSource {
   return {
     ...source,
-    continuityIds: orderedStrings(source.continuityIds),
+    continuityIds: orderedStrings(
+      source.continuityIds,
+    ) as AsoiafExternalContinuity[],
     roles: orderedStrings(source.roles) as AsoiafExternalRole[],
-    contentClasses: orderedStrings(source.contentClasses),
+    contentClasses: orderedStrings(
+      source.contentClasses,
+    ) as AsoiafExternalContentClass[],
     accessMethods: canonicalAccessMethods(source.accessMethods),
     strengths: orderedStrings(source.strengths),
     cautions: orderedStrings(source.cautions),
@@ -51,10 +58,10 @@ export function canonicalAsoiafExternalQueryLane(
     aliases: orderedStrings(lane.aliases),
     preferredAuthorityClasses: orderedStrings(
       lane.preferredAuthorityClasses,
-    ),
+    ) as AsoiafExternalAuthorityClass[],
     supportingAuthorityClasses: orderedStrings(
       lane.supportingAuthorityClasses,
-    ),
+    ) as AsoiafExternalAuthorityClass[],
     preferredSourceIds: orderedStrings(lane.preferredSourceIds),
     requiredRoles: orderedStrings(lane.requiredRoles) as AsoiafExternalRole[],
   };

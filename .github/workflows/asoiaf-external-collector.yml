@@ -3,6 +3,7 @@ name: ASOIAF external collector
 on:
   pull_request:
     paths:
+      - 'src/narrative/canon/asoiaf/external/**'
       - 'tools/lib/asoiaf-external-*.ts'
       - 'tools/asoiaf-external-collector.ts'
       - 'tests/narrative/canon/asoiaf-external-collector.test.ts'
@@ -13,6 +14,7 @@ on:
     branches:
       - feature/asoiaf-external-collector-v1
     paths:
+      - 'src/narrative/canon/asoiaf/external/**'
       - 'tools/lib/asoiaf-external-*.ts'
       - 'tools/asoiaf-external-collector.ts'
       - 'tests/narrative/canon/asoiaf-external-collector.test.ts'
@@ -72,8 +74,7 @@ jobs:
           npm run asoiaf:external:collector -- receipt --root "$estate" \
             --out "$RUNNER_TEMP/asoiaf-external-collector-receipt.json" \
             | tee "$RUNNER_TEMP/collector-receipt.log"
-          test "$(jq -r '.sourceCount' "$RUNNER_TEMP/collector-status.log" | tail -1)" = '219' || \
-            grep -q '"sourceCount": 219' "$RUNNER_TEMP/collector-status.log"
+          grep -q '"sourceCount": 219' "$RUNNER_TEMP/collector-status.log"
           grep -q '"ok": true' "$RUNNER_TEMP/collector-verify.log"
 
       - name: Complete Arc regression

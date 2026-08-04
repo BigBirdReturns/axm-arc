@@ -1,0 +1,120 @@
+name: Seal ASOIAF private research index
+
+on:
+  push:
+    branches:
+      - feature/asoiaf-private-research-index-v1
+    paths:
+      - 'tools/lib/asoiaf-private-research-index.ts'
+      - 'tools/asoiaf-private-research-index.ts'
+      - 'tests/narrative/canon/asoiaf-private-research-index.test.ts'
+      - 'docs/ASOIAF_PRIVATE_RESEARCH_INDEX.md'
+      - 'package.json'
+      - '.github/workflows/seal-asoiaf-private-research-index.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: seal-asoiaf-private-research-index
+  cancel-in-progress: true
+
+jobs:
+  seal:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - name: Check out exact private-research branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/asoiaf-private-research-index-v1
+          fetch-depth: 0
+          show-progress: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Qualify exact branch head
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.sha }}"
+          npm ci --no-audit --no-fund
+          npm run typecheck | tee "$RUNNER_TEMP/typecheck.log"
+          npm test -- tests/narrative/canon/asoiaf-private-research-index.test.ts \
+            | tee "$RUNNER_TEMP/focused-tests.log"
+          npm test | tee "$RUNNER_TEMP/full-tests.log"
+          npm run build | tee "$RUNNER_TEMP/build.log"
+
+      - name: Build exact qualification receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          root='asoiaf-private-research-index-qualification'
+          mkdir -p "$root"
+          cp "$RUNNER_TEMP"/*.log "$root/"
+          printf '%s\n' '${{ github.sha }}' > "$root/candidate-sha.txt"
+          printf '%s\n' \
+            'custody=user-controlled-private' \
+            'indexContainsTerms=true' \
+            'indexContainsParagraphText=false' \
+            'defaultQueryTextDisclosure=false' \
+            'explicitSnippetTransaction=true' \
+            'sourcePathRetained=false' \
+            'sourceFilenameRetained=false' \
+            'graphEffect=none' \
+            'canonEffect=none' \
+            'searchAuthority=none' \
+            'promotion=reviewed-reconciliation-only' \
+            > "$root/private-research-boundary.txt"
+          find "$root" -type f ! -name SHA256SUMS -print0 \
+            | sort -z \
+            | xargs -0 sha256sum \
+            | sed "s#  $root/#  #" \
+            > "$root/SHA256SUMS"
+
+      - name: Upload exact qualification
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: asoiaf-private-research-index-qualification
+          path: asoiaf-private-research-index-qualification
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Post durable qualification receipt
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+          ARTIFACT_DIGEST: ${{ steps.upload.outputs.artifact-digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          body="$RUNNER_TEMP/qualification-comment.md"
+          cat > "$body" <<EOF
+          Private full-text research qualification is closed on exact candidate \`${{ github.sha }}\`.
+
+          The success-only seal passed strict TypeScript, the focused private-research suite, the complete Arc regression suite, and the production build. Qualification artifact \`${ARTIFACT_ID}\` has ZIP digest \`${ARTIFACT_DIGEST}\`.
+
+          The qualified mechanism builds a deterministic local inverted index over verified holder-controlled edition paragraphs, binds every result to exact source, edition, continuity, unit, paragraph digest, and locator identities, implements bounded all, any, and phrase semantics, filters source and continuity explicitly, returns no text by default, and reveals only a bounded digest-bound snippet through an explicit local transaction. Index, query, and receipt effects remain \`graphEffect=none\`, \`canonEffect=none\`, and \`searchAuthority=none\`.
+
+          The evidence tier is private retrieval and custody qualification over synthetic holder-controlled editions. It does not certify any ASOIAF proposition and does not permit search rank, co-occurrence, or returned snippets to bypass reviewed reconciliation. The control question remains whether every research hit can identify its exact edition, source digest, collector observation, continuity, unit, paragraph digest, locator, query mode, optional snippet digest, and later reviewer transaction.
+          EOF
+          gh pr comment 238 --repo BigBirdReturns/axm-arc --body-file "$body"
+
+      - name: Remove the completed success-only seal
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/seal-asoiaf-private-research-index.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Seal qualified private-research index'
+          git push origin HEAD:feature/asoiaf-private-research-index-v1

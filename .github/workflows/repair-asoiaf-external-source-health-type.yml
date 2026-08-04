@@ -1,3 +1,4 @@
+# explicit one-use trigger 2026-08-04
 name: Repair ASOIAF external source-health type narrowing
 
 on:

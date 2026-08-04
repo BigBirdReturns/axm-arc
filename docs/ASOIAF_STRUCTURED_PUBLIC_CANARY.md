@@ -6,7 +6,7 @@ The canary is not a second qualification suite and it does not grant availabilit
 
 ## Request set
 
-The first canary uses four low-volume plans:
+The canary uses four low-volume plans:
 
 ```text
 Wikidata SPARQL
@@ -35,7 +35,7 @@ The workflow binds the exact canary branch head, requires a clean repository wor
 
 The workflow does not require every endpoint to return a successful record. Robots denial, route unavailability, oversize response, invalid media, malformed JSON, no normalized records, or another bounded terminal is an observed source result rather than a CI defect. The workflow itself succeeds only when plan generation and validation complete, the acquisition runner terminates honestly, the resulting collector and acquisition estate verifies, the raw response remains absent, and the artifact package is complete.
 
-The retained artifact contains:
+The retained custody directory contains:
 
 ```text
 four signed request plans
@@ -53,7 +53,21 @@ machine canary summary
 SHA256SUMS over every retained artifact file
 ```
 
-The exact raw response SHA-256 and byte count remain in the adapter and acquisition receipts. Raw response bytes are discarded after normalization and are not uploaded. A successful unchanged plan may later replay from its fingerprinted state with zero requests, but this first canary begins from an empty temporary estate.
+The exact raw response SHA-256 and byte count remain in the adapter and acquisition receipts. Raw response bytes are discarded after normalization and are not uploaded. A successful unchanged plan may later replay from its fingerprinted state with zero requests, but each canary execution begins from an empty temporary estate.
+
+## Portable custody envelope
+
+Collector receipt identities contain colons because they are content-addressed semantic identifiers. GitHub's artifact uploader rejects colon-bearing paths to preserve compatibility with filesystems such as NTFS. The workflow therefore verifies the complete custody directory internally, wraps it in a single deterministic tar and gzip envelope, computes a separate SHA-256 over that envelope, and uploads only the portable tar file plus its checksum file.
+
+The tar envelope preserves every original filename and internal `SHA256SUMS` entry. Its archive construction fixes file order, owner, group, numeric ownership, modification time, and gzip timestamp behavior. GitHub supplies a second digest over the uploaded artifact ZIP. The durable receipt therefore binds three layers:
+
+```text
+internal SHA256SUMS for the collector estate and canary files
+SHA-256 for the portable tar and gzip envelope
+GitHub artifact ZIP digest and artifact identity
+```
+
+Maintenance commits marked `[no-live-canary]` are explicitly excluded from source acquisition. They may repair packaging or reporting without issuing another request set. A live run requires an unmarked operating-contract or workflow commit, or an explicit manual dispatch.
 
 ## Authority boundary
 
@@ -61,4 +75,6 @@ The canary records endpoint behavior and retained structured observations. It ca
 
 The evidence tier is a live operating canary over a previously qualified mechanism. The venue is an ephemeral GitHub Actions runner with an artifact-only holder-controlled estate. The target is live route, robots, pacing, response, normalization, receipt, and collector behavior rather than comprehensive source collection or ASOIAF truth. The upside is current interface evidence with complete custody. The downside is endpoint and schema variability. The failure mode is interpreting a successful or failed canary request as a statement about canon, source quality, or permanent availability.
 
-The control question is whether each live request can end in an honest, bounded, content-addressed artifact that proves what route and policy governed it, what response identity was observed, what normalized values survived rights controls, and why the result still lacked authority to settle any ASOIAF claim.
+This revision authorizes the final portable-envelope canary after the original source transaction proved the actor but exposed the artifact uploader's cross-platform path restriction. The replacement run is a new bounded operating observation. It is not a replay of the missing runner filesystem and does not alter the authority boundary.
+
+The control question is whether each live request can end in an honest, bounded, content-addressed portable artifact that proves what route and policy governed it, what response identity was observed, what normalized values survived rights controls, and why the result still lacked authority to settle any ASOIAF claim.

@@ -48,8 +48,9 @@ function positiveInteger(name: string, fallback: number): number {
 }
 
 function readPlan(filePath: string): AsoiafStructuredRequestPlan {
-  return JSON.parse(fs.readFileSync(path.resolve(filePath), "utf8"))
-    as AsoiafStructuredRequestPlan;
+  return JSON.parse(
+    fs.readFileSync(path.resolve(filePath), "utf8"),
+  ) as AsoiafStructuredRequestPlan;
 }
 
 function readPlans(): AsoiafStructuredRequestPlan[] {
@@ -58,7 +59,7 @@ function readPlans(): AsoiafStructuredRequestPlan[] {
   if (!plansFile) return repeated;
   const decoded = JSON.parse(fs.readFileSync(path.resolve(plansFile), "utf8"));
   if (!Array.isArray(decoded)) throw new Error("--plans must contain a JSON array");
-  return [...repeated, ...decoded as AsoiafStructuredRequestPlan[]];
+  return [...repeated, ...(decoded as AsoiafStructuredRequestPlan[])];
 }
 
 function print(output: unknown): void {

@@ -22,7 +22,8 @@
     "build:creator-recovery-kit": "npm run build:creator-kit && vite-node tools/build-creator-recovery-kit.ts",
     "asoiaf:external:collector": "vite-node tools/asoiaf-external-collector.ts --",
     "asoiaf:structured-acquisition:health": "vite-node tools/asoiaf-structured-acquisition-source-health.ts --",
-    "asoiaf:structured-admission:health": "vite-node tools/asoiaf-structured-observation-admission-health.ts --"
+    "asoiaf:structured-admission:health": "vite-node tools/asoiaf-structured-observation-admission-health.ts --",
+    "asoiaf:research-dossier": "vite-node tools/asoiaf-research-question-dossier.ts --"
   },
   "dependencies": {
     "react": "^18.3.1",

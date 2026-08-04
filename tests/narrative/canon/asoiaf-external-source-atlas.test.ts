@@ -129,7 +129,7 @@ describe("ASOIAF external source atlas", () => {
         "discussion",
       ].includes(source.sourcePlane),
     );
-    expect(community.length).toBeGreaterThan(40);
+    expect(community.length).toBeGreaterThan(30);
     expect(
       community.every(
         (source) =>

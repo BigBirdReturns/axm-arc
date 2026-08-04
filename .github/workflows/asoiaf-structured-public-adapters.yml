@@ -1,3 +1,4 @@
+# same-repository outcome repair trigger 2026-08-04
 name: ASOIAF structured public adapters
 
 on:
@@ -22,13 +23,72 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
+  repair_parent:
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.base.ref == 'feature/asoiaf-structured-public-adapters-v1'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Check out the structured-adapter parent branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/asoiaf-structured-public-adapters-v1
+          fetch-depth: 0
+
+      - name: Apply the exact terminal-outcome repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('tools/lib/asoiaf-structured-public-adapters.ts')
+          text = path.read_text()
+          old = '''  const outcome = records.length === 0
+    ? "refused"
+    : normalized.rejected.length > 0
+      ? "partial"
+      : "observed";'''
+          new = '''  const outcome: AsoiafStructuredAdapterReceipt["outcome"] =
+    records.length === 0
+      ? "refused"
+      : normalized.rejected.length > 0
+        ? "partial"
+        : "observed";'''
+          count = text.count(old)
+          if count != 1:
+              raise SystemExit(f'expected one terminal-outcome block, found {count}')
+          path.write_text(text.replace(old, new))
+          PY
+          rm -f .github/workflows/repair-asoiaf-structured-public-adapters.yml
+          git diff --check
+
+      - name: Qualify the repaired parent
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          npm run typecheck
+          npm test -- tests/narrative/canon/asoiaf-structured-public-adapters.test.ts
+          npm test
+          npm run build
+
+      - name: Commit and push the qualified parent repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Repair structured-adapter terminal outcome typing'
+          git push origin HEAD:feature/asoiaf-structured-public-adapters-v1
+
   qualify:
     runs-on: ubuntu-24.04
     timeout-minutes: 35

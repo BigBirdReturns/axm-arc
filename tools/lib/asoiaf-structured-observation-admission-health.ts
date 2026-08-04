@@ -335,8 +335,8 @@ function admissionSort(
   right: AsoiafStructuredObservationAdmission,
 ): number {
   return (
-    left.reviewedAt.localeCompare(right.reviewedAt)
-    || left.admissionId.localeCompare(right.admissionId)
+    String(left.reviewedAt).localeCompare(String(right.reviewedAt))
+    || String(left.admissionId).localeCompare(String(right.admissionId))
   );
 }
 
@@ -682,7 +682,7 @@ export function auditAsoiafStructuredObservationAdmissionHealth(
 
   return {
     statePresent,
-    stateEntryCount: state?.entries.length ?? 0,
+    stateEntryCount: (state?.entries ?? []).length,
     admissionCount,
     currentAdmissionCount: currentAdmissions.length,
     admittedCount,

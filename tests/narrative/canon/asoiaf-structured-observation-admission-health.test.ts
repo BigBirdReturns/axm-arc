@@ -277,11 +277,11 @@ function writeAdmission(input: {
     admissionFingerprint,
   };
   const filename = `admission-${admissionFingerprint.slice("sha256:".length)}.json`;
-  const target = path.join(root, "structured-observation-admissions", filename);
+  const target = path.join(input.root, "structured-observation-admissions", filename);
   writeJsonAtomic(target, admission);
   return {
     admission,
-    uri: path.relative(root, target).split(path.sep).join("/"),
+    uri: path.relative(input.root, target).split(path.sep).join("/"),
   };
 }
 

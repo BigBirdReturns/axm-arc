@@ -80,26 +80,26 @@ jobs:
           CATELYN
           The household counted grain, guards, ravens, and uncertain loyalties.
           TEXT
-          npm run asoiaf:local-edition -- intake \
+          npx vite-node tools/asoiaf-local-edition-intake.ts -- intake \
             --root "$estate" \
             --source local-agot \
             --edition ci-private-search-edition \
             --file "$source" \
             --at 2026-08-04T00:00:00.000Z \
             | tee "$RUNNER_TEMP/local-intake.log"
-          npm run asoiaf:private-research -- build \
+          npx vite-node tools/asoiaf-private-research-index.ts -- build \
             --root "$estate" \
             --at 2026-08-04T00:01:00.000Z \
             | tee "$RUNNER_TEMP/index-build.log"
-          npm run asoiaf:private-research -- search \
+          npx vite-node tools/asoiaf-private-research-index.ts -- search \
             --root "$estate" \
             --query 'weirwood silence' \
             --mode all \
             | tee "$RUNNER_TEMP/query-receipt.json"
-          npm run asoiaf:private-research -- verify \
+          npx vite-node tools/asoiaf-private-research-index.ts -- verify \
             --root "$estate" \
             | tee "$RUNNER_TEMP/index-verify.log"
-          npm run asoiaf:private-research -- receipt \
+          npx vite-node tools/asoiaf-private-research-index.ts -- receipt \
             --root "$estate" \
             --at 2026-08-04T00:02:00.000Z \
             --out "$RUNNER_TEMP/private-research-receipt.json" \

@@ -1,0 +1,252 @@
+name: ASOIAF structured public live canary
+
+on:
+  push:
+    branches:
+      - feature/asoiaf-structured-public-canary-v1
+    paths:
+      - '.github/workflows/asoiaf-structured-public-live-canary.yml'
+      - 'docs/ASOIAF_STRUCTURED_PUBLIC_CANARY.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: asoiaf-structured-public-live-canary-v1
+  cancel-in-progress: false
+
+jobs:
+  canary:
+    if: github.repository == 'BigBirdReturns/axm-arc' && github.ref_name == 'feature/asoiaf-structured-public-canary-v1'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Check out exact canary candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          show-progress: false
+
+      - name: Bind exact read-only branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$GITHUB_REF_NAME" = 'feature/asoiaf-structured-public-canary-v1'
+          test -z "$(git status --porcelain)"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Strict TypeScript
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run typecheck | tee "$RUNNER_TEMP/typecheck.log"
+
+      - name: Build and validate four signed low-volume plans
+        shell: bash
+        run: |
+          set -euo pipefail
+          plans="$RUNNER_TEMP/live-canary/plans"
+          mkdir -p "$plans"
+
+          wikidata_query='SELECT ?item ?itemLabel WHERE { ?item rdfs:label "Varys"@en . SERVICE wikibase:label { bd:serviceParam wikibase:language "en". } } LIMIT 1'
+          npm run --silent asoiaf:structured-adapter -- plan \
+            --adapter wikidata-sparql \
+            --request-id canary:wikidata:varys-label \
+            --query "$wikidata_query" \
+            --record-limit 1 \
+            > "$plans/01-wikidata.json"
+
+          npm run --silent asoiaf:structured-adapter -- plan \
+            --adapter openlibrary-catalog \
+            --request-id canary:openlibrary:agot-search \
+            --search 'A Game of Thrones George R. R. Martin' \
+            --record-limit 1 \
+            > "$plans/02-openlibrary.json"
+
+          npm run --silent asoiaf:structured-adapter -- plan \
+            --adapter crossref-works \
+            --request-id canary:crossref:asoiaf-search \
+            --query 'A Song of Ice and Fire' \
+            --record-limit 1 \
+            > "$plans/03-crossref.json"
+
+          npm run --silent asoiaf:structured-adapter -- plan \
+            --adapter awoiaf-mediawiki \
+            --request-id canary:awoiaf:varys-metadata \
+            --title Varys \
+            --record-limit 1 \
+            > "$plans/04-awoiaf.json"
+
+          for plan in "$plans"/*.json; do
+            name="$(basename "$plan" .json)"
+            npm run --silent asoiaf:structured-acquisition -- validate \
+              --plan "$plan" \
+              | tee "$RUNNER_TEMP/live-canary/validate-$name.json"
+            test "$(jq -r '.ok' "$RUNNER_TEMP/live-canary/validate-$name.json")" = 'true'
+          done
+          jq -s '.' "$plans"/*.json > "$RUNNER_TEMP/live-canary/request-plans.json"
+          test "$(jq 'length' "$RUNNER_TEMP/live-canary/request-plans.json")" = '4'
+
+      - name: Execute sequential live acquisition with honest terminals
+        id: execute
+        shell: bash
+        run: |
+          set -euo pipefail
+          estate="$RUNNER_TEMP/live-canary/estate"
+          mkdir -p "$estate"
+          acquired_at="$(date -u +'%Y-%m-%dT%H:%M:%S.000Z')"
+          printf '%s\n' "$acquired_at" > "$RUNNER_TEMP/live-canary/acquired-at.txt"
+
+          set +e
+          npm run --silent asoiaf:structured-acquisition -- batch \
+            --root "$estate" \
+            --plans "$RUNNER_TEMP/live-canary/request-plans.json" \
+            --at "$acquired_at" \
+            > "$RUNNER_TEMP/live-canary/batch-result.json" \
+            2> "$RUNNER_TEMP/live-canary/batch-stderr.log"
+          batch_exit=$?
+          set -e
+          printf '%s\n' "$batch_exit" > "$RUNNER_TEMP/live-canary/batch-exit-status.txt"
+          echo "batch_exit=$batch_exit" >> "$GITHUB_OUTPUT"
+
+          test -s "$RUNNER_TEMP/live-canary/batch-result.json"
+          test "$(jq 'length' "$RUNNER_TEMP/live-canary/batch-result.json")" = '4'
+          test -z "$(git status --porcelain)"
+
+      - name: Verify the complete live collector estate
+        shell: bash
+        run: |
+          set -euo pipefail
+          estate="$RUNNER_TEMP/live-canary/estate"
+          npm run --silent asoiaf:structured-acquisition -- status \
+            --root "$estate" \
+            | tee "$RUNNER_TEMP/live-canary/status.json"
+          npm run --silent asoiaf:structured-acquisition -- verify \
+            --root "$estate" \
+            | tee "$RUNNER_TEMP/live-canary/verify.json"
+          test "$(jq -r '.ok' "$RUNNER_TEMP/live-canary/verify.json")" = 'true'
+
+          receipt_count="$(find "$estate/structured-acquisition-receipts" -maxdepth 1 -type f -name '*.json' | wc -l)"
+          test "$receipt_count" = '4'
+          jq -s '
+            {
+              format: "axm-asoiaf-structured-public-live-canary-summary/1",
+              planCount: 4,
+              receiptCount: length,
+              outcomes: (group_by(.outcome) | map({key: .[0].outcome, value: length}) | from_entries),
+              sourceIds: (map(.sourceId) | unique | sort),
+              requestCount: (map(.requestCount) | add),
+              waitedMilliseconds: (map(.waitedMilliseconds) | add),
+              redirectCount: (map(.redirectCount) | add),
+              responseBytes: (map(.responseBytes) | add),
+              committedRecordCount: (map(.committedRecordCount) | add),
+              observationCount: (map(.observationIds | length) | add),
+              candidateCount: (map(.candidateIds | length) | add),
+              rawResponseRetainedCount: (map(select(.rawResponseRetained != false)) | length),
+              graphEffectCount: (map(select(.graphEffect != "none")) | length),
+              canonEffectCount: (map(select(.canonEffect != "none")) | length),
+              receiptIds: (map(.receiptId) | sort),
+              receiptFingerprints: (map(.receiptFingerprint) | sort)
+            }
+          ' "$estate"/structured-acquisition-receipts/*.json \
+            > "$RUNNER_TEMP/live-canary/canary-summary.json"
+
+          test "$(jq -r '.receiptCount' "$RUNNER_TEMP/live-canary/canary-summary.json")" = '4'
+          test "$(jq -r '.rawResponseRetainedCount' "$RUNNER_TEMP/live-canary/canary-summary.json")" = '0'
+          test "$(jq -r '.graphEffectCount' "$RUNNER_TEMP/live-canary/canary-summary.json")" = '0'
+          test "$(jq -r '.canonEffectCount' "$RUNNER_TEMP/live-canary/canary-summary.json")" = '0'
+
+          find "$estate" -type f -printf '%P\n' | sort \
+            > "$RUNNER_TEMP/live-canary/estate-inventory.txt"
+          if grep -Eiq '(^|/)(raw-response|response-body|raw-body)(/|\.|$)' \
+            "$RUNNER_TEMP/live-canary/estate-inventory.txt"; then
+            echo 'forbidden raw-response retention path detected' >&2
+            exit 1
+          fi
+          test -z "$(git status --porcelain)"
+
+      - name: Assemble content-addressed canary artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          source="$RUNNER_TEMP/live-canary"
+          artifact="$RUNNER_TEMP/asoiaf-structured-public-live-canary"
+          mkdir -p "$artifact"
+          cp -R "$source"/. "$artifact"/
+          printf '%s\n' "$GITHUB_SHA" > "$artifact/candidate-sha.txt"
+          printf '%s\n' \
+            'evidenceTier=live-operating-canary' \
+            'venue=ephemeral-github-actions-runner' \
+            'planCount=4' \
+            'batchMode=sequential' \
+            'liveNetwork=true' \
+            'credentialBearingHeaders=false' \
+            'rawResponseRetained=false' \
+            'normalizedRecords=rights-controlled' \
+            'repositoryMutation=false' \
+            'graphEffect=none' \
+            'canonEffect=none' \
+            'authority=none' \
+            > "$artifact/canary-boundary.txt"
+          find "$artifact" -type f ! -name SHA256SUMS -print0 \
+            | sort -z \
+            | xargs -0 sha256sum \
+            | sed "s#  $artifact/#  #" \
+            > "$artifact/SHA256SUMS"
+          test -z "$(git status --porcelain)"
+
+      - name: Upload live canary custody package
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: asoiaf-structured-public-live-canary
+          path: ${{ runner.temp }}/asoiaf-structured-public-live-canary
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+      - name: Post bounded canary result
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+          ARTIFACT_DIGEST: ${{ steps.upload.outputs.artifact-digest }}
+          BATCH_EXIT: ${{ steps.execute.outputs.batch_exit }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          summary="$RUNNER_TEMP/live-canary/canary-summary.json"
+          body="$RUNNER_TEMP/live-canary-comment.md"
+          if [ -s "$summary" ]; then
+            outcomes="$(jq -r '.outcomes | to_entries | sort_by(.key) | map("`\(.key)`=\(.value)") | join(", ")' "$summary")"
+            request_count="$(jq -r '.requestCount' "$summary")"
+            waited="$(jq -r '.waitedMilliseconds' "$summary")"
+            response_bytes="$(jq -r '.responseBytes' "$summary")"
+            committed="$(jq -r '.committedRecordCount' "$summary")"
+            observations="$(jq -r '.observationCount' "$summary")"
+            cat > "$body" <<EOF
+          The artifact-only live structured acquisition canary completed on exact candidate \`${GITHUB_SHA}\`. Four signed plans produced four acquisition receipts with outcomes ${outcomes}. The batch process exit was \`${BATCH_EXIT:-unknown}\`; terminal source outcomes were retained rather than converted into CI claims. The run recorded ${request_count} network requests, ${waited} milliseconds of enforced wait, ${response_bytes} raw response bytes by digest only, ${committed} committed normalized records, and ${observations} collector observations.
+
+          The complete collector and acquisition estate verified successfully. Every receipt declared \`rawResponseRetained=false\`, \`graphEffect=none\`, and \`canonEffect=none\`. Artifact \`${ARTIFACT_ID}\` has ZIP digest \`${ARTIFACT_DIGEST}\` and contains the signed plans, batch outputs, machine summary, collector ledgers, normalized rights-controlled records, adapter receipts, acquisition receipts, state projection, inventory, and \`SHA256SUMS\`.
+
+          This is live operating evidence about current endpoint behavior, not a canon or source-quality decision. The control question is whether each observed result remains reproducible from its plan, policy, response digest, normalized record, receipt, and collector identities without allowing availability or normalization to acquire authority.
+          EOF
+          else
+            cat > "$body" <<EOF
+          The live canary did not reach a verified custody summary on candidate \`${GITHUB_SHA}\`. No acquisition qualification or endpoint claim is made. The available diagnostic artifact is \`${ARTIFACT_ID:-not-issued}\` with digest \`${ARTIFACT_DIGEST:-not-issued}\`.
+          EOF
+          fi
+          gh pr comment 242 --repo BigBirdReturns/axm-arc --body-file "$body"

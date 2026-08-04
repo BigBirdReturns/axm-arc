@@ -5,6 +5,7 @@ export * from "./catalog.js";
 export * from "./query-lanes.js";
 export * from "./atlas.js";
 export * from "./validate.js";
+export * from "./reconciliation-packets.js";
 
 import {
   ASOIAF_EXTERNAL_ATLAS_LANES,

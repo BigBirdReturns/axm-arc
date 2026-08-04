@@ -1268,7 +1268,6 @@ export function buildSourceHealthPlan(
         break;
       case "rights-review":
       case "fresh":
-      case "retired":
       case "integrity-error":
         break;
     }

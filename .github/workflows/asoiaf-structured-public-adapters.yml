@@ -1,0 +1,178 @@
+name: ASOIAF structured public adapters
+
+on:
+  pull_request:
+    paths:
+      - 'tools/lib/asoiaf-structured-public-adapters.ts'
+      - 'tools/asoiaf-structured-public-adapters.ts'
+      - 'tests/narrative/canon/asoiaf-structured-public-adapters.test.ts'
+      - 'docs/ASOIAF_STRUCTURED_PUBLIC_ADAPTERS.md'
+      - 'package.json'
+      - '.github/workflows/asoiaf-structured-public-adapters.yml'
+  push:
+    branches:
+      - feature/asoiaf-structured-public-adapters-v1
+    paths:
+      - 'tools/lib/asoiaf-structured-public-adapters.ts'
+      - 'tools/asoiaf-structured-public-adapters.ts'
+      - 'tests/narrative/canon/asoiaf-structured-public-adapters.test.ts'
+      - 'docs/ASOIAF_STRUCTURED_PUBLIC_ADAPTERS.md'
+      - 'package.json'
+      - '.github/workflows/asoiaf-structured-public-adapters.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qualify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Check out exact structured-adapter candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+          show-progress: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Strict TypeScript
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run typecheck | tee "$RUNNER_TEMP/typecheck.log"
+
+      - name: Focused adapter qualification
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm test -- tests/narrative/canon/asoiaf-structured-public-adapters.test.ts \
+            | tee "$RUNNER_TEMP/focused-tests.log"
+
+      - name: Structured adapter smoke estate
+        shell: bash
+        run: |
+          set -euo pipefail
+          estate="$RUNNER_TEMP/structured-adapter-estate"
+          fixture="$RUNNER_TEMP/awoiaf.json"
+          cat > "$fixture" <<'JSON'
+          {
+            "batchcomplete": true,
+            "query": {
+              "pages": [
+                {
+                  "pageid": 123,
+                  "ns": 0,
+                  "title": "Varys",
+                  "touched": "2026-07-31T22:00:00Z",
+                  "lastrevid": 456,
+                  "length": 12000,
+                  "canonicalurl": "https://awoiaf.westeros.org/index.php/Varys",
+                  "categories": [{"title": "Category:Characters"}],
+                  "links": [{"title": "Aerys II Targaryen"}, {"title": "File:Varys.jpg"}],
+                  "revisions": [{"revid": 456, "parentid": 455, "timestamp": "2026-07-31T21:58:00Z"}]
+                }
+              ]
+            }
+          }
+          JSON
+          npm run asoiaf:structured-adapter -- plan \
+            --adapter awoiaf-mediawiki \
+            --request-id awoiaf:varys \
+            --title Varys \
+            | tee "$RUNNER_TEMP/request-plan.log"
+          npm run asoiaf:structured-adapter -- normalize \
+            --adapter awoiaf-mediawiki \
+            --source structured-awoiaf-api \
+            --request-id awoiaf:varys \
+            --source-uri 'https://awoiaf.westeros.org/api.php?bounded=1' \
+            --file "$fixture" \
+            | tee "$RUNNER_TEMP/normalize.log"
+          npm run asoiaf:structured-adapter -- commit \
+            --root "$estate" \
+            --adapter awoiaf-mediawiki \
+            --source structured-awoiaf-api \
+            --request-id awoiaf:varys \
+            --source-uri 'https://awoiaf.westeros.org/api.php?bounded=1' \
+            --file "$fixture" \
+            --at 2026-08-04T00:00:00.000Z \
+            | tee "$RUNNER_TEMP/commit.log"
+          grep -q '"outcome": "observed"' "$RUNNER_TEMP/commit.log"
+          test "$(jq -r '.records | length' "$estate/CREDITS.json")" = '1'
+          test "$(jq -r '.records[0].sourceId' "$estate/CREDITS.json")" = 'structured-awoiaf-api'
+          cp "$estate/CREDITS.json" "$RUNNER_TEMP/"
+          cp "$estate/CREDITS.md" "$RUNNER_TEMP/"
+          cp "$estate/CREDITS.bib" "$RUNNER_TEMP/"
+          find "$estate/structured-adapter-receipts" -type f -name '*.json' -exec cp {} "$RUNNER_TEMP/adapter-receipt.json" \;
+          find "$estate/cache/structured-normalized" -type f -name '*.json' -exec cp {} "$RUNNER_TEMP/normalized-record.json" \;
+
+      - name: Complete Arc regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm test | tee "$RUNNER_TEMP/full-tests.log"
+
+      - name: Production build
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run build | tee "$RUNNER_TEMP/build.log"
+
+      - name: Retain exact structured-adapter qualification
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          root='asoiaf-structured-public-adapters-qualification'
+          mkdir -p "$root"
+          cp "$RUNNER_TEMP"/*.log "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP/adapter-receipt.json" "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP/normalized-record.json" "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP/CREDITS.json" "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP/CREDITS.md" "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP/CREDITS.bib" "$root/" 2>/dev/null || true
+          printf '%s\n' '${{ github.event.pull_request.head.sha || github.sha }}' \
+            > "$root/candidate-sha.txt"
+          printf '%s\n' \
+            'networkAcquisition=false' \
+            'registeredSourcesOnly=true' \
+            'sourceResponseDigest=true' \
+            'normalizedRecordDigest=true' \
+            'graphEffect=none' \
+            'canonEffect=none' \
+            'collectorPromotion=intake-only' \
+            'wikidataRights=cc0' \
+            'openLibraryRetention=bibliographic-only' \
+            'crossrefAbstractRetention=false' \
+            'crossrefAffiliationRetention=false' \
+            'awoiafTextRetention=explicit-bounded-only' \
+            'awoiafMediaRetention=false' \
+            'awoiafAttribution=required' \
+            > "$root/structured-adapter-boundary.txt"
+          find "$root" -type f ! -name SHA256SUMS -print0 \
+            | sort -z \
+            | xargs -0 sha256sum \
+            | sed "s#  $root/#  #" \
+            > "$root/SHA256SUMS"
+
+      - name: Upload structured-adapter qualification
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: asoiaf-structured-public-adapters-qualification
+          path: asoiaf-structured-public-adapters-qualification
+          if-no-files-found: error
+          retention-days: 30

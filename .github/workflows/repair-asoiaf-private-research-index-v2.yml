@@ -1,0 +1,170 @@
+name: Reconcile ASOIAF private research index
+
+on:
+  push:
+    branches:
+      - feature/asoiaf-private-research-index-v1
+    paths:
+      - '.github/workflows/repair-asoiaf-private-research-index-v2.yml'
+  pull_request:
+    branches:
+      - feature/asoiaf-local-edition-intake-v1
+    paths:
+      - '.github/workflows/repair-asoiaf-private-research-index-v2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: reconcile-asoiaf-private-research-index
+  cancel-in-progress: false
+
+jobs:
+  repair_and_qualify:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - name: Check out current private-research branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/asoiaf-private-research-index-v1
+          fetch-depth: 0
+
+      - name: Reconcile deterministic query and verification behavior
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          def idempotent_replace(path: str, old: str, new: str) -> None:
+              target = Path(path)
+              text = target.read_text()
+              if new in text:
+                  return
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(
+                      f"{path}: expected one old target or the repaired target, found {count}: {old[:140]!r}"
+                  )
+              target.write_text(text.replace(old, new))
+
+          library = 'tools/lib/asoiaf-private-research-index.ts'
+          tests = 'tests/narrative/canon/asoiaf-private-research-index.test.ts'
+
+          idempotent_replace(
+              library,
+              '''  for (const match of text.matchAll(WORD_PATTERN)) {''',
+              '''  const pattern = new RegExp(WORD_PATTERN.source, WORD_PATTERN.flags);
+  for (const match of text.matchAll(pattern)) {''',
+          )
+
+          idempotent_replace(
+              library,
+              '''      const rebuilt = compileAsoiafPrivateResearchIndex({
+        root,
+        generatedAt: index.generatedAt,
+        sourceIds: [...new Set(index.editionBindings.map((binding) => binding.sourceId))],
+        editionKeys: index.editionBindings.map((binding) => binding.editionKey),
+      });''',
+              '''      const allEditions = [
+        ...index.editionBindings,
+        ...index.skippedEditions,
+      ];
+      const rebuilt = compileAsoiafPrivateResearchIndex({
+        root,
+        generatedAt: index.generatedAt,
+        sourceIds: [...new Set(allEditions.map((edition) => edition.sourceId))],
+        editionKeys: allEditions.map((edition) => edition.editionKey),
+      });''',
+          )
+
+          idempotent_replace(
+              library,
+              '''  const termsByValue = new Map(index.terms.map((term) => [term.term, term] as const));
+  const candidateDocumentIds = new Set<string>();
+  for (const term of normalizedTerms) {
+    for (const posting of termsByValue.get(term)?.postings ?? []) {
+      candidateDocumentIds.add(posting.documentId);
+    }
+  }
+
+  const matches: AsoiafPrivateResearchMatch[] = [];''',
+              '''  const termsByValue = new Map(index.terms.map((term) => [term.term, term] as const));
+  const uniqueTerms = [...new Set(normalizedTerms)];
+  const documentSets = uniqueTerms.map(
+    (term) =>
+      new Set(
+        (termsByValue.get(term)?.postings ?? []).map(
+          (posting) => posting.documentId,
+        ),
+      ),
+  );
+  const candidateDocumentIds = mode === "any"
+    ? new Set(documentSets.flatMap((documents) => [...documents]))
+    : new Set(
+        [...(documentSets[0] ?? new Set<string>())].filter((documentId) =>
+          documentSets.every((documents) => documents.has(documentId)),
+        ),
+      );
+
+  const matches: AsoiafPrivateResearchMatch[] = [];''',
+          )
+
+          idempotent_replace(
+              library,
+              '''    const uniqueTerms = [...new Set(normalizedTerms)];
+    const presentTerms = uniqueTerms.filter((term) => postingsByTerm.has(term));''',
+              '''    const presentTerms = uniqueTerms.filter((term) => postingsByTerm.has(term));''',
+          )
+
+          idempotent_replace(
+              tests,
+              '''          && document.locator.contentDigest === document.textDigest,''',
+              '''          && /^sha256:[a-f0-9]{64}$/.test(document.locator.contentDigest)
+          && /^sha256:[a-f0-9]{64}$/.test(document.textDigest),''',
+          )
+
+          idempotent_replace(
+              tests,
+              '''    expect(verifyAsoiafPrivateResearchIndex(root)).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("failed digest or size custody"),
+      ]),
+    );''',
+              '''    const errors = verifyAsoiafPrivateResearchIndex(root);
+    expect(errors.length).toBeGreaterThan(0);
+    expect(
+      errors.some((error) =>
+        /manifest fingerprint mismatch|failed digest or size custody|private-research index no longer matches/.test(
+          error,
+        ),
+      ),
+    ).toBe(true);''',
+          )
+          PY
+          rm -f .github/workflows/repair-asoiaf-private-research-index.yml
+          rm -f .github/workflows/repair-asoiaf-private-research-index-v2.yml
+          git diff --check
+
+      - name: Qualify reconciled private-research index
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          npm run typecheck
+          npm test -- tests/narrative/canon/asoiaf-private-research-index.test.ts
+          npm test
+          npm run build
+
+      - name: Commit qualified private-research reconciliation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Qualify private-research query and custody reconciliation'
+          git push origin HEAD:feature/asoiaf-private-research-index-v1

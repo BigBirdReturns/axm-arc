@@ -1,0 +1,78 @@
+name: Seal ASOIAF external source health
+
+on:
+  push:
+    branches:
+      - feature/asoiaf-external-source-health-v1
+    paths:
+      - '.github/workflows/seal-asoiaf-external-source-health.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: seal-asoiaf-external-source-health-v1
+  cancel-in-progress: true
+
+jobs:
+  seal:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - name: Check out exact source-health branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/asoiaf-external-source-health-v1
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Qualify source-health transaction
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          npm run typecheck
+          npm test -- tests/narrative/canon/asoiaf-external-source-health.test.ts
+          estate="$RUNNER_TEMP/source-health-estate"
+          npx vite-node tools/asoiaf-external-source-health.ts -- \
+            init --root "$estate" --at 2026-08-04T00:00:00.000Z
+          npx vite-node tools/asoiaf-external-source-health.ts -- \
+            report --root "$estate" --at 2026-08-04T00:00:00.000Z --limit 40
+          npx vite-node tools/asoiaf-external-source-health.ts -- \
+            verify --root "$estate" --at 2026-08-04T00:00:00.000Z \
+            | tee "$RUNNER_TEMP/source-health-verify.json"
+          grep -q '"ok": true' "$RUNNER_TEMP/source-health-verify.json"
+          test "$(jq -r '.sourceCount' "$estate/SOURCE-HEALTH.json")" = '219'
+          npm test
+          npm run build
+
+      - name: Post passing receipt and remove seal workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          candidate="$(git rev-parse HEAD)"
+          body=$(cat <<EOF
+Source-health fanout seal passed at candidate \`$candidate\`.
+
+Strict TypeScript, the focused health suite, a pristine 219-source report and verification, the complete Arc regression suite, and the production build passed. The qualified actor remains read-only with respect to repository and canon state. It controls refresh eligibility, route, robots and terms drift, rights queues, cache and receipt parity, ledger parity, attribution debt, and bounded repair planning without fetching bodies or promoting claims.
+EOF
+          )
+          gh api --method POST \
+            repos/${GITHUB_REPOSITORY}/issues/233/comments \
+            -f body="$body"
+          rm -f .github/workflows/seal-asoiaf-external-source-health.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Seal ASOIAF external source-health qualification'
+          git push origin HEAD:feature/asoiaf-external-source-health-v1

@@ -1,0 +1,41 @@
+name: Report ASOIAF structured acquisition v5 run
+
+on:
+  push:
+    branches:
+      - repair/asoiaf-structured-acquisition-trigger-v3
+    paths:
+      - '.github/workflows/report-asoiaf-structured-acquisition-v5-run.yml'
+
+permissions:
+  actions: read
+  pull-requests: write
+  issues: write
+  contents: read
+
+jobs:
+  report:
+    if: github.repository == 'BigBirdReturns/axm-arc'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Report every run bound to the parent trigger commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_SHA: de754ff61d1f9edf3dc84acdf0221e45406fd005
+        shell: bash
+        run: |
+          set -euo pipefail
+          runs="$RUNNER_TEMP/runs.json"
+          gh api -X GET "repos/$GITHUB_REPOSITORY/actions/runs" \
+            -f head_sha="$TARGET_SHA" \
+            -f per_page=100 \
+            --jq '.workflow_runs | map({id, name, event, status, conclusion, path, head_sha, run_number, created_at, updated_at})' \
+            > "$runs"
+          body="$RUNNER_TEMP/report.md"
+          {
+            printf 'Actions run ledger for parent trigger `%s`:\n\n```json\n' "$TARGET_SHA"
+            cat "$runs"
+            printf '\n```\n\nThis is a read-only diagnostic emitted from disposable PR #241.\n'
+          } > "$body"
+          gh pr comment 239 --repo "$GITHUB_REPOSITORY" --body-file "$body"

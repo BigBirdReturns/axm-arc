@@ -149,7 +149,7 @@ jobs:
           test "$receipt_count" = '4'
           jq -s '
             {
-              format: "axm-asoiaf-structured-public-live-canary-summary/1",
+              format: "axm-asoiaf-structured-public-live-canary-summary/2",
               planCount: 4,
               receiptCount: length,
               outcomes: (group_by(.outcome) | map({key: .[0].outcome, value: length}) | from_entries),
@@ -184,12 +184,15 @@ jobs:
           fi
           test -z "$(git status --porcelain)"
 
-      - name: Assemble content-addressed canary artifact
+      - name: Assemble portable content-addressed canary envelope
+        id: package
         shell: bash
         run: |
           set -euo pipefail
           source="$RUNNER_TEMP/live-canary"
           artifact="$RUNNER_TEMP/asoiaf-structured-public-live-canary"
+          archive="$RUNNER_TEMP/asoiaf-structured-public-live-canary-${GITHUB_RUN_ID}.tar.gz"
+          checksum="$archive.sha256"
           mkdir -p "$artifact"
           cp -R "$source"/. "$artifact"/
           printf '%s\n' "$GITHUB_SHA" > "$artifact/candidate-sha.txt"
@@ -213,14 +216,37 @@ jobs:
             | xargs -0 sha256sum \
             | sed "s#  $artifact/#  #" \
             > "$artifact/SHA256SUMS"
+          (
+            cd "$artifact"
+            sha256sum -c SHA256SUMS
+          ) | tee "$RUNNER_TEMP/live-canary/internal-sha256-verification.log"
+          tar \
+            --sort=name \
+            --mtime='UTC 1970-01-01' \
+            --owner=0 \
+            --group=0 \
+            --numeric-owner \
+            -cf - \
+            -C "$RUNNER_TEMP" \
+            "$(basename "$artifact")" \
+            | gzip -n > "$archive"
+          archive_hash="$(sha256sum "$archive" | awk '{print $1}')"
+          archive_bytes="$(stat -c '%s' "$archive")"
+          printf '%s  %s\n' "$archive_hash" "$(basename "$archive")" > "$checksum"
+          echo "archive_path=$archive" >> "$GITHUB_OUTPUT"
+          echo "checksum_path=$checksum" >> "$GITHUB_OUTPUT"
+          echo "archive_sha256=sha256:$archive_hash" >> "$GITHUB_OUTPUT"
+          echo "archive_bytes=$archive_bytes" >> "$GITHUB_OUTPUT"
           test -z "$(git status --porcelain)"
 
-      - name: Upload live canary custody package
+      - name: Upload portable live canary custody package
         id: upload
         uses: actions/upload-artifact@v4
         with:
           name: asoiaf-structured-public-live-canary
-          path: ${{ runner.temp }}/asoiaf-structured-public-live-canary
+          path: |
+            ${{ steps.package.outputs.archive_path }}
+            ${{ steps.package.outputs.checksum_path }}
           if-no-files-found: error
           retention-days: 30
           compression-level: 0
@@ -231,13 +257,15 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           ARTIFACT_ID: ${{ steps.upload.outputs['artifact-id'] }}
           ARTIFACT_DIGEST: ${{ steps.upload.outputs['artifact-digest'] }}
+          ARCHIVE_SHA256: ${{ steps.package.outputs.archive_sha256 }}
+          ARCHIVE_BYTES: ${{ steps.package.outputs.archive_bytes }}
           BATCH_EXIT: ${{ steps.execute.outputs.batch_exit }}
         shell: bash
         run: |
           set -euo pipefail
           summary="$RUNNER_TEMP/live-canary/canary-summary.json"
           body="$RUNNER_TEMP/live-canary-comment.md"
-          if [ -s "$summary" ]; then
+          if [ -s "$summary" ] && [ -n "${ARTIFACT_ID:-}" ]; then
             outcomes="$(jq -r '.outcomes | to_entries | sort_by(.key) | map("`\(.key)`=\(.value)") | join(", ")' "$summary")"
             request_count="$(jq -r '.requestCount' "$summary")"
             waited="$(jq -r '.waitedMilliseconds' "$summary")"
@@ -245,15 +273,15 @@ jobs:
             committed="$(jq -r '.committedRecordCount' "$summary")"
             observations="$(jq -r '.observationCount' "$summary")"
             cat > "$body" <<EOF
-          The artifact-only live structured acquisition canary completed on exact candidate \`${GITHUB_SHA}\` in workflow run \`${GITHUB_RUN_ID}\`. Four signed plans produced four acquisition receipts with outcomes ${outcomes}. The batch process exit was \`${BATCH_EXIT:-unknown}\`; terminal source outcomes were retained rather than converted into CI claims. The run recorded ${request_count} network requests, ${waited} milliseconds of enforced wait, ${response_bytes} raw response bytes by digest only, ${committed} committed normalized records, and ${observations} collector observations.
+          The portable artifact-only live structured acquisition canary completed on exact candidate \`${GITHUB_SHA}\` in workflow run \`${GITHUB_RUN_ID}\`. Four signed plans produced four acquisition receipts with outcomes ${outcomes}. The batch process exit was \`${BATCH_EXIT:-unknown}\`; terminal source outcomes were retained rather than converted into CI claims. The run recorded ${request_count} network requests, ${waited} milliseconds of enforced wait, ${response_bytes} raw response bytes by digest only, ${committed} committed normalized records, and ${observations} collector observations.
 
-          The complete collector and acquisition estate verified successfully. Every receipt declared \`rawResponseRetained=false\`, \`graphEffect=none\`, and \`canonEffect=none\`. Artifact \`${ARTIFACT_ID}\` has ZIP digest \`${ARTIFACT_DIGEST}\` and contains the signed plans, batch outputs, machine summary, collector ledgers, normalized rights-controlled records, adapter receipts, acquisition receipts, state projection, inventory, and \`SHA256SUMS\`.
+          The complete collector and acquisition estate verified successfully. Every receipt declared \`rawResponseRetained=false\`, \`graphEffect=none\`, and \`canonEffect=none\`. Portable tar envelope \`${ARCHIVE_SHA256}\` is ${ARCHIVE_BYTES} bytes. GitHub artifact \`${ARTIFACT_ID}\` has ZIP digest \`${ARTIFACT_DIGEST}\` and contains the tar envelope plus its external checksum. The tar envelope preserves colon-bearing content-addressed receipt identities without exposing them to artifact-path portability restrictions.
 
           This is live operating evidence about current endpoint behavior, not a canon or source-quality decision. The control question is whether each observed result remains reproducible from its plan, policy, response digest, normalized record, receipt, and collector identities without allowing availability or normalization to acquire authority.
           EOF
           else
             cat > "$body" <<EOF
-          The live canary did not reach a verified custody summary on candidate \`${GITHUB_SHA}\` in workflow run \`${GITHUB_RUN_ID}\`. No acquisition qualification or endpoint claim is made. The available diagnostic artifact is \`${ARTIFACT_ID:-not-issued}\` with digest \`${ARTIFACT_DIGEST:-not-issued}\`.
+          The live canary did not issue a portable custody artifact on candidate \`${GITHUB_SHA}\` in workflow run \`${GITHUB_RUN_ID}\`. No acquisition qualification or endpoint claim is made. Batch exit \`${BATCH_EXIT:-unknown}\`; artifact \`${ARTIFACT_ID:-not-issued}\`; artifact digest \`${ARTIFACT_DIGEST:-not-issued}\`; tar digest \`${ARCHIVE_SHA256:-not-issued}\`.
           EOF
           fi
           gh pr comment 242 --repo BigBirdReturns/axm-arc --body-file "$body"

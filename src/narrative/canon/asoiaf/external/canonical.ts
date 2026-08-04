@@ -107,17 +107,17 @@ export function asoiafExternalObservationId(input: {
 
 export function containsPrivateContact(value: unknown): boolean {
   const text = JSON.stringify(value);
-  const phoneCandidates = text.match(/\+?\d[\d ().-]{8,}\d/g) ?? [];
+  const explicitInternationalPhone =
+    /\+\d{1,3}[ .-]?(?:\(\d{2,4}\)|\d{2,4})[ .-]\d{3,4}[ .-]\d{3,4}\b/;
+  const labelledPhone =
+    /\b(?:tel(?:ephone)?|phone|mobile|call|sms)\b[^\d+]{0,12}\+?\d[\d ().-]{8,}\d/i;
   return (
     /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(text)
     || /\b(?:phone|mobile|street[_ -]?address|mailing[_ -]?address|point[_ -]?of[_ -]?contact)\b/i.test(
       text,
     )
-    || phoneCandidates.some(
-      (candidate) =>
-        candidate.replace(/\D/g, "").length >= 10
-        && !/^\d{4}-\d{2}-\d{2}/.test(candidate),
-    )
+    || explicitInternationalPhone.test(text)
+    || labelledPhone.test(text)
   );
 }
 

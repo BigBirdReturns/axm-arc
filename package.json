@@ -20,7 +20,8 @@
     "creator:cli": "vite-node tools/creator-kit-cli.ts --",
     "build:creator-kit": "vite build --config vite.creator-kit.config.ts",
     "build:creator-recovery-kit": "npm run build:creator-kit && vite-node tools/build-creator-recovery-kit.ts",
-    "asoiaf:external:collector": "vite-node tools/asoiaf-external-collector.ts --"
+    "asoiaf:external:collector": "vite-node tools/asoiaf-external-collector.ts --",
+    "asoiaf:local-edition": "vite-node tools/asoiaf-local-edition-intake.ts --"
   },
   "dependencies": {
     "react": "^18.3.1",

@@ -19,6 +19,7 @@ import type {
   AsoiafExternalAtlasManifest,
   AsoiafExternalAuthorityClass,
   AsoiafExternalCollectionStep,
+  AsoiafExternalContinuity,
   AsoiafExternalHarvestWorkOrder,
   AsoiafExternalQueryLane,
   AsoiafExternalRole,
@@ -65,158 +66,123 @@ const SOURCE_PLANES: AsoiafExternalSourcePlane[] = [
   "discovery",
 ];
 
-const ALL_RECALL_CANDIDATES = ASOIAF_RECALL_ESTATE_PACKETS.flatMap(
+const RECALL_CANDIDATES = ASOIAF_RECALL_ESTATE_PACKETS.flatMap(
   (packet) => packet.candidates,
 );
 
-function candidateLaneIds(candidate: (typeof ALL_RECALL_CANDIDATES)[number]): AsoiafExternalRole[] {
+function candidateLaneIds(
+  candidate: (typeof RECALL_CANDIDATES)[number],
+): AsoiafExternalRole[] {
   const lanes = new Set<AsoiafExternalRole>();
-  switch (candidate.domain) {
-    case "core-entities":
-      lanes.add("entity-resolution");
-      lanes.add("networks");
-      break;
-    case "lineage-claims":
-      lanes.add("genealogy-parentage");
-      lanes.add("succession-legitimacy");
-      lanes.add("gender-kinship");
-      break;
-    case "chronology-geography":
-      lanes.add("chronology");
-      lanes.add("geography-travel");
-      lanes.add("maps");
-      break;
-    case "actor-knowledge":
-      lanes.add("actor-knowledge");
-      lanes.add("chapter-analysis");
-      break;
-    case "material-logistics":
-      lanes.add("military-logistics");
-      lanes.add("economics-smallfolk");
-      lanes.add("food-agriculture");
-      break;
-    case "magic-physics":
-      lanes.add("magic-world-physics");
-      lanes.add("dragons");
-      lanes.add("religion-sacrifice");
-      lanes.add("prophecy");
-      break;
-    case "narrative-functions":
-      lanes.add("chapter-analysis");
-      lanes.add("adaptation-deltas");
-      lanes.add("endgame-closure");
-      break;
-    case "adaptation-deltas":
-      lanes.add("adaptation-deltas");
-      lanes.add("production-intent");
-      lanes.add("episode-dialogue");
-      break;
-    case "endgame-coordinates":
-      lanes.add("endgame-closure");
-      lanes.add("death-status");
-      lanes.add("hotd-endpoints");
-      break;
-    case "smallfolk-systems":
-      lanes.add("economics-smallfolk");
-      lanes.add("law-governance");
-      lanes.add("medicine-disease");
-      lanes.add("food-agriculture");
-      break;
-  }
+  const byDomain: Record<
+    (typeof candidate)["domain"],
+    AsoiafExternalRole[]
+  > = {
+    "core-entities": ["entity-resolution", "networks"],
+    "lineage-claims": [
+      "genealogy-parentage",
+      "succession-legitimacy",
+      "gender-kinship",
+    ],
+    "chronology-geography": ["chronology", "geography-travel", "maps"],
+    "actor-knowledge": ["actor-knowledge", "chapter-analysis"],
+    "material-logistics": [
+      "military-logistics",
+      "economics-smallfolk",
+      "food-agriculture",
+    ],
+    "magic-physics": [
+      "magic-world-physics",
+      "dragons",
+      "religion-sacrifice",
+      "prophecy",
+    ],
+    "narrative-functions": [
+      "chapter-analysis",
+      "adaptation-deltas",
+      "endgame-closure",
+    ],
+    "adaptation-deltas": [
+      "adaptation-deltas",
+      "production-intent",
+      "episode-dialogue",
+    ],
+    "endgame-coordinates": [
+      "endgame-closure",
+      "death-status",
+      "hotd-endpoints",
+    ],
+    "smallfolk-systems": [
+      "economics-smallfolk",
+      "law-governance",
+      "medicine-disease",
+      "food-agriculture",
+    ],
+  };
+  for (const laneId of byDomain[candidate.domain]) lanes.add(laneId);
 
-  const haystack = `${candidate.label} ${candidate.summary} ${candidate.tags.join(" ")}`.toLowerCase();
-  const textRules: Array<[RegExp, AsoiafExternalRole]> = [
-    [/varys|r['’]?hllor|red priest|flame/, "varys-rhllor"],
+  const text = `${candidate.label} ${candidate.summary} ${candidate.tags.join(" ")}`.toLowerCase();
+  const rules: Array<[RegExp, AsoiafExternalRole]> = [
+    [/varys|r['’]?hllor|red priest|voice in the flame/, "varys-rhllor"],
     [/blackfyre|bittersteel|golden company|young griff/, "blackfyres"],
     [/other|white walker|long night/, "others-long-night"],
     [/dance|green council|dragonseed|tumbleton|rhaenyra|aegon ii/, "dance-of-dragons"],
     [/dragon/, "dragons"],
     [/prophe|dream|vision/, "prophecy"],
-    [/herald|sigil|house words|banner/, "heraldry"],
+    [/sigil|herald|house words|banner/, "heraldry"],
     [/language|valyrian|dothraki|translation/, "language"],
     [/disease|greyscale|plague|medicine|wound/, "medicine-disease"],
     [/death|dead|alive|survive|fate/, "death-status"],
     [/author|martin|grrm/, "author-intent"],
     [/adapt|show|episode|hbo/, "adaptation-deltas"],
   ];
-  for (const [pattern, laneId] of textRules) {
-    if (pattern.test(haystack)) lanes.add(laneId);
+  for (const [pattern, laneId] of rules) {
+    if (pattern.test(text)) lanes.add(laneId);
   }
   return [...lanes].sort(compareCodepoints);
 }
 
-function sourceLaneIds(
-  source: AsoiafExternalSource,
-  lanes: readonly AsoiafExternalQueryLane[],
-): AsoiafExternalRole[] {
-  const ids = new Set<AsoiafExternalRole>(source.roles);
-  for (const lane of lanes) {
-    if (lane.preferredSourceIds.includes(source.id)) ids.add(lane.id);
-  }
-  return [...ids].sort(compareCodepoints);
-}
-
 function collectionSteps(source: AsoiafExternalSource): AsoiafExternalCollectionStep[] {
-  const steps: AsoiafExternalCollectionStep[] = [
-    "establish-source-custody",
-    "hash-source-record",
-    "write-immutable-observation",
-    "deduplicate-candidate",
-    "reconcile-held-candidates",
-    "record-honest-terminal-result",
-  ];
-  if (source.harvestPolicy.mode !== "local-private-only") {
-    steps.splice(1, 0, "check-robots-and-terms");
-  }
+  const steps: AsoiafExternalCollectionStep[] = ["establish-source-custody"];
+  const network = source.harvestPolicy.mode !== "local-private-only";
+  if (network) steps.push("check-robots-and-terms");
   if (
     source.accessMethods.some(
       (method) => method.machineReadable && method.kind !== "local-file",
     )
   ) {
-    steps.splice(2, 0, "discover-schema");
+    steps.push("discover-schema");
   }
   if (source.harvestPolicy.mode !== "route-only-no-mirror") {
-    steps.splice(steps.indexOf("hash-source-record"), 0, "fetch-bounded-records");
-    steps.splice(
-      steps.indexOf("write-immutable-observation"),
-      0,
-      "normalize-whitelisted-fields",
-      "block-private-contact",
-    );
+    steps.push("fetch-bounded-records");
   }
+  steps.push("hash-source-record");
+  if (source.harvestPolicy.mode !== "route-only-no-mirror") {
+    steps.push("normalize-whitelisted-fields", "block-private-contact");
+  }
+  steps.push("write-immutable-observation", "deduplicate-candidate");
   if (source.rightsMode === "cc-by" || source.rightsMode === "cc-by-sa") {
-    steps.splice(
-      steps.indexOf("reconcile-held-candidates"),
-      0,
-      "generate-credit-if-required",
-    );
+    steps.push("generate-credit-if-required");
   }
+  steps.push("reconcile-held-candidates", "record-honest-terminal-result");
   return steps;
 }
 
 function buildWorkOrder(
   source: AsoiafExternalSource,
-  lanes: readonly AsoiafExternalQueryLane[],
 ): AsoiafExternalHarvestWorkOrder {
-  const laneIds = sourceLaneIds(source, lanes);
-  const candidateIds = ALL_RECALL_CANDIDATES.filter((candidate) => {
-    const direct = candidate.sourceHints.some((hint) =>
-      source.sourceHintRoutes.includes(hint),
-    );
-    const routed = candidateLaneIds(candidate).some((laneId) =>
-      laneIds.includes(laneId),
-    );
-    return direct || routed;
-  })
+  const candidateIds = RECALL_CANDIDATES.filter((candidate) =>
+    candidate.sourceHints.some((hint) => source.sourceHintRoutes.includes(hint))
+    || candidateLaneIds(candidate).some((laneId) => source.roles.includes(laneId)),
+  )
     .map((candidate) => candidate.id)
     .sort(compareCodepoints);
-
   const core = {
     format: ASOIAF_EXTERNAL_HARVEST_WORK_ORDER_FORMAT,
     id: `asoiaf-external-harvest:${source.id}`,
     sourceId: source.id,
     sourceFingerprint: asoiafExternalSourceFingerprint(source),
-    laneIds,
+    laneIds: [...source.roles].sort(compareCodepoints),
     sourceHintIds: orderedStrings(source.sourceHintRoutes),
     candidateIds,
     collectionSteps: collectionSteps(source),
@@ -252,40 +218,15 @@ function buildWorkOrder(
   };
 }
 
-function emptyPlaneCounts(): Record<AsoiafExternalSourcePlane, number> {
-  return {
-    "local-primary": 0,
-    "official-author": 0,
-    "official-adaptation": 0,
-    "publisher-reference": 0,
-    "structured-tool": 0,
-    "community-reference": 0,
-    "community-analysis": 0,
-    discussion: 0,
-    scholarly: 0,
-    archive: 0,
-    discovery: 0,
-  };
-}
-
-function emptyAuthorityCounts(): Record<AsoiafExternalAuthorityClass, number> {
-  return {
-    "primary-text": 0,
-    "companion-text": 0,
-    "released-author-text": 0,
-    "author-statement": 0,
-    "adaptation-canon": 0,
-    "production-testimony": 0,
-    "licensed-reference": 0,
-    "official-bibliography": 0,
-    "structured-dataset": 0,
-    "community-reference": 0,
-    "community-analysis": 0,
-    "discussion-provenance": 0,
-    "scholarly-analogue": 0,
-    "archival-custody": 0,
-    "discovery-only": 0,
-  };
+function countBy<T extends string>(
+  vocabulary: readonly T[],
+  values: readonly T[],
+): Record<T, number> {
+  const output = Object.fromEntries(
+    vocabulary.map((value) => [value, 0]),
+  ) as Record<T, number>;
+  for (const value of values) output[value] += 1;
+  return output;
 }
 
 export function buildAsoiafExternalAtlas(
@@ -304,62 +245,60 @@ export function buildAsoiafExternalAtlas(
     .map(canonicalAsoiafExternalQueryLane)
     .sort((left, right) => compareCodepoints(left.id, right.id));
   const workOrders = sources
-    .map((entry) => buildWorkOrder(entry, lanes))
+    .map(buildWorkOrder)
     .sort((left, right) => compareCodepoints(left.id, right.id));
-  const countsByPlane = emptyPlaneCounts();
-  const countsByAuthority = emptyAuthorityCounts();
-  for (const entry of sources) {
-    countsByPlane[entry.sourcePlane] += 1;
-    countsByAuthority[entry.authorityClass] += 1;
-  }
   const routedCandidates = new Set(
     workOrders.flatMap((workOrder) => workOrder.candidateIds),
   );
-  const sourceLaneEdgeCount = sources.reduce(
-    (sum, entry) => sum + sourceLaneIds(entry, lanes).length,
-    0,
-  );
-  const core = {
+  const fingerprintInput = {
+    sourceFingerprints: sources.map((source) => ({
+      sourceId: source.id,
+      fingerprint: asoiafExternalSourceFingerprint(source),
+    })),
+    laneFingerprints: lanes.map((lane) => ({
+      laneId: lane.id,
+      fingerprint: asoiafExternalLaneFingerprint(lane),
+    })),
+    workOrderFingerprints: workOrders.map((workOrder) => ({
+      workOrderId: workOrder.id,
+      fingerprint: workOrder.workOrderFingerprint,
+    })),
+  };
+  const manifestCore: Omit<AsoiafExternalAtlasManifest, "atlasFingerprint"> = {
     format: ASOIAF_EXTERNAL_ATLAS_MANIFEST_FORMAT,
-    universeId: "asoiaf" as const,
-    sourceIds: sources.map((entry) => entry.id),
-    laneIds: lanes.map((entry) => entry.id),
-    workOrderIds: workOrders.map((entry) => entry.id),
+    universeId: "asoiaf",
+    sourceIds: sources.map((source) => source.id),
+    laneIds: lanes.map((lane) => lane.id),
+    workOrderIds: workOrders.map((workOrder) => workOrder.id),
     authorityClasses: [...AUTHORITY_CLASSES].sort(compareCodepoints),
     sourceCount: sources.length,
     laneCount: lanes.length,
     workOrderCount: workOrders.length,
-    sourceLaneEdgeCount,
+    sourceLaneEdgeCount: sources.reduce(
+      (total, source) => total + source.roles.length,
+      0,
+    ),
     heldCandidateCount: ASOIAF_RECALL_ESTATE_MANIFEST.candidateCount,
     routedCandidateCount: routedCandidates.size,
-    countsByPlane,
-    countsByAuthority,
-    sourceFingerprints: sources.map((entry) => ({
-      sourceId: entry.id,
-      fingerprint: asoiafExternalSourceFingerprint(entry),
-    })),
-    laneFingerprints: lanes.map((entry) => ({
-      laneId: entry.id,
-      fingerprint: asoiafExternalLaneFingerprint(entry),
-    })),
-    workOrderFingerprints: workOrders.map((entry) => ({
-      workOrderId: entry.id,
-      fingerprint: entry.workOrderFingerprint,
-    })),
+    countsByPlane: countBy(
+      SOURCE_PLANES,
+      sources.map((source) => source.sourcePlane),
+    ),
+    countsByAuthority: countBy(
+      AUTHORITY_CLASSES,
+      sources.map((source) => source.authorityClass),
+    ),
   };
-  const {
-    sourceFingerprints: _sourceFingerprints,
-    laneFingerprints: _laneFingerprints,
-    workOrderFingerprints: _workOrderFingerprints,
-    ...manifestCore
-  } = core;
   return {
     sources,
     lanes,
     workOrders,
     manifest: {
       ...manifestCore,
-      atlasFingerprint: narrativeFingerprint(core),
+      atlasFingerprint: narrativeFingerprint({
+        ...manifestCore,
+        ...fingerprintInput,
+      }),
     },
   };
 }
@@ -379,13 +318,14 @@ function normalizedText(value: string): string {
     .trim();
 }
 
-function routeLaneScores(request: AsoiafExternalRouteRequest): Map<AsoiafExternalRole, number> {
+function routeLaneScores(
+  request: AsoiafExternalRouteRequest,
+): Map<AsoiafExternalRole, number> {
   const scores = new Map<AsoiafExternalRole, number>();
   const text = normalizedText(request.text);
   for (const lane of ASOIAF_EXTERNAL_ATLAS_LANES) {
     let score = request.laneIds?.includes(lane.id) ? 1_000 : 0;
-    const idText = normalizedText(lane.id);
-    if (text.includes(idText)) score += 200;
+    if (text.includes(normalizedText(lane.id))) score += 200;
     for (const alias of lane.aliases) {
       const normalizedAlias = normalizedText(alias);
       if (normalizedAlias && text.includes(normalizedAlias)) {
@@ -410,23 +350,23 @@ export function routeAsoiafExternalQuestion(
       || compareCodepoints(left.id, right.id),
   );
   const sources: AsoiafExternalRouteSource[] = [];
-  for (const entry of ASOIAF_EXTERNAL_ATLAS_SOURCES) {
+  for (const source of ASOIAF_EXTERNAL_ATLAS_SOURCES) {
     let score = 0;
     const reasons: string[] = [];
     for (const lane of selectedLanes) {
       const laneScore = laneScores.get(lane.id) ?? 0;
-      if (entry.roles.includes(lane.id)) {
+      if (source.roles.includes(lane.id)) {
         score += laneScore + 80;
         reasons.push(`role:${lane.id}`);
       }
-      if (lane.preferredSourceIds.includes(entry.id)) {
+      if (lane.preferredSourceIds.includes(source.id)) {
         score += laneScore + 250;
         reasons.push(`preferred:${lane.id}`);
       }
-      if (lane.preferredAuthorityClasses.includes(entry.authorityClass)) {
+      if (lane.preferredAuthorityClasses.includes(source.authorityClass)) {
         score += Math.max(10, Math.floor(laneScore / 2));
         reasons.push(`preferred-authority:${lane.id}`);
-      } else if (lane.supportingAuthorityClasses.includes(entry.authorityClass)) {
+      } else if (lane.supportingAuthorityClasses.includes(source.authorityClass)) {
         score += Math.max(5, Math.floor(laneScore / 5));
         reasons.push(`supporting-authority:${lane.id}`);
       }
@@ -434,7 +374,7 @@ export function routeAsoiafExternalQuestion(
     if (request.continuityIds?.length) {
       if (
         request.continuityIds.some((continuity) =>
-          entry.continuityIds.includes(continuity),
+          source.continuityIds.includes(continuity),
         )
       ) {
         score += 120;
@@ -445,7 +385,7 @@ export function routeAsoiafExternalQuestion(
     }
     if (score > 0) {
       sources.push({
-        sourceId: entry.id,
+        sourceId: source.id,
         score,
         reasons: orderedStrings([...new Set(reasons)]),
       });
@@ -455,11 +395,11 @@ export function routeAsoiafExternalQuestion(
     (left, right) =>
       right.score - left.score || compareCodepoints(left.sourceId, right.sourceId),
   );
-  const core = {
+  const routeCore = {
     request: {
       ...request,
       continuityIds: request.continuityIds
-        ? orderedStrings(request.continuityIds)
+        ? (orderedStrings(request.continuityIds) as AsoiafExternalContinuity[])
         : undefined,
       laneIds: request.laneIds
         ? (orderedStrings(request.laneIds) as AsoiafExternalRole[])
@@ -470,28 +410,28 @@ export function routeAsoiafExternalQuestion(
     responsePolicies: selectedLanes.map((lane) => lane.responsePolicy),
   };
   return {
-    ...core,
-    routeFingerprint: narrativeFingerprint(core),
+    ...routeCore,
+    routeFingerprint: narrativeFingerprint(routeCore),
   };
 }
 
 export function getAsoiafExternalSource(
   sourceId: string,
 ): AsoiafExternalSource | undefined {
-  return ASOIAF_EXTERNAL_ATLAS_SOURCES.find((entry) => entry.id === sourceId);
+  return ASOIAF_EXTERNAL_ATLAS_SOURCES.find((source) => source.id === sourceId);
 }
 
 export function getAsoiafExternalLane(
   laneId: AsoiafExternalRole,
 ): AsoiafExternalQueryLane | undefined {
-  return ASOIAF_EXTERNAL_ATLAS_LANES.find((entry) => entry.id === laneId);
+  return ASOIAF_EXTERNAL_ATLAS_LANES.find((lane) => lane.id === laneId);
 }
 
 export function getAsoiafExternalWorkOrder(
   sourceId: string,
 ): AsoiafExternalHarvestWorkOrder | undefined {
   return ASOIAF_EXTERNAL_HARVEST_WORK_ORDERS.find(
-    (entry) => entry.sourceId === sourceId,
+    (workOrder) => workOrder.sourceId === sourceId,
   );
 }
 

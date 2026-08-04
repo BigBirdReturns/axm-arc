@@ -105,6 +105,7 @@ jobs:
             'reviewedObservationParity=required' \
             'semanticAdmission=fingerprinted-required' \
             'admissionOutcomes=admit-reject-defer' \
+            'admissionAuthority=admission-only' \
             'workIdentityEvidence=retained-required' \
             'questionRelevanceEvidence=retained-required' \
             'rightsReview=named-required' \

@@ -1,0 +1,162 @@
+name: ASOIAF local edition intake
+
+on:
+  pull_request:
+    paths:
+      - 'tools/lib/asoiaf-local-edition-intake.ts'
+      - 'tools/asoiaf-local-edition-intake.ts'
+      - 'tests/narrative/canon/asoiaf-local-edition-intake.test.ts'
+      - 'docs/ASOIAF_LOCAL_EDITION_INTAKE.md'
+      - 'package.json'
+      - '.github/workflows/asoiaf-local-edition-intake.yml'
+  push:
+    branches:
+      - feature/asoiaf-local-edition-intake-v1
+    paths:
+      - 'tools/lib/asoiaf-local-edition-intake.ts'
+      - 'tools/asoiaf-local-edition-intake.ts'
+      - 'tests/narrative/canon/asoiaf-local-edition-intake.test.ts'
+      - 'docs/ASOIAF_LOCAL_EDITION_INTAKE.md'
+      - 'package.json'
+      - '.github/workflows/asoiaf-local-edition-intake.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qualify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Check out exact local-edition candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+          show-progress: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Strict TypeScript
+        run: npm run typecheck | tee "$RUNNER_TEMP/typecheck.log"
+
+      - name: Focused local-edition qualification
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm test -- tests/narrative/canon/asoiaf-local-edition-intake.test.ts \
+            | tee "$RUNNER_TEMP/focused-tests.log"
+
+      - name: Private local-edition smoke estate
+        shell: bash
+        run: |
+          set -euo pipefail
+          estate="$RUNNER_TEMP/local-edition-estate"
+          source="$RUNNER_TEMP/holder-source.txt"
+          cat > "$source" <<'TEXT'
+          PROLOGUE
+          The private source begins with a bounded paragraph.
+
+          A second paragraph creates another locator.
+
+          BRAN
+          The next chapter remains inside the private estate.
+
+          CATELYN
+          The final chapter proves deterministic ordering.
+          TEXT
+          npm run asoiaf:local-edition -- intake \
+            --root "$estate" \
+            --source local-agot \
+            --edition ci-holder-edition \
+            --file "$source" \
+            --at 2026-08-04T00:00:00.000Z \
+            | tee "$RUNNER_TEMP/local-intake.log"
+          npm run asoiaf:local-edition -- verify \
+            --root "$estate" \
+            --source local-agot \
+            --edition ci-holder-edition \
+            | tee "$RUNNER_TEMP/local-verify.log"
+          npm run asoiaf:local-edition -- list \
+            --root "$estate" \
+            | tee "$RUNNER_TEMP/local-list.log"
+          npm run asoiaf:local-edition -- receipt \
+            --root "$estate" \
+            --source local-agot \
+            --edition ci-holder-edition \
+            --at 2026-08-04T00:00:00.000Z \
+            --out "$RUNNER_TEMP/asoiaf-local-edition-receipt.json" \
+            | tee "$RUNNER_TEMP/local-receipt.log"
+          grep -q '"ok": true' "$RUNNER_TEMP/local-verify.log"
+          manifest="$(find "$estate/local-editions" -name edition-manifest.json -print -quit)"
+          units="$(find "$estate/local-editions" -name units.ndjson -print -quit)"
+          segments="$(find "$estate/local-editions" -name segments.ndjson -print -quit)"
+          private_index="$(find "$estate/local-editions" -name private-text-index.json -print -quit)"
+          test -n "$manifest" && test -n "$units" && test -n "$segments" && test -n "$private_index"
+          cp "$manifest" "$RUNNER_TEMP/edition-manifest.json"
+          cp "$units" "$RUNNER_TEMP/units.ndjson"
+          cp "$segments" "$RUNNER_TEMP/segments.ndjson"
+          cp "$private_index" "$RUNNER_TEMP/private-text-index.json"
+          ! grep -Fq "$source" "$RUNNER_TEMP/edition-manifest.json"
+          ! grep -Fq 'holder-source.txt' "$RUNNER_TEMP/edition-manifest.json"
+
+      - name: Complete Arc regression
+        run: npm test | tee "$RUNNER_TEMP/full-tests.log"
+
+      - name: Production build
+        run: npm run build | tee "$RUNNER_TEMP/build.log"
+
+      - name: Retain exact local-edition qualification
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          root='asoiaf-local-edition-intake-qualification'
+          mkdir -p "$root"
+          cp "$RUNNER_TEMP"/*.log "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP/asoiaf-local-edition-receipt.json" "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP/edition-manifest.json" "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP/units.ndjson" "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP/segments.ndjson" "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP/private-text-index.json" "$root/" 2>/dev/null || true
+          printf '%s\n' '${{ github.event.pull_request.head.sha || github.sha }}' \
+            > "$root/candidate-sha.txt"
+          printf '%s\n' \
+            'custody=user-controlled-private' \
+            'sourcePathRetained=false' \
+            'sourceFilenameRetained=false' \
+            'publicSourceTextRetained=false' \
+            'graphEffect=none' \
+            'canonEffect=none' \
+            'collectorPromotion=intake-only' \
+            'supportedFormats=plain-text,html,epub' \
+            'zipTraversal=refuse' \
+            'zipEncryption=refuse' \
+            'zip64=refuse' \
+            > "$root/local-edition-boundary.txt"
+          find "$root" -type f ! -name SHA256SUMS -print0 \
+            | sort -z \
+            | xargs -0 sha256sum \
+            | sed "s#  $root/#  #" \
+            > "$root/SHA256SUMS"
+
+      - name: Upload local-edition qualification
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: asoiaf-local-edition-intake-qualification
+          path: asoiaf-local-edition-intake-qualification
+          if-no-files-found: error
+          retention-days: 30

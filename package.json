@@ -21,7 +21,8 @@
     "build:creator-kit": "vite build --config vite.creator-kit.config.ts",
     "build:creator-recovery-kit": "npm run build:creator-kit && vite-node tools/build-creator-recovery-kit.ts",
     "asoiaf:external:collector": "vite-node tools/asoiaf-external-collector.ts --",
-    "asoiaf:structured-adapter": "vite-node tools/asoiaf-structured-public-adapters.ts --"
+    "asoiaf:structured-adapter": "vite-node tools/asoiaf-structured-public-adapters.ts --",
+    "asoiaf:structured-acquisition": "vite-node tools/asoiaf-structured-public-acquisition.ts --"
   },
   "dependencies": {
     "react": "^18.3.1",

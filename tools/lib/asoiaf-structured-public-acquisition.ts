@@ -1,8 +1,12 @@
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import {
   getAsoiafExternalSource,
 } from "../../src/narrative/canon/asoiaf/external/index.js";
+import {
+  ASOIAF_EXTERNAL_COLLECTOR_USER_AGENT,
+} from "./asoiaf-external-collector.js";
 import {
   commitAsoiafStructuredPayload,
   type AsoiafStructuredAdapterReceipt,
@@ -11,11 +15,15 @@ import {
 } from "./asoiaf-structured-public-adapters.js";
 import {
   collectorContentId,
+  collectorEstatePaths,
   initializeCollectorEstate,
   readJson,
+  readNdjson,
   recordAttempt,
   recordGap,
   sha256,
+  updateSourceLedgerRow,
+  verifyCollectorEstate,
   writeJsonAtomic,
   type CollectorAttemptRecord,
   type CollectorGapRecord,
@@ -168,7 +176,55 @@ const ALLOWED_ENDPOINTS: Record<
   },
 };
 
-const ROBOTS_AGENT_TOKEN = "BigBirdReturns-ASOIAF-External-Collector";
+const SOURCES_BY_ADAPTER: Record<
+  AsoiafStructuredRequestPlan["adapterId"],
+  ReadonlySet<AsoiafStructuredRequestPlan["sourceId"]>
+> = {
+  "wikidata-sparql": new Set<AsoiafStructuredRequestPlan["sourceId"]>([
+    "structured-wikidata",
+  ]),
+  "openlibrary-catalog": new Set<AsoiafStructuredRequestPlan["sourceId"]>([
+    "structured-openlibrary-api",
+  ]),
+  "crossref-works": new Set<AsoiafStructuredRequestPlan["sourceId"]>([
+    "structured-crossref-api",
+  ]),
+  "awoiaf-mediawiki": new Set<AsoiafStructuredRequestPlan["sourceId"]>([
+    "structured-awoiaf-api",
+    "structured-awoiaf-category-api",
+    "structured-awoiaf-search-api",
+  ]),
+};
+
+const SENSITIVE_HEADER_NAMES = new Set([
+  "authorization",
+  "proxy-authorization",
+  "cookie",
+  "set-cookie",
+  "x-api-key",
+  "api-key",
+]);
+
+const ROBOTS_AGENT_TOKEN = "axm-arc";
+
+function digestBytes(value: Uint8Array | string): `sha256:${string}` {
+  return `sha256:${crypto.createHash("sha256").update(value).digest("hex")}`;
+}
+
+function registeredEndpoint(
+  adapterId: AsoiafStructuredRequestPlan["adapterId"],
+  url: URL,
+): boolean {
+  const allowed = ALLOWED_ENDPOINTS[adapterId];
+  return (
+    url.protocol === "https:"
+    && url.hostname === allowed.host
+    && allowed.path.test(url.pathname)
+    && !url.username
+    && !url.password
+    && !url.hash
+  );
+}
 
 class DefaultStructuredAcquisitionRuntime
 implements AsoiafStructuredAcquisitionRuntime {
@@ -201,6 +257,23 @@ class HostPacer {
     this.lastStartedByOrigin.set(origin, this.runtime.nowMilliseconds());
     return remaining;
   }
+}
+
+const DEFAULT_STRUCTURED_ACQUISITION_RUNTIME =
+  new DefaultStructuredAcquisitionRuntime();
+const PACERS_BY_RUNTIME = new WeakMap<
+  AsoiafStructuredAcquisitionRuntime,
+  HostPacer
+>();
+
+function pacerFor(
+  runtime: AsoiafStructuredAcquisitionRuntime,
+): HostPacer {
+  const existing = PACERS_BY_RUNTIME.get(runtime);
+  if (existing) return existing;
+  const pacer = new HostPacer(runtime);
+  PACERS_BY_RUNTIME.set(runtime, pacer);
+  return pacer;
 }
 
 function statePath(root: string): string {
@@ -308,11 +381,35 @@ export function validateAsoiafStructuredRequestPlan(
   } else if (source.harvestPolicy.mode !== "structured-cache-with-attribution") {
     errors.push(`${plan.sourceId} does not authorize structured acquisition`);
   }
+  if (!SOURCES_BY_ADAPTER[plan.adapterId].has(plan.sourceId)) {
+    errors.push(`${plan.sourceId} is not registered for adapter ${plan.adapterId}`);
+  }
+  const headersByName = new Map(
+    Object.entries(plan.headers).map(([name, headerValue]) => [
+      name.toLowerCase(),
+      headerValue,
+    ] as const),
+  );
+  if (
+    [...headersByName.keys()].some((name) => SENSITIVE_HEADER_NAMES.has(name))
+  ) {
+    errors.push("request plan contains a credential-bearing header");
+  }
+  if (
+    [...headersByName.values()].some((headerValue) => /[\r\n]/.test(headerValue))
+  ) {
+    errors.push("request plan contains a multiline header value");
+  }
+  if (
+    headersByName.get("user-agent") !== ASOIAF_EXTERNAL_COLLECTOR_USER_AGENT
+  ) {
+    errors.push("request plan user agent does not match qualified collector identity");
+  }
   try {
     const url = new URL(plan.url);
     const allowed = ALLOWED_ENDPOINTS[plan.adapterId];
     if (url.protocol !== "https:") errors.push("request plan is not HTTPS");
-    if (url.hostname !== allowed.host || !allowed.path.test(url.pathname)) {
+    if (!registeredEndpoint(plan.adapterId, url)) {
       errors.push(`request plan escaped the registered ${plan.adapterId} endpoint`);
     }
     if (url.username || url.password || url.hash) {
@@ -346,6 +443,7 @@ async function fetchWithPolicy(input: {
   hostDelayMilliseconds: number;
   retryCount: number;
   maxRedirects: number;
+  redirectAllowed?: (url: URL) => boolean;
 }): Promise<FetchTrace> {
   let currentUrl = input.url;
   let requestCount = 0;
@@ -409,6 +507,7 @@ async function fetchWithPolicy(input: {
       const redirected = new URL(location, currentUrl);
       const current = new URL(currentUrl);
       if (redirected.protocol !== "https:" || redirected.origin !== current.origin) {
+        await response.body?.cancel();
         return {
           response,
           finalUrl: redirected.toString(),
@@ -418,6 +517,18 @@ async function fetchWithPolicy(input: {
           error: "cross-origin or non-HTTPS redirect refused",
         };
       }
+      if (input.redirectAllowed && !input.redirectAllowed(redirected)) {
+        await response.body?.cancel();
+        return {
+          response,
+          finalUrl: redirected.toString(),
+          requestCount,
+          waitedMilliseconds,
+          redirectCount,
+          error: "redirect escaped the registered endpoint",
+        };
+      }
+      await response.body?.cancel();
       currentUrl = redirected.toString();
       redirectCount += 1;
       transientAttempt = 0;
@@ -441,6 +552,7 @@ async function fetchWithPolicy(input: {
       );
       const delay = retryAfter
         ?? Math.min(30_000, 1_000 * 2 ** transientAttempt);
+      await response.body?.cancel();
       await input.runtime.sleep(delay);
       waitedMilliseconds += delay;
       transientAttempt += 1;
@@ -565,6 +677,9 @@ async function evaluateRobots(input: {
     hostDelayMilliseconds: input.hostDelayMilliseconds,
     retryCount: input.retryCount,
     maxRedirects: input.maxRedirects,
+    redirectAllowed: (redirected) =>
+      redirected.origin === target.origin
+      && redirected.pathname === "/robots.txt",
   });
   if (!trace.response) {
     return {
@@ -597,7 +712,7 @@ async function evaluateRobots(input: {
     };
   }
   const text = await trace.response.text();
-  const digest = sha256(Buffer.from(text, "utf8"));
+  const digest = digestBytes(text);
   const evaluated = robotsAllowed({
     groups: parseRobots(text),
     url: input.targetUrl,
@@ -659,14 +774,18 @@ async function boundedJson(
     payload,
     bytes,
     mediaType,
-    digest: sha256(buffer),
+    digest: digestBytes(buffer),
   };
 }
 
 function receiptCore(
   receipt: AsoiafStructuredAcquisitionReceipt,
-): Omit<AsoiafStructuredAcquisitionReceipt, "receiptFingerprint"> {
-  const { receiptFingerprint: _fingerprint, ...core } = receipt;
+): Omit<AsoiafStructuredAcquisitionReceipt, "receiptFingerprint" | "receiptId"> {
+  const {
+    receiptFingerprint: _fingerprint,
+    receiptId: _receiptId,
+    ...core
+  } = receipt;
   return core;
 }
 
@@ -688,6 +807,19 @@ function writeReceipt(
   const target = path.join(receiptDirectory(root), `${receiptId}.json`);
   if (!fs.existsSync(target)) writeJsonAtomic(target, receipt);
   return { receipt, receiptUri: relativeEstateUri(root, target) };
+}
+
+function recordAcquisitionAttempt(
+  input: Parameters<typeof recordAttempt>[0],
+): CollectorAttemptRecord {
+  const attempt = recordAttempt(input);
+  updateSourceLedgerRow(input.root, input.sourceId, (row) => ({
+    ...row,
+    firstAttemptAt: row.firstAttemptAt ?? input.startedAt,
+    lastAttemptAt: input.completedAt,
+    attemptCount: row.attemptCount + 1,
+  }));
+  return attempt;
 }
 
 function terminalResult(input: {
@@ -747,24 +879,11 @@ function terminalResult(input: {
     graphEffect: "none",
     canonEffect: "none",
   });
-  const attempt = recordAttempt({
-    root: input.root,
-    sourceId: input.plan.sourceId,
-    sourceRecordId: input.plan.requestId,
-    startedAt: input.retrievedAt,
-    completedAt: input.completedAt,
-    outcome: terminal.attempt.outcome,
-    requestCount: input.requestCount,
-    cacheHit: false,
-    receiptUri: written.receiptUri,
-    observationId: null,
-    gapId: terminal.gap.gapId,
-  });
   return {
     receipt: written.receipt,
     cacheHit: false,
     adapterResult: null,
-    attempt,
+    attempt: terminal.attempt,
     gap: terminal.gap,
   };
 }
@@ -791,7 +910,7 @@ export async function executeAsoiafStructuredAcquisition(
   if (errors.length > 0) {
     throw new Error(`invalid structured request plan: ${errors.join("; ")}`);
   }
-  const runtime = options.runtime ?? new DefaultStructuredAcquisitionRuntime();
+  const runtime = options.runtime ?? DEFAULT_STRUCTURED_ACQUISITION_RUNTIME;
   const retrievedAt = options.retrievedAt
     ?? new Date(runtime.nowMilliseconds()).toISOString();
   initializeCollectorEstate(options.root, retrievedAt);
@@ -812,24 +931,55 @@ export async function executeAsoiafStructuredAcquisition(
       if (
         prior.receiptFingerprint !== sha256(receiptCore(prior))
         || prior.planFingerprint !== options.plan.planFingerprint
+        || (prior.outcome !== "observed" && prior.outcome !== "partial")
       ) {
         throw new Error("structured acquisition replay receipt failed custody");
       }
-      const attempt = recordAttempt({
+      const replay = writeReceipt(options.root, {
+        format: ASOIAF_STRUCTURED_ACQUISITION_RECEIPT_FORMAT,
+        planFingerprint: options.plan.planFingerprint,
+        adapterId: options.plan.adapterId,
+        sourceId: options.plan.sourceId,
+        requestId: options.plan.requestId,
+        requestedUrl: options.plan.url,
+        finalUrl: prior.finalUrl,
+        retrievedAt,
+        completedAt: retrievedAt,
+        requestCount: 0,
+        waitedMilliseconds: 0,
+        redirectCount: 0,
+        robotsUrl: prior.robotsUrl,
+        robotsStatus: prior.robotsStatus,
+        robotsDigest: prior.robotsDigest,
+        httpStatus: prior.httpStatus,
+        responseMediaType: prior.responseMediaType,
+        responseBytes: prior.responseBytes,
+        sourceResponseDigest: prior.sourceResponseDigest,
+        adapterReceiptFingerprint: prior.adapterReceiptFingerprint,
+        committedRecordCount: prior.committedRecordCount,
+        observationIds: [...prior.observationIds],
+        candidateIds: [...prior.candidateIds],
+        gapId: null,
+        outcome: "cache-hit",
+        rawResponseRetained: false,
+        graphEffect: "none",
+        canonEffect: "none",
+      });
+      const attempt = recordAcquisitionAttempt({
         root: options.root,
         sourceId: options.plan.sourceId,
         sourceRecordId: options.plan.requestId,
         startedAt: retrievedAt,
         completedAt: retrievedAt,
-        outcome: "cache-hit",
+        outcome: "cache-replay",
         requestCount: 0,
         cacheHit: true,
-        receiptUri: completed.receiptUri,
+        receiptUri: replay.receiptUri,
         observationId: prior.observationIds[0] ?? null,
         gapId: null,
       });
       return {
-        receipt: { ...prior, outcome: "cache-hit" },
+        receipt: replay.receipt,
         cacheHit: true,
         adapterResult: null,
         attempt,
@@ -839,7 +989,7 @@ export async function executeAsoiafStructuredAcquisition(
   }
 
   const source = getAsoiafExternalSource(options.plan.sourceId)!;
-  const pacer = new HostPacer(runtime);
+  const pacer = pacerFor(runtime);
   const robots = await evaluateRobots({
     runtime,
     pacer,
@@ -902,6 +1052,8 @@ export async function executeAsoiafStructuredAcquisition(
     hostDelayMilliseconds: effectiveDelay,
     retryCount: source.harvestPolicy.retryCount,
     maxRedirects: options.maxRedirects ?? 3,
+    redirectAllowed: (redirected) =>
+      registeredEndpoint(options.plan.adapterId, redirected),
   });
   const requestCount = robots.requestCount + trace.requestCount;
   const waitedMilliseconds = robots.waitedMilliseconds + trace.waitedMilliseconds;
@@ -1022,6 +1174,8 @@ export async function executeAsoiafStructuredAcquisition(
     requestId: options.plan.requestId,
     sourceUri: trace.finalUrl,
     payload: bounded.payload,
+    sourceResponseDigest: bounded.digest,
+    sourceResponseBytes: bounded.bytes,
     retrievedAt: completedAt,
     includeText: options.includeText,
     maxTextCharacters: options.maxTextCharacters,
@@ -1059,7 +1213,7 @@ export async function executeAsoiafStructuredAcquisition(
     graphEffect: "none",
     canonEffect: "none",
   });
-  const attempt = recordAttempt({
+  const attempt = recordAcquisitionAttempt({
     root: options.root,
     sourceId: options.plan.sourceId,
     sourceRecordId: options.plan.requestId,
@@ -1092,6 +1246,7 @@ export async function runAsoiafStructuredAcquisitionBatch(input: {
   refresh?: boolean;
   includeText?: boolean;
   maxTextCharacters?: number;
+  maxRedirects?: number;
 }): Promise<AsoiafStructuredAcquisitionResult[]> {
   const results: AsoiafStructuredAcquisitionResult[] = [];
   for (const plan of input.plans) {
@@ -1104,8 +1259,174 @@ export async function runAsoiafStructuredAcquisitionBatch(input: {
         refresh: input.refresh,
         includeText: input.includeText,
         maxTextCharacters: input.maxTextCharacters,
+        maxRedirects: input.maxRedirects,
       }),
     );
   }
   return results;
+}
+
+
+export function readAsoiafStructuredAcquisitionState(
+  root: string,
+): AsoiafStructuredAcquisitionState {
+  return readState(root);
+}
+
+export function listAsoiafStructuredAcquisitionReceipts(
+  root: string,
+): AsoiafStructuredAcquisitionReceipt[] {
+  const directory = receiptDirectory(root);
+  if (!fs.existsSync(directory)) return [];
+  return fs
+    .readdirSync(directory, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.endsWith(".json"))
+    .map((entry) =>
+      readJson<AsoiafStructuredAcquisitionReceipt>(
+        path.join(directory, entry.name),
+        null as never,
+      ),
+    )
+    .sort(
+      (left, right) =>
+        left.requestId.localeCompare(right.requestId)
+        || left.completedAt.localeCompare(right.completedAt)
+        || left.receiptId.localeCompare(right.receiptId),
+    );
+}
+
+export function verifyAsoiafStructuredAcquisitionEstate(
+  root: string,
+): string[] {
+  initializeCollectorEstate(root);
+  const errors: string[] = [];
+  let state: AsoiafStructuredAcquisitionState | null = null;
+  try {
+    state = readState(root);
+  } catch (error) {
+    errors.push(error instanceof Error ? error.message : String(error));
+  }
+
+  const receiptsByUri = new Map<string, AsoiafStructuredAcquisitionReceipt>();
+  const receiptIds = new Set<string>();
+  const directory = receiptDirectory(root);
+  if (fs.existsSync(directory)) {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      if (!entry.isFile() || !entry.name.endsWith(".json")) continue;
+      const target = path.join(directory, entry.name);
+      try {
+        const receipt = readJson<AsoiafStructuredAcquisitionReceipt>(
+target,
+null as never,
+        );
+        const subject = receipt.receiptId || entry.name;
+        if (receipt.format !== ASOIAF_STRUCTURED_ACQUISITION_RECEIPT_FORMAT) {
+errors.push(`${subject}: invalid acquisition receipt format`);
+        }
+        const expectedFingerprint = sha256(receiptCore(receipt));
+        if (receipt.receiptFingerprint !== expectedFingerprint) {
+errors.push(`${subject}: acquisition receipt fingerprint mismatch`);
+        }
+        const expectedId = collectorContentId(
+"asoiaf-structured-acquisition-receipt",
+{
+  requestId: receipt.requestId,
+  planFingerprint: receipt.planFingerprint,
+  receiptFingerprint: receipt.receiptFingerprint,
+},
+        );
+        if (receipt.receiptId !== expectedId) {
+errors.push(`${subject}: acquisition receipt identity mismatch`);
+        }
+        if (receiptIds.has(receipt.receiptId)) {
+errors.push(`${subject}: duplicate acquisition receipt identity`);
+        }
+        receiptIds.add(receipt.receiptId);
+        if (receipt.rawResponseRetained !== false) {
+errors.push(`${subject}: acquisition receipt claims raw response retention`);
+        }
+        if (receipt.graphEffect !== "none" || receipt.canonEffect !== "none") {
+errors.push(`${subject}: acquisition receipt acquired graph or canon effect`);
+        }
+        if (!SOURCES_BY_ADAPTER[receipt.adapterId].has(receipt.sourceId)) {
+errors.push(`${subject}: adapter and atlas source identity mismatch`);
+        }
+        try {
+const requested = new URL(receipt.requestedUrl);
+if (!registeredEndpoint(receipt.adapterId, requested)) {
+  errors.push(`${subject}: requested URL escaped its registered endpoint`);
+}
+if (receipt.robotsUrl !== `${requested.origin}/robots.txt`) {
+  errors.push(`${subject}: robots URL does not match requested origin`);
+}
+        } catch {
+errors.push(`${subject}: requested URL is invalid`);
+        }
+        if (receipt.committedRecordCount !== receipt.observationIds.length) {
+errors.push(`${subject}: committed-record and observation counts differ`);
+        }
+        if (receipt.committedRecordCount !== receipt.candidateIds.length) {
+errors.push(`${subject}: committed-record and candidate counts differ`);
+        }
+        if (
+["observed", "partial", "cache-hit"].includes(receipt.outcome)
+&& (!receipt.sourceResponseDigest || !receipt.adapterReceiptFingerprint)
+        ) {
+errors.push(`${subject}: successful receipt lacks response or adapter custody`);
+        }
+        if (receipt.outcome === "cache-hit" && receipt.requestCount !== 0) {
+errors.push(`${subject}: cache replay performed network requests`);
+        }
+        receiptsByUri.set(relativeEstateUri(root, target), receipt);
+      } catch (error) {
+        errors.push(
+`${entry.name}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
+  }
+
+  if (state) {
+    const requestIds = new Set<string>();
+    for (const entry of state.entries) {
+      if (requestIds.has(entry.requestId)) {
+        errors.push(`state duplicates request ${entry.requestId}`);
+      }
+      requestIds.add(entry.requestId);
+      const target = safeEstatePath(root, entry.receiptUri);
+      const receipt = target && fs.existsSync(target)
+        ? receiptsByUri.get(entry.receiptUri)
+?? readJson<AsoiafStructuredAcquisitionReceipt>(target, null as never)
+        : null;
+      if (!receipt) {
+        errors.push(`state request ${entry.requestId} references a missing receipt`);
+        continue;
+      }
+      if (
+        receipt.requestId !== entry.requestId
+        || receipt.planFingerprint !== entry.planFingerprint
+        || receipt.completedAt !== entry.completedAt
+        || receipt.outcome !== entry.outcome
+      ) {
+        errors.push(`state request ${entry.requestId} disagrees with its receipt`);
+      }
+      if (receipt.outcome !== "observed" && receipt.outcome !== "partial") {
+        errors.push(`state request ${entry.requestId} is not a successful acquisition`);
+      }
+    }
+  }
+
+  const gaps = new Set(
+    readNdjson<CollectorGapRecord>(collectorEstatePaths(root).gaps)
+      .map((gap) => gap.gapId),
+  );
+  for (const receipt of receiptsByUri.values()) {
+    if (receipt.gapId && !gaps.has(receipt.gapId)) {
+      errors.push(`${receipt.receiptId}: acquisition gap is missing`);
+    }
+  }
+  errors.push(
+    ...verifyCollectorEstate(root).map((error) => `collector: ${error}`),
+  );
+  return [...new Set(errors)].sort();
 }

@@ -51,6 +51,7 @@ export interface AsoiafStructuredRequestPlan {
   format: typeof ASOIAF_STRUCTURED_REQUEST_PLAN_FORMAT;
   adapterId: AsoiafStructuredAdapterId;
   sourceId: AsoiafStructuredAdapterSourceId;
+  requestId: string;
   method: "GET";
   url: string;
   headers: Record<string, string>;
@@ -115,6 +116,8 @@ export interface CommitAsoiafStructuredPayloadOptions {
   requestId: string;
   sourceUri: string;
   payload: unknown;
+  sourceResponseDigest?: `sha256:${string}`;
+  sourceResponseBytes?: number;
   retrievedAt?: string;
   includeText?: boolean;
   maxTextCharacters?: number;
@@ -827,6 +830,7 @@ export function buildAsoiafStructuredRequestPlan(input:
     format: ASOIAF_STRUCTURED_REQUEST_PLAN_FORMAT,
     adapterId: input.adapterId,
     sourceId,
+    requestId: input.requestId,
     method: "GET" as const,
     url: url.toString(),
     headers,
@@ -843,7 +847,11 @@ export function normalizeAsoiafStructuredPayload(input: Omit<
   "root" | "retrievedAt"
 >): NormalizationResult {
   adapterForSource(input.adapterId, input.sourceId);
-  const sourceResponseDigest = sha256(input.payload);
+  const sourceResponseDigest =
+    input.sourceResponseDigest ?? sha256(input.payload);
+  if (!/^sha256:[a-f0-9]{64}$/.test(sourceResponseDigest)) {
+    throw new Error("structured adapter requires a lowercase SHA-256 response digest");
+  }
   const context: NormalizationContext = {
     adapterId: input.adapterId,
     sourceId: input.sourceId,
@@ -880,8 +888,19 @@ export function commitAsoiafStructuredPayload(
   const retrievedAt = options.retrievedAt ?? new Date().toISOString();
   initializeCollectorEstate(options.root, retrievedAt);
   const serializedInput = JSON.stringify(options.payload);
-  const sourceResponseBytes = Buffer.byteLength(serializedInput, "utf8");
-  const sourceResponseDigest = sha256(options.payload);
+  const sourceResponseBytes = options.sourceResponseBytes
+    ?? Buffer.byteLength(serializedInput, "utf8");
+  const sourceResponseDigest = options.sourceResponseDigest
+    ?? sha256(options.payload);
+  if (
+    !Number.isSafeInteger(sourceResponseBytes)
+    || sourceResponseBytes < 0
+  ) {
+    throw new Error("structured adapter response byte count is invalid");
+  }
+  if (!/^sha256:[a-f0-9]{64}$/.test(sourceResponseDigest)) {
+    throw new Error("structured adapter requires a lowercase SHA-256 response digest");
+  }
   if (sourceResponseBytes > source.harvestPolicy.maxResponseBytes) {
     const terminal = recordGap({
       root: options.root,

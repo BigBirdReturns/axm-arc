@@ -1,3 +1,4 @@
+# same-repository child trigger for exact-indentation structured acquisition repair
 name: Repair and seal ASOIAF structured public acquisition v3
 
 on:

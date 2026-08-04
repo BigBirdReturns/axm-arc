@@ -46,15 +46,14 @@ def extract_v3_source_patch() -> str:
         "      || claim.normalized.acquisitionRawResponseRetained !== false\n"
     )
     count = source_patch.count(bad_claim_marker)
-    if count != 1:
+    if count != 2:
         raise SystemExit(
-            "expected one malformed v3 claim-parity marker, "
-            f"found {count}"
+            "expected the malformed v3 claim-parity literal in both the "
+            f"old and replacement blocks, found {count}"
         )
     return source_patch.replace(
         bad_claim_marker,
         corrected_claim_marker,
-        1,
     )
 
 

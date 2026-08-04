@@ -77,3 +77,13 @@ Repository qualification uses synthetic, API-shaped custody objects and performs
 The evidence tier is acquisition-to-review custody qualification. The venue is the holder-controlled collector and reconciliation estate. The target is the integrity of the signed-plan, raw-response, normalized-observation, human-review, and evidence-bundle chain rather than the truth of an ASOIAF claim. The upside is that structured public records can enter review with complete network and retention provenance. The downside is additional receipt and schema maintenance. The failure mode is allowing a normalized value to lose its raw acquisition history or acquire primary canon authority because it was successfully fetched.
 
 The control question is whether every structured supporting claim can disclose which signed request authorized it, which network policy governed it, which exact raw response supplied it, which normalized observation survived rights review, who reviewed it, and why none of those facts allowed the acquisition or adapter to settle canon.
+
+## Structured observation admission
+
+Successful acquisition and valid normalized custody are necessary but insufficient for claim construction. Every structured observation requires one fingerprinted named-review disposition before the acquisition-to-review bridge can build a packet: `admit-to-review`, `reject-off-topic`, or `defer-insufficient-identity`.
+
+The disposition binds the exact source, adapter, request, plan fingerprint, acquisition receipt, adapter receipt, observation, candidate, normalized digest, question lanes, work-identity evidence, relevance evidence, outcome, reason, rationale, reviewer, and review time. Admission requires evidence supporting exact identity and question relevance. A lexical collision, continuity mismatch, or unsupported lane remains a rejection. Missing durable identity or relevance remains a defer.
+
+Rejection and defer preserve the acquisition and collector ledgers but cannot construct a reviewed claim, evidence bundle, reconciliation proposal, graph effect, or canon effect. Admitted observations remain supporting-only. The bridge carries the admission identity and fingerprint into the reviewed observation, every normalized evidence record, and packet verification.
+
+This gate was operationalized after the live canary returned a mechanically valid Crossref record whose title overlapped “A Song of Ice and Fire” while its DOI, container, and publisher identified an unrelated work. HTTP success, lexical overlap, and normalized metadata therefore remain insufficient for semantic admission.

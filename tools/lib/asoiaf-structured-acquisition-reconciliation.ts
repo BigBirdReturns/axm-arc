@@ -17,6 +17,11 @@ import {
   collectorContentId,
   sha256,
 } from "./asoiaf-external-estate.js";
+import {
+  assertAsoiafStructuredObservationAdmitted,
+  validateAsoiafStructuredObservationAdmission,
+  type AsoiafStructuredObservationAdmission,
+} from "./asoiaf-structured-observation-admission.js";
 
 export const ASOIAF_STRUCTURED_ACQUISITION_REVIEW_BINDING_FORMAT =
   "axm-asoiaf-structured-acquisition-review-binding/1" as const;
@@ -135,6 +140,7 @@ export interface AsoiafStructuredAcquisitionReviewInput {
   adapterReceipt: AsoiafStructuredAdapterReceipt;
   adapterReceiptUri: string;
   observation: AsoiafExternalReviewedObservation;
+  admission: AsoiafStructuredObservationAdmission;
 }
 
 export interface AsoiafStructuredAcquisitionReviewPacketInput
@@ -162,6 +168,13 @@ export interface AsoiafStructuredAcquisitionReviewBinding {
   normalizedObservationId: string;
   normalizedCandidateId: string;
   normalizedContentDigest: `sha256:${string}`;
+  admissionId: string;
+  admissionFingerprint: `sha256:${string}`;
+  admissionOutcome: AsoiafStructuredObservationAdmission["outcome"];
+  admissionReason: AsoiafStructuredObservationAdmission["reason"];
+  admissionReviewedBy: string;
+  admissionReviewedAt: string;
+  admissionQuestionLaneIds: string[];
   collectorReceiptUri: string;
   robotsStatus: "allowed" | "absent";
   robotsDigest: `sha256:${string}` | null;
@@ -316,7 +329,13 @@ export function validateAsoiafStructuredAcquisitionReviewInput(
   input: AsoiafStructuredAcquisitionReviewInput,
 ): AsoiafStructuredAcquisitionReviewFinding[] {
   const findings: AsoiafStructuredAcquisitionReviewFinding[] = [];
-  const { plan, acquisitionReceipt, adapterReceipt, observation } = input;
+  const {
+    plan,
+    acquisitionReceipt,
+    adapterReceipt,
+    observation,
+    admission,
+  } = input;
   const source = getAsoiafExternalSource(plan.sourceId);
   const registered = REGISTERED_ENDPOINTS[plan.adapterId];
   const headers = new Map(
@@ -478,6 +497,55 @@ export function validateAsoiafStructuredAcquisitionReviewInput(
   if (!validDigest(observation.contentDigest) || observation.responseBytes <= 0) {
     findings.push(finding("normalized-observation-custody", observation.observationId, "reviewed observation lacks a positive normalized digest and byte count"));
   }
+  if (!admission) {
+    findings.push(
+      finding(
+        "admission-missing",
+        observation.observationId,
+        "structured observation admission disposition is required",
+      ),
+    );
+  } else {
+    for (const admissionFinding of validateAsoiafStructuredObservationAdmission(admission)) {
+      findings.push(
+        finding(
+          `admission-${admissionFinding.code}`,
+          admissionFinding.subjectId,
+          admissionFinding.detail,
+        ),
+      );
+    }
+    if (admission.outcome !== "admit-to-review") {
+      findings.push(
+        finding(
+          "observation-not-admitted",
+          admission.admissionId,
+          `structured observation disposition is ${admission.outcome}`,
+        ),
+      );
+    }
+    if (
+      admission.sourceId !== plan.sourceId
+      || admission.adapterId !== plan.adapterId
+      || admission.requestId !== plan.requestId
+      || admission.planFingerprint !== plan.planFingerprint
+      || admission.acquisitionReceiptId !== acquisitionReceipt.receiptId
+      || admission.acquisitionReceiptFingerprint !== acquisitionReceipt.receiptFingerprint
+      || admission.adapterReceiptFingerprint !== adapterReceipt.receiptFingerprint
+      || admission.observationId !== observation.observationId
+      || admission.candidateId !== observation.collectorCandidateId
+      || admission.normalizedContentDigest !== observation.contentDigest
+      || admission.reviewedBy !== observation.reviewerId
+    ) {
+      findings.push(
+        finding(
+          "admission-custody-parity",
+          admission.admissionId,
+          "admission disposition differs from the signed plan, receipts, reviewed observation, candidate, digest, or reviewer",
+        ),
+      );
+    }
+  }
   if (
     !safeRelativeUri(input.acquisitionReceiptUri)
     || !safeRelativeUri(input.adapterReceiptUri)
@@ -502,7 +570,14 @@ export function buildAsoiafStructuredAcquisitionReviewBinding(
         .join(", ")}`,
     );
   }
-  const { plan, acquisitionReceipt, adapterReceipt, observation } = input;
+  const {
+    plan,
+    acquisitionReceipt,
+    adapterReceipt,
+    observation,
+    admission,
+  } = input;
+  assertAsoiafStructuredObservationAdmitted(admission);
   const core = {
     format: ASOIAF_STRUCTURED_ACQUISITION_REVIEW_BINDING_FORMAT,
     sourceId: plan.sourceId,
@@ -521,6 +596,13 @@ export function buildAsoiafStructuredAcquisitionReviewBinding(
     normalizedObservationId: observation.observationId,
     normalizedCandidateId: observation.collectorCandidateId,
     normalizedContentDigest: observation.contentDigest,
+    admissionId: admission.admissionId,
+    admissionFingerprint: admission.admissionFingerprint,
+    admissionOutcome: admission.outcome,
+    admissionReason: admission.reason,
+    admissionReviewedBy: admission.reviewedBy,
+    admissionReviewedAt: admission.reviewedAt,
+    admissionQuestionLaneIds: [...admission.questionLaneIds],
     collectorReceiptUri: observation.receiptUri,
     robotsStatus: acquisitionReceipt.robotsStatus as "allowed" | "absent",
     robotsDigest: acquisitionReceipt.robotsDigest,
@@ -555,12 +637,21 @@ export function validateAsoiafStructuredAcquisitionReviewBinding(
     || !validDigest(binding.adapterReceiptFingerprint)
     || !validDigest(binding.sourceResponseDigest)
     || !validDigest(binding.normalizedContentDigest)
+    || !validDigest(binding.admissionFingerprint)
   ) {
     findings.push(finding("binding-digest", binding.requestId, "review binding contains a malformed digest"));
   }
   if (
     binding.rawResponseRetained !== false
     || binding.authorityRole !== "supporting-only"
+    || binding.admissionOutcome !== "admit-to-review"
+    || (
+      binding.admissionReason !== "exact-identity-and-question-match"
+      && binding.admissionReason !== "bounded-relevant-metadata"
+    )
+    || !binding.admissionReviewedBy.trim()
+    || !Number.isFinite(Date.parse(binding.admissionReviewedAt))
+    || binding.admissionQuestionLaneIds.length === 0
     || binding.graphEffect !== "none"
     || binding.canonEffect !== "none"
   ) {
@@ -584,6 +675,13 @@ export function buildAsoiafStructuredAcquisitionReviewPacket(
     acquisitionReceiptUri: binding.acquisitionReceiptUri,
     adapterReceiptFingerprint: binding.adapterReceiptFingerprint,
     adapterReceiptUri: binding.adapterReceiptUri,
+    structuredAdmissionId: binding.admissionId,
+    structuredAdmissionFingerprint: binding.admissionFingerprint,
+    structuredAdmissionOutcome: binding.admissionOutcome,
+    structuredAdmissionReason: binding.admissionReason,
+    structuredAdmissionReviewedBy: binding.admissionReviewedBy,
+    structuredAdmissionReviewedAt: binding.admissionReviewedAt,
+    structuredAdmissionQuestionLaneIds: binding.admissionQuestionLaneIds,
   } as AsoiafExternalReviewedObservation;
   const claims = input.claims.map((claim) => ({
     ...claim,
@@ -606,6 +704,13 @@ export function buildAsoiafStructuredAcquisitionReviewPacket(
       acquisitionCacheReplay: binding.cacheReplay,
       acquisitionRawResponseRetained: false,
       normalizedObservationDigest: binding.normalizedContentDigest,
+      structuredAdmissionId: binding.admissionId,
+      structuredAdmissionFingerprint: binding.admissionFingerprint,
+      structuredAdmissionOutcome: binding.admissionOutcome,
+      structuredAdmissionReason: binding.admissionReason,
+      structuredAdmissionReviewedBy: binding.admissionReviewedBy,
+      structuredAdmissionReviewedAt: binding.admissionReviewedAt,
+      structuredAdmissionQuestionLaneIds: binding.admissionQuestionLaneIds,
     },
   }));
   const packet = buildAsoiafExternalReviewPacket({
@@ -660,6 +765,9 @@ export function verifyAsoiafStructuredAcquisitionReviewPacket(
     || observation.acquisitionReceiptId !== binding.acquisitionReceiptId
     || observation.acquisitionReceiptFingerprint !== binding.acquisitionReceiptFingerprint
     || observation.adapterReceiptFingerprint !== binding.adapterReceiptFingerprint
+    || observation.structuredAdmissionId !== binding.admissionId
+    || observation.structuredAdmissionFingerprint !== binding.admissionFingerprint
+    || observation.structuredAdmissionOutcome !== "admit-to-review"
   ) {
     findings.push(finding("packet-observation-binding", packet.id, "packet observation omitted acquisition receipt custody"));
   }
@@ -670,6 +778,9 @@ export function verifyAsoiafStructuredAcquisitionReviewPacket(
       || claim.normalized.acquisitionSourceResponseDigest !== binding.sourceResponseDigest
       || claim.normalized.normalizedObservationDigest !== binding.normalizedContentDigest
       || claim.normalized.acquisitionRawResponseRetained !== false
+    || claim.normalized.structuredAdmissionId !== binding.admissionId
+    || claim.normalized.structuredAdmissionFingerprint !== binding.admissionFingerprint
+    || claim.normalized.structuredAdmissionOutcome !== "admit-to-review"
     ) {
       findings.push(finding("claim-binding-parity", claim.id, "claim omitted acquisition custody or exceeded supporting authority"));
     }

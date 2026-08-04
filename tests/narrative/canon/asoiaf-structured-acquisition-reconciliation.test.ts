@@ -28,6 +28,10 @@ import {
   type AsoiafStructuredAdapterReceipt,
   type AsoiafStructuredRequestPlan,
 } from "../../../tools/lib/asoiaf-structured-acquisition-reconciliation.js";
+import {
+  buildAsoiafStructuredObservationAdmission,
+  type AsoiafStructuredObservationAdmission,
+} from "../../../tools/lib/asoiaf-structured-observation-admission.js";
 
 const SOURCE_ID = "structured-wikidata" as const;
 const ADAPTER_ID = "wikidata-sparql" as const;
@@ -191,20 +195,61 @@ function reviewInput(input?: {
   adapter?: AsoiafStructuredAdapterReceipt;
   observation?: AsoiafExternalReviewedObservation;
   acquisitionReceiptUri?: string;
+  admission?: AsoiafStructuredObservationAdmission;
 }): AsoiafStructuredAcquisitionReviewInput {
   const adapter = input?.adapter ?? adapterReceipt();
+  const plan = signedPlan();
+  const acquisition = acquisitionReceipt({
+    outcome: input?.outcome,
+    adapter,
+  });
+  const observation = input?.observation ?? reviewedObservation();
+  const admission = input?.admission ?? buildAsoiafStructuredObservationAdmission({
+    sourceId: SOURCE_ID,
+    adapterId: ADAPTER_ID,
+    requestId: REQUEST_ID,
+    planFingerprint: plan.planFingerprint,
+    acquisitionReceiptId: acquisition.receiptId,
+    acquisitionReceiptFingerprint: acquisition.receiptFingerprint,
+    adapterReceiptFingerprint: adapter.receiptFingerprint,
+    observationId: observation.observationId,
+    candidateId: observation.collectorCandidateId,
+    normalizedContentDigest: observation.contentDigest,
+    questionLaneIds: ["entity-resolution"],
+    evidence: [
+      {
+        field: "upstream-record",
+        value: SOURCE_RECORD_ID,
+        effect: "supports-admission",
+        note: "The exact Wikidata record identity matches the selected structured entity-resolution fixture.",
+      },
+      {
+        field: "title",
+        value: "Varys",
+        effect: "supports-admission",
+        note: "The reviewed label and record identity serve the bounded Varys entity-resolution question.",
+      },
+    ],
+    outcome: "admit-to-review",
+    reason: "exact-identity-and-question-match",
+    rationale:
+      "The exact upstream record identity and reviewed label match the selected Varys entity-resolution question, while the structured record remains supporting-only evidence.",
+    reviewedBy: REVIEWER,
+    reviewedAt: REVIEWED_AT,
+    authorityRole: "admission-only",
+    graphEffect: "none",
+    canonEffect: "none",
+  });
   return {
-    plan: signedPlan(),
-    acquisitionReceipt: acquisitionReceipt({
-      outcome: input?.outcome,
-      adapter,
-    }),
+    plan,
+    acquisitionReceipt: acquisition,
     acquisitionReceiptUri:
       input?.acquisitionReceiptUri
       ?? "structured-acquisition-receipts/acquisition-Q285779.json",
     adapterReceipt: adapter,
     adapterReceiptUri: "structured-adapter-receipts/wikidata-varys-Q285779.json",
-    observation: input?.observation ?? reviewedObservation(),
+    observation,
+    admission,
   };
 }
 
@@ -264,7 +309,11 @@ describe("ASOIAF structured acquisition reconciliation custody", () => {
         requestId: REQUEST_ID,
         sourceResponseDigest: RAW_DIGEST,
         normalizedContentDigest: NORMALIZED_DIGEST,
-        rawResponseRetained: false,
+      admissionOutcome: "admit-to-review",
+      admissionReason: "exact-identity-and-question-match",
+      admissionReviewedBy: REVIEWER,
+      admissionQuestionLaneIds: ["entity-resolution"],
+      rawResponseRetained: false,
         authorityRole: "supporting-only",
         cacheReplay: false,
         graphEffect: "none",
@@ -284,9 +333,59 @@ describe("ASOIAF structured acquisition reconciliation custody", () => {
         acquisitionSourceResponseDigest: RAW_DIGEST,
         normalizedObservationDigest: NORMALIZED_DIGEST,
         acquisitionRawResponseRetained: false,
+      structuredAdmissionOutcome: "admit-to-review",
+      structuredAdmissionReason: "exact-identity-and-question-match",
       }),
     );
     expect(RAW_DIGEST).not.toBe(NORMALIZED_DIGEST);
+  });
+
+  it("refuses an off-topic observation before claim construction", () => {
+    const admitted = reviewInput();
+    const rejected = buildAsoiafStructuredObservationAdmission({
+      sourceId: admitted.plan.sourceId,
+      adapterId: admitted.plan.adapterId,
+      requestId: admitted.plan.requestId,
+      planFingerprint: admitted.plan.planFingerprint,
+      acquisitionReceiptId: admitted.acquisitionReceipt.receiptId,
+      acquisitionReceiptFingerprint: admitted.acquisitionReceipt.receiptFingerprint,
+      adapterReceiptFingerprint: admitted.adapterReceipt.receiptFingerprint,
+      observationId: admitted.observation.observationId,
+      candidateId: admitted.observation.collectorCandidateId,
+      normalizedContentDigest: admitted.observation.contentDigest,
+      questionLaneIds: ["entity-resolution"],
+      evidence: [
+        {
+          field: "container",
+          value: "Unrelated reference work",
+          effect: "supports-rejection",
+          note: "The retained container identifies a lexical collision outside the selected ASOIAF question.",
+        },
+      ],
+      outcome: "reject-off-topic",
+      reason: "off-topic-query-collision",
+      rationale:
+        "The exact retained work identity does not serve the selected ASOIAF question, so the observation remains intake-only and cannot enter supporting claim construction.",
+      reviewedBy: REVIEWER,
+      reviewedAt: REVIEWED_AT,
+      authorityRole: "admission-only",
+      graphEffect: "none",
+      canonEffect: "none",
+    });
+    const rejectedInput = { ...admitted, admission: rejected };
+    expect(
+      validateAsoiafStructuredAcquisitionReviewInput(rejectedInput).map(
+        (entry) => entry.code,
+      ),
+    ).toContain("observation-not-admitted");
+    expect(() =>
+      buildAsoiafStructuredAcquisitionReviewPacket({
+        ...rejectedInput,
+        packetId: "external-review:wikidata:off-topic-refusal",
+        continuityId,
+        claims: [claim()],
+      }),
+    ).toThrow(/observation-not-admitted/);
   });
 
   it("refuses structured reference evidence that attempts primary adjudicating authority", () => {

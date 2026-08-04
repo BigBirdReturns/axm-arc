@@ -7,3 +7,4 @@ export * from "./recall/index.js";
 export * from "./reconcile/index.js";
 export * as asoiafRecall from "./asoiaf/recall/index.js";
 export * as asoiafReconcile from "./asoiaf/reconcile/index.js";
+export * as asoiafExternal from "./asoiaf/external/index.js";

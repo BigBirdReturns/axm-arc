@@ -1,0 +1,371 @@
+name: ASOIAF answer desk worker
+
+on:
+  push:
+    branches:
+      - feature/asoiaf-answer-desk-worker-v1
+    paths:
+      - '.github/workflows/asoiaf-answer-desk-worker.yml'
+      - 'docs/ASOIAF_ANSWER_DESK_WORKER.md'
+      - 'package.json'
+      - 'tests/fixtures/asoiaf-answer-desk-fixture.ts'
+      - 'tests/fixtures/emit-asoiaf-answer-desk-worker-input.ts'
+      - 'tests/narrative/canon/asoiaf-answer-desk-worker.test.ts'
+      - 'tools/asoiaf-answer-desk-worker.ts'
+      - 'tools/lib/asoiaf-answer-desk-worker.ts'
+      - 'tools/asoiaf-answer-desk-estate.ts'
+      - 'tools/lib/asoiaf-answer-desk-estate.ts'
+      - 'tools/lib/asoiaf-answer-work-lease.ts'
+      - 'tools/lib/asoiaf-answer-work-order.ts'
+      - 'tools/lib/asoiaf-reviewed-answer-packet.ts'
+      - 'tools/lib/asoiaf-research-question-dossier.ts'
+  pull_request:
+    branches:
+      - feature/asoiaf-answer-desk-estate-v1
+    paths:
+      - '.github/workflows/asoiaf-answer-desk-worker.yml'
+      - 'docs/ASOIAF_ANSWER_DESK_WORKER.md'
+      - 'package.json'
+      - 'tests/fixtures/asoiaf-answer-desk-fixture.ts'
+      - 'tests/fixtures/emit-asoiaf-answer-desk-worker-input.ts'
+      - 'tests/narrative/canon/asoiaf-answer-desk-worker.test.ts'
+      - 'tools/asoiaf-answer-desk-worker.ts'
+      - 'tools/lib/asoiaf-answer-desk-worker.ts'
+      - 'tools/asoiaf-answer-desk-estate.ts'
+      - 'tools/lib/asoiaf-answer-desk-estate.ts'
+      - 'tools/lib/asoiaf-answer-work-lease.ts'
+      - 'tools/lib/asoiaf-answer-work-order.ts'
+      - 'tools/lib/asoiaf-reviewed-answer-packet.ts'
+      - 'tools/lib/asoiaf-research-question-dossier.ts'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: asoiaf-answer-desk-worker-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qualify:
+    if: github.repository == 'BigBirdReturns/axm-arc'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 100
+    steps:
+      - name: Check out exact answer-worker candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+          show-progress: false
+
+      - name: Record exact candidate identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          candidate_sha="$(git rev-parse HEAD)"
+          test -z "$(git status --porcelain)"
+          printf '%s\n' "$candidate_sha"
+          echo "CANDIDATE_SHA=$candidate_sha" >> "$GITHUB_ENV"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Verify permanent operator registration
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run --silent asoiaf:answer-worker -- help \
+            | tee "$RUNNER_TEMP/worker-help.txt"
+          grep -q 'ASOIAF persistent answer desk worker' "$RUNNER_TEMP/worker-help.txt"
+          grep -q 'manifest' "$RUNNER_TEMP/worker-help.txt"
+          grep -q 'plan' "$RUNNER_TEMP/worker-help.txt"
+          grep -q 'run' "$RUNNER_TEMP/worker-help.txt"
+          grep -q 'verify' "$RUNNER_TEMP/worker-help.txt"
+          npm run --silent asoiaf:answer-worker -- manifest \
+            --out "$RUNNER_TEMP/worker-manifest.json"
+
+      - name: Strict TypeScript
+        id: typecheck
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run typecheck | tee "$RUNNER_TEMP/typecheck.log"
+
+      - name: Focused worker, estate, lease, answer, dossier, and reconciliation qualification
+        id: focused
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm test -- \
+            tests/narrative/canon/asoiaf-answer-desk-worker.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-estate.test.ts \
+            tests/narrative/canon/asoiaf-answer-work-lease.test.ts \
+            tests/narrative/canon/asoiaf-answer-work-order.test.ts \
+            tests/narrative/canon/asoiaf-reviewed-answer-packet.test.ts \
+            tests/narrative/canon/asoiaf-research-question-dossier.test.ts \
+            tests/narrative/canon/asoiaf-external-reconciliation-packets.test.ts \
+            | tee "$RUNNER_TEMP/focused-tests.log"
+
+      - name: Exercise typed worker through the persistent command-line estate
+        id: smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture_directory="$RUNNER_TEMP/answer-worker-fixture"
+          estate_root="$RUNNER_TEMP/answer-desk"
+          mkdir -p "$fixture_directory"
+
+          npx vite-node tests/fixtures/emit-asoiaf-answer-desk-worker-input.ts \
+            "$fixture_directory" \
+            "$estate_root" \
+            | tee "$RUNNER_TEMP/fixture-emission.json"
+
+          npm run --silent asoiaf:answer-desk -- adopt \
+            --input "$fixture_directory/adopt-input.json" \
+            --out "$RUNNER_TEMP/adopt-result.json"
+
+          npm run --silent asoiaf:answer-worker -- plan \
+            --root "$estate_root" \
+            --out "$RUNNER_TEMP/worker-plan-before.json"
+
+          npm run --silent asoiaf:answer-worker -- run \
+            --input "$fixture_directory/run-input.json" \
+            --out "$RUNNER_TEMP/worker-run-first.json"
+
+          npm run --silent asoiaf:answer-worker -- run \
+            --input "$fixture_directory/run-input.json" \
+            --out "$RUNNER_TEMP/worker-run-replay.json"
+
+          npm run --silent asoiaf:answer-worker -- status \
+            --root "$estate_root" \
+            --out "$RUNNER_TEMP/worker-status.json"
+
+          npm run --silent asoiaf:answer-desk -- status \
+            --root "$estate_root" \
+            > "$RUNNER_TEMP/desk-status.json"
+
+          npm run --silent asoiaf:answer-worker -- verify \
+            --root "$estate_root" \
+            --out "$RUNNER_TEMP/worker-verification.json"
+
+          npm run --silent asoiaf:answer-worker -- paths \
+            --root "$estate_root" \
+            --out "$RUNNER_TEMP/worker-paths.json"
+
+          node <<'NODE'
+          const crypto = require('node:crypto');
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const assert = require('node:assert/strict');
+
+          const temp = process.env.RUNNER_TEMP;
+          const read = (name) => JSON.parse(
+            fs.readFileSync(path.join(temp, name), 'utf8'),
+          );
+          const fixtureDir = path.join(temp, 'answer-worker-fixture');
+          const expected = JSON.parse(
+            fs.readFileSync(path.join(fixtureDir, 'expected.json'), 'utf8'),
+          );
+          const manifest = read('worker-manifest.json');
+          const planEnvelope = read('worker-plan-before.json');
+          const first = read('worker-run-first.json');
+          const replay = read('worker-run-replay.json');
+          const workerStatus = read('worker-status.json');
+          const deskStatus = read('desk-status.json');
+          const verification = read('worker-verification.json');
+          const workerPaths = read('worker-paths.json');
+
+          assert.deepEqual(manifest.automaticActions, ['render-reviewed-answer']);
+          assert.equal(
+            manifest.capabilities.filter((entry) => entry.executionMode === 'automatic').length,
+            1,
+          );
+          assert.equal(manifest.networkAccess, 'none');
+          assert.equal(manifest.privateTextAccess, 'none');
+          assert.equal(manifest.humanReviewAuthority, 'none');
+
+          assert.equal(planEnvelope.ok, true);
+          assert.deepEqual(planEnvelope.findings, []);
+          assert.equal(planEnvelope.plan.nextAutomaticItemId, expected.renderItemId);
+          assert.deepEqual(planEnvelope.plan.automaticAvailableItemIds, [expected.renderItemId]);
+          assert.deepEqual(planEnvelope.plan.externalAvailableItemIds, []);
+
+          assert.equal(first.claim.replayed, false);
+          assert.equal(first.claim.lease.itemId, expected.renderItemId);
+          assert.equal(first.claim.lease.workerId, expected.workerId);
+          assert.equal(first.invocationReplayed, false);
+          assert.equal(first.resultReplayed, false);
+          assert.equal(first.settlement.replayed, false);
+          assert.equal(first.invocation.action, 'render-reviewed-answer');
+          assert.equal(first.invocation.networkAccess, 'none');
+          assert.equal(first.invocation.privateTextAccess, 'none');
+          assert.equal(first.result.outcome, 'rendered');
+          assert.equal(first.settlement.settlement.outcome, 'rendered');
+          assert.equal(
+            first.settlement.settlement.resultReferences.some(
+              (reference) =>
+                reference.kind === 'answer-worker-result'
+                && reference.objectId === first.result.resultId
+                && reference.fingerprint === first.result.resultFingerprint,
+            ),
+            true,
+          );
+
+          assert.equal(replay.claim.replayed, true);
+          assert.equal(replay.claim.lease.leaseId, first.claim.lease.leaseId);
+          assert.equal(replay.invocationReplayed, true);
+          assert.equal(replay.invocation.invocationId, first.invocation.invocationId);
+          assert.equal(replay.resultReplayed, true);
+          assert.equal(replay.result.resultId, first.result.resultId);
+          assert.equal(replay.settlement.replayed, true);
+          assert.equal(
+            replay.settlement.settlement.settlementId,
+            first.settlement.settlement.settlementId,
+          );
+
+          assert.equal(workerStatus.ok, true);
+          assert.equal(workerStatus.counts.invocations, 1);
+          assert.equal(workerStatus.counts.results, 1);
+          assert.equal(workerStatus.counts.automaticAvailable, 0);
+          assert.equal(workerStatus.plan.nextAutomaticItemId, null);
+          assert.deepEqual(workerStatus.plan.automaticAvailableItemIds, []);
+
+          assert.equal(deskStatus.ok, true);
+          assert.equal(deskStatus.counts.leases, 1);
+          assert.equal(deskStatus.counts.settlements, 1);
+          assert.deepEqual(deskStatus.state.availableItemIds, []);
+          assert.equal(deskStatus.state.nextAvailableItemId, null);
+          assert.equal(
+            deskStatus.state.settledLeaseIds.includes(first.claim.lease.leaseId),
+            true,
+          );
+
+          assert.equal(verification.ok, true);
+          assert.deepEqual(
+            verification.findings.filter((entry) => entry.severity === 'error'),
+            [],
+          );
+          assert.equal(verification.counts.invocations, 1);
+          assert.equal(verification.counts.results, 1);
+
+          const renderReference = first.result.resultReferences.find(
+            (reference) => reference.kind === 'reviewed-answer-render',
+          );
+          assert.ok(renderReference);
+          assert.equal(renderReference.objectId, `${expected.answerPacketId}:rendered`);
+          assert.equal(renderReference.fingerprint, expected.renderedTextDigest);
+          const outputPath = path.resolve(expected.estateRoot, renderReference.uri);
+          const output = fs.readFileSync(outputPath, 'utf8');
+          assert.equal(output, expected.renderedText);
+          assert.equal([...output].length, expected.renderedTextCharacters);
+          assert.equal(
+            `sha256:${crypto.createHash('sha256').update(output).digest('hex')}`,
+            expected.renderedTextDigest,
+          );
+          assert.equal(
+            path.basename(outputPath),
+            `${expected.renderedTextDigest.slice('sha256:'.length)}.txt`,
+          );
+
+          assert.equal(fs.readdirSync(workerPaths.invocations).length, 1);
+          assert.equal(fs.readdirSync(workerPaths.results).length, 1);
+          assert.equal(fs.readdirSync(workerPaths.outputs).length, 1);
+          assert.equal(
+            fs.existsSync(path.join(expected.estateRoot, '.transaction-lock')),
+            false,
+          );
+          NODE
+
+      - name: Complete Arc regression
+        id: regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm test | tee "$RUNNER_TEMP/full-tests.log"
+
+      - name: Production build
+        id: build
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run build | tee "$RUNNER_TEMP/build.log"
+
+      - name: Retain exact worker qualification
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          root='asoiaf-answer-desk-worker-qualification'
+          mkdir -p "$root"
+          cp "$RUNNER_TEMP"/worker-help.txt "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/worker-manifest.json "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/typecheck.log "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/focused-tests.log "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/full-tests.log "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/build.log "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/fixture-emission.json "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/adopt-result.json "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/worker-plan-before.json "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/worker-run-first.json "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/worker-run-replay.json "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/worker-status.json "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/desk-status.json "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/worker-verification.json "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/worker-paths.json "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/answer-worker-fixture/expected.json "$root/" 2>/dev/null || true
+          cp -R "$RUNNER_TEMP"/answer-desk "$root/estate" 2>/dev/null || true
+          printf '%s\n' "$CANDIDATE_SHA" > "$root/candidate-sha.txt"
+          printf '%s\n' \
+            'automaticActions=render-reviewed-answer' \
+            'externalActions=explicit-required-actors' \
+            'networkAccess=none' \
+            'privateTextAccess=none' \
+            'humanReviewAuthority=none' \
+            'invocationCustody=content-addressed' \
+            'outputCustody=reviewed-packet-digest' \
+            'resultCustody=content-addressed' \
+            'settlementOutcome=rendered' \
+            'exactReplay=true' \
+            'graphEffect=none' \
+            'canonEffect=none' \
+            > "$root/qualification-boundary.txt"
+          find "$root" -type f ! -name SHA256SUMS -print0 \
+            | sort -z \
+            | xargs -0 sha256sum \
+            | sed "s#  $root/#  #" \
+            > "$root/SHA256SUMS"
+
+      - name: Upload answer-worker qualification
+        if: always()
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: asoiaf-answer-desk-worker-qualification
+          path: asoiaf-answer-desk-worker-qualification
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish exact qualification summary
+        if: always()
+        env:
+          ARTIFACT_ID: ${{ steps.upload.outputs['artifact-id'] }}
+          ARTIFACT_DIGEST: ${{ steps.upload.outputs['artifact-digest'] }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo '## ASOIAF answer desk worker qualification'
+            echo
+            echo "- Candidate: \`$CANDIDATE_SHA\`"
+            echo "- Artifact: \`${ARTIFACT_ID:-not-issued}\`"
+            echo "- Artifact digest: \`${ARTIFACT_DIGEST:-not-issued}\`"
+            echo '- Automatic action: `render-reviewed-answer`'
+            echo '- External-only actions remain unclaimed and retain named actor requirements.'
+          } >> "$GITHUB_STEP_SUMMARY"

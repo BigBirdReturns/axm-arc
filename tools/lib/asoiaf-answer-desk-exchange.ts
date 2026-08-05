@@ -212,10 +212,6 @@ function validFingerprint(value: string): boolean {
   return /^sha256:[a-f0-9]{64}$/.test(value);
 }
 
-function normalizedStrings(values: readonly string[]): string[] {
-  return [...new Set(values.map((value) => value.trim()).filter(Boolean))].sort();
-}
-
 function normalizedResultReferences(
   references: readonly AsoiafAnswerWorkResultReference[],
 ): AsoiafAnswerWorkResultReference[] {
@@ -661,9 +657,6 @@ export function buildAsoiafAnswerExchangeResult(input: {
     || Date.parse(input.completedAt) < Date.parse(input.assignment.issuedAt)
   ) {
     throw new Error("external result completion time is invalid or precedes assignment issue");
-  }
-  if (input.outcome === "rendered") {
-    throw new Error("external exchange cannot admit the built-in rendered outcome");
   }
   if (input.reason.trim().length < 24) {
     throw new Error("external result requires a substantive reason");

@@ -17,7 +17,6 @@ import {
   validateAsoiafAnswerExchangeAssignment,
   validateAsoiafAnswerExchangeResult,
   verifyAsoiafAnswerExchangeEstate,
-  type AsoiafAnswerExchangeActorRole,
   type AsoiafAnswerExchangeIssueInput,
   type AsoiafAnswerExchangeResultInput,
 } from "../../../tools/lib/asoiaf-answer-desk-exchange.js";
@@ -210,7 +209,7 @@ describe("ASOIAF external answer desk exchange", () => {
       `${issued.assignment.assignmentFingerprint.slice("sha256:".length)}.json`,
     );
     expect(
-      JSON.stringify(issued.assignment).includes(fixture.dossier.question.text),
+      JSON.stringify(issued.assignment).includes(fixture.packet.claims[0]!.text),
     ).toBe(false);
     expect(readAsoiafAnswerDeskStatus(root).leases).toHaveLength(1);
   });

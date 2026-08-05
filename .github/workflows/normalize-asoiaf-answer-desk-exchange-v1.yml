@@ -1,0 +1,85 @@
+name: Normalize ASOIAF answer desk exchange v1
+
+on:
+  push:
+    branches:
+      - feature/asoiaf-answer-desk-exchange-v1
+    paths:
+      - '.github/workflows/normalize-asoiaf-answer-desk-exchange-v1.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: normalize-asoiaf-answer-desk-exchange-v1
+  cancel-in-progress: true
+
+jobs:
+  normalize:
+    if: github.repository == 'BigBirdReturns/axm-arc' && github.ref_name == 'feature/asoiaf-answer-desk-exchange-v1'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out exact exchange head
+        uses: actions/checkout@v4
+        with:
+          ref: feature/asoiaf-answer-desk-exchange-v1
+          fetch-depth: 0
+          show-progress: false
+
+      - name: Normalize exact type and evidence boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          python - <<'PY'
+          from pathlib import Path
+
+          core_path = Path('tools/lib/asoiaf-answer-desk-exchange.ts')
+          core = core_path.read_text(encoding='utf-8')
+          unused = '''function normalizedStrings(values: readonly string[]): string[] {
+            return [...new Set(values.map((value) => value.trim()).filter(Boolean))].sort();
+          }
+
+          '''
+          if unused in core:
+              core = core.replace(unused, '', 1)
+          impossible = '''  if (input.outcome === "rendered") {
+            throw new Error("external exchange cannot admit the built-in rendered outcome");
+          }
+          '''
+          if impossible in core:
+              core = core.replace(impossible, '', 1)
+          core_path.write_text(core, encoding='utf-8')
+
+          test_path = Path('tests/narrative/canon/asoiaf-answer-desk-exchange.test.ts')
+          test = test_path.read_text(encoding='utf-8')
+          test = test.replace(
+              '  type AsoiafAnswerExchangeActorRole,\n',
+              '',
+              1,
+          )
+          test = test.replace(
+              'fixture.dossier.question.text',
+              'fixture.packet.claims[0]!.text',
+              1,
+          )
+          test_path.write_text(test, encoding='utf-8')
+
+          if 'input.outcome === "rendered"' in core_path.read_text(encoding='utf-8'):
+              raise SystemExit('impossible rendered comparison remains')
+          if 'fixture.dossier.question.text' in test_path.read_text(encoding='utf-8'):
+              raise SystemExit('question-text exclusion assertion remains')
+          print('ASOIAF_ANSWER_DESK_EXCHANGE_NORMALIZED')
+          PY
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            tools/lib/asoiaf-answer-desk-exchange.ts \
+            tests/narrative/canon/asoiaf-answer-desk-exchange.test.ts
+          git rm .github/workflows/normalize-asoiaf-answer-desk-exchange-v1.yml
+          git diff --cached --check
+          git commit -m 'Normalize external exchange type boundaries'
+          git push origin HEAD:feature/asoiaf-answer-desk-exchange-v1

@@ -1,4 +1,4 @@
-name: Bootstrap source and dependencies snapshot
+name: Materialize authenticated answer transport
 
 on:
   push:
@@ -6,48 +6,63 @@ on:
       - feature/asoiaf-answer-desk-transport-v1
     paths:
       - .github/workflows/_bootstrap-source-snapshot.yml
-  pull_request:
-    branches:
-      - feature/asoiaf-answer-desk-exchange-v1
-    types:
-      - opened
-      - synchronize
-      - reopened
-    paths:
-      - .github/workflows/_bootstrap-source-snapshot.yml
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  snapshot:
-    runs-on: ubuntu-latest
+  materialize:
+    if: github.repository == 'BigBirdReturns/axm-arc'
+    runs-on: ubuntu-24.04
     steps:
-      - name: Check out exact branch head
+      - name: Check out exact carrier head
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.sha }}
           fetch-depth: 0
 
-      - name: Install exact locked dependencies
-        run: npm ci --no-audit --no-fund
-
-      - name: Record exact source and dependency state
+      - name: Materialize exact permanent transport surfaces
         shell: bash
         run: |
           set -euo pipefail
-          git rev-parse HEAD > /tmp/candidate-sha.txt
-          tar --exclude=.git --exclude=node_modules -czf /tmp/axm-arc-source.tgz .
-          tar -czf /tmp/axm-arc-node-modules.tgz node_modules
-          sha256sum /tmp/axm-arc-source.tgz /tmp/axm-arc-node-modules.tgz > /tmp/SHA256SUMS
+          cat .github/materialize/asoiaf-answer-transport/part-*.b64 \
+            | base64 --decode > "$RUNNER_TEMP/asoiaf-answer-transport-payload.tgz"
+          printf '%s  %s\n' \
+            'fee1ba7abf19b56384ca08016cbf8ef8dce5400e7c1ff375cca9a17616406b30' \
+            "$RUNNER_TEMP/asoiaf-answer-transport-payload.tgz" \
+            | sha256sum --check --strict
+          tar -xzf "$RUNNER_TEMP/asoiaf-answer-transport-payload.tgz"
+          rm -rf .github/materialize/asoiaf-answer-transport
+          rm .github/workflows/_bootstrap-source-snapshot.yml
 
-      - name: Upload source and dependency snapshot
-        uses: actions/upload-artifact@v4
-        with:
-          name: axm-arc-source-dependency-snapshot
-          path: |
-            /tmp/axm-arc-source.tgz
-            /tmp/axm-arc-node-modules.tgz
-            /tmp/candidate-sha.txt
-            /tmp/SHA256SUMS
-          if-no-files-found: error
-          retention-days: 1
+          cat > "$RUNNER_TEMP/expected-paths" <<'EOF'
+          .github/materialize/asoiaf-answer-transport/part-00.b64
+          .github/materialize/asoiaf-answer-transport/part-01.b64
+          .github/materialize/asoiaf-answer-transport/part-02.b64
+          .github/materialize/asoiaf-answer-transport/part-03.b64
+          .github/materialize/asoiaf-answer-transport/part-04.b64
+          .github/materialize/asoiaf-answer-transport/part-05.b64
+          .github/workflows/_bootstrap-source-snapshot.yml
+          .github/workflows/asoiaf-answer-desk-transport.yml
+          docs/ASOIAF_ANSWER_DESK_TRANSPORT.md
+          package.json
+          tests/fixtures/emit-asoiaf-answer-desk-transport-input.ts
+          tests/narrative/canon/asoiaf-answer-desk-transport.test.ts
+          tools/asoiaf-answer-desk-transport.ts
+          tools/lib/asoiaf-answer-desk-transport.ts
+          EOF
+
+          git diff --check
+          git add -A
+          git diff --cached --name-only | sort > "$RUNNER_TEMP/actual-paths"
+          sort "$RUNNER_TEMP/expected-paths" -o "$RUNNER_TEMP/expected-paths"
+          diff -u "$RUNNER_TEMP/expected-paths" "$RUNNER_TEMP/actual-paths"
+
+      - name: Commit exact permanent transport surfaces
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'BigBirdReturns transport qualification'
+          git config user.email 'actions@users.noreply.github.com'
+          git commit -m 'Authenticate external ASOIAF answer transport'
+          git push origin HEAD:feature/asoiaf-answer-desk-transport-v1

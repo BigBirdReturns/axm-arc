@@ -1,4 +1,4 @@
-name: Bootstrap transport operations source snapshot
+name: Materialize ASOIAF answer transport operations surfaces
 
 on:
   push:
@@ -6,61 +6,85 @@ on:
       - feature/asoiaf-answer-desk-transport-operations-v1
     paths:
       - '.github/workflows/_bootstrap-transport-operations-source.yml'
-  pull_request:
-    branches:
-      - feature/asoiaf-answer-desk-transport-v1
-    types:
-      - opened
-      - synchronize
-      - reopened
-    paths:
-      - '.github/workflows/_bootstrap-transport-operations-source.yml'
 
 permissions:
-  contents: read
+  contents: write
+
+concurrency:
+  group: materialize-asoiaf-answer-transport-operations
+  cancel-in-progress: true
 
 jobs:
-  snapshot:
+  materialize:
+    if: github.repository == 'BigBirdReturns/axm-arc'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - name: Check out exact branch head
+      - name: Check out exact carrier head
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.sha }}
           fetch-depth: 0
           show-progress: false
 
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install exact locked dependencies
-        run: npm ci --no-audit --no-fund
-
-      - name: Record exact source and dependency state
+      - name: Verify and materialize exact ordinary surfaces
         shell: bash
         run: |
           set -euo pipefail
-          git rev-parse HEAD > "$RUNNER_TEMP/candidate-sha.txt"
-          tar --exclude=.git --exclude=node_modules -czf "$RUNNER_TEMP/axm-arc-source.tgz" .
-          tar -czf "$RUNNER_TEMP/axm-arc-node-modules.tgz" node_modules
-          sha256sum \
-            "$RUNNER_TEMP/axm-arc-source.tgz" \
-            "$RUNNER_TEMP/axm-arc-node-modules.tgz" \
-            > "$RUNNER_TEMP/SHA256SUMS"
+          test "$(git rev-parse HEAD)" = '${{ github.sha }}'
+          test -z "$(git status --porcelain)"
 
-      - name: Upload exact source snapshot
-        uses: actions/upload-artifact@v4
-        with:
-          name: axm-arc-transport-operations-source-snapshot
-          path: |
-            ${{ runner.temp }}/axm-arc-source.tgz
-            ${{ runner.temp }}/axm-arc-node-modules.tgz
-            ${{ runner.temp }}/candidate-sha.txt
-            ${{ runner.temp }}/SHA256SUMS
-          if-no-files-found: error
-          retention-days: 1
-          compression-level: 0
+          carrier_root='.github/materialize/asoiaf-answer-desk-transport-operations'
+          printf '%s  %s\n' \
+            '181139dfbe118cd35651108d490f3f9852a52691559dbad1de86036e9a81d943' "$carrier_root/part-00.b64" \
+            '997b2e1f1d112a30020a0a6402bf16ef9f4f6e706ac2d003745741a153cea561' "$carrier_root/part-01.b64" \
+            '11503d99a678bfd3bc20b57cb4f85901697a1c3d885521ec3b8791158acf67f5' "$carrier_root/part-02.b64" \
+            '1adefa3085b8d34d3f18982a77fdc070c48deb2651c6b137319d35bd820546de' "$carrier_root/part-03.b64" \
+            '15b3584ac35e7b83b11c77fb785a636ec853d6716d82f014e17e6cc15e86e4cf' "$carrier_root/part-04.b64" \
+            'ce0d7d7756c24d307fe0b2162d8f52f288a4beb5e538b311d1204bf863501df7' "$carrier_root/part-05.b64" \
+            '3b3c0eded417325a81d2195654285a0c94140cc4fa1f737b524350dea308f517' "$carrier_root/part-06.b64" \
+            | sha256sum --check --strict
+
+          cat "$carrier_root"/part-0{0,1,2,3,4,5,6}.b64 \
+            > "$RUNNER_TEMP/asoiaf-answer-transport-operations.b64"
+          base64 --decode "$RUNNER_TEMP/asoiaf-answer-transport-operations.b64" \
+            > "$RUNNER_TEMP/asoiaf-answer-transport-operations.tgz"
+          printf '%s  %s\n' \
+            '6d41ab77256f24bd51cf38f9192acb087853788448b9fd3640efd4ea8e4930c5' \
+            "$RUNNER_TEMP/asoiaf-answer-transport-operations.tgz" \
+            | sha256sum --check --strict
+
+          tar -xzf "$RUNNER_TEMP/asoiaf-answer-transport-operations.tgz"
+          rm -rf "$carrier_root"
+          test ! -e '.github/workflows/asoiaf-answer-desk-transport-operations.yml'
+
+          cat > "$RUNNER_TEMP/expected-paths" <<'EOF'
+          .github/materialize/asoiaf-answer-desk-transport-operations/part-00.b64
+          .github/materialize/asoiaf-answer-desk-transport-operations/part-01.b64
+          .github/materialize/asoiaf-answer-desk-transport-operations/part-02.b64
+          .github/materialize/asoiaf-answer-desk-transport-operations/part-03.b64
+          .github/materialize/asoiaf-answer-desk-transport-operations/part-04.b64
+          .github/materialize/asoiaf-answer-desk-transport-operations/part-05.b64
+          .github/materialize/asoiaf-answer-desk-transport-operations/part-06.b64
+          docs/ASOIAF_ANSWER_DESK_TRANSPORT_OPERATIONS.md
+          package.json
+          tests/fixtures/emit-asoiaf-answer-desk-transport-operations-input.ts
+          tests/narrative/canon/asoiaf-answer-desk-transport-operations.test.ts
+          tools/asoiaf-answer-desk-transport-operations.ts
+          tools/lib/asoiaf-answer-desk-transport-operations.ts
+          EOF
+
+          git diff --check
+          git add -A
+          git diff --cached --name-only | sort > "$RUNNER_TEMP/actual-paths"
+          sort "$RUNNER_TEMP/expected-paths" -o "$RUNNER_TEMP/expected-paths"
+          diff -u "$RUNNER_TEMP/expected-paths" "$RUNNER_TEMP/actual-paths"
+
+      - name: Commit exact ordinary surfaces
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'BigBirdReturns transport operations qualification'
+          git config user.email 'actions@users.noreply.github.com'
+          git commit -m 'Materialize ASOIAF transport operations surfaces'
+          git push origin HEAD:feature/asoiaf-answer-desk-transport-operations-v1

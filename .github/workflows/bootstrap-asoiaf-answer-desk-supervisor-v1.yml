@@ -82,6 +82,41 @@ jobs:
             "$RUNNER_TEMP/supervisor-expected-files.txt" \
             "$RUNNER_TEMP/supervisor-bundle-files.txt"
           tar -xzf "$RUNNER_TEMP/supervisor.tar.gz"
+          python - <<'PY'
+          from pathlib import Path
+
+          target = Path("tools/lib/asoiaf-answer-desk-supervisor.ts")
+          text = target.read_text(encoding="utf-8")
+          old = """function operationReference(
+            kind: AsoiafAnswerSupervisorOperationReference[\"kind\"],
+            objectId: string,
+            fingerprint: `sha256:${string}`,
+            uri: string | null,
+          ): AsoiafAnswerSupervisorOperationReference {
+            return { kind, objectId, fingerprint, uri };
+          }
+          """
+          new = """function operationReference(
+            kind: AsoiafAnswerSupervisorOperationReference[\"kind\"],
+            objectId: string,
+            fingerprint: string,
+            uri: string | null,
+          ): AsoiafAnswerSupervisorOperationReference {
+            if (!validFingerprint(fingerprint)) {
+              throw new Error(`answer supervisor operation reference ${objectId} has an invalid fingerprint`);
+            }
+            return {
+              kind,
+              objectId,
+              fingerprint: fingerprint as `sha256:${string}`,
+              uri,
+            };
+          }
+          """
+          if old not in text:
+              raise SystemExit("cannot locate exact operation-reference type boundary")
+          target.write_text(text.replace(old, new, 1), encoding="utf-8")
+          PY
           rm -f "${carrier_prefix}.00" "${carrier_prefix}.01" \
             "${carrier_prefix}.02" "$bootstrap"
           test -f tools/lib/asoiaf-answer-desk-supervisor.ts

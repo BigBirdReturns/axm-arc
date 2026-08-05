@@ -50,11 +50,10 @@ jobs:
           test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
           test -z "$(git status --porcelain)"
           test -f .github/publish-asoiaf-answer-desk-supervisor-code-v1.sh
-          chmod +x .github/publish-asoiaf-answer-desk-supervisor-code-v1.sh
 
       - name: Materialize, qualify, and push ordinary supervisor code
         shell: bash
-        run: .github/publish-asoiaf-answer-desk-supervisor-code-v1.sh
+        run: bash .github/publish-asoiaf-answer-desk-supervisor-code-v1.sh
 
       - name: Publish code-candidate summary
         if: success()

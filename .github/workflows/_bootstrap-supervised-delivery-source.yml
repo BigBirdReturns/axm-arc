@@ -1,0 +1,66 @@
+name: Bootstrap supervised delivery source snapshot
+
+on:
+  push:
+    branches:
+      - feature/asoiaf-answer-desk-supervised-delivery-v1
+    paths:
+      - '.github/workflows/_bootstrap-supervised-delivery-source.yml'
+  pull_request:
+    branches:
+      - integration/asoiaf-answer-desk-supervised-transport-v1
+    types:
+      - opened
+      - synchronize
+      - reopened
+    paths:
+      - '.github/workflows/_bootstrap-supervised-delivery-source.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out exact branch head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          show-progress: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install exact locked dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Record exact source and dependency state
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rev-parse HEAD > "$RUNNER_TEMP/candidate-sha.txt"
+          tar --exclude=.git --exclude=node_modules -czf "$RUNNER_TEMP/axm-arc-source.tgz" .
+          tar -czf "$RUNNER_TEMP/axm-arc-node-modules.tgz" node_modules
+          sha256sum \
+            "$RUNNER_TEMP/axm-arc-source.tgz" \
+            "$RUNNER_TEMP/axm-arc-node-modules.tgz" \
+            > "$RUNNER_TEMP/SHA256SUMS"
+
+      - name: Upload exact source snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: axm-arc-supervised-delivery-source-snapshot
+          path: |
+            ${{ runner.temp }}/axm-arc-source.tgz
+            ${{ runner.temp }}/axm-arc-node-modules.tgz
+            ${{ runner.temp }}/candidate-sha.txt
+            ${{ runner.temp }}/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0

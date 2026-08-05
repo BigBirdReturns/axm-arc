@@ -6,6 +6,15 @@ on:
       - feature/asoiaf-answer-desk-transport-v1
     paths:
       - .github/workflows/_bootstrap-source-snapshot.yml
+  pull_request:
+    branches:
+      - feature/asoiaf-answer-desk-exchange-v1
+    types:
+      - opened
+      - synchronize
+      - reopened
+    paths:
+      - .github/workflows/_bootstrap-source-snapshot.yml
 
 permissions:
   contents: read

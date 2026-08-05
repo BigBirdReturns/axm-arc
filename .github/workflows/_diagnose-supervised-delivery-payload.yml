@@ -33,30 +33,35 @@ jobs:
       - name: Record exact payload shape
         shell: bash
         run: |
+          set +e
           set -u
           root='.github/materialize/asoiaf-answer-supervised-delivery'
           report="$RUNNER_TEMP/supervised-delivery-payload-diagnostic.txt"
           : > "$report"
           echo "candidate=$(git rev-parse HEAD)" >> "$report"
           echo 'segment_sha256:' >> "$report"
-          sha256sum "$root"/part-*.b64 >> "$report" 2>&1 || true
-          cat "$root"/part-*.b64 > "$RUNNER_TEMP/payload.b64" 2>> "$report" || true
-          echo "concatenated_sha256=$(sha256sum "$RUNNER_TEMP/payload.b64" 2>/dev/null | awk '{print $1}')" >> "$report"
+          sha256sum "$root"/part-*.b64 >> "$report" 2>&1
+          cat "$root"/part-*.b64 > "$RUNNER_TEMP/payload.b64" 2>> "$report"
+          concatenated_sha="$(sha256sum "$RUNNER_TEMP/payload.b64" 2>/dev/null | awk '{print $1}')"
+          echo "concatenated_sha256=$concatenated_sha" >> "$report"
           base64 --decode "$RUNNER_TEMP/payload.b64" > "$RUNNER_TEMP/payload.tgz" 2> "$RUNNER_TEMP/base64.stderr"
           echo "base64_status=$?" >> "$report"
           cat "$RUNNER_TEMP/base64.stderr" >> "$report"
-          echo "archive_sha256=$(sha256sum "$RUNNER_TEMP/payload.tgz" 2>/dev/null | awk '{print $1}')" >> "$report"
+          archive_sha="$(sha256sum "$RUNNER_TEMP/payload.tgz" 2>/dev/null | awk '{print $1}')"
+          echo "archive_sha256=$archive_sha" >> "$report"
           tar -tzf "$RUNNER_TEMP/payload.tgz" > "$RUNNER_TEMP/archive-paths.txt" 2> "$RUNNER_TEMP/tar.stderr"
           echo "tar_status=$?" >> "$report"
           cat "$RUNNER_TEMP/tar.stderr" >> "$report"
           echo 'archive_paths:' >> "$report"
-          cat "$RUNNER_TEMP/archive-paths.txt" >> "$report" 2>/dev/null || true
-          tar -xzf "$RUNNER_TEMP/payload.tgz" 2>> "$report" || true
+          cat "$RUNNER_TEMP/archive-paths.txt" >> "$report" 2>/dev/null
+          tar -xzf "$RUNNER_TEMP/payload.tgz" 2>> "$report"
+          echo "extract_status=$?" >> "$report"
           echo 'post_extract_status:' >> "$report"
-          git status --short >> "$report" 2>&1 || true
+          git status --short >> "$report" 2>&1
           echo 'post_extract_diff_check:' >> "$report"
-          git diff --check >> "$report" 2>&1 || true
+          git diff --check >> "$report" 2>&1
           cat "$report"
+          exit 0
 
       - name: Upload payload diagnostic
         uses: actions/upload-artifact@v4

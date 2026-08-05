@@ -1,0 +1,304 @@
+name: Repair and qualify ASOIAF answer work lease v4
+
+on:
+  push:
+    branches:
+      - feature/asoiaf-answer-work-lease-v1
+    paths:
+      - '.github/workflows/repair-and-qualify-asoiaf-answer-work-lease-v4.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: repair-and-qualify-asoiaf-answer-work-lease-final
+  cancel-in-progress: false
+
+jobs:
+  repair_qualify_and_push:
+    if: github.repository == 'BigBirdReturns/axm-arc' && github.ref_name == 'feature/asoiaf-answer-work-lease-v1'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Check out exact lease parent
+        uses: actions/checkout@v4
+        with:
+          ref: feature/asoiaf-answer-work-lease-v1
+          fetch-depth: 0
+          show-progress: false
+
+      - name: Bind exact final repair transaction
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$GITHUB_REF_NAME" = 'feature/asoiaf-answer-work-lease-v1'
+          test -z "$(git status --porcelain)"
+          test -f tools/lib/asoiaf-answer-work-lease.ts
+          test -f tests/narrative/canon/asoiaf-answer-work-lease.test.ts
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Apply rendered-terminal availability idempotently
+        id: repair
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          python - <<'PY' 2>&1 | tee "$RUNNER_TEMP/repair.log"
+          from pathlib import Path
+
+          core = Path('tools/lib/asoiaf-answer-work-lease.ts')
+          text = core.read_text(encoding='utf-8')
+
+          if 'const terminalItemKeys = new Set<string>();' not in text:
+              anchor = '  const activeItemKeys = new Set<string>();\n'
+              if text.count(anchor) != 1:
+                  raise SystemExit('cannot locate active item set')
+              text = text.replace(
+                  anchor,
+                  anchor + '  const terminalItemKeys = new Set<string>();\n',
+                  1,
+              )
+
+          if 'terminalItemKeys.add(lease.itemKey);' not in text:
+              start_marker = '    if (settlement) {\n'
+              end_marker = '    if (\n      lease.dossierId !== input.workOrder.dossierId\n'
+              if text.count(start_marker) != 1 or text.count(end_marker) != 1:
+                  raise SystemExit('cannot locate settlement branch boundaries')
+              start = text.index(start_marker)
+              end = text.index(end_marker, start)
+              replacement = '''    if (settlement) {
+              settledLeaseIds.push(lease.leaseId);
+              if (
+                lease.workOrderId === input.workOrder.workOrderId
+                && settlement.outcome === "rendered"
+              ) {
+                const settlementErrors = validateAsoiafAnswerWorkSettlement(
+                  settlement,
+                  {
+                    lease,
+                    beforeWorkOrder: input.workOrder,
+                    afterWorkOrder: null,
+                  },
+                ).filter((entry) => entry.severity === "error");
+                if (settlementErrors.length > 0) {
+                  throw new Error(
+                    `invalid rendered answer work settlement ${settlement.settlementId}`,
+                  );
+                }
+                terminalItemKeys.add(lease.itemKey);
+              }
+              continue;
+            }
+'''
+              text = text[:start] + replacement + text[end:]
+
+          if '!terminalItemKeys.has(itemKey)' not in text:
+              start_marker = '  const availableItemIds = openItems\n'
+              end_marker = '  const blockedItemIds = input.workOrder.items\n'
+              if text.count(start_marker) != 1 or text.count(end_marker) != 1:
+                  raise SystemExit('cannot locate availability projection boundaries')
+              start = text.index(start_marker)
+              end = text.index(end_marker, start)
+              replacement = '''  const availableItemIds = openItems
+            .filter((item) => {
+              const itemKey = asoiafAnswerWorkItemKey(item);
+              return !activeItemKeys.has(itemKey) && !terminalItemKeys.has(itemKey);
+            })
+            .map((item) => item.itemId);
+'''
+              text = text[:start] + replacement + text[end:]
+          core.write_text(text, encoding='utf-8')
+
+          test = Path('tests/narrative/canon/asoiaf-answer-work-lease.test.ts')
+          test_text = test.read_text(encoding='utf-8')
+          if 'worker:second-renderer' not in test_text:
+              anchor = '''    expect(settlement.afterWorkOrderId).toBeNull();
+            expect(settlement.afterStatus).toBe("rendered");
+          '''
+              if test_text.count(anchor) != 1:
+                  raise SystemExit('cannot locate rendered settlement assertion anchor')
+              replacement = '''    expect(settlement.afterWorkOrderId).toBeNull();
+            expect(settlement.afterStatus).toBe("rendered");
+
+            const state = buildAsoiafAnswerDeskState({
+              workOrder: readyOrder,
+              leases: [lease],
+              settlements: [settlement],
+              asOf: "2026-08-05T05:41:11.000Z",
+            });
+            expect(state.settledLeaseIds).toEqual([lease.leaseId]);
+            expect(state.availableItemIds).not.toContain(renderItem.itemId);
+            expect(state.nextAvailableItemId).toBeNull();
+            expect(() =>
+              claimAsoiafAnswerWorkItem({
+                workOrder: readyOrder,
+                itemId: renderItem.itemId,
+                workerId: "worker:second-renderer",
+                claimedAt: "2026-08-05T05:41:12.000Z",
+                leaseMilliseconds: 60_000,
+                existingLeases: [lease],
+                settlements: [settlement],
+              }),
+            ).toThrow(/terminal settlement/);
+          '''
+              test.write_text(test_text.replace(anchor, replacement, 1), encoding='utf-8')
+
+          final = core.read_text(encoding='utf-8')
+          required = (
+              'const terminalItemKeys = new Set<string>();',
+              'settlement.outcome === "rendered"',
+              'validateAsoiafAnswerWorkSettlement(',
+              'terminalItemKeys.add(lease.itemKey);',
+              '!terminalItemKeys.has(itemKey)',
+          )
+          missing = [marker for marker in required if marker not in final]
+          if missing:
+              raise SystemExit(f'missing final rendered markers: {missing}')
+          print('RENDERED_ANSWER_WORK_V4_READY')
+          PY
+          git diff --check
+
+      - name: Strict TypeScript
+        id: typecheck
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run typecheck 2>&1 | tee "$RUNNER_TEMP/typecheck.log"
+
+      - name: Focused lease and lifecycle qualification
+        id: focused
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npm test -- \
+            tests/narrative/canon/asoiaf-answer-work-lease.test.ts \
+            tests/narrative/canon/asoiaf-answer-work-order.test.ts \
+            tests/narrative/canon/asoiaf-reviewed-answer-packet.test.ts \
+            2>&1 | tee "$RUNNER_TEMP/focused-tests.log"
+
+      - name: Complete Arc regression
+        id: regression
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee "$RUNNER_TEMP/full-tests.log"
+
+      - name: Production build
+        id: build
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee "$RUNNER_TEMP/build.log"
+
+      - name: Commit exact code repair when required
+        id: candidate
+        if: steps.repair.outcome == 'success' && steps.typecheck.outcome == 'success' && steps.focused.outcome == 'success' && steps.regression.outcome == 'success' && steps.build.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git ls-files --others --exclude-standard -z \
+            | while IFS= read -r -d '' generated; do
+                case "$generated" in
+                  *.js|*.js.map|*.d.ts) rm -f "$generated" ;;
+                esac
+              done
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            tools/lib/asoiaf-answer-work-lease.ts \
+            tests/narrative/canon/asoiaf-answer-work-lease.test.ts
+          if test -n "$(git diff --cached --name-only)"; then
+            git diff --cached --check
+            git commit -m 'Retire successfully rendered answer work'
+            git push origin HEAD:feature/asoiaf-answer-work-lease-v1
+          fi
+          final_sha="$(git rev-parse HEAD)"
+          test -z "$(git status --porcelain)"
+          echo "final_sha=$final_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Retain exact qualification diagnostics
+        if: always()
+        env:
+          FINAL_SHA: ${{ steps.candidate.outputs.final_sha }}
+          REPAIR: ${{ steps.repair.outcome }}
+          TYPECHECK: ${{ steps.typecheck.outcome }}
+          FOCUSED: ${{ steps.focused.outcome }}
+          REGRESSION: ${{ steps.regression.outcome }}
+          BUILD: ${{ steps.build.outcome }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          root='asoiaf-answer-work-lease-repair-v4'
+          mkdir -p "$root"
+          cp "$RUNNER_TEMP"/*.log "$root/" 2>/dev/null || true
+          printf '%s\n' "$GITHUB_SHA" > "$root/trigger-sha.txt"
+          printf '%s\n' "${FINAL_SHA:-not-issued}" > "$root/candidate-sha.txt"
+          printf '%s\n' \
+            "repair=$REPAIR" \
+            "typecheck=$TYPECHECK" \
+            "focused=$FOCUSED" \
+            "regression=$REGRESSION" \
+            "build=$BUILD" \
+            > "$root/outcomes.txt"
+          git status --short > "$root/worktree-status.txt"
+          git diff --stat > "$root/worktree-diff-stat.txt"
+          find "$root" -type f ! -name SHA256SUMS -print0 \
+            | sort -z \
+            | xargs -0 sha256sum \
+            | sed "s#  $root/#  #" \
+            > "$root/SHA256SUMS"
+
+      - name: Upload qualification diagnostics
+        if: always()
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: asoiaf-answer-work-lease-repair-v4
+          path: asoiaf-answer-work-lease-repair-v4
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Post bounded qualification result
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FINAL_SHA: ${{ steps.candidate.outputs.final_sha }}
+          ARTIFACT_ID: ${{ steps.upload.outputs['artifact-id'] }}
+          ARTIFACT_DIGEST: ${{ steps.upload.outputs['artifact-digest'] }}
+          REPAIR: ${{ steps.repair.outcome }}
+          TYPECHECK: ${{ steps.typecheck.outcome }}
+          FOCUSED: ${{ steps.focused.outcome }}
+          REGRESSION: ${{ steps.regression.outcome }}
+          BUILD: ${{ steps.build.outcome }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -n "${FINAL_SHA:-}" ]; then
+            gh pr comment 250 --repo "$GITHUB_REPOSITORY" --body \
+              "Rendered answer-work availability v4 is qualified on candidate \`${FINAL_SHA}\`. Structurally valid rendered settlements remove their unchanged render item from desk availability, and terminal replay remains refused. Strict TypeScript, focused lease and lifecycle tests, complete regression, and production build passed. Artifact \`${ARTIFACT_ID}\` has ZIP digest \`${ARTIFACT_DIGEST}\`. Connector settlement may now remove all repair carriers and re-run the permanent exact-head workflow."
+          else
+            gh pr comment 250 --repo "$GITHUB_REPOSITORY" --body \
+              "Rendered answer-work v4 did not issue a candidate. Repair \`${REPAIR}\`, TypeScript \`${TYPECHECK}\`, focused \`${FOCUSED}\`, regression \`${REGRESSION}\`, build \`${BUILD}\`. Artifact \`${ARTIFACT_ID}\` has ZIP digest \`${ARTIFACT_DIGEST}\`. No updated lease qualification is claimed."
+            exit 1
+          fi

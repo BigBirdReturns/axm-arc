@@ -1,0 +1,323 @@
+name: Repair and qualify ASOIAF answer desk exchange replay v1
+
+on:
+  pull_request:
+    branches:
+      - feature/asoiaf-answer-desk-worker-v1
+    paths:
+      - '.github/workflows/repair-and-qualify-asoiaf-answer-desk-exchange-replay-v1.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: repair-and-qualify-asoiaf-answer-desk-exchange-replay-v1
+  cancel-in-progress: true
+
+jobs:
+  repair:
+    if: github.repository == 'BigBirdReturns/axm-arc' && github.event.pull_request.head.ref == 'feature/asoiaf-answer-desk-exchange-v1'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 100
+    steps:
+      - name: Check out exact exchange head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          show-progress: false
+
+      - name: Bind exact repair transaction
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          test -z "$(git status --porcelain)"
+
+      - name: Repair exact assignment and admission replay
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          core_path = Path('tools/lib/asoiaf-answer-desk-exchange.ts')
+          core = core_path.read_text(encoding='utf-8')
+
+          advancing_anchor = (
+              '  const advancing = input.outcome === "satisfied"\n'
+              '    || input.outcome === "preserved-as-limitation";\n'
+              '  if (advancing && resultReferences.length === 0) {\n'
+              '    throw new Error("advancing external result requires at least one accepted result reference");\n'
+              '  }\n'
+              '  const afterWorkOrder = input.afterWorkOrder ?? null;\n'
+          )
+          advancing_replacement = (
+              '  const afterWorkOrder = input.afterWorkOrder ?? null;\n'
+              '  const advancing = input.outcome === "satisfied"\n'
+              '    || input.outcome === "preserved-as-limitation";\n'
+              '  if (advancing && !afterWorkOrder) {\n'
+              '    throw new Error("advancing external result requires a refreshed answer work order");\n'
+              '  }\n'
+              '  if (advancing && resultReferences.length === 0) {\n'
+              '    throw new Error("advancing external result requires at least one accepted result reference");\n'
+              '  }\n'
+          )
+          if 'advancing && !afterWorkOrder' not in core:
+              if core.count(advancing_anchor) != 1:
+                  raise SystemExit('cannot locate advancing external-result block')
+              core = core.replace(advancing_anchor, advancing_replacement, 1)
+
+          claim_anchor = (
+              '  const claim = claimAsoiafAnswerDeskWork({\n'
+              '    root: input.root,\n'
+              '    itemId,\n'
+              '    workerId: input.actorId,\n'
+              '    claimedAt: input.claimedAt,\n'
+              '    leaseMilliseconds: input.leaseMilliseconds,\n'
+              '    operatorId: input.operatorId ?? `${input.actorId}:exchange-claim`,\n'
+              '  });\n'
+          )
+          claim_replacement = (
+              '  const claim: AsoiafAnswerDeskClaimResult = existingLease\n'
+              '    ? (() => {\n'
+              '        const status = readAsoiafAnswerDeskStatus(input.root);\n'
+              '        return {\n'
+              '          manifest: status.manifest,\n'
+              '          state: status.state,\n'
+              '          lease: existingLease,\n'
+              '          replayed: true,\n'
+              '          staleLocksRecovered: 0,\n'
+              '        };\n'
+              '      })()\n'
+              '    : claimAsoiafAnswerDeskWork({\n'
+              '        root: input.root,\n'
+              '        itemId,\n'
+              '        workerId: input.actorId,\n'
+              '        claimedAt: input.claimedAt,\n'
+              '        leaseMilliseconds: input.leaseMilliseconds,\n'
+              '        operatorId: input.operatorId ?? `${input.actorId}:exchange-claim`,\n'
+              '      });\n'
+          )
+          if 'const claim: AsoiafAnswerDeskClaimResult = existingLease' not in core:
+              if core.count(claim_anchor) != 1:
+                  raise SystemExit('cannot locate external claim block')
+              core = core.replace(claim_anchor, claim_replacement, 1)
+
+          persist_anchor = (
+              '  const assignment = buildAsoiafAnswerExchangeAssignment({\n'
+              '    workOrder,\n'
+              '    lease: claim.lease,\n'
+              '    actorRole: input.actorRole,\n'
+              '    issuedAt: input.issuedAt ?? input.claimedAt,\n'
+              '  });\n'
+              '  const persisted = persistAssignment(input.root, assignment);\n'
+              '  return {\n'
+              '    plan,\n'
+              '    claim,\n'
+              '    assignment,\n'
+              '    assignmentUri: persisted.uri,\n'
+              '    assignmentReplayed: persisted.replayed,\n'
+              '  };\n'
+          )
+          persist_replacement = (
+              '  const assignment = buildAsoiafAnswerExchangeAssignment({\n'
+              '    workOrder,\n'
+              '    lease: claim.lease,\n'
+              '    actorRole: input.actorRole,\n'
+              '    issuedAt: input.issuedAt ?? input.claimedAt,\n'
+              '  });\n'
+              '  const exchangePaths = asoiafAnswerExchangePaths(input.root);\n'
+              '  const existingAssignments = listJson<AsoiafAnswerExchangeAssignment>(\n'
+              '    exchangePaths.assignments,\n'
+              '  ).filter((entry) => entry.leaseId === assignment.leaseId);\n'
+              '  if (existingAssignments.length > 1) {\n'
+              '    throw new Error(`external lease ${assignment.leaseId} has duplicate assignment bundles`);\n'
+              '  }\n'
+              '  const retainedAssignment = existingAssignments[0] ?? assignment;\n'
+              '  if (JSON.stringify(retainedAssignment) !== JSON.stringify(assignment)) {\n'
+              '    throw new Error(`external lease ${assignment.leaseId} already has a different assignment bundle`);\n'
+              '  }\n'
+              '  const persisted = existingAssignments.length === 1\n'
+              '    ? {\n'
+              '        uri: relativeUri(\n'
+              '          input.root,\n'
+              '          assignmentPath(exchangePaths, retainedAssignment),\n'
+              '        ),\n'
+              '        replayed: true,\n'
+              '      }\n'
+              '    : persistAssignment(input.root, assignment);\n'
+              '  return {\n'
+              '    plan,\n'
+              '    claim,\n'
+              '    assignment: retainedAssignment,\n'
+              '    assignmentUri: persisted.uri,\n'
+              '    assignmentReplayed: persisted.replayed,\n'
+              '  };\n'
+          )
+          if 'const existingAssignments = listJson<AsoiafAnswerExchangeAssignment>' not in core:
+              if core.count(persist_anchor) != 1:
+                  raise SystemExit('cannot locate external assignment persistence block')
+              core = core.replace(persist_anchor, persist_replacement, 1)
+
+          admit_start = core.index(
+              'export function admitAsoiafAnswerExchangeResult(\n'
+          )
+          admit_end = core.index(
+              '\nexport function readAsoiafAnswerExchangeStatus(\n',
+              admit_start,
+          )
+          admit_replacement = '''export function admitAsoiafAnswerExchangeResult(
+            input: AsoiafAnswerExchangeResultInput,
+          ): AsoiafAnswerExchangeAdmitResult {
+            ensureExchangeBaseValid(input.root);
+            const assignment = findAssignmentById(input.root, input.assignmentId);
+            const result = buildAsoiafAnswerExchangeResult({
+              assignment,
+              actorId: input.actorId,
+              actorRole: input.actorRole,
+              completedAt: input.completedAt,
+              outcome: input.outcome,
+              afterWorkOrder: input.afterWorkOrder,
+              resultReferences: input.resultReferences,
+              reason: input.reason,
+            });
+            const expectedSettlement = previewSettlement(input.root, assignment, result);
+            const paths = asoiafAnswerExchangePaths(input.root);
+            const target = resultPath(paths, result);
+            const existingResults = listJson<AsoiafAnswerExchangeResult>(
+              paths.results,
+            ).filter((entry) => entry.assignmentId === result.assignmentId);
+            if (existingResults.length > 1) {
+              throw new Error(`external assignment ${result.assignmentId} has duplicate result envelopes`);
+            }
+            if (
+              existingResults[0]
+              && JSON.stringify(existingResults[0]) !== JSON.stringify(result)
+            ) {
+              throw new Error(`external assignment ${result.assignmentId} already has a different result envelope`);
+            }
+            const deskStatus = readAsoiafAnswerDeskStatus(input.root);
+            const existingSettlement = deskStatus.settlements.find(
+              (entry) => entry.leaseId === assignment.leaseId,
+            );
+            if (
+              existingSettlement
+              && JSON.stringify(existingSettlement) !== JSON.stringify(expectedSettlement)
+            ) {
+              throw new Error(`external assignment ${result.assignmentId} already has a different terminal settlement`);
+            }
+            const resultReplayed = existingResults.length === 1
+              ? true
+              : writeJsonExclusiveOrReplay(target, result);
+            const settlement: AsoiafAnswerDeskSettleResult = existingSettlement
+              ? {
+                  manifest: deskStatus.manifest,
+                  state: deskStatus.state,
+                  settlement: existingSettlement,
+                  adoptedWorkOrder: result.afterWorkOrderId
+                    ? deskStatus.workOrders.find(
+                        (entry) => entry.workOrderId === result.afterWorkOrderId,
+                      ) ?? null
+                    : null,
+                  replayed: true,
+                  staleLocksRecovered: 0,
+                }
+              : settleAsoiafAnswerDeskWork({
+                  root: input.root,
+                  leaseId: assignment.leaseId,
+                  completedAt: result.completedAt,
+                  outcome: result.outcome,
+                  afterWorkOrder: result.afterWorkOrder,
+                  resultReferences: settlementReferences(input.root, result),
+                  reason: result.reason,
+                  operatorId: input.operatorId ?? `${input.actorId}:exchange-settle`,
+                });
+            if (JSON.stringify(settlement.settlement) !== JSON.stringify(expectedSettlement)) {
+              throw new Error("persistent desk settlement differs from prevalidated external result custody");
+            }
+            return {
+              result: existingResults[0] ?? result,
+              resultUri: relativeUri(input.root, target),
+              resultReplayed,
+              settlement,
+            };
+          }
+          '''
+          core = core[:admit_start] + admit_replacement + core[admit_end:]
+          core_path.write_text(core, encoding='utf-8')
+
+          test_path = Path('tests/narrative/canon/asoiaf-answer-desk-exchange.test.ts')
+          test = test_path.read_text(encoding='utf-8')
+          old_expectation = (
+              '        "exchange-assignment-projection",\n'
+              '        "exchange-assignment-desk-custody",\n'
+          )
+          new_expectation = (
+              '        "exchange-assignment-projection",\n'
+              '        "exchange-assignment-result-missing",\n'
+          )
+          if old_expectation in test:
+              test = test.replace(old_expectation, new_expectation, 1)
+          test_path.write_text(test, encoding='utf-8')
+
+          final_core = core_path.read_text(encoding='utf-8')
+          final_test = test_path.read_text(encoding='utf-8')
+          for marker in (
+              'const claim: AsoiafAnswerDeskClaimResult = existingLease',
+              'const existingAssignments = listJson<AsoiafAnswerExchangeAssignment>',
+              'advancing && !afterWorkOrder',
+              'const existingResults = listJson<AsoiafAnswerExchangeResult>',
+              'const settlement: AsoiafAnswerDeskSettleResult = existingSettlement',
+          ):
+              if marker not in final_core:
+                  raise SystemExit(f'missing replay repair marker: {marker}')
+          if '"exchange-assignment-desk-custody",' in final_test:
+              raise SystemExit('stale assignment tamper expectation remains')
+          print('ASOIAF_ANSWER_DESK_EXCHANGE_REPLAY_REPAIRED')
+          PY
+          git diff --check
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Strict TypeScript
+        shell: bash
+        run: npm run typecheck
+
+      - name: Focused exchange qualification
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm test -- \
+            tests/narrative/canon/asoiaf-answer-desk-exchange.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-worker.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-estate.test.ts \
+            tests/narrative/canon/asoiaf-answer-work-lease.test.ts \
+            tests/narrative/canon/asoiaf-answer-work-order.test.ts \
+            tests/narrative/canon/asoiaf-reviewed-answer-packet.test.ts \
+            tests/narrative/canon/asoiaf-research-question-dossier.test.ts \
+            tests/narrative/canon/asoiaf-external-reconciliation-packets.test.ts
+
+      - name: Commit exact carrier-free replay repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            tools/lib/asoiaf-answer-desk-exchange.ts \
+            tests/narrative/canon/asoiaf-answer-desk-exchange.test.ts
+          git rm .github/workflows/repair-and-qualify-asoiaf-answer-desk-exchange-replay-v1.yml
+          git diff --cached --check
+          git commit -m 'Repair external exchange exact replay'
+          git push origin HEAD:feature/asoiaf-answer-desk-exchange-v1

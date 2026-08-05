@@ -1,0 +1,213 @@
+name: Finalize ASOIAF answer desk supervisor v1
+
+on:
+  push:
+    branches:
+      - feature/asoiaf-answer-desk-supervisor-v1
+    paths:
+      - '.github/finalize-asoiaf-answer-desk-supervisor-v1.py'
+      - '.github/workflows/finalize-asoiaf-answer-desk-supervisor-v1.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: finalize-asoiaf-answer-desk-supervisor-v1
+  cancel-in-progress: false
+
+jobs:
+  materialize_qualify_and_push:
+    if: github.repository == 'BigBirdReturns/axm-arc' && github.ref_name == 'feature/asoiaf-answer-desk-supervisor-v1'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Check out exact supervisor carrier head
+        uses: actions/checkout@v4
+        with:
+          ref: feature/asoiaf-answer-desk-supervisor-v1
+          fetch-depth: 0
+          show-progress: false
+
+      - name: Bind and materialize the exact supervisor candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain)"
+          carrier_prefix='.github/asoiaf-answer-desk-supervisor-v1.tar.gz.b64'
+          bootstrap='.github/workflows/bootstrap-asoiaf-answer-desk-supervisor-v1.yml'
+          finalizer='.github/workflows/finalize-asoiaf-answer-desk-supervisor-v1.yml'
+          patch='.github/finalize-asoiaf-answer-desk-supervisor-v1.py'
+          for suffix in 00 01 02; do
+            test -f "${carrier_prefix}.${suffix}"
+          done
+          test -f "$bootstrap"
+          test -f "$finalizer"
+          test -f "$patch"
+          test "$(sha256sum "$patch" | cut -d' ' -f1)" = \
+            '73e54cce495503d17695f442c8a7cb1c2013cd552f19ba96894ea32ec3876b4e'
+          cat "${carrier_prefix}.00" "${carrier_prefix}.01" "${carrier_prefix}.02" \
+            > "$RUNNER_TEMP/supervisor.tar.gz.b64"
+          test "$(sha256sum "$RUNNER_TEMP/supervisor.tar.gz.b64" | cut -d' ' -f1)" = \
+            '721cf63d4ca986efa7237af5980febf5ad28d73c8d9e75a1649a18ea59e80079'
+          base64 --decode "$RUNNER_TEMP/supervisor.tar.gz.b64" \
+            > "$RUNNER_TEMP/supervisor.tar.gz"
+          test "$(sha256sum "$RUNNER_TEMP/supervisor.tar.gz" | cut -d' ' -f1)" = \
+            '5a3d8302fa93b3b234bd038aadf7f924a49f84aba9782483ff8a672944920e1f'
+          tar -tzf "$RUNNER_TEMP/supervisor.tar.gz" \
+            | sed 's#^\./##' \
+            | sort \
+            > "$RUNNER_TEMP/supervisor-bundle-files.txt"
+          cat > "$RUNNER_TEMP/supervisor-expected-files.txt" <<'FILES'
+          .github/workflows/asoiaf-answer-desk-supervisor.yml
+          docs/ASOIAF_ANSWER_DESK_SUPERVISOR.md
+          package.json
+          tests/fixtures/emit-asoiaf-answer-desk-supervisor-input.ts
+          tests/narrative/canon/asoiaf-answer-desk-supervisor.test.ts
+          tools/asoiaf-answer-desk-supervisor.ts
+          tools/lib/asoiaf-answer-desk-supervisor.ts
+          FILES
+          sort -o "$RUNNER_TEMP/supervisor-expected-files.txt" \
+            "$RUNNER_TEMP/supervisor-expected-files.txt"
+          diff -u \
+            "$RUNNER_TEMP/supervisor-expected-files.txt" \
+            "$RUNNER_TEMP/supervisor-bundle-files.txt"
+          tar -xzf "$RUNNER_TEMP/supervisor.tar.gz"
+          python "$patch"
+          rm -f \
+            "${carrier_prefix}.00" \
+            "${carrier_prefix}.01" \
+            "${carrier_prefix}.02" \
+            "$bootstrap" \
+            "$finalizer" \
+            "$patch"
+          test -f tools/lib/asoiaf-answer-desk-supervisor.ts
+          test -f tools/asoiaf-answer-desk-supervisor.ts
+          test -f tests/narrative/canon/asoiaf-answer-desk-supervisor.test.ts
+          test -f tests/fixtures/emit-asoiaf-answer-desk-supervisor-input.ts
+          test -f docs/ASOIAF_ANSWER_DESK_SUPERVISOR.md
+          test -f .github/workflows/asoiaf-answer-desk-supervisor.yml
+          grep -q 'asoiaf:answer-supervisor' package.json
+          grep -q 'dependencyBlockedItemIds' \
+            tools/lib/asoiaf-answer-desk-supervisor.ts
+          grep -q 'fans out independent external work and waits without over-claiming' \
+            tests/narrative/canon/asoiaf-answer-desk-supervisor.test.ts
+          grep -q 'exposes actor saturation while independent dependency-ready work remains' \
+            tests/narrative/canon/asoiaf-answer-desk-supervisor.test.ts
+          git diff --check
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Verify supervisor operator registration
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run --silent asoiaf:answer-supervisor -- help \
+            | tee "$RUNNER_TEMP/supervisor-help.txt"
+          grep -q 'ASOIAF persistent answer desk supervisor' \
+            "$RUNNER_TEMP/supervisor-help.txt"
+          grep -q 'policy' "$RUNNER_TEMP/supervisor-help.txt"
+          grep -q 'plan' "$RUNNER_TEMP/supervisor-help.txt"
+          grep -q 'prepare' "$RUNNER_TEMP/supervisor-help.txt"
+          grep -q 'tick' "$RUNNER_TEMP/supervisor-help.txt"
+          grep -q 'verify' "$RUNNER_TEMP/supervisor-help.txt"
+
+      - name: Strict TypeScript
+        id: typecheck
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run typecheck | tee "$RUNNER_TEMP/typecheck.log"
+
+      - name: Focused supervisor stack qualification
+        id: focused
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm test -- \
+            tests/narrative/canon/asoiaf-answer-desk-supervisor.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-exchange.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-worker.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-estate.test.ts \
+            tests/narrative/canon/asoiaf-answer-work-lease.test.ts \
+            tests/narrative/canon/asoiaf-answer-work-order.test.ts \
+            tests/narrative/canon/asoiaf-reviewed-answer-packet.test.ts \
+            tests/narrative/canon/asoiaf-research-question-dossier.test.ts \
+            tests/narrative/canon/asoiaf-external-reconciliation-packets.test.ts \
+            | tee "$RUNNER_TEMP/focused-tests.log"
+
+      - name: Complete Arc regression
+        id: regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm test | tee "$RUNNER_TEMP/full-tests.log"
+
+      - name: Production build
+        id: build
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run build | tee "$RUNNER_TEMP/build.log"
+
+      - name: Commit exact carrier-free supervisor candidate
+        id: candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          git ls-files --others --exclude-standard -z \
+            | while IFS= read -r -d '' generated; do
+                case "$generated" in
+                  *.js|*.js.map|*.d.ts) rm -f "$generated" ;;
+                esac
+              done
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          test ! -e .github/asoiaf-answer-desk-supervisor-v1.tar.gz.b64.00
+          test ! -e .github/asoiaf-answer-desk-supervisor-v1.tar.gz.b64.01
+          test ! -e .github/asoiaf-answer-desk-supervisor-v1.tar.gz.b64.02
+          test ! -e .github/workflows/bootstrap-asoiaf-answer-desk-supervisor-v1.yml
+          test ! -e .github/workflows/finalize-asoiaf-answer-desk-supervisor-v1.yml
+          test ! -e .github/finalize-asoiaf-answer-desk-supervisor-v1.py
+          for required in \
+            .github/workflows/asoiaf-answer-desk-supervisor.yml \
+            docs/ASOIAF_ANSWER_DESK_SUPERVISOR.md \
+            package.json \
+            tests/fixtures/emit-asoiaf-answer-desk-supervisor-input.ts \
+            tests/narrative/canon/asoiaf-answer-desk-supervisor.test.ts \
+            tools/asoiaf-answer-desk-supervisor.ts \
+            tools/lib/asoiaf-answer-desk-supervisor.ts; do
+            git diff --cached --name-only | grep -Fxq "$required"
+          done
+          git commit -m 'Supervise persistent answer desk execution'
+          final_sha="$(git rev-parse HEAD)"
+          test -z "$(git status --porcelain)"
+          git push origin HEAD:feature/asoiaf-answer-desk-supervisor-v1
+          echo "final_sha=$final_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Publish carrier-free candidate summary
+        env:
+          FINAL_SHA: ${{ steps.candidate.outputs.final_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo '## ASOIAF answer desk supervisor bootstrap'
+            echo
+            echo "- Carrier-free candidate: \`$FINAL_SHA\`"
+            echo '- Strict TypeScript passed.'
+            echo '- Focused supervisor stack passed.'
+            echo '- Complete Arc regression passed.'
+            echo '- Production build passed.'
+            echo '- Permanent exact-head qualification will run on the pushed candidate.'
+          } >> "$GITHUB_STEP_SUMMARY"

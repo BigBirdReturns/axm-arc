@@ -6,6 +6,9 @@ import {
   buildAsoiafAnswerDeskFixture,
 } from "../../fixtures/asoiaf-answer-desk-fixture.js";
 import {
+  buildAsoiafResearchQuestionDossier,
+} from "../../../tools/lib/asoiaf-research-question-dossier.js";
+import {
   buildAsoiafAnswerWorkOrder,
   type AsoiafAnswerWorkItem,
   type AsoiafAnswerWorkOrder,
@@ -366,12 +369,21 @@ describe("ASOIAF answer desk estate", () => {
 });
 
 function buildAsoiafResearchQuestionDossierForEstateTest() {
-  const fixture = buildAsoiafAnswerDeskFixture();
-  return {
-    ...fixture.dossier,
-    question: {
-      ...fixture.dossier.question,
-      questionId: `${fixture.dossier.question.questionId}:other`,
-    },
-  } as typeof fixture.dossier;
+  return buildAsoiafResearchQuestionDossier({
+    questionText:
+      "Which exact source establishes a separately bounded desk-estate question?",
+    createdBy: "researcher:desk-estate-other-question",
+    createdAt: "2026-08-05T06:45:00.000Z",
+    laneIds: ["entity-resolution"],
+    continuityIds: ["book-main"],
+    gaps: [
+      {
+        kind: "question-unresolved",
+        laneId: "entity-resolution",
+        continuityId: "book-main",
+        detail:
+          "The independently valid dossier remains unresolved and exists only to prove cross-question estate refusal.",
+      },
+    ],
+  });
 }

@@ -1,0 +1,241 @@
+name: ASOIAF answer desk transport
+
+on:
+  push:
+    branches:
+      - feature/asoiaf-answer-desk-transport-v1
+    paths:
+      - '.github/workflows/asoiaf-answer-desk-transport.yml'
+      - '.github/qualification/asoiaf-answer-desk-transport.trigger'
+      - 'docs/ASOIAF_ANSWER_DESK_TRANSPORT.md'
+      - 'package.json'
+      - 'tests/fixtures/asoiaf-answer-desk-fixture.ts'
+      - 'tests/fixtures/emit-asoiaf-answer-desk-transport-input.ts'
+      - 'tests/narrative/canon/asoiaf-answer-desk-transport.test.ts'
+      - 'tools/asoiaf-answer-desk-transport.ts'
+      - 'tools/lib/asoiaf-answer-desk-transport.ts'
+      - 'tools/asoiaf-answer-desk-exchange.ts'
+      - 'tools/lib/asoiaf-answer-desk-exchange.ts'
+      - 'tools/asoiaf-answer-desk-worker.ts'
+      - 'tools/lib/asoiaf-answer-desk-worker.ts'
+      - 'tools/asoiaf-answer-desk-estate.ts'
+      - 'tools/lib/asoiaf-answer-desk-estate.ts'
+      - 'tools/lib/asoiaf-answer-work-lease.ts'
+      - 'tools/lib/asoiaf-answer-work-order.ts'
+  pull_request:
+    branches:
+      - feature/asoiaf-answer-desk-exchange-v1
+    paths:
+      - '.github/workflows/asoiaf-answer-desk-transport.yml'
+      - '.github/qualification/asoiaf-answer-desk-transport.trigger'
+      - 'docs/ASOIAF_ANSWER_DESK_TRANSPORT.md'
+      - 'package.json'
+      - 'tests/fixtures/asoiaf-answer-desk-fixture.ts'
+      - 'tests/fixtures/emit-asoiaf-answer-desk-transport-input.ts'
+      - 'tests/narrative/canon/asoiaf-answer-desk-transport.test.ts'
+      - 'tools/asoiaf-answer-desk-transport.ts'
+      - 'tools/lib/asoiaf-answer-desk-transport.ts'
+      - 'tools/asoiaf-answer-desk-exchange.ts'
+      - 'tools/lib/asoiaf-answer-desk-exchange.ts'
+      - 'tools/asoiaf-answer-desk-worker.ts'
+      - 'tools/lib/asoiaf-answer-desk-worker.ts'
+      - 'tools/asoiaf-answer-desk-estate.ts'
+      - 'tools/lib/asoiaf-answer-desk-estate.ts'
+      - 'tools/lib/asoiaf-answer-work-lease.ts'
+      - 'tools/lib/asoiaf-answer-work-order.ts'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: asoiaf-answer-desk-transport-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qualify:
+    if: github.repository == 'BigBirdReturns/axm-arc'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Check out exact transport candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+          show-progress: false
+
+      - name: Record exact candidate identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          candidate_sha="$(git rev-parse HEAD)"
+          test -z "$(git status --porcelain)"
+          printf '%s\n' "$candidate_sha"
+          echo "CANDIDATE_SHA=$candidate_sha" >> "$GITHUB_ENV"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Verify permanent transport operator registration
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run --silent asoiaf:answer-transport -- help \
+            | tee "$RUNNER_TEMP/transport-help.txt"
+          grep -q 'ASOIAF authenticated answer-desk transport' "$RUNNER_TEMP/transport-help.txt"
+          grep -q 'fingerprint' "$RUNNER_TEMP/transport-help.txt"
+          grep -q 'register' "$RUNNER_TEMP/transport-help.txt"
+          grep -q 'revoke' "$RUNNER_TEMP/transport-help.txt"
+          grep -q 'serve' "$RUNNER_TEMP/transport-help.txt"
+          grep -q 'issue' "$RUNNER_TEMP/transport-help.txt"
+          grep -q 'admit' "$RUNNER_TEMP/transport-help.txt"
+          grep -q 'verify' "$RUNNER_TEMP/transport-help.txt"
+
+      - name: Strict TypeScript
+        id: typecheck
+        shell: bash
+        run: |
+          set -euo pipefail
+          find src tests tools \( -name '*.js' -o -name '*.js.map' -o -name '*.d.ts' \) -delete
+          rm -f tsconfig.tsbuildinfo
+          npm run typecheck | tee "$RUNNER_TEMP/typecheck.log"
+
+      - name: Focused transport, exchange, worker, estate, lease, answer, dossier, and reconciliation qualification
+        id: focused
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm test -- \
+            tests/narrative/canon/asoiaf-answer-desk-transport.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-exchange.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-worker.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-estate.test.ts \
+            tests/narrative/canon/asoiaf-answer-work-lease.test.ts \
+            tests/narrative/canon/asoiaf-answer-work-order.test.ts \
+            tests/narrative/canon/asoiaf-reviewed-answer-packet.test.ts \
+            tests/narrative/canon/asoiaf-research-question-dossier.test.ts \
+            tests/narrative/canon/asoiaf-external-reconciliation-packets.test.ts \
+            | tee "$RUNNER_TEMP/focused-tests.log"
+
+      - name: Exercise authenticated transport, exact replay, revocation, and automatic rendering
+        id: smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          node node_modules/vite-node/vite-node.mjs \
+            tests/fixtures/emit-asoiaf-answer-desk-transport-input.ts \
+            --emit-qualification-shell \
+            "$RUNNER_TEMP/asoiaf-answer-desk-transport-qualification.sh"
+          bash "$RUNNER_TEMP/asoiaf-answer-desk-transport-qualification.sh"
+
+      - name: Complete Arc regression
+        id: regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          find src tests tools \( -name '*.js' -o -name '*.js.map' -o -name '*.d.ts' \) -delete
+          rm -f tsconfig.tsbuildinfo
+          npm test | tee "$RUNNER_TEMP/full-tests.log"
+
+      - name: Production build
+        id: build
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run build | tee "$RUNNER_TEMP/build.log"
+
+      - name: Retain exact authenticated transport qualification
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          root='asoiaf-answer-desk-transport-qualification'
+          mkdir -p "$root"
+          for file in \
+            transport-help.txt typecheck.log focused-tests.log full-tests.log build.log \
+            fixture-emission.json adopt-result.json reviewer-fingerprint.json assembler-fingerprint.json \
+            reviewer-registration.json assembler-registration.json reviewer-revocation.json \
+            transport-server.stdout transport-server.stderr tls-refusals.json \
+            no-client-certificate.stderr untrusted-client.stderr unregistered-client.json \
+            idempotency-body-conflict.json idempotency-peer-conflict.json revoked-client.json \
+            review-issue-first.json review-issue-replay.json review-admit-first.json review-admit-replay.json \
+            close-issue-first.json close-issue-replay.json close-admit-first.json close-admit-replay.json \
+            render-run-first.json render-run-replay.json \
+            transport-status.json transport-verification.json transport-paths.json \
+            exchange-status.json exchange-verification.json \
+            worker-status.json worker-verification.json \
+            desk-status.json desk-verification.json; do
+            cp "$RUNNER_TEMP/$file" "$root/" 2>/dev/null || true
+          done
+          cp "$RUNNER_TEMP/answer-transport-fixture/expected.json" "$root/" 2>/dev/null || true
+          cp -R "$RUNNER_TEMP/answer-desk" "$root/estate" 2>/dev/null || true
+          printf '%s\n' "$CANDIDATE_SHA" > "$root/candidate-sha.txt"
+          printf '%s\n' \
+            'mutualTlsRequired=true' \
+            'noClientCertificateRefused=true' \
+            'untrustedClientCertificateRefused=true' \
+            'unregisteredCertificateRefused=true' \
+            'revokedCertificateRefused=true' \
+            'actorIdentityDerivedFromCertificate=true' \
+            'idempotencyConflictRefused=true' \
+            'transportRequests=4' \
+            'transportResponses=4' \
+            'externalAssignments=2' \
+            'externalResults=2' \
+            'automaticInvocations=1' \
+            'automaticResults=1' \
+            'workOrders=3' \
+            'leases=3' \
+            'settlements=3' \
+            'certificateRetained=false' \
+            'privateKeyRetained=false' \
+            'sourceTextIncluded=false' \
+            'privateTextIncluded=false' \
+            'graphEffect=none' \
+            'canonEffect=none' \
+            > "$root/qualification-boundary.txt"
+          if find "$root" -type f \( -name '*.key' -o -name '*.crt' -o -name '*.pem' -o -name '*.csr' \) | grep -q .; then
+            echo 'qualification artifact contains certificate or private-key material' >&2
+            exit 1
+          fi
+          find "$root" -type f ! -name SHA256SUMS -print0 \
+            | sort -z \
+            | xargs -0 sha256sum \
+            | sed "s#  $root/#  #" \
+            > "$root/SHA256SUMS"
+
+      - name: Upload authenticated transport qualification
+        if: always()
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: asoiaf-answer-desk-transport-qualification
+          path: asoiaf-answer-desk-transport-qualification
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish exact qualification summary
+        if: always()
+        env:
+          ARTIFACT_ID: ${{ steps.upload.outputs['artifact-id'] }}
+          ARTIFACT_DIGEST: ${{ steps.upload.outputs['artifact-digest'] }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo '## ASOIAF answer desk transport qualification'
+            echo
+            echo "- Candidate: \`$CANDIDATE_SHA\`"
+            echo "- Artifact: \`${ARTIFACT_ID:-not-issued}\`"
+            echo "- Artifact digest: \`${ARTIFACT_DIGEST:-not-issued}\`"
+            echo '- Remote transitions: authenticated exact-locator review and gap closure.'
+            echo '- Refusals: missing, untrusted, unregistered, revoked, and idempotency-conflicting peers.'
+            echo '- Final automatic transition: reviewed packet rendering remained local to the worker.'
+          } >> "$GITHUB_STEP_SUMMARY"

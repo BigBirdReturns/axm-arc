@@ -1,5 +1,4 @@
 name: Materialize ASOIAF supervised delivery surfaces
-# Retriggered after diagnostic stabilization; branch writes remain frozen until completion.
 
 on:
   push:
@@ -41,7 +40,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          test -z "$(git status --porcelain)"
           payload_root='.github/materialize/asoiaf-answer-supervised-delivery'
+
           printf '%s  %s\n' \
             '64d285c030afa4621024c6cd428e8a262ca9bdd9cc6a4f9e2cde1544886d27e9' "$payload_root/part-00.b64" \
             'c17d5f08a7e98d4e3baefe6c7fa011dad6e059776677c25dfd7bf83c6313887b' "$payload_root/part-01.b64" \
@@ -49,17 +50,22 @@ jobs:
             'f31f133748c7dd663990d2b3856d085dfb98ec2dcdc83ab483031ebdacbf703b' "$payload_root/part-03.b64" \
             'b5300b6b1e12e8e7e7249dfc5b1cb003554e53cc10ff08299bd5e4aae2a922f9' "$payload_root/part-04.b64" \
             | sha256sum --check --strict
-          for part in 00 01 02 03 04; do
-            base64 --decode "$payload_root/part-$part.b64" \
-              > "$RUNNER_TEMP/part-$part.bin"
-          done
-          cat "$RUNNER_TEMP"/part-{00,01,02,03,04}.bin \
+
+          cat "$payload_root"/part-{00,01,02,03,04}.b64 \
+            | tr -d '\r\n' \
+            > "$RUNNER_TEMP/supervised-delivery-surfaces.b64"
+          printf '%s  %s\n' \
+            '6fccc952899c22081590a8d96e3f9941a7b91c10d189eb0903c90d0cdbae56f0' \
+            "$RUNNER_TEMP/supervised-delivery-surfaces.b64" \
+            | sha256sum --check --strict
+          base64 --decode "$RUNNER_TEMP/supervised-delivery-surfaces.b64" \
             > "$RUNNER_TEMP/supervised-delivery-surfaces.tgz"
           printf '%s  %s\n' \
             '41e96026361b7e9acc73318fdc2290a61a5e20c02d3a7f1e78d49dac9de56a60' \
             "$RUNNER_TEMP/supervised-delivery-surfaces.tgz" \
             | sha256sum --check --strict
           tar -xzf "$RUNNER_TEMP/supervised-delivery-surfaces.tgz"
+
           for target in \
             docs/ASOIAF_ANSWER_DESK_SUPERVISED_DELIVERY.md \
             package.json \
@@ -69,16 +75,28 @@ jobs:
             tools/lib/asoiaf-answer-desk-supervised-delivery.ts; do
             test -f "$target"
           done
-          grep -q 'asoiaf:answer-supervised-delivery' package.json
+          grep -q '"asoiaf:answer-supervised-delivery"' package.json
+          grep -q '^# ASOIAF supervised answer-desk delivery$' \
+            docs/ASOIAF_ANSWER_DESK_SUPERVISED_DELIVERY.md
+          grep -q 'ASOIAF supervised answer-desk delivery' \
+            tools/asoiaf-answer-desk-supervised-delivery.ts
           git diff --check
 
           rm -rf "$payload_root"
+          rm -f \
+            .github/workflows/_bootstrap-supervised-delivery-source.yml \
+            .github/workflows/_diagnose-supervised-delivery-payload.yml \
+            .github/workflows/_materialize-asoiaf-answer-desk-supervised-delivery.yml
+
           cat > "$RUNNER_TEMP/expected-paths" <<'EOF'
           .github/materialize/asoiaf-answer-supervised-delivery/part-00.b64
           .github/materialize/asoiaf-answer-supervised-delivery/part-01.b64
           .github/materialize/asoiaf-answer-supervised-delivery/part-02.b64
           .github/materialize/asoiaf-answer-supervised-delivery/part-03.b64
           .github/materialize/asoiaf-answer-supervised-delivery/part-04.b64
+          .github/workflows/_bootstrap-supervised-delivery-source.yml
+          .github/workflows/_diagnose-supervised-delivery-payload.yml
+          .github/workflows/_materialize-asoiaf-answer-desk-supervised-delivery.yml
           docs/ASOIAF_ANSWER_DESK_SUPERVISED_DELIVERY.md
           package.json
           tests/fixtures/emit-asoiaf-answer-desk-supervised-delivery-input.ts
@@ -86,14 +104,8 @@ jobs:
           tools/asoiaf-answer-desk-supervised-delivery.ts
           tools/lib/asoiaf-answer-desk-supervised-delivery.ts
           EOF
-          git add -A \
-            "$payload_root" \
-            docs/ASOIAF_ANSWER_DESK_SUPERVISED_DELIVERY.md \
-            package.json \
-            tests/fixtures/emit-asoiaf-answer-desk-supervised-delivery-input.ts \
-            tests/narrative/canon/asoiaf-answer-desk-supervised-delivery.test.ts \
-            tools/asoiaf-answer-desk-supervised-delivery.ts \
-            tools/lib/asoiaf-answer-desk-supervised-delivery.ts
+
+          git add -A
           git diff --cached --name-only | sort > "$RUNNER_TEMP/actual-paths"
           sort "$RUNNER_TEMP/expected-paths" -o "$RUNNER_TEMP/expected-paths"
           diff -u "$RUNNER_TEMP/expected-paths" "$RUNNER_TEMP/actual-paths"
@@ -104,5 +116,5 @@ jobs:
           set -euo pipefail
           git config user.name 'BigBirdReturns supervised delivery qualification'
           git config user.email 'actions@users.noreply.github.com'
-          git commit -m 'Add ASOIAF supervised delivery implementation'
+          git commit -m 'Materialize ASOIAF supervised delivery implementation'
           git push origin HEAD:feature/asoiaf-answer-desk-supervised-delivery-v1

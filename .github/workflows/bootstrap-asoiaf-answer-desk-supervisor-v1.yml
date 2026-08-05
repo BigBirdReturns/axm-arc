@@ -85,9 +85,10 @@ jobs:
           python - <<'PY'
           from pathlib import Path
 
-          target = Path("tools/lib/asoiaf-answer-desk-supervisor.ts")
-          text = target.read_text(encoding="utf-8")
-          old = """function operationReference(
+          core_path = Path("tools/lib/asoiaf-answer-desk-supervisor.ts")
+          text = core_path.read_text(encoding="utf-8")
+
+          operation_old = """function operationReference(
             kind: AsoiafAnswerSupervisorOperationReference[\"kind\"],
             objectId: string,
             fingerprint: `sha256:${string}`,
@@ -96,7 +97,7 @@ jobs:
             return { kind, objectId, fingerprint, uri };
           }
           """
-          new = """function operationReference(
+          operation_new = """function operationReference(
             kind: AsoiafAnswerSupervisorOperationReference[\"kind\"],
             objectId: string,
             fingerprint: string,
@@ -113,9 +114,149 @@ jobs:
             };
           }
           """
-          if old not in text:
+          if operation_old not in text:
               raise SystemExit("cannot locate exact operation-reference type boundary")
-          target.write_text(text.replace(old, new, 1), encoding="utf-8")
+          text = text.replace(operation_old, operation_new, 1)
+
+          projection_field_old = """  automaticDisabledItemIds: string[];
+            decision: AsoiafAnswerSupervisorDecision;
+          """
+          projection_field_new = """  automaticDisabledItemIds: string[];
+            dependencyBlockedItemIds: string[];
+            decision: AsoiafAnswerSupervisorDecision;
+          """
+          if projection_field_old not in text:
+              raise SystemExit("cannot locate supervisor projection blocked-item fields")
+          text = text.replace(projection_field_old, projection_field_new, 1)
+
+          selection_head_old = """  automaticDisabledItemIds: string[];
+          } {
+            const unboundExternalItemIds: string[] = [];
+            const saturatedExternalItemIds: string[] = [];
+            const automaticDisabledItemIds: string[] = [];
+
+            for (const assignment of input.workerPlan.assignments) {
+              if (assignment.deskStatus !== \"available\") continue;
+          """
+          selection_head_new = """  automaticDisabledItemIds: string[];
+            dependencyBlockedItemIds: string[];
+          } {
+            const unboundExternalItemIds: string[] = [];
+            const saturatedExternalItemIds: string[] = [];
+            const automaticDisabledItemIds: string[] = [];
+            const dependencyBlockedItemIds: string[] = [];
+            const assignmentsById = new Map(
+              input.workerPlan.assignments.map((assignment) => [assignment.itemId, assignment] as const),
+            );
+
+            for (const assignment of input.workerPlan.assignments) {
+              if (assignment.deskStatus !== \"available\") continue;
+              const dependenciesSatisfied = assignment.dependencyItemIds.every(
+                (dependencyItemId) => {
+                  const dependency = assignmentsById.get(dependencyItemId);
+                  return Boolean(
+                    dependency
+                    && (
+                      dependency.itemStatus === \"satisfied\"
+                      || dependency.itemStatus === \"preserved-as-limitation\"
+                    )
+                  );
+                },
+              );
+              if (!dependenciesSatisfied) {
+                dependencyBlockedItemIds.push(assignment.itemId);
+                continue;
+              }
+          """
+          if selection_head_old not in text:
+              raise SystemExit("cannot locate supervisor selection initialization")
+          text = text.replace(selection_head_old, selection_head_new, 1)
+
+          selection_start = text.index("function selectDecision(")
+          selection_end = text.index("\nfunction projectionCore(", selection_start)
+          selection = text[selection_start:selection_end]
+          patched_lines: list[str] = []
+          return_insertions = 0
+          for line in selection.splitlines(keepends=True):
+              patched_lines.append(line)
+              if line.strip() == "automaticDisabledItemIds,":
+                  indent = line[: len(line) - len(line.lstrip())]
+                  patched_lines.append(f"{indent}dependencyBlockedItemIds,\n")
+                  return_insertions += 1
+          if return_insertions != 7:
+              raise SystemExit(f"expected seven supervisor selection returns, found {return_insertions}")
+          text = text[:selection_start] + "".join(patched_lines) + text[selection_end:]
+
+          projection_build_old = """    automaticDisabledItemIds: selected.automaticDisabledItemIds,
+              decision: selected.decision,
+          """
+          projection_build_new = """    automaticDisabledItemIds: selected.automaticDisabledItemIds,
+              dependencyBlockedItemIds: selected.dependencyBlockedItemIds,
+              decision: selected.decision,
+          """
+          if projection_build_old not in text:
+              raise SystemExit("cannot locate supervisor projection selection fields")
+          text = text.replace(projection_build_old, projection_build_new, 1)
+
+          projection_validation_old = """    || JSON.stringify(projection.automaticDisabledItemIds)
+                !== JSON.stringify(selected.automaticDisabledItemIds)
+              || JSON.stringify(projection.automaticAvailableItemIds)
+          """
+          projection_validation_new = """    || JSON.stringify(projection.automaticDisabledItemIds)
+                !== JSON.stringify(selected.automaticDisabledItemIds)
+              || JSON.stringify(projection.dependencyBlockedItemIds)
+                !== JSON.stringify(selected.dependencyBlockedItemIds)
+              || JSON.stringify(projection.automaticAvailableItemIds)
+          """
+          if projection_validation_old not in text:
+              raise SystemExit("cannot locate supervisor projection selection validation")
+          text = text.replace(projection_validation_old, projection_validation_new, 1)
+          core_path.write_text(text, encoding="utf-8")
+
+          test_path = Path("tests/narrative/canon/asoiaf-answer-desk-supervisor.test.ts")
+          test_text = test_path.read_text(encoding="utf-8")
+          test_old = """    expect(closeTick.run.action).toBe(\"close-gap\");
+              const closeAssignment = closeTick.externalIssue!.assignment;
+          """
+          test_new = """    expect(closeTick.run.action).toBe(\"close-gap\");
+              expect(closeTick.intent.beforeProjection.dependencyBlockedItemIds).toContain(
+                item(fixture.reconciledWorkOrder, \"assemble-reviewed-answer\").itemId,
+              );
+              const closeAssignment = closeTick.externalIssue!.assignment;
+          """
+          if test_old not in test_text:
+              raise SystemExit("cannot locate supervisor rotation dependency assertion")
+          test_path.write_text(test_text.replace(test_old, test_new, 1), encoding="utf-8")
+
+          doc_path = Path("docs/ASOIAF_ANSWER_DESK_SUPERVISOR.md")
+          doc = doc_path.read_text(encoding="utf-8")
+          replacements = [
+              (
+                  "work-order-first selection law",
+                  "dependency-ready work-order-first selection law",
+              ),
+              (
+                  "Selection follows the work-order assignment order. The supervisor scans current `available` assignments and applies the following rules:",
+                  "Selection follows the work-order assignment order after dependency readiness. The supervisor scans current `available` assignments, skips any item whose named dependencies are not `satisfied` or `preserved-as-limitation`, and applies the following rules:",
+              ),
+              (
+                  "```text\nautomatic and eligible + automatic enabled  -> run-automatic",
+                  "```text\navailable + unmet named dependency           -> dependency-blocked and skipped\nautomatic and eligible + automatic enabled  -> run-automatic",
+              ),
+              (
+                  "The scan may skip an earlier unbound or saturated assignment and dispatch a later independent assignment with a valid actor slot.",
+                  "The scan may skip an earlier dependency-blocked, unbound, or saturated assignment and dispatch a later independent assignment with a valid actor slot.",
+              ),
+              (
+                  "The projection retains the exact policy, worker plan, active assignment references, actor loads, blocked item classes, selected decision, and a content-derived identity.",
+                  "The projection retains the exact policy, worker plan, active assignment references, actor loads, dependency-blocked and access-or-capacity-blocked item classes, selected decision, and a content-derived identity.",
+              ),
+          ]
+          for old, new in replacements:
+              if old not in doc:
+                  raise SystemExit(f"cannot locate supervisor documentation boundary: {old}")
+              doc = doc.replace(old, new, 1)
+          doc_path.write_text(doc, encoding="utf-8")
           PY
           rm -f "${carrier_prefix}.00" "${carrier_prefix}.01" \
             "${carrier_prefix}.02" "$bootstrap"

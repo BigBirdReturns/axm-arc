@@ -47,20 +47,28 @@ describe("canonical story timed media", () => {
     if (!result.ok) expect(result.errors.join("\n")).toContain("different canonical story digest");
   });
 
-  it("refuses overlap, foreign panels, unknown facts and playback authority", () => {
+  it("refuses overlap, foreign panels and unknown facts after shape validation", () => {
     const value = fixture() as any;
     value.positions[1].canonicalStartUs = 4_000_000;
     value.positions[1].panelIds = ["panel:foreign"];
     value.causalEdges[0].toFactId = "fact:foreign";
-    value.authority.playbackControl = "arc";
     const result = validateCanonicalStoryTimedMedia(value, story, DIGEST);
     expect(result.ok).toBe(false);
     if (!result.ok) {
       const errors = result.errors.join("\n");
-      expect(errors).toContain("Expected \"none\"");
       expect(errors).toContain("overlap");
       expect(errors).toContain("Panel does not belong");
       expect(errors).toContain("Unknown fact reference");
+    }
+  });
+
+  it("refuses playback authority before semantic interpretation", () => {
+    const value = fixture() as any;
+    value.authority.playbackControl = "arc";
+    const result = validateCanonicalStoryTimedMedia(value, story, DIGEST);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.errors.join("\n")).toContain('[authority.playbackControl] Expected "none".');
     }
   });
 });

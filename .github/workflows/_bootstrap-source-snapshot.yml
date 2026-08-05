@@ -1,4 +1,4 @@
-name: Publish exact authenticated answer transport workflow blob
+name: Materialize final authenticated answer transport fixture
 
 on:
   pull_request:
@@ -15,122 +15,67 @@ permissions:
   contents: write
 
 concurrency:
-  group: publish-exact-authenticated-answer-transport-workflow-blob
+  group: materialize-final-authenticated-answer-transport-fixture
   cancel-in-progress: true
 
 jobs:
-  publish_blob:
+  materialize:
     if: >-
       github.repository == 'BigBirdReturns/axm-arc'
       && github.event.pull_request.head.ref == 'feature/asoiaf-answer-desk-transport-v1'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - name: Check out exact staged workflow head
+      - name: Check out exact carrier head
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-          fetch-depth: 1
+          fetch-depth: 0
           show-progress: false
 
-      - name: Verify and publish exact permanent workflow blob
-        id: publish
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPOSITORY: ${{ github.repository }}
+      - name: Materialize exact fixture and remove temporary carriers
         shell: bash
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = '${{ github.event.pull_request.head.sha }}'
           test -z "$(git status --porcelain)"
 
-          chunk_root='.github/transport-workflow-payload/chunks'
+          carrier='.github/materialize/asoiaf-answer-transport-fixture/part-00.b64'
+          test -f "$carrier"
+          base64 --decode "$carrier" > "$RUNNER_TEMP/transport-fixture-update.tgz"
           printf '%s  %s\n' \
-            '212cd3c37d1742f24a65a0e83365b067828cb2a6690c59400791d71a22cc2fe5' \
-            "$chunk_root/part-00.b64" \
-            '73e06b963acf057e8fde1e9508bf77d1ac7e9ef6abe78709ab54fb3bdf126488' \
-            "$chunk_root/part-01.b64" \
-            '3a1d4e07c7cda6de251ccd823b37352a356ba2a8266308ced391c87214242781' \
-            "$chunk_root/part-02.b64" \
-            '03cb003e8233d0b03cfb6059bec9b09e30b4708a2dedb18c2b7c61a5680020d6' \
-            "$chunk_root/part-03.b64" \
+            'b91074c0b8e3ed0edcbba171de3a2a0372c690d597e101158dc600a19b9d9820' \
+            "$RUNNER_TEMP/transport-fixture-update.tgz" \
             | sha256sum --check --strict
+          tar -xzf "$RUNNER_TEMP/transport-fixture-update.tgz"
 
-          cat "$chunk_root"/part-0{0,1,2,3}.b64 \
-            > "$RUNNER_TEMP/transport-workflow.b64"
-          printf '%s  %s\n' \
-            '287770b90bf2f98ab6919859f03805427a493c80032383917bbf7612f1c7a79c' \
-            "$RUNNER_TEMP/transport-workflow.b64" \
-            | sha256sum --check --strict
-          base64 --decode "$RUNNER_TEMP/transport-workflow.b64" \
-            > "$RUNNER_TEMP/transport-workflow.yml.gz"
-          printf '%s  %s\n' \
-            'f3622cd2293b016e646bfb7939e95fd1d41b89d40cfaf243fdc255de3d8b5886' \
-            "$RUNNER_TEMP/transport-workflow.yml.gz" \
-            | sha256sum --check --strict
-          gzip -dc "$RUNNER_TEMP/transport-workflow.yml.gz" \
-            > "$RUNNER_TEMP/asoiaf-answer-desk-transport.yml"
-          workflow="$RUNNER_TEMP/asoiaf-answer-desk-transport.yml"
-          printf '%s  %s\n' \
-            '8faca041de3d2009ac82fe3009abb3aaf0da8829f7f31333a49ea18bbcf5792c' \
-            "$workflow" \
-            | sha256sum --check --strict
-          grep -q '^name: ASOIAF authenticated answer desk transport$' "$workflow"
-          grep -q 'Exercise signed transport across desk, reviewer, and assembler machines' "$workflow"
-          grep -q 'private key material' "$workflow"
+          rm -rf .github/materialize/asoiaf-answer-transport-fixture
+          rm -rf .github/transport-workflow-payload
 
-          WORKFLOW_PATH="$workflow" node <<'NODE'
-          const fs = require('node:fs');
+          cat > "$RUNNER_TEMP/expected-paths" <<'EOF'
+          .github/materialize/asoiaf-answer-transport-fixture/part-00.b64
+          .github/transport-workflow-payload/chunks/part-00.b64
+          .github/transport-workflow-payload/chunks/part-01.b64
+          .github/transport-workflow-payload/chunks/part-02.b64
+          .github/transport-workflow-payload/chunks/part-03.b64
+          .github/transport-workflow-payload/workflow.yml.gz.b64
+          tests/fixtures/emit-asoiaf-answer-desk-transport-input.ts
+          EOF
 
-          (async () => {
-            const workflowPath = process.env.WORKFLOW_PATH;
-            const repository = process.env.REPOSITORY;
-            const token = process.env.GH_TOKEN;
-            if (!workflowPath || !repository || !token) {
-              throw new Error('missing workflow publication environment');
-            }
+          git diff --check
+          git add -A \
+            .github/materialize/asoiaf-answer-transport-fixture \
+            .github/transport-workflow-payload \
+            tests/fixtures/emit-asoiaf-answer-desk-transport-input.ts
+          git diff --cached --name-only | sort > "$RUNNER_TEMP/actual-paths"
+          sort "$RUNNER_TEMP/expected-paths" -o "$RUNNER_TEMP/expected-paths"
+          diff -u "$RUNNER_TEMP/expected-paths" "$RUNNER_TEMP/actual-paths"
 
-            const response = await fetch(
-              `https://api.github.com/repos/${repository}/git/blobs`,
-              {
-                method: 'POST',
-                headers: {
-                  Accept: 'application/vnd.github+json',
-                  Authorization: `Bearer ${token}`,
-                  'X-GitHub-Api-Version': '2022-11-28',
-                  'User-Agent': 'axm-arc-transport-workflow-publisher',
-                },
-                body: JSON.stringify({
-                  content: fs.readFileSync(workflowPath).toString('base64'),
-                  encoding: 'base64',
-                }),
-              },
-            );
-            const body = await response.json();
-            if (!response.ok || typeof body.sha !== 'string') {
-              throw new Error(
-                `blob publication failed: ${response.status} ${JSON.stringify(body)}`,
-              );
-            }
-            fs.writeFileSync(
-              `${process.env.RUNNER_TEMP}/transport-workflow-blob-sha.txt`,
-              `${body.sha}\n`,
-            );
-            console.log(`TRANSPORT_WORKFLOW_BLOB_SHA=${body.sha}`);
-          })().catch((error) => {
-            console.error(error);
-            process.exitCode = 1;
-          });
-          NODE
-
-          blob_sha="$(cat "$RUNNER_TEMP/transport-workflow-blob-sha.txt")"
-          test "${#blob_sha}" -eq 40
-          echo "blob_sha=$blob_sha" >> "$GITHUB_OUTPUT"
-          {
-            echo '## Exact authenticated answer transport workflow blob'
-            echo
-            echo "- Candidate head: \`${{ github.event.pull_request.head.sha }}\`"
-            echo "- Workflow blob: \`$blob_sha\`"
-            echo '- Workflow digest: `sha256:8faca041de3d2009ac82fe3009abb3aaf0da8829f7f31333a49ea18bbcf5792c`'
-            echo '- The branch ref was not mutated by this workflow.'
-          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Commit exact final ordinary surfaces
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'BigBirdReturns transport qualification'
+          git config user.email 'actions@users.noreply.github.com'
+          git commit -m 'Finalize authenticated ASOIAF transport fixture'
+          git push origin HEAD:feature/asoiaf-answer-desk-transport-v1

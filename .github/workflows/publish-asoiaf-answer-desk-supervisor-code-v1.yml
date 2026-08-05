@@ -1,5 +1,6 @@
 name: Publish ASOIAF answer desk supervisor code v1
 
+# One-shot publisher: protected workflow installation remains connector-owned.
 on:
   push:
     branches:

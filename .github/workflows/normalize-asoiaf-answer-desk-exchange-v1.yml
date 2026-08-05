@@ -1,9 +1,9 @@
 name: Normalize ASOIAF answer desk exchange v1
 
 on:
-  push:
+  pull_request:
     branches:
-      - feature/asoiaf-answer-desk-exchange-v1
+      - feature/asoiaf-answer-desk-worker-v1
     paths:
       - '.github/workflows/normalize-asoiaf-answer-desk-exchange-v1.yml'
   workflow_dispatch:
@@ -17,22 +17,24 @@ concurrency:
 
 jobs:
   normalize:
-    if: github.repository == 'BigBirdReturns/axm-arc' && github.ref_name == 'feature/asoiaf-answer-desk-exchange-v1'
+    if: github.repository == 'BigBirdReturns/axm-arc' && github.event.pull_request.head.ref == 'feature/asoiaf-answer-desk-exchange-v1'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - name: Check out exact exchange head
         uses: actions/checkout@v4
         with:
-          ref: feature/asoiaf-answer-desk-exchange-v1
+          ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
           show-progress: false
 
       - name: Normalize exact type and evidence boundaries
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
           python - <<'PY'
           from pathlib import Path
 

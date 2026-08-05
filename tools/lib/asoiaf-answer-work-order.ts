@@ -545,17 +545,6 @@ function compileProjection(
     });
   }
 
-  for (const action of dossier.nextActions) {
-    if (rawItems.some((item) => item.action === action)) continue;
-    addItem({
-      action,
-      status: "open",
-      requiredForBoundedComplete: true,
-      subjectIds: [dossier.dossierId],
-      reason: `The qualified dossier projects ${action} and no more specific work item represents it.`,
-    });
-  }
-
   const openPrerequisites = rawItems
     .filter((item) => item.status === "open")
     .map((item) => item.itemId);

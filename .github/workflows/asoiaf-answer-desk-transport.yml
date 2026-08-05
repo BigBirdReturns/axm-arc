@@ -1,4 +1,4 @@
-name: ASOIAF authenticated answer desk transport
+name: ASOIAF answer desk transport
 
 on:
   push:
@@ -6,6 +6,7 @@ on:
       - feature/asoiaf-answer-desk-transport-v1
     paths:
       - '.github/workflows/asoiaf-answer-desk-transport.yml'
+      - '.github/qualification/asoiaf-answer-desk-transport.trigger'
       - 'docs/ASOIAF_ANSWER_DESK_TRANSPORT.md'
       - 'package.json'
       - 'tests/fixtures/asoiaf-answer-desk-fixture.ts'
@@ -26,6 +27,7 @@ on:
       - feature/asoiaf-answer-desk-exchange-v1
     paths:
       - '.github/workflows/asoiaf-answer-desk-transport.yml'
+      - '.github/qualification/asoiaf-answer-desk-transport.trigger'
       - 'docs/ASOIAF_ANSWER_DESK_TRANSPORT.md'
       - 'package.json'
       - 'tests/fixtures/asoiaf-answer-desk-fixture.ts'
@@ -87,30 +89,29 @@ jobs:
           set -euo pipefail
           npm run --silent asoiaf:answer-transport -- help \
             | tee "$RUNNER_TEMP/transport-help.txt"
-          grep -q 'ASOIAF authenticated answer desk transport' \
-            "$RUNNER_TEMP/transport-help.txt"
-          for command in \
-            keygen key-import peer trust install dispatch receive-assignment \
-            return-result admit-result status verify verify-link paths; do
-            grep -q "$command" "$RUNNER_TEMP/transport-help.txt"
-          done
+          grep -q 'ASOIAF authenticated answer-desk transport' "$RUNNER_TEMP/transport-help.txt"
+          grep -q 'fingerprint' "$RUNNER_TEMP/transport-help.txt"
+          grep -q 'register' "$RUNNER_TEMP/transport-help.txt"
+          grep -q 'revoke' "$RUNNER_TEMP/transport-help.txt"
+          grep -q 'serve' "$RUNNER_TEMP/transport-help.txt"
+          grep -q 'issue' "$RUNNER_TEMP/transport-help.txt"
+          grep -q 'admit' "$RUNNER_TEMP/transport-help.txt"
+          grep -q 'verify' "$RUNNER_TEMP/transport-help.txt"
 
       - name: Strict TypeScript
         id: typecheck
         shell: bash
         run: |
           set -euo pipefail
-          find src tests \( -name '*.js' -o -name '*.js.map' -o -name '*.d.ts' \) -delete
+          find src tests tools \( -name '*.js' -o -name '*.js.map' -o -name '*.d.ts' \) -delete
           rm -f tsconfig.tsbuildinfo
           npm run typecheck | tee "$RUNNER_TEMP/typecheck.log"
 
-      - name: Focused transport and answer desk stack qualification
+      - name: Focused transport, exchange, worker, estate, lease, answer, dossier, and reconciliation qualification
         id: focused
         shell: bash
         run: |
           set -euo pipefail
-          find src tests \( -name '*.js' -o -name '*.js.map' -o -name '*.d.ts' \) -delete
-          rm -f tsconfig.tsbuildinfo
           npm test -- \
             tests/narrative/canon/asoiaf-answer-desk-transport.test.ts \
             tests/narrative/canon/asoiaf-answer-desk-exchange.test.ts \
@@ -123,402 +124,22 @@ jobs:
             tests/narrative/canon/asoiaf-external-reconciliation-packets.test.ts \
             | tee "$RUNNER_TEMP/focused-tests.log"
 
-      - name: Exercise signed transport across desk, reviewer, and assembler machines
+      - name: Exercise authenticated transport, exact replay, revocation, and automatic rendering
         id: smoke
         shell: bash
         run: |
           set -euo pipefail
-          fixture_directory="$RUNNER_TEMP/answer-transport-fixture"
-          desk_root="$RUNNER_TEMP/answer-desk"
-          review_root="$RUNNER_TEMP/review-actor"
-          assembler_root="$RUNNER_TEMP/assembler-actor"
-          mkdir -p "$fixture_directory"
-
           npx vite-node tests/fixtures/emit-asoiaf-answer-desk-transport-input.ts \
-            "$fixture_directory" \
-            "$desk_root" \
-            "$review_root" \
-            "$assembler_root" \
-            | tee "$RUNNER_TEMP/fixture-emission.json"
-
-          npm run --silent asoiaf:answer-desk -- adopt \
-            --input "$fixture_directory/adopt-input.json" \
-            --out "$RUNNER_TEMP/adopt-result.json"
-
-          node - "$fixture_directory" "$desk_root" "$review_root" "$assembler_root" <<'NODE'
-          const fs = require('node:fs');
-          const path = require('node:path');
-          const [fixture, desk, review, assembler] = process.argv.slice(2);
-          const trust = JSON.parse(fs.readFileSync(path.join(fixture, 'trust.json'), 'utf8'));
-          for (const [name, root] of [
-            ['desk', desk],
-            ['review', review],
-            ['assembler', assembler],
-          ]) {
-            fs.writeFileSync(
-              path.join(fixture, `${name}-install-input.json`),
-              `${JSON.stringify({ root, trust }, null, 2)}\n`,
-            );
-          }
-          NODE
-
-          for peer in desk review assembler; do
-            npm run --silent asoiaf:answer-transport -- install \
-              --input "$fixture_directory/${peer}-install-input.json" \
-              --out "$RUNNER_TEMP/${peer}-install-result.json"
-          done
-
-          npm run --silent asoiaf:answer-transport -- dispatch \
-            --input "$fixture_directory/review-dispatch-input.json" \
-            --out "$RUNNER_TEMP/review-dispatch-first.json"
-          npm run --silent asoiaf:answer-transport -- dispatch \
-            --input "$fixture_directory/review-dispatch-input.json" \
-            --out "$RUNNER_TEMP/review-dispatch-replay.json"
-
-          node - "$fixture_directory" "$RUNNER_TEMP" "$review_root" <<'NODE'
-          const fs = require('node:fs');
-          const path = require('node:path');
-          const [fixture, temp, root] = process.argv.slice(2);
-          const expected = JSON.parse(fs.readFileSync(path.join(fixture, 'expected.json'), 'utf8'));
-          const dispatched = JSON.parse(fs.readFileSync(path.join(temp, 'review-dispatch-first.json'), 'utf8'));
-          fs.writeFileSync(
-            path.join(fixture, 'review-receive-input.json'),
-            `${JSON.stringify({
-              root,
-              envelope: dispatched.envelope,
-              recipientPeerId: expected.reviewPeerId,
-              receivedAt: '2026-08-05T06:21:03.000Z',
-            }, null, 2)}\n`,
-          );
-          const returned = JSON.parse(
-            fs.readFileSync(path.join(fixture, 'review-return-template.json'), 'utf8'),
-          );
-          returned.assignmentEnvelopeId = dispatched.envelope.envelopeId;
-          fs.writeFileSync(
-            path.join(fixture, 'review-return-input.json'),
-            `${JSON.stringify(returned, null, 2)}\n`,
-            { mode: 0o600 },
-          );
-          NODE
-
-          npm run --silent asoiaf:answer-transport -- receive-assignment \
-            --input "$fixture_directory/review-receive-input.json" \
-            --out "$RUNNER_TEMP/review-receive-first.json"
-          npm run --silent asoiaf:answer-transport -- receive-assignment \
-            --input "$fixture_directory/review-receive-input.json" \
-            --out "$RUNNER_TEMP/review-receive-replay.json"
-          npm run --silent asoiaf:answer-transport -- return-result \
-            --input "$fixture_directory/review-return-input.json" \
-            --out "$RUNNER_TEMP/review-return-first.json"
-          npm run --silent asoiaf:answer-transport -- return-result \
-            --input "$fixture_directory/review-return-input.json" \
-            --out "$RUNNER_TEMP/review-return-replay.json"
-
-          node - "$RUNNER_TEMP" "$desk_root" <<'NODE'
-          const fs = require('node:fs');
-          const path = require('node:path');
-          const [temp, root] = process.argv.slice(2);
-          const returned = JSON.parse(fs.readFileSync(path.join(temp, 'review-return-first.json'), 'utf8'));
-          fs.writeFileSync(
-            path.join(temp, 'review-admit-command.json'),
-            `${JSON.stringify({
-              root,
-              envelope: returned.envelope,
-              receivedAt: '2026-08-05T06:30:02.000Z',
-              operatorId: 'qualification:answer-transport-review-admit',
-            }, null, 2)}\n`,
-          );
-          NODE
-
-          npm run --silent asoiaf:answer-transport -- admit-result \
-            --input "$RUNNER_TEMP/review-admit-command.json" \
-            --out "$RUNNER_TEMP/review-admit-first.json"
-          npm run --silent asoiaf:answer-transport -- admit-result \
-            --input "$RUNNER_TEMP/review-admit-command.json" \
-            --out "$RUNNER_TEMP/review-admit-replay.json"
-
-          npm run --silent asoiaf:answer-transport -- dispatch \
-            --input "$fixture_directory/close-dispatch-input.json" \
-            --out "$RUNNER_TEMP/close-dispatch-first.json"
-          npm run --silent asoiaf:answer-transport -- dispatch \
-            --input "$fixture_directory/close-dispatch-input.json" \
-            --out "$RUNNER_TEMP/close-dispatch-replay.json"
-
-          node - "$fixture_directory" "$RUNNER_TEMP" "$assembler_root" <<'NODE'
-          const fs = require('node:fs');
-          const path = require('node:path');
-          const [fixture, temp, root] = process.argv.slice(2);
-          const expected = JSON.parse(fs.readFileSync(path.join(fixture, 'expected.json'), 'utf8'));
-          const dispatched = JSON.parse(fs.readFileSync(path.join(temp, 'close-dispatch-first.json'), 'utf8'));
-          fs.writeFileSync(
-            path.join(fixture, 'close-receive-input.json'),
-            `${JSON.stringify({
-              root,
-              envelope: dispatched.envelope,
-              recipientPeerId: expected.assemblerPeerId,
-              receivedAt: '2026-08-05T06:31:03.000Z',
-            }, null, 2)}\n`,
-          );
-          const returned = JSON.parse(
-            fs.readFileSync(path.join(fixture, 'close-return-template.json'), 'utf8'),
-          );
-          returned.assignmentEnvelopeId = dispatched.envelope.envelopeId;
-          fs.writeFileSync(
-            path.join(fixture, 'close-return-input.json'),
-            `${JSON.stringify(returned, null, 2)}\n`,
-            { mode: 0o600 },
-          );
-          NODE
-
-          npm run --silent asoiaf:answer-transport -- receive-assignment \
-            --input "$fixture_directory/close-receive-input.json" \
-            --out "$RUNNER_TEMP/close-receive-first.json"
-          npm run --silent asoiaf:answer-transport -- receive-assignment \
-            --input "$fixture_directory/close-receive-input.json" \
-            --out "$RUNNER_TEMP/close-receive-replay.json"
-          npm run --silent asoiaf:answer-transport -- return-result \
-            --input "$fixture_directory/close-return-input.json" \
-            --out "$RUNNER_TEMP/close-return-first.json"
-          npm run --silent asoiaf:answer-transport -- return-result \
-            --input "$fixture_directory/close-return-input.json" \
-            --out "$RUNNER_TEMP/close-return-replay.json"
-
-          node - "$RUNNER_TEMP" "$desk_root" <<'NODE'
-          const fs = require('node:fs');
-          const path = require('node:path');
-          const [temp, root] = process.argv.slice(2);
-          const returned = JSON.parse(fs.readFileSync(path.join(temp, 'close-return-first.json'), 'utf8'));
-          fs.writeFileSync(
-            path.join(temp, 'close-admit-command.json'),
-            `${JSON.stringify({
-              root,
-              envelope: returned.envelope,
-              receivedAt: '2026-08-05T06:40:02.000Z',
-              operatorId: 'qualification:answer-transport-close-admit',
-            }, null, 2)}\n`,
-          );
-          NODE
-
-          npm run --silent asoiaf:answer-transport -- admit-result \
-            --input "$RUNNER_TEMP/close-admit-command.json" \
-            --out "$RUNNER_TEMP/close-admit-first.json"
-          npm run --silent asoiaf:answer-transport -- admit-result \
-            --input "$RUNNER_TEMP/close-admit-command.json" \
-            --out "$RUNNER_TEMP/close-admit-replay.json"
-
-          npm run --silent asoiaf:answer-worker -- run \
-            --input "$fixture_directory/render-run-input.json" \
-            --out "$RUNNER_TEMP/render-first.json"
-          npm run --silent asoiaf:answer-worker -- run \
-            --input "$fixture_directory/render-run-input.json" \
-            --out "$RUNNER_TEMP/render-replay.json"
-
-          for pair in \
-            "desk:$desk_root" \
-            "review:$review_root" \
-            "assembler:$assembler_root"; do
-            name="${pair%%:*}"
-            root="${pair#*:}"
-            npm run --silent asoiaf:answer-transport -- status \
-              --root "$root" \
-              --out "$RUNNER_TEMP/${name}-transport-status.json"
-            npm run --silent asoiaf:answer-transport -- verify \
-              --root "$root" \
-              --out "$RUNNER_TEMP/${name}-transport-verification.json"
-            npm run --silent asoiaf:answer-transport -- paths \
-              --root "$root" \
-              --out "$RUNNER_TEMP/${name}-transport-paths.json"
-          done
-
-          node - "$fixture_directory" "$RUNNER_TEMP" "$desk_root" "$review_root" "$assembler_root" <<'NODE'
-          const fs = require('node:fs');
-          const path = require('node:path');
-          const [fixture, temp, deskRoot, reviewRoot, assemblerRoot] = process.argv.slice(2);
-          const expected = JSON.parse(fs.readFileSync(path.join(fixture, 'expected.json'), 'utf8'));
-          for (const [name, actorRoot, actorPeerId] of [
-            ['review', reviewRoot, expected.reviewPeerId],
-            ['assembler', assemblerRoot, expected.assemblerPeerId],
-          ]) {
-            fs.writeFileSync(
-              path.join(fixture, `${name}-link-input.json`),
-              `${JSON.stringify({ deskRoot, actorRoot, actorPeerId }, null, 2)}\n`,
-            );
-          }
-          NODE
-
-          npm run --silent asoiaf:answer-transport -- verify-link \
-            --input "$fixture_directory/review-link-input.json" \
-            --out "$RUNNER_TEMP/review-link-verification.json"
-          npm run --silent asoiaf:answer-transport -- verify-link \
-            --input "$fixture_directory/assembler-link-input.json" \
-            --out "$RUNNER_TEMP/assembler-link-verification.json"
-
-          npm run --silent asoiaf:answer-exchange -- status \
-            --root "$desk_root" \
-            --out "$RUNNER_TEMP/exchange-status.json"
-          npm run --silent asoiaf:answer-exchange -- verify \
-            --root "$desk_root" \
-            --out "$RUNNER_TEMP/exchange-verification.json"
-          npm run --silent asoiaf:answer-worker -- status \
-            --root "$desk_root" \
-            --out "$RUNNER_TEMP/worker-status.json"
-          npm run --silent asoiaf:answer-worker -- verify \
-            --root "$desk_root" \
-            --out "$RUNNER_TEMP/worker-verification.json"
-          npm run --silent asoiaf:answer-worker -- paths \
-            --root "$desk_root" \
-            --out "$RUNNER_TEMP/worker-paths.json"
-          npm run --silent asoiaf:answer-desk -- status \
-            --root "$desk_root" \
-            > "$RUNNER_TEMP/desk-status.json"
-          npm run --silent asoiaf:answer-desk -- verify \
-            --root "$desk_root" \
-            > "$RUNNER_TEMP/desk-verification.json"
-
-          node - "$fixture_directory" "$RUNNER_TEMP" "$desk_root" "$review_root" "$assembler_root" <<'NODE'
-          const assert = require('node:assert/strict');
-          const crypto = require('node:crypto');
-          const fs = require('node:fs');
-          const path = require('node:path');
-          const [fixture, temp, deskRoot, reviewRoot, assemblerRoot] = process.argv.slice(2);
-          const read = (name) => JSON.parse(fs.readFileSync(path.join(temp, name), 'utf8'));
-          const expected = JSON.parse(fs.readFileSync(path.join(fixture, 'expected.json'), 'utf8'));
-
-          const reviewDispatch = read('review-dispatch-first.json');
-          const reviewDispatchReplay = read('review-dispatch-replay.json');
-          const reviewReceiveReplay = read('review-receive-replay.json');
-          const reviewReturnReplay = read('review-return-replay.json');
-          const reviewAdmitReplay = read('review-admit-replay.json');
-          const closeDispatch = read('close-dispatch-first.json');
-          const closeDispatchReplay = read('close-dispatch-replay.json');
-          const closeReceiveReplay = read('close-receive-replay.json');
-          const closeReturnReplay = read('close-return-replay.json');
-          const closeAdmitReplay = read('close-admit-replay.json');
-          const render = read('render-first.json');
-          const renderReplay = read('render-replay.json');
-
-          assert.equal(reviewDispatch.envelopeReplayed, false);
-          assert.equal(reviewDispatchReplay.envelopeReplayed, true);
-          assert.equal(reviewDispatchReplay.receiptReplayed, true);
-          assert.equal(reviewReceiveReplay.envelopeReplayed, true);
-          assert.equal(reviewReceiveReplay.receiptReplayed, true);
-          assert.equal(reviewReturnReplay.envelopeReplayed, true);
-          assert.equal(reviewReturnReplay.receiptReplayed, true);
-          assert.equal(reviewAdmitReplay.envelopeReplayed, true);
-          assert.equal(reviewAdmitReplay.exchange.resultReplayed, true);
-          assert.equal(reviewAdmitReplay.exchange.settlement.replayed, true);
-          assert.equal(reviewAdmitReplay.receiptReplayed, true);
-          assert.equal(closeDispatch.envelopeReplayed, false);
-          assert.equal(closeDispatchReplay.envelopeReplayed, true);
-          assert.equal(closeReceiveReplay.envelopeReplayed, true);
-          assert.equal(closeReturnReplay.envelopeReplayed, true);
-          assert.equal(closeAdmitReplay.envelopeReplayed, true);
-          assert.equal(render.invocationReplayed, false);
-          assert.equal(renderReplay.invocationReplayed, true);
-          assert.equal(renderReplay.resultReplayed, true);
-          assert.equal(renderReplay.settlement.replayed, true);
-
-          const deskTransport = read('desk-transport-status.json');
-          const reviewTransport = read('review-transport-status.json');
-          const assemblerTransport = read('assembler-transport-status.json');
-          assert.deepEqual(deskTransport.counts, {
-            trusts: 1,
-            outboundAssignments: 2,
-            inboundAssignments: 0,
-            outboundResults: 0,
-            inboundResults: 2,
-            receipts: 4,
-          });
-          assert.deepEqual(reviewTransport.counts, {
-            trusts: 1,
-            outboundAssignments: 0,
-            inboundAssignments: 1,
-            outboundResults: 1,
-            inboundResults: 0,
-            receipts: 2,
-          });
-          assert.deepEqual(assemblerTransport.counts, {
-            trusts: 1,
-            outboundAssignments: 0,
-            inboundAssignments: 1,
-            outboundResults: 1,
-            inboundResults: 0,
-            receipts: 2,
-          });
-
-          for (const name of [
-            'desk-transport-verification.json',
-            'review-transport-verification.json',
-            'assembler-transport-verification.json',
-            'review-link-verification.json',
-            'assembler-link-verification.json',
-            'exchange-verification.json',
-            'worker-verification.json',
-            'desk-verification.json',
-          ]) {
-            const value = read(name);
-            assert.equal(value.ok, true, `${name} is not ok`);
-            assert.deepEqual(
-              (value.findings ?? []).filter((entry) => entry.severity === 'error'),
-              [],
-            );
-          }
-
-          const exchange = read('exchange-status.json');
-          assert.equal(exchange.counts.assignments, 2);
-          assert.equal(exchange.counts.results, 2);
-          const worker = read('worker-status.json');
-          assert.equal(worker.counts.invocations, 1);
-          assert.equal(worker.counts.results, 1);
-          const workerPaths = read('worker-paths.json');
-          assert.equal(fs.readdirSync(workerPaths.outputs).length, 1);
-          const desk = read('desk-status.json');
-          assert.equal(desk.counts.workOrders, 3);
-          assert.equal(desk.counts.leases, 3);
-          assert.equal(desk.counts.settlements, 3);
-          assert.equal(desk.state.workOrderId, expected.readyWorkOrderId);
-          assert.deepEqual(desk.state.availableItemIds, []);
-          assert.equal(desk.state.nextAvailableItemId, null);
-
-          const outputReference = render.result.resultReferences.find(
-            (entry) => entry.kind === 'reviewed-answer-render',
-          );
-          assert.ok(outputReference);
-          const output = fs.readFileSync(path.resolve(deskRoot, outputReference.uri), 'utf8');
-          assert.equal([...output].length, expected.renderedTextCharacters);
-          assert.equal(
-            `sha256:${crypto.createHash('sha256').update(output).digest('hex')}`,
-            expected.renderedTextDigest,
-          );
-          assert.equal(
-            fs.existsSync(path.join(deskRoot, '.transaction-lock')),
-            false,
-          );
-
-          for (const root of [deskRoot, reviewRoot, assemblerRoot]) {
-            const files = [];
-            const walk = (directory) => {
-              if (!fs.existsSync(directory)) return;
-              for (const name of fs.readdirSync(directory)) {
-                const target = path.join(directory, name);
-                const stat = fs.statSync(target);
-                if (stat.isDirectory()) walk(target);
-                else files.push(fs.readFileSync(target, 'utf8'));
-              }
-            };
-            walk(root);
-            const retained = files.join('\n');
-            assert.equal(retained.includes('privateKeyDerBase64'), false);
-            assert.equal(retained.includes('MC4CAQAwBQYDK2Vw'), false);
-          }
-          NODE
+            --emit-qualification-shell \
+            "$RUNNER_TEMP/asoiaf-answer-desk-transport-qualification.sh"
+          bash "$RUNNER_TEMP/asoiaf-answer-desk-transport-qualification.sh"
 
       - name: Complete Arc regression
         id: regression
         shell: bash
         run: |
           set -euo pipefail
-          find src tests \( -name '*.js' -o -name '*.js.map' -o -name '*.d.ts' \) -delete
+          find src tests tools \( -name '*.js' -o -name '*.js.map' -o -name '*.d.ts' \) -delete
           rm -f tsconfig.tsbuildinfo
           npm test | tee "$RUNNER_TEMP/full-tests.log"
 
@@ -527,55 +148,60 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          find src tests \( -name '*.js' -o -name '*.js.map' -o -name '*.d.ts' \) -delete
-          rm -f tsconfig.tsbuildinfo
           npm run build | tee "$RUNNER_TEMP/build.log"
 
-      - name: Retain exact transport qualification
+      - name: Retain exact authenticated transport qualification
         if: always()
         shell: bash
         run: |
           set -euo pipefail
           root='asoiaf-answer-desk-transport-qualification'
-          mkdir -p "$root/fixture-public"
-          cp "$RUNNER_TEMP"/*.txt "$root/" 2>/dev/null || true
-          cp "$RUNNER_TEMP"/*.log "$root/" 2>/dev/null || true
-          cp "$RUNNER_TEMP"/*.json "$root/" 2>/dev/null || true
-          fixture="$RUNNER_TEMP/answer-transport-fixture"
-          for safe in \
-            trust.json \
-            desk-public-key.json \
-            review-public-key.json \
-            assembler-public-key.json \
-            expected.json; do
-            if [ -f "$fixture/$safe" ]; then
-              cp "$fixture/$safe" "$root/fixture-public/$safe"
-            fi
+          mkdir -p "$root"
+          for file in \
+            transport-help.txt typecheck.log focused-tests.log full-tests.log build.log \
+            fixture-emission.json adopt-result.json reviewer-fingerprint.json assembler-fingerprint.json \
+            reviewer-registration.json assembler-registration.json reviewer-revocation.json \
+            transport-server.stdout transport-server.stderr tls-refusals.json \
+            no-client-certificate.stderr untrusted-client.stderr unregistered-client.json \
+            idempotency-body-conflict.json idempotency-peer-conflict.json revoked-client.json \
+            review-issue-first.json review-issue-replay.json review-admit-first.json review-admit-replay.json \
+            close-issue-first.json close-issue-replay.json close-admit-first.json close-admit-replay.json \
+            render-run-first.json render-run-replay.json \
+            transport-status.json transport-verification.json transport-paths.json \
+            exchange-status.json exchange-verification.json \
+            worker-status.json worker-verification.json \
+            desk-status.json desk-verification.json; do
+            cp "$RUNNER_TEMP/$file" "$root/" 2>/dev/null || true
           done
-          for estate in answer-desk review-actor assembler-actor; do
-            if [ -d "$RUNNER_TEMP/$estate" ]; then
-              cp -R "$RUNNER_TEMP/$estate" "$root/$estate"
-            fi
-          done
+          cp "$RUNNER_TEMP/answer-transport-fixture/expected.json" "$root/" 2>/dev/null || true
+          cp -R "$RUNNER_TEMP/answer-desk" "$root/estate" 2>/dev/null || true
           printf '%s\n' "$CANDIDATE_SHA" > "$root/candidate-sha.txt"
           printf '%s\n' \
-            'transport=portable-signed-json' \
-            'signatureAlgorithm=ed25519' \
-            'trustBootstrap=out-of-band-content-addressed-manifest' \
-            'privateKeys=transient-local-input-only' \
-            'carrierAuthority=none' \
-            'networkAccess=none' \
-            'privateTextIncluded=false' \
+            'mutualTlsRequired=true' \
+            'noClientCertificateRefused=true' \
+            'untrustedClientCertificateRefused=true' \
+            'unregisteredCertificateRefused=true' \
+            'revokedCertificateRefused=true' \
+            'actorIdentityDerivedFromCertificate=true' \
+            'idempotencyConflictRefused=true' \
+            'transportRequests=4' \
+            'transportResponses=4' \
+            'externalAssignments=2' \
+            'externalResults=2' \
+            'automaticInvocations=1' \
+            'automaticResults=1' \
+            'workOrders=3' \
+            'leases=3' \
+            'settlements=3' \
+            'certificateRetained=false' \
+            'privateKeyRetained=false' \
             'sourceTextIncluded=false' \
-            'assignmentAdmission=qualified-exchange-only' \
-            'resultAdmission=qualified-exchange-settlement-only' \
-            'replay=exact-immutable' \
+            'privateTextIncluded=false' \
             'graphEffect=none' \
             'canonEffect=none' \
-            'answerEffect=none' \
             > "$root/qualification-boundary.txt"
-          if grep -R -n -E 'privateKeyDerBase64|MC4CAQAwBQYDK2Vw' "$root"; then
-            echo 'qualification artifact contains private key material' >&2
+          if find "$root" -type f \( -name '*.key' -o -name '*.crt' -o -name '*.pem' -o -name '*.csr' \) | grep -q .; then
+            echo 'qualification artifact contains certificate or private-key material' >&2
             exit 1
           fi
           find "$root" -type f ! -name SHA256SUMS -print0 \
@@ -584,9 +210,9 @@ jobs:
             | sed "s#  $root/#  #" \
             > "$root/SHA256SUMS"
 
-      - name: Upload transport qualification
+      - name: Upload authenticated transport qualification
         if: always()
-        id: artifact
+        id: upload
         uses: actions/upload-artifact@v4
         with:
           name: asoiaf-answer-desk-transport-qualification
@@ -597,19 +223,18 @@ jobs:
       - name: Publish exact qualification summary
         if: always()
         env:
-          ARTIFACT_ID: ${{ steps.artifact.outputs.artifact-id }}
-          ARTIFACT_DIGEST: ${{ steps.artifact.outputs.artifact-digest }}
+          ARTIFACT_ID: ${{ steps.upload.outputs['artifact-id'] }}
+          ARTIFACT_DIGEST: ${{ steps.upload.outputs['artifact-digest'] }}
         shell: bash
         run: |
           set -euo pipefail
           {
-            echo '## ASOIAF authenticated answer desk transport qualification'
+            echo '## ASOIAF answer desk transport qualification'
             echo
             echo "- Candidate: \`$CANDIDATE_SHA\`"
             echo "- Artifact: \`${ARTIFACT_ID:-not-issued}\`"
             echo "- Artifact digest: \`${ARTIFACT_DIGEST:-not-issued}\`"
-            echo '- Transport: portable content-addressed JSON authenticated with Ed25519.'
-            echo '- Trust: exact out-of-band public manifest installed on desk and actor estates.'
-            echo '- Admission: permanent exchange and settlement validators remain authoritative.'
-            echo '- Private keys: transient inputs excluded from every retained estate and artifact.'
+            echo '- Remote transitions: authenticated exact-locator review and gap closure.'
+            echo '- Refusals: missing, untrusted, unregistered, revoked, and idempotency-conflicting peers.'
+            echo '- Final automatic transition: reviewed packet rendering remained local to the worker.'
           } >> "$GITHUB_STEP_SUMMARY"

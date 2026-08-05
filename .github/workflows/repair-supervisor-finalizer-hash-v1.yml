@@ -1,5 +1,6 @@
 name: Repair supervisor finalizer hash v1
 
+# One-shot carrier: removes only the redundant patch-file digest predicate.
 on:
   push:
     branches:

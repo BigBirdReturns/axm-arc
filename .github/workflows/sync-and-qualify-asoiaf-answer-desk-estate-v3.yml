@@ -1,0 +1,312 @@
+name: Sync and qualify ASOIAF answer desk estate v3
+
+on:
+  push:
+    branches:
+      - feature/asoiaf-answer-desk-estate-v1
+    paths:
+      - '.github/workflows/sync-and-qualify-asoiaf-answer-desk-estate-v3.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: sync-and-qualify-asoiaf-answer-desk-estate-final
+  cancel-in-progress: true
+
+jobs:
+  synchronize_qualify_and_push:
+    if: github.repository == 'BigBirdReturns/axm-arc' && github.ref_name == 'feature/asoiaf-answer-desk-estate-v1'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Check out exact persistent-desk parent
+        uses: actions/checkout@v4
+        with:
+          ref: feature/asoiaf-answer-desk-estate-v1
+          fetch-depth: 0
+          show-progress: false
+
+      - name: Bind exact synchronization transaction
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$GITHUB_REF_NAME" = 'feature/asoiaf-answer-desk-estate-v1'
+          test -z "$(git status --porcelain)"
+          test -f tools/lib/asoiaf-answer-desk-estate.ts
+          test -f tests/narrative/canon/asoiaf-answer-desk-estate.test.ts
+
+      - name: Merge exact rendered-terminal lease head
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch --no-tags origin feature/asoiaf-answer-work-lease-v1
+          test "$(git rev-parse FETCH_HEAD)" = '65f14df4a066b893da8de6e50af257b0ac75d421'
+          git merge --no-commit --no-ff FETCH_HEAD
+          test "$(git rev-parse MERGE_HEAD)" = '65f14df4a066b893da8de6e50af257b0ac75d421'
+
+      - name: Repair scope fixture, operator registration, and permanent triggers
+        id: repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          test_path = Path('tests/narrative/canon/asoiaf-answer-desk-estate.test.ts')
+          test = test_path.read_text(encoding='utf-8')
+
+          import_anchor = (
+              'import {\n'
+              '  buildAsoiafAnswerDeskFixture,\n'
+              '} from "../../fixtures/asoiaf-answer-desk-fixture.js";\n'
+          )
+          import_replacement = (
+              'import {\n'
+              '  buildAsoiafAnswerDeskFixture,\n'
+              '} from "../../fixtures/asoiaf-answer-desk-fixture.js";\n'
+              'import {\n'
+              '  buildAsoiafResearchQuestionDossier,\n'
+              '} from "../../../tools/lib/asoiaf-research-question-dossier.js";\n'
+          )
+          if 'buildAsoiafResearchQuestionDossier,' not in test:
+              if test.count(import_anchor) != 1:
+                  raise SystemExit('cannot locate persistent-desk fixture import')
+              test = test.replace(import_anchor, import_replacement, 1)
+
+          helper_anchor = (
+              'function buildAsoiafResearchQuestionDossierForEstateTest() {\n'
+              '  const fixture = buildAsoiafAnswerDeskFixture();\n'
+              '  return {\n'
+              '    ...fixture.dossier,\n'
+              '    question: {\n'
+              '      ...fixture.dossier.question,\n'
+              '      questionId: `${fixture.dossier.question.questionId}:other`,\n'
+              '    },\n'
+              '  } as typeof fixture.dossier;\n'
+              '}\n'
+          )
+          helper_replacement = (
+              'function buildAsoiafResearchQuestionDossierForEstateTest() {\n'
+              '  return buildAsoiafResearchQuestionDossier({\n'
+              '    questionText:\n'
+              '      "Which exact source establishes a separately bounded desk-estate question?",\n'
+              '    createdBy: "researcher:desk-estate-other-question",\n'
+              '    createdAt: "2026-08-05T06:45:00.000Z",\n'
+              '    laneIds: ["entity-resolution"],\n'
+              '    continuityIds: ["book-main"],\n'
+              '    gaps: [\n'
+              '      {\n'
+              '        kind: "question-unresolved",\n'
+              '        laneId: "entity-resolution",\n'
+              '        continuityId: "book-main",\n'
+              '        detail:\n'
+              '          "The independently valid dossier remains unresolved and exists only to prove cross-question estate refusal.",\n'
+              '      },\n'
+              '    ],\n'
+              '  });\n'
+              '}\n'
+          )
+          if 'researcher:desk-estate-other-question' not in test:
+              if test.count(helper_anchor) != 1:
+                  raise SystemExit('cannot locate invalid cross-question fixture helper')
+              test = test.replace(helper_anchor, helper_replacement, 1)
+          test_path.write_text(test, encoding='utf-8')
+
+          package_path = Path('package.json')
+          package = json.loads(package_path.read_text(encoding='utf-8'))
+          package['scripts']['asoiaf:answer-desk'] = (
+              'vite-node tools/asoiaf-answer-desk-estate.ts --'
+          )
+          package_path.write_text(
+              json.dumps(package, indent=2, ensure_ascii=False) + '\n',
+              encoding='utf-8',
+          )
+
+          workflow_path = Path('.github/workflows/asoiaf-answer-desk-estate.yml')
+          workflow = workflow_path.read_text(encoding='utf-8')
+          path_anchor = (
+              "      - 'tests/narrative/canon/asoiaf-answer-desk-estate.test.ts'\n"
+              "      - 'docs/ASOIAF_ANSWER_DESK_ESTATE.md'\n"
+          )
+          path_replacement = (
+              "      - 'tests/narrative/canon/asoiaf-answer-desk-estate.test.ts'\n"
+              "      - 'tools/lib/asoiaf-answer-work-lease.ts'\n"
+              "      - 'tests/narrative/canon/asoiaf-answer-work-lease.test.ts'\n"
+              "      - 'docs/ASOIAF_ANSWER_DESK_ESTATE.md'\n"
+          )
+          if workflow.count("      - 'tools/lib/asoiaf-answer-work-lease.ts'\n") != 2:
+              if workflow.count(path_anchor) != 2:
+                  raise SystemExit('cannot locate both permanent workflow path filters')
+              workflow = workflow.replace(path_anchor, path_replacement, 2)
+          workflow_path.write_text(workflow, encoding='utf-8')
+
+          final_test = test_path.read_text(encoding='utf-8')
+          if 'questionId: `${fixture.dossier.question.questionId}:other`' in final_test:
+              raise SystemExit('invalid cross-question identity mutation remains')
+          if 'buildAsoiafResearchQuestionDossier,' not in final_test:
+              raise SystemExit('qualified cross-question dossier builder is absent')
+          if package['scripts'].get('asoiaf:answer-desk') != 'vite-node tools/asoiaf-answer-desk-estate.ts --':
+              raise SystemExit('persistent answer-desk operator is not registered')
+          if workflow.count("      - 'tools/lib/asoiaf-answer-work-lease.ts'\n") != 2:
+              raise SystemExit('permanent workflow does not follow upstream lease changes')
+          print('ASOIAF_ANSWER_DESK_ESTATE_V3_REPAIRED')
+          PY
+
+          git rm -f --ignore-unmatch \
+            .github/workflows/asoiaf-answer-desk-estate-receipt.yml \
+            .github/workflows/sync-and-qualify-asoiaf-answer-desk-estate-v2.yml \
+            .github/workflows/sync-and-qualify-asoiaf-answer-desk-estate-v3.yml \
+            .github/workflows/repair-asoiaf-answer-desk-sync-identity-v2.yml
+          git diff --check
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Verify persistent operator registration
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run --silent asoiaf:answer-desk -- help \
+            | tee "$RUNNER_TEMP/operator-help.log"
+          grep -q 'ASOIAF persistent answer desk estate' "$RUNNER_TEMP/operator-help.log"
+          grep -q 'adopt' "$RUNNER_TEMP/operator-help.log"
+          grep -q 'verify' "$RUNNER_TEMP/operator-help.log"
+
+      - name: Strict TypeScript
+        id: typecheck
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run typecheck | tee "$RUNNER_TEMP/typecheck.log"
+
+      - name: Focused estate, lease, lifecycle, answer, dossier, and reconciliation qualification
+        id: focused
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm test -- \
+            tests/narrative/canon/asoiaf-answer-desk-estate.test.ts \
+            tests/narrative/canon/asoiaf-answer-work-lease.test.ts \
+            tests/narrative/canon/asoiaf-answer-work-order.test.ts \
+            tests/narrative/canon/asoiaf-reviewed-answer-packet.test.ts \
+            tests/narrative/canon/asoiaf-research-question-dossier.test.ts \
+            tests/narrative/canon/asoiaf-external-reconciliation-packets.test.ts \
+            | tee "$RUNNER_TEMP/focused-tests.log"
+
+      - name: Complete Arc regression
+        id: regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm test | tee "$RUNNER_TEMP/full-tests.log"
+
+      - name: Production build
+        id: build
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run build | tee "$RUNNER_TEMP/build.log"
+
+      - name: Commit exact carrier-free persistent desk
+        id: candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          git ls-files --others --exclude-standard -z \
+            | while IFS= read -r -d '' generated; do
+                case "$generated" in
+                  *.js|*.js.map|*.d.ts) rm -f "$generated" ;;
+                esac
+              done
+          git add -A
+          git diff --cached --check
+          test -n "$(git diff --cached --name-only)"
+          test ! -e .github/workflows/asoiaf-answer-desk-estate-receipt.yml
+          test ! -e .github/workflows/sync-and-qualify-asoiaf-answer-desk-estate-v2.yml
+          test ! -e .github/workflows/sync-and-qualify-asoiaf-answer-desk-estate-v3.yml
+          test ! -e .github/workflows/repair-asoiaf-answer-desk-sync-identity-v2.yml
+          git commit -m 'Synchronize persistent answer desk custody'
+          final_sha="$(git rev-parse HEAD)"
+          test "$(git rev-parse HEAD^2)" = '65f14df4a066b893da8de6e50af257b0ac75d421'
+          test -z "$(git status --porcelain)"
+          git push origin HEAD:feature/asoiaf-answer-desk-estate-v1
+          echo "final_sha=$final_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Retain exact synchronization diagnostics
+        if: always()
+        env:
+          FINAL_SHA: ${{ steps.candidate.outputs.final_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          root='asoiaf-answer-desk-estate-sync-v3'
+          mkdir -p "$root"
+          cp "$RUNNER_TEMP"/*.log "$root/" 2>/dev/null || true
+          printf '%s\n' "$GITHUB_SHA" > "$root/trigger-sha.txt"
+          printf '%s\n' '65f14df4a066b893da8de6e50af257b0ac75d421' \
+            > "$root/upstream-lease-sha.txt"
+          printf '%s\n' "${FINAL_SHA:-not-issued}" > "$root/final-sha.txt"
+          printf '%s\n' \
+            'upstreamLease=rendered-terminal-carrier-free' \
+            'crossQuestionFixture=independently-qualified' \
+            'operatorRegistration=permanent' \
+            'workflowFollowsLeaseCore=true' \
+            'workflowRunReceiptCarrier=removed' \
+            'authority=none' \
+            'graphEffect=none' \
+            'canonEffect=none' \
+            'answerEffect=none' \
+            > "$root/synchronization-boundary.txt"
+          git status --short > "$root/worktree-status.txt"
+          find "$root" -type f ! -name SHA256SUMS -print0 \
+            | sort -z \
+            | xargs -0 sha256sum \
+            | sed "s#  $root/#  #" \
+            > "$root/SHA256SUMS"
+
+      - name: Upload synchronization diagnostics
+        if: always()
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: asoiaf-answer-desk-estate-sync-v3
+          path: asoiaf-answer-desk-estate-sync-v3
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Post bounded synchronization result
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FINAL_SHA: ${{ steps.candidate.outputs.final_sha }}
+          ARTIFACT_ID: ${{ steps.upload.outputs['artifact-id'] }}
+          ARTIFACT_DIGEST: ${{ steps.upload.outputs['artifact-digest'] }}
+          REPAIR: ${{ steps.repair.outcome }}
+          TYPECHECK: ${{ steps.typecheck.outcome }}
+          FOCUSED: ${{ steps.focused.outcome }}
+          REGRESSION: ${{ steps.regression.outcome }}
+          BUILD: ${{ steps.build.outcome }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -n "${FINAL_SHA:-}" ]; then
+            gh pr comment 251 --repo "$GITHUB_REPOSITORY" --body \
+              "The persistent answer desk is synchronized and code-qualified on exact carrier-free merge candidate \`${FINAL_SHA}\`, with rendered-terminal lease parent \`65f14df4a066b893da8de6e50af257b0ac75d421\`. The independently valid cross-question fixture, permanent operator registration, and upstream-sensitive exact-head workflow are present; all workflow carriers are removed. Strict TypeScript, operator help, the focused estate and lifecycle suites, complete Arc regression, and production build passed. Artifact \`${ARTIFACT_ID}\` has ZIP digest \`${ARTIFACT_DIGEST}\`."
+          else
+            gh pr comment 251 --repo "$GITHUB_REPOSITORY" --body \
+              "Persistent answer-desk synchronization v3 did not issue a candidate. Repair \`${REPAIR}\`, TypeScript \`${TYPECHECK}\`, focused \`${FOCUSED}\`, regression \`${REGRESSION}\`, build \`${BUILD}\`. Artifact \`${ARTIFACT_ID}\` has ZIP digest \`${ARTIFACT_DIGEST}\`. No persistent-estate qualification is claimed."
+            exit 1

@@ -1,0 +1,565 @@
+name: ASOIAF answer desk exchange
+
+on:
+  push:
+    branches:
+      - feature/asoiaf-answer-desk-exchange-v1
+    paths:
+      - '.github/workflows/asoiaf-answer-desk-exchange.yml'
+      - 'docs/ASOIAF_ANSWER_DESK_EXCHANGE.md'
+      - 'package.json'
+      - 'tests/fixtures/asoiaf-answer-desk-fixture.ts'
+      - 'tests/fixtures/emit-asoiaf-answer-desk-exchange-input.ts'
+      - 'tests/narrative/canon/asoiaf-answer-desk-exchange.test.ts'
+      - 'tools/asoiaf-answer-desk-exchange.ts'
+      - 'tools/lib/asoiaf-answer-desk-exchange.ts'
+      - 'tools/asoiaf-answer-desk-worker.ts'
+      - 'tools/lib/asoiaf-answer-desk-worker.ts'
+      - 'tools/asoiaf-answer-desk-estate.ts'
+      - 'tools/lib/asoiaf-answer-desk-estate.ts'
+      - 'tools/lib/asoiaf-answer-work-lease.ts'
+      - 'tools/lib/asoiaf-answer-work-order.ts'
+  pull_request:
+    branches:
+      - feature/asoiaf-answer-desk-worker-v1
+    paths:
+      - '.github/workflows/asoiaf-answer-desk-exchange.yml'
+      - 'docs/ASOIAF_ANSWER_DESK_EXCHANGE.md'
+      - 'package.json'
+      - 'tests/fixtures/asoiaf-answer-desk-fixture.ts'
+      - 'tests/fixtures/emit-asoiaf-answer-desk-exchange-input.ts'
+      - 'tests/narrative/canon/asoiaf-answer-desk-exchange.test.ts'
+      - 'tools/asoiaf-answer-desk-exchange.ts'
+      - 'tools/lib/asoiaf-answer-desk-exchange.ts'
+      - 'tools/asoiaf-answer-desk-worker.ts'
+      - 'tools/lib/asoiaf-answer-desk-worker.ts'
+      - 'tools/asoiaf-answer-desk-estate.ts'
+      - 'tools/lib/asoiaf-answer-desk-estate.ts'
+      - 'tools/lib/asoiaf-answer-work-lease.ts'
+      - 'tools/lib/asoiaf-answer-work-order.ts'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: asoiaf-answer-desk-exchange-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qualify:
+    if: github.repository == 'BigBirdReturns/axm-arc'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 110
+    steps:
+      - name: Check out exact exchange candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+          show-progress: false
+
+      - name: Record exact candidate identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          candidate_sha="$(git rev-parse HEAD)"
+          test -z "$(git status --porcelain)"
+          printf '%s\n' "$candidate_sha"
+          echo "CANDIDATE_SHA=$candidate_sha" >> "$GITHUB_ENV"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Verify permanent exchange operator registration
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run --silent asoiaf:answer-exchange -- help \
+            | tee "$RUNNER_TEMP/exchange-help.txt"
+          grep -q 'ASOIAF persistent answer desk external exchange' "$RUNNER_TEMP/exchange-help.txt"
+          grep -q 'plan' "$RUNNER_TEMP/exchange-help.txt"
+          grep -q 'issue' "$RUNNER_TEMP/exchange-help.txt"
+          grep -q 'admit' "$RUNNER_TEMP/exchange-help.txt"
+          grep -q 'verify' "$RUNNER_TEMP/exchange-help.txt"
+
+      - name: Strict TypeScript
+        id: typecheck
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run typecheck | tee "$RUNNER_TEMP/typecheck.log"
+
+      - name: Focused exchange, worker, estate, lease, answer, dossier, and reconciliation qualification
+        id: focused
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm test -- \
+            tests/narrative/canon/asoiaf-answer-desk-exchange.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-worker.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-estate.test.ts \
+            tests/narrative/canon/asoiaf-answer-work-lease.test.ts \
+            tests/narrative/canon/asoiaf-answer-work-order.test.ts \
+            tests/narrative/canon/asoiaf-reviewed-answer-packet.test.ts \
+            tests/narrative/canon/asoiaf-research-question-dossier.test.ts \
+            tests/narrative/canon/asoiaf-external-reconciliation-packets.test.ts \
+            | tee "$RUNNER_TEMP/focused-tests.log"
+
+      - name: Exercise two external transitions and automatic rendering through the command-line estate
+        id: smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture_directory="$RUNNER_TEMP/answer-exchange-fixture"
+          estate_root="$RUNNER_TEMP/answer-desk"
+          mkdir -p "$fixture_directory"
+
+          npx vite-node tests/fixtures/emit-asoiaf-answer-desk-exchange-input.ts \
+            "$fixture_directory" \
+            "$estate_root" \
+            | tee "$RUNNER_TEMP/fixture-emission.json"
+
+          npm run --silent asoiaf:answer-desk -- adopt \
+            --input "$fixture_directory/adopt-input.json" \
+            --out "$RUNNER_TEMP/adopt-result.json"
+
+          npm run --silent asoiaf:answer-exchange -- plan \
+            --root "$estate_root" \
+            --out "$RUNNER_TEMP/exchange-plan-open.json"
+
+          npm run --silent asoiaf:answer-exchange -- issue \
+            --input "$fixture_directory/review-issue-input.json" \
+            --out "$RUNNER_TEMP/review-issue-first.json"
+
+          npm run --silent asoiaf:answer-exchange -- issue \
+            --input "$fixture_directory/review-issue-input.json" \
+            --out "$RUNNER_TEMP/review-issue-replay.json"
+
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const temp = process.env.RUNNER_TEMP;
+          const fixture = path.join(temp, 'answer-exchange-fixture');
+          const template = JSON.parse(
+            fs.readFileSync(path.join(fixture, 'review-result-template.json'), 'utf8'),
+          );
+          const issued = JSON.parse(
+            fs.readFileSync(path.join(temp, 'review-issue-first.json'), 'utf8'),
+          );
+          template.assignmentId = issued.assignment.assignmentId;
+          fs.writeFileSync(
+            path.join(fixture, 'review-result-input.json'),
+            `${JSON.stringify(template, null, 2)}\n`,
+          );
+          NODE
+
+          npm run --silent asoiaf:answer-exchange -- admit \
+            --input "$fixture_directory/review-result-input.json" \
+            --out "$RUNNER_TEMP/review-admit-first.json"
+
+          npm run --silent asoiaf:answer-exchange -- admit \
+            --input "$fixture_directory/review-result-input.json" \
+            --out "$RUNNER_TEMP/review-admit-replay.json"
+
+          npm run --silent asoiaf:answer-exchange -- plan \
+            --root "$estate_root" \
+            --out "$RUNNER_TEMP/exchange-plan-reconciled.json"
+
+          npm run --silent asoiaf:answer-exchange -- issue \
+            --input "$fixture_directory/close-issue-input.json" \
+            --out "$RUNNER_TEMP/close-issue-first.json"
+
+          npm run --silent asoiaf:answer-exchange -- issue \
+            --input "$fixture_directory/close-issue-input.json" \
+            --out "$RUNNER_TEMP/close-issue-replay.json"
+
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const temp = process.env.RUNNER_TEMP;
+          const fixture = path.join(temp, 'answer-exchange-fixture');
+          const template = JSON.parse(
+            fs.readFileSync(path.join(fixture, 'close-result-template.json'), 'utf8'),
+          );
+          const issued = JSON.parse(
+            fs.readFileSync(path.join(temp, 'close-issue-first.json'), 'utf8'),
+          );
+          template.assignmentId = issued.assignment.assignmentId;
+          fs.writeFileSync(
+            path.join(fixture, 'close-result-input.json'),
+            `${JSON.stringify(template, null, 2)}\n`,
+          );
+          NODE
+
+          npm run --silent asoiaf:answer-exchange -- admit \
+            --input "$fixture_directory/close-result-input.json" \
+            --out "$RUNNER_TEMP/close-admit-first.json"
+
+          npm run --silent asoiaf:answer-exchange -- admit \
+            --input "$fixture_directory/close-result-input.json" \
+            --out "$RUNNER_TEMP/close-admit-replay.json"
+
+          npm run --silent asoiaf:answer-exchange -- plan \
+            --root "$estate_root" \
+            --out "$RUNNER_TEMP/exchange-plan-ready.json"
+
+          npm run --silent asoiaf:answer-worker -- run \
+            --input "$fixture_directory/render-run-input.json" \
+            --out "$RUNNER_TEMP/render-run-first.json"
+
+          npm run --silent asoiaf:answer-worker -- run \
+            --input "$fixture_directory/render-run-input.json" \
+            --out "$RUNNER_TEMP/render-run-replay.json"
+
+          npm run --silent asoiaf:answer-exchange -- status \
+            --root "$estate_root" \
+            --out "$RUNNER_TEMP/exchange-status.json"
+
+          npm run --silent asoiaf:answer-worker -- status \
+            --root "$estate_root" \
+            --out "$RUNNER_TEMP/worker-status.json"
+
+          npm run --silent asoiaf:answer-desk -- status \
+            --root "$estate_root" \
+            > "$RUNNER_TEMP/desk-status.json"
+
+          npm run --silent asoiaf:answer-exchange -- verify \
+            --root "$estate_root" \
+            --out "$RUNNER_TEMP/exchange-verification.json"
+
+          npm run --silent asoiaf:answer-worker -- verify \
+            --root "$estate_root" \
+            --out "$RUNNER_TEMP/worker-verification.json"
+
+          npm run --silent asoiaf:answer-desk -- verify \
+            --root "$estate_root" \
+            > "$RUNNER_TEMP/desk-verification.json"
+
+          npm run --silent asoiaf:answer-exchange -- paths \
+            --root "$estate_root" \
+            --out "$RUNNER_TEMP/exchange-paths.json"
+
+          npm run --silent asoiaf:answer-worker -- paths \
+            --root "$estate_root" \
+            --out "$RUNNER_TEMP/worker-paths.json"
+
+          node <<'NODE'
+          const crypto = require('node:crypto');
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const assert = require('node:assert/strict');
+
+          const temp = process.env.RUNNER_TEMP;
+          const read = (name) => JSON.parse(
+            fs.readFileSync(path.join(temp, name), 'utf8'),
+          );
+          const fixtureDir = path.join(temp, 'answer-exchange-fixture');
+          const expected = JSON.parse(
+            fs.readFileSync(path.join(fixtureDir, 'expected.json'), 'utf8'),
+          );
+          const planOpen = read('exchange-plan-open.json');
+          const reviewIssue = read('review-issue-first.json');
+          const reviewIssueReplay = read('review-issue-replay.json');
+          const reviewAdmit = read('review-admit-first.json');
+          const reviewAdmitReplay = read('review-admit-replay.json');
+          const planReconciled = read('exchange-plan-reconciled.json');
+          const closeIssue = read('close-issue-first.json');
+          const closeIssueReplay = read('close-issue-replay.json');
+          const closeAdmit = read('close-admit-first.json');
+          const closeAdmitReplay = read('close-admit-replay.json');
+          const planReady = read('exchange-plan-ready.json');
+          const render = read('render-run-first.json');
+          const renderReplay = read('render-run-replay.json');
+          const exchangeStatus = read('exchange-status.json');
+          const workerStatus = read('worker-status.json');
+          const deskStatus = read('desk-status.json');
+          const exchangeVerification = read('exchange-verification.json');
+          const workerVerification = read('worker-verification.json');
+          const deskVerification = read('desk-verification.json');
+          const exchangePaths = read('exchange-paths.json');
+          const workerPaths = read('worker-paths.json');
+
+          assert.equal(planOpen.ok, true);
+          assert.deepEqual(planOpen.findings, []);
+          assert.equal(planOpen.plan.nextAutomaticItemId, null);
+          assert.deepEqual(planOpen.plan.automaticAvailableItemIds, []);
+          assert.equal(
+            planOpen.plan.externalAvailableItemIds.includes(expected.reviewItemId),
+            true,
+          );
+
+          assert.equal(reviewIssue.claim.replayed, false);
+          assert.equal(reviewIssue.assignmentReplayed, false);
+          assert.equal(reviewIssue.assignment.itemId, expected.reviewItemId);
+          assert.equal(reviewIssue.assignment.action, 'review-exact-locator');
+          assert.equal(reviewIssue.assignment.actorRole, 'exact-locator-reviewer');
+          assert.deepEqual(
+            reviewIssue.assignment.acceptedResultKinds,
+            ['reviewed-answer-transaction'],
+          );
+          assert.equal(reviewIssue.assignment.privateTextIncluded, false);
+          assert.equal(reviewIssue.assignment.sourceTextIncluded, false);
+          assert.equal(reviewIssue.assignment.authority, 'none');
+          assert.equal(reviewIssue.assignment.graphEffect, 'none');
+          assert.equal(reviewIssue.assignment.canonEffect, 'none');
+
+          assert.equal(reviewIssueReplay.claim.replayed, true);
+          assert.equal(
+            reviewIssueReplay.claim.lease.leaseId,
+            reviewIssue.claim.lease.leaseId,
+          );
+          assert.equal(reviewIssueReplay.assignmentReplayed, true);
+          assert.equal(
+            reviewIssueReplay.assignment.assignmentId,
+            reviewIssue.assignment.assignmentId,
+          );
+
+          assert.equal(reviewAdmit.resultReplayed, false);
+          assert.equal(reviewAdmit.result.outcome, 'satisfied');
+          assert.equal(reviewAdmit.result.afterWorkOrderId, expected.reconciledWorkOrderId);
+          assert.equal(reviewAdmit.result.resultReferences.length, 1);
+          assert.equal(reviewAdmit.result.resultReferences[0].kind, 'reviewed-answer-transaction');
+          assert.equal(reviewAdmit.result.resultReferences[0].objectId, expected.transactionId);
+          assert.equal(reviewAdmit.settlement.replayed, false);
+          assert.equal(
+            reviewAdmit.settlement.manifest.latestWorkOrderId,
+            expected.reconciledWorkOrderId,
+          );
+          assert.equal(
+            reviewAdmit.settlement.settlement.resultReferences.some(
+              (reference) =>
+                reference.kind === 'answer-exchange-result'
+                && reference.objectId === reviewAdmit.result.resultId
+                && reference.fingerprint === reviewAdmit.result.resultFingerprint,
+            ),
+            true,
+          );
+          assert.equal(reviewAdmitReplay.resultReplayed, true);
+          assert.equal(reviewAdmitReplay.result.resultId, reviewAdmit.result.resultId);
+          assert.equal(reviewAdmitReplay.settlement.replayed, true);
+          assert.equal(
+            reviewAdmitReplay.settlement.settlement.settlementId,
+            reviewAdmit.settlement.settlement.settlementId,
+          );
+
+          assert.equal(planReconciled.ok, true);
+          assert.equal(
+            planReconciled.plan.externalAvailableItemIds.includes(expected.closeItemId),
+            true,
+          );
+          assert.equal(planReconciled.plan.nextAutomaticItemId, null);
+
+          assert.equal(closeIssue.claim.replayed, false);
+          assert.equal(closeIssue.assignment.itemId, expected.closeItemId);
+          assert.equal(closeIssue.assignment.action, 'close-gap');
+          assert.equal(closeIssue.assignment.actorRole, 'answer-assembler');
+          assert.deepEqual(closeIssue.assignment.acceptedResultKinds, ['reviewed-answer-packet']);
+          assert.equal(closeIssueReplay.claim.replayed, true);
+          assert.equal(closeIssueReplay.assignmentReplayed, true);
+          assert.equal(closeIssueReplay.assignment.assignmentId, closeIssue.assignment.assignmentId);
+
+          assert.equal(closeAdmit.resultReplayed, false);
+          assert.equal(closeAdmit.result.afterWorkOrderId, expected.readyWorkOrderId);
+          assert.equal(closeAdmit.result.resultReferences[0].kind, 'reviewed-answer-packet');
+          assert.equal(closeAdmit.result.resultReferences[0].objectId, expected.answerPacketId);
+          assert.equal(closeAdmit.settlement.replayed, false);
+          assert.equal(closeAdmit.settlement.manifest.latestWorkOrderId, expected.readyWorkOrderId);
+          assert.equal(closeAdmitReplay.resultReplayed, true);
+          assert.equal(closeAdmitReplay.result.resultId, closeAdmit.result.resultId);
+          assert.equal(closeAdmitReplay.settlement.replayed, true);
+
+          assert.equal(planReady.ok, true);
+          assert.deepEqual(planReady.plan.externalAvailableItemIds, []);
+          assert.deepEqual(planReady.plan.automaticAvailableItemIds, [expected.renderItemId]);
+          assert.equal(planReady.plan.nextAutomaticItemId, expected.renderItemId);
+
+          assert.equal(render.claim.replayed, false);
+          assert.equal(render.claim.lease.itemId, expected.renderItemId);
+          assert.equal(render.result.outcome, 'rendered');
+          assert.equal(render.settlement.settlement.outcome, 'rendered');
+          assert.equal(renderReplay.claim.replayed, true);
+          assert.equal(renderReplay.invocationReplayed, true);
+          assert.equal(renderReplay.resultReplayed, true);
+          assert.equal(renderReplay.settlement.replayed, true);
+
+          assert.equal(exchangeStatus.ok, true);
+          assert.equal(exchangeStatus.counts.assignments, 2);
+          assert.equal(exchangeStatus.counts.results, 2);
+          assert.equal(exchangeStatus.counts.automaticAvailable, 0);
+          assert.equal(exchangeStatus.counts.externalAvailable, 0);
+          assert.deepEqual(exchangeStatus.plan.automaticAvailableItemIds, []);
+          assert.deepEqual(exchangeStatus.plan.externalAvailableItemIds, []);
+          assert.equal(exchangeStatus.plan.nextAutomaticItemId, null);
+
+          assert.equal(workerStatus.ok, true);
+          assert.equal(workerStatus.counts.invocations, 1);
+          assert.equal(workerStatus.counts.results, 1);
+          assert.equal(workerStatus.counts.automaticAvailable, 0);
+
+          assert.equal(deskStatus.ok, true);
+          assert.equal(deskStatus.counts.workOrders, 3);
+          assert.equal(deskStatus.counts.leases, 3);
+          assert.equal(deskStatus.counts.settlements, 3);
+          assert.deepEqual(deskStatus.state.availableItemIds, []);
+          assert.equal(deskStatus.state.nextAvailableItemId, null);
+
+          assert.equal(exchangeVerification.ok, true);
+          assert.deepEqual(
+            exchangeVerification.findings.filter((entry) => entry.severity === 'error'),
+            [],
+          );
+          assert.equal(exchangeVerification.counts.assignments, 2);
+          assert.equal(exchangeVerification.counts.results, 2);
+          assert.equal(workerVerification.ok, true);
+          assert.deepEqual(
+            workerVerification.findings.filter((entry) => entry.severity === 'error'),
+            [],
+          );
+          assert.equal(deskVerification.ok, true);
+          assert.deepEqual(
+            deskVerification.findings.filter((entry) => entry.severity === 'error'),
+            [],
+          );
+
+          const assignmentNames = fs.readdirSync(exchangePaths.assignments).sort();
+          const resultNames = fs.readdirSync(exchangePaths.results).sort();
+          assert.equal(assignmentNames.length, 2);
+          assert.equal(resultNames.length, 2);
+          assert.equal(assignmentNames.every((name) => /^[a-f0-9]{64}\.json$/.test(name)), true);
+          assert.equal(resultNames.every((name) => /^[a-f0-9]{64}\.json$/.test(name)), true);
+          for (const assignment of exchangeStatus.assignments) {
+            assert.equal(assignment.privateTextIncluded, false);
+            assert.equal(assignment.sourceTextIncluded, false);
+            assert.equal(assignment.authority, 'none');
+            assert.equal(assignment.graphEffect, 'none');
+            assert.equal(assignment.canonEffect, 'none');
+            assert.equal(assignment.answerEffect, 'none');
+          }
+
+          assert.equal(fs.readdirSync(workerPaths.invocations).length, 1);
+          assert.equal(fs.readdirSync(workerPaths.results).length, 1);
+          assert.equal(fs.readdirSync(workerPaths.outputs).length, 1);
+          const renderReference = render.result.resultReferences.find(
+            (reference) => reference.kind === 'reviewed-answer-render',
+          );
+          assert.ok(renderReference);
+          const outputPath = path.resolve(expected.estateRoot, renderReference.uri);
+          const output = fs.readFileSync(outputPath, 'utf8');
+          assert.equal([...output].length, expected.renderedTextCharacters);
+          assert.equal(
+            `sha256:${crypto.createHash('sha256').update(output).digest('hex')}`,
+            expected.renderedTextDigest,
+          );
+          assert.equal(
+            fs.existsSync(path.join(expected.estateRoot, '.transaction-lock')),
+            false,
+          );
+          NODE
+
+      - name: Complete Arc regression
+        id: regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm test | tee "$RUNNER_TEMP/full-tests.log"
+
+      - name: Production build
+        id: build
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run build | tee "$RUNNER_TEMP/build.log"
+
+      - name: Retain exact exchange qualification
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          root='asoiaf-answer-desk-exchange-qualification'
+          mkdir -p "$root"
+          cp "$RUNNER_TEMP"/exchange-help.txt "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/typecheck.log "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/focused-tests.log "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/full-tests.log "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/build.log "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/fixture-emission.json "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/adopt-result.json "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/exchange-plan-open.json "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/review-issue-first.json "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/review-issue-replay.json "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/review-admit-first.json "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/review-admit-replay.json "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/exchange-plan-reconciled.json "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/close-issue-first.json "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/close-issue-replay.json "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/close-admit-first.json "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/close-admit-replay.json "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/exchange-plan-ready.json "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/render-run-first.json "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/render-run-replay.json "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/exchange-status.json "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/worker-status.json "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/desk-status.json "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/exchange-verification.json "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/worker-verification.json "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/desk-verification.json "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/exchange-paths.json "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/worker-paths.json "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/answer-exchange-fixture/expected.json "$root/" 2>/dev/null || true
+          cp -R "$RUNNER_TEMP"/answer-desk "$root/estate" 2>/dev/null || true
+          printf '%s\n' "$CANDIDATE_SHA" > "$root/candidate-sha.txt"
+          printf '%s\n' \
+            'externalAssignments=2' \
+            'externalResults=2' \
+            'automaticInvocations=1' \
+            'automaticResults=1' \
+            'workOrders=3' \
+            'leases=3' \
+            'settlements=3' \
+            'sourceTextIncluded=false' \
+            'privateTextIncluded=false' \
+            'exactReplay=true' \
+            'persistentSettlementValidation=true' \
+            'graphEffect=none' \
+            'canonEffect=none' \
+            > "$root/qualification-boundary.txt"
+          find "$root" -type f ! -name SHA256SUMS -print0 \
+            | sort -z \
+            | xargs -0 sha256sum \
+            | sed "s#  $root/#  #" \
+            > "$root/SHA256SUMS"
+
+      - name: Upload exchange qualification
+        if: always()
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: asoiaf-answer-desk-exchange-qualification
+          path: asoiaf-answer-desk-exchange-qualification
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish exact qualification summary
+        if: always()
+        env:
+          ARTIFACT_ID: ${{ steps.upload.outputs['artifact-id'] }}
+          ARTIFACT_DIGEST: ${{ steps.upload.outputs['artifact-digest'] }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo '## ASOIAF answer desk exchange qualification'
+            echo
+            echo "- Candidate: \`$CANDIDATE_SHA\`"
+            echo "- Artifact: \`${ARTIFACT_ID:-not-issued}\`"
+            echo "- Artifact digest: \`${ARTIFACT_DIGEST:-not-issued}\`"
+            echo '- External transitions: exact-locator review and gap closure.'
+            echo '- Final automatic transition: reviewed packet rendering.'
+          } >> "$GITHUB_STEP_SUMMARY"

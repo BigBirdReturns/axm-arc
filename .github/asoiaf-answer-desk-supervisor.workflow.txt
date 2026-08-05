@@ -1,0 +1,590 @@
+name: ASOIAF answer desk supervisor
+
+on:
+  push:
+    branches:
+      - feature/asoiaf-answer-desk-supervisor-v1
+    paths:
+      - '.github/workflows/asoiaf-answer-desk-supervisor.yml'
+      - 'docs/ASOIAF_ANSWER_DESK_SUPERVISOR.md'
+      - 'package.json'
+      - 'tests/fixtures/asoiaf-answer-desk-fixture.ts'
+      - 'tests/fixtures/emit-asoiaf-answer-desk-supervisor-input.ts'
+      - 'tests/narrative/canon/asoiaf-answer-desk-supervisor.test.ts'
+      - 'tools/asoiaf-answer-desk-supervisor.ts'
+      - 'tools/lib/asoiaf-answer-desk-supervisor.ts'
+      - 'tools/asoiaf-answer-desk-exchange.ts'
+      - 'tools/lib/asoiaf-answer-desk-exchange.ts'
+      - 'tools/asoiaf-answer-desk-worker.ts'
+      - 'tools/lib/asoiaf-answer-desk-worker.ts'
+      - 'tools/asoiaf-answer-desk-estate.ts'
+      - 'tools/lib/asoiaf-answer-desk-estate.ts'
+      - 'tools/lib/asoiaf-answer-work-lease.ts'
+      - 'tools/lib/asoiaf-answer-work-order.ts'
+  pull_request:
+    branches:
+      - feature/asoiaf-answer-desk-exchange-v1
+    paths:
+      - '.github/workflows/asoiaf-answer-desk-supervisor.yml'
+      - 'docs/ASOIAF_ANSWER_DESK_SUPERVISOR.md'
+      - 'package.json'
+      - 'tests/fixtures/asoiaf-answer-desk-fixture.ts'
+      - 'tests/fixtures/emit-asoiaf-answer-desk-supervisor-input.ts'
+      - 'tests/narrative/canon/asoiaf-answer-desk-supervisor.test.ts'
+      - 'tools/asoiaf-answer-desk-supervisor.ts'
+      - 'tools/lib/asoiaf-answer-desk-supervisor.ts'
+      - 'tools/asoiaf-answer-desk-exchange.ts'
+      - 'tools/lib/asoiaf-answer-desk-exchange.ts'
+      - 'tools/asoiaf-answer-desk-worker.ts'
+      - 'tools/lib/asoiaf-answer-desk-worker.ts'
+      - 'tools/asoiaf-answer-desk-estate.ts'
+      - 'tools/lib/asoiaf-answer-desk-estate.ts'
+      - 'tools/lib/asoiaf-answer-work-lease.ts'
+      - 'tools/lib/asoiaf-answer-work-order.ts'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: asoiaf-answer-desk-supervisor-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qualify:
+    if: github.repository == 'BigBirdReturns/axm-arc'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Check out exact supervisor candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+          show-progress: false
+
+      - name: Record exact candidate identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          candidate_sha="$(git rev-parse HEAD)"
+          test -z "$(git status --porcelain)"
+          printf '%s\n' "$candidate_sha"
+          echo "CANDIDATE_SHA=$candidate_sha" >> "$GITHUB_ENV"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Verify permanent supervisor operator registration
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run --silent asoiaf:answer-supervisor -- help \
+            | tee "$RUNNER_TEMP/supervisor-help.txt"
+          grep -q 'ASOIAF persistent answer desk supervisor' "$RUNNER_TEMP/supervisor-help.txt"
+          grep -q 'policy' "$RUNNER_TEMP/supervisor-help.txt"
+          grep -q 'plan' "$RUNNER_TEMP/supervisor-help.txt"
+          grep -q 'prepare' "$RUNNER_TEMP/supervisor-help.txt"
+          grep -q 'tick' "$RUNNER_TEMP/supervisor-help.txt"
+          grep -q 'verify' "$RUNNER_TEMP/supervisor-help.txt"
+
+      - name: Strict TypeScript
+        id: typecheck
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run typecheck | tee "$RUNNER_TEMP/typecheck.log"
+
+      - name: Focused supervisor, exchange, worker, estate, lease, answer, dossier, and reconciliation qualification
+        id: focused
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm test -- \
+            tests/narrative/canon/asoiaf-answer-desk-supervisor.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-exchange.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-worker.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-estate.test.ts \
+            tests/narrative/canon/asoiaf-answer-work-lease.test.ts \
+            tests/narrative/canon/asoiaf-answer-work-order.test.ts \
+            tests/narrative/canon/asoiaf-reviewed-answer-packet.test.ts \
+            tests/narrative/canon/asoiaf-research-question-dossier.test.ts \
+            tests/narrative/canon/asoiaf-external-reconciliation-packets.test.ts \
+            | tee "$RUNNER_TEMP/focused-tests.log"
+
+      - name: Exercise write-ahead JIT scheduling through external review, gap closure, and automatic rendering
+        id: smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture_directory="$RUNNER_TEMP/answer-supervisor-fixture"
+          estate_root="$RUNNER_TEMP/answer-desk"
+          mkdir -p "$fixture_directory"
+
+          npx vite-node tests/fixtures/emit-asoiaf-answer-desk-supervisor-input.ts \
+            "$fixture_directory" \
+            "$estate_root" \
+            | tee "$RUNNER_TEMP/fixture-emission.json"
+
+          npm run --silent asoiaf:answer-desk -- adopt \
+            --input "$fixture_directory/adopt-input.json" \
+            --out "$RUNNER_TEMP/adopt-result.json"
+
+          npm run --silent asoiaf:answer-supervisor -- plan \
+            --input "$fixture_directory/review-tick-input.json" \
+            --out "$RUNNER_TEMP/supervisor-plan-open.json"
+
+          npm run --silent asoiaf:answer-supervisor -- prepare \
+            --input "$fixture_directory/review-tick-input.json" \
+            --out "$RUNNER_TEMP/review-prepare.json"
+
+          npm run --silent asoiaf:answer-desk -- status \
+            --root "$estate_root" \
+            > "$RUNNER_TEMP/desk-after-prepare.json"
+
+          npm run --silent asoiaf:answer-supervisor -- tick \
+            --input "$fixture_directory/review-tick-input.json" \
+            --out "$RUNNER_TEMP/review-tick-first.json"
+
+          npm run --silent asoiaf:answer-supervisor -- tick \
+            --input "$fixture_directory/review-tick-input.json" \
+            --out "$RUNNER_TEMP/review-tick-replay.json"
+
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const temp = process.env.RUNNER_TEMP;
+          const fixture = path.join(temp, 'answer-supervisor-fixture');
+          const template = JSON.parse(
+            fs.readFileSync(path.join(fixture, 'review-result-template.json'), 'utf8'),
+          );
+          const tick = JSON.parse(
+            fs.readFileSync(path.join(temp, 'review-tick-first.json'), 'utf8'),
+          );
+          template.assignmentId = tick.externalIssue.assignment.assignmentId;
+          fs.writeFileSync(
+            path.join(fixture, 'review-result-input.json'),
+            `${JSON.stringify(template, null, 2)}\n`,
+          );
+          NODE
+
+          npm run --silent asoiaf:answer-exchange -- admit \
+            --input "$fixture_directory/review-result-input.json" \
+            --out "$RUNNER_TEMP/review-admit-first.json"
+
+          npm run --silent asoiaf:answer-exchange -- admit \
+            --input "$fixture_directory/review-result-input.json" \
+            --out "$RUNNER_TEMP/review-admit-replay.json"
+
+          npm run --silent asoiaf:answer-supervisor -- plan \
+            --input "$fixture_directory/close-tick-input.json" \
+            --out "$RUNNER_TEMP/supervisor-plan-reconciled.json"
+
+          npm run --silent asoiaf:answer-supervisor -- tick \
+            --input "$fixture_directory/close-tick-input.json" \
+            --out "$RUNNER_TEMP/close-tick-first.json"
+
+          npm run --silent asoiaf:answer-supervisor -- tick \
+            --input "$fixture_directory/close-tick-input.json" \
+            --out "$RUNNER_TEMP/close-tick-replay.json"
+
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const temp = process.env.RUNNER_TEMP;
+          const fixture = path.join(temp, 'answer-supervisor-fixture');
+          const template = JSON.parse(
+            fs.readFileSync(path.join(fixture, 'close-result-template.json'), 'utf8'),
+          );
+          const tick = JSON.parse(
+            fs.readFileSync(path.join(temp, 'close-tick-first.json'), 'utf8'),
+          );
+          template.assignmentId = tick.externalIssue.assignment.assignmentId;
+          fs.writeFileSync(
+            path.join(fixture, 'close-result-input.json'),
+            `${JSON.stringify(template, null, 2)}\n`,
+          );
+          NODE
+
+          npm run --silent asoiaf:answer-exchange -- admit \
+            --input "$fixture_directory/close-result-input.json" \
+            --out "$RUNNER_TEMP/close-admit-first.json"
+
+          npm run --silent asoiaf:answer-exchange -- admit \
+            --input "$fixture_directory/close-result-input.json" \
+            --out "$RUNNER_TEMP/close-admit-replay.json"
+
+          npm run --silent asoiaf:answer-supervisor -- plan \
+            --input "$fixture_directory/render-tick-input.json" \
+            --out "$RUNNER_TEMP/supervisor-plan-ready.json"
+
+          npm run --silent asoiaf:answer-supervisor -- tick \
+            --input "$fixture_directory/render-tick-input.json" \
+            --out "$RUNNER_TEMP/render-tick-first.json"
+
+          npm run --silent asoiaf:answer-supervisor -- tick \
+            --input "$fixture_directory/render-tick-input.json" \
+            --out "$RUNNER_TEMP/render-tick-replay.json"
+
+          npm run --silent asoiaf:answer-supervisor -- status \
+            --root "$estate_root" \
+            --policy "$fixture_directory/policy.json" \
+            --out "$RUNNER_TEMP/supervisor-status.json"
+
+          npm run --silent asoiaf:answer-supervisor -- verify \
+            --root "$estate_root" \
+            --out "$RUNNER_TEMP/supervisor-verification.json"
+
+          npm run --silent asoiaf:answer-exchange -- status \
+            --root "$estate_root" \
+            --out "$RUNNER_TEMP/exchange-status.json"
+
+          npm run --silent asoiaf:answer-exchange -- verify \
+            --root "$estate_root" \
+            --out "$RUNNER_TEMP/exchange-verification.json"
+
+          npm run --silent asoiaf:answer-worker -- status \
+            --root "$estate_root" \
+            --out "$RUNNER_TEMP/worker-status.json"
+
+          npm run --silent asoiaf:answer-worker -- verify \
+            --root "$estate_root" \
+            --out "$RUNNER_TEMP/worker-verification.json"
+
+          npm run --silent asoiaf:answer-desk -- status \
+            --root "$estate_root" \
+            > "$RUNNER_TEMP/desk-status.json"
+
+          npm run --silent asoiaf:answer-desk -- verify \
+            --root "$estate_root" \
+            > "$RUNNER_TEMP/desk-verification.json"
+
+          npm run --silent asoiaf:answer-supervisor -- paths \
+            --root "$estate_root" \
+            --out "$RUNNER_TEMP/supervisor-paths.json"
+
+          npm run --silent asoiaf:answer-exchange -- paths \
+            --root "$estate_root" \
+            --out "$RUNNER_TEMP/exchange-paths.json"
+
+          npm run --silent asoiaf:answer-worker -- paths \
+            --root "$estate_root" \
+            --out "$RUNNER_TEMP/worker-paths.json"
+
+          node <<'NODE'
+          const crypto = require('node:crypto');
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const assert = require('node:assert/strict');
+
+          const temp = process.env.RUNNER_TEMP;
+          const read = (name) => JSON.parse(
+            fs.readFileSync(path.join(temp, name), 'utf8'),
+          );
+          const fixtureDir = path.join(temp, 'answer-supervisor-fixture');
+          const expected = JSON.parse(
+            fs.readFileSync(path.join(fixtureDir, 'expected.json'), 'utf8'),
+          );
+          const policy = JSON.parse(
+            fs.readFileSync(path.join(fixtureDir, 'policy.json'), 'utf8'),
+          );
+          const planOpen = read('supervisor-plan-open.json');
+          const prepared = read('review-prepare.json');
+          const deskAfterPrepare = read('desk-after-prepare.json');
+          const review = read('review-tick-first.json');
+          const reviewReplay = read('review-tick-replay.json');
+          const reviewAdmit = read('review-admit-first.json');
+          const reviewAdmitReplay = read('review-admit-replay.json');
+          const planReconciled = read('supervisor-plan-reconciled.json');
+          const close = read('close-tick-first.json');
+          const closeReplay = read('close-tick-replay.json');
+          const closeAdmit = read('close-admit-first.json');
+          const closeAdmitReplay = read('close-admit-replay.json');
+          const planReady = read('supervisor-plan-ready.json');
+          const render = read('render-tick-first.json');
+          const renderReplay = read('render-tick-replay.json');
+          const supervisorStatus = read('supervisor-status.json');
+          const supervisorVerification = read('supervisor-verification.json');
+          const exchangeStatus = read('exchange-status.json');
+          const exchangeVerification = read('exchange-verification.json');
+          const workerStatus = read('worker-status.json');
+          const workerVerification = read('worker-verification.json');
+          const deskStatus = read('desk-status.json');
+          const deskVerification = read('desk-verification.json');
+          const supervisorPaths = read('supervisor-paths.json');
+          const exchangePaths = read('exchange-paths.json');
+          const workerPaths = read('worker-paths.json');
+
+          assert.equal(policy.policyId, expected.policyId);
+          assert.equal(policy.policyFingerprint, expected.policyFingerprint);
+          assert.equal(policy.networkAccess, 'none');
+          assert.equal(policy.privateTextAccess, 'none');
+          assert.equal(policy.humanReviewAuthority, 'none');
+          assert.equal(policy.acquisitionAuthority, 'none');
+          assert.equal(policy.reconciliationAuthority, 'none');
+
+          assert.equal(planOpen.ok, true);
+          assert.deepEqual(planOpen.findings, []);
+          assert.equal(planOpen.projection.decision.kind, 'issue-external');
+          assert.equal(planOpen.projection.decision.itemId, expected.reviewItemId);
+          assert.equal(planOpen.projection.decision.action, 'review-exact-locator');
+          assert.equal(
+            planOpen.projection.decision.actorId,
+            'actor:qualification:supervisor-locator-reviewer',
+          );
+          assert.equal(deskAfterPrepare.counts.leases, 0);
+          assert.equal(prepared.replayed, false);
+          assert.equal(prepared.intent.decision.itemId, expected.reviewItemId);
+
+          assert.equal(review.intentReplayed, true);
+          assert.equal(review.runReplayed, false);
+          assert.equal(review.run.outcome, 'external-issued');
+          assert.equal(review.run.action, 'review-exact-locator');
+          assert.equal(review.externalIssue.claim.replayed, false);
+          assert.equal(review.externalIssue.assignmentReplayed, false);
+          assert.equal(review.run.operationReferences.length, 1);
+          assert.equal(
+            review.run.operationReferences[0].kind,
+            'answer-exchange-assignment',
+          );
+          assert.equal(reviewReplay.intentReplayed, true);
+          assert.equal(reviewReplay.runReplayed, true);
+          assert.equal(reviewReplay.run.runId, review.run.runId);
+          assert.equal(reviewReplay.externalIssue, null);
+
+          assert.equal(reviewAdmit.resultReplayed, false);
+          assert.equal(reviewAdmit.result.afterWorkOrderId, expected.reconciledWorkOrderId);
+          assert.equal(reviewAdmit.settlement.replayed, false);
+          assert.equal(reviewAdmitReplay.resultReplayed, true);
+          assert.equal(reviewAdmitReplay.settlement.replayed, true);
+
+          assert.equal(planReconciled.ok, true);
+          assert.equal(planReconciled.projection.decision.kind, 'issue-external');
+          assert.equal(planReconciled.projection.decision.itemId, expected.closeItemId);
+          assert.equal(planReconciled.projection.decision.action, 'close-gap');
+          assert.equal(
+            planReconciled.projection.decision.actorId,
+            'actor:qualification:supervisor-answer-assembler',
+          );
+
+          assert.equal(close.intentReplayed, false);
+          assert.equal(close.runReplayed, false);
+          assert.equal(close.run.outcome, 'external-issued');
+          assert.equal(close.run.action, 'close-gap');
+          assert.equal(close.externalIssue.claim.replayed, false);
+          assert.equal(closeReplay.runReplayed, true);
+          assert.equal(closeReplay.run.runId, close.run.runId);
+          assert.equal(closeReplay.externalIssue, null);
+
+          assert.equal(closeAdmit.resultReplayed, false);
+          assert.equal(closeAdmit.result.afterWorkOrderId, expected.readyWorkOrderId);
+          assert.equal(closeAdmit.settlement.replayed, false);
+          assert.equal(closeAdmitReplay.resultReplayed, true);
+          assert.equal(closeAdmitReplay.settlement.replayed, true);
+
+          assert.equal(planReady.ok, true);
+          assert.equal(planReady.projection.decision.kind, 'run-automatic');
+          assert.equal(planReady.projection.decision.itemId, expected.renderItemId);
+          assert.equal(planReady.projection.decision.action, 'render-reviewed-answer');
+
+          assert.equal(render.intentReplayed, false);
+          assert.equal(render.runReplayed, false);
+          assert.equal(render.run.outcome, 'automatic-rendered');
+          assert.equal(render.run.action, 'render-reviewed-answer');
+          assert.equal(render.automaticRun.claim.replayed, false);
+          assert.equal(render.automaticRun.invocationReplayed, false);
+          assert.equal(render.automaticRun.resultReplayed, false);
+          assert.equal(render.automaticRun.settlement.replayed, false);
+          assert.deepEqual(
+            render.run.operationReferences.map((entry) => entry.kind),
+            [
+              'answer-worker-invocation',
+              'answer-worker-result',
+              'reviewed-answer-render',
+              'answer-work-settlement',
+            ],
+          );
+          assert.equal(renderReplay.runReplayed, true);
+          assert.equal(renderReplay.run.runId, render.run.runId);
+          assert.equal(renderReplay.automaticRun, null);
+
+          assert.equal(supervisorStatus.ok, true);
+          assert.equal(supervisorStatus.counts.intents, 3);
+          assert.equal(supervisorStatus.counts.runs, 3);
+          assert.equal(supervisorStatus.counts.pendingIntents, 0);
+          assert.equal(supervisorStatus.counts.automaticAvailable, 0);
+          assert.equal(supervisorStatus.counts.externalAvailable, 0);
+          assert.equal(supervisorStatus.projection.decision.kind, 'idle');
+          assert.deepEqual(supervisorStatus.pendingIntentIds, []);
+
+          assert.equal(exchangeStatus.ok, true);
+          assert.equal(exchangeStatus.counts.assignments, 2);
+          assert.equal(exchangeStatus.counts.results, 2);
+          assert.equal(workerStatus.ok, true);
+          assert.equal(workerStatus.counts.invocations, 1);
+          assert.equal(workerStatus.counts.results, 1);
+          assert.equal(deskStatus.ok, true);
+          assert.equal(deskStatus.counts.workOrders, 3);
+          assert.equal(deskStatus.counts.leases, 3);
+          assert.equal(deskStatus.counts.settlements, 3);
+          assert.deepEqual(deskStatus.state.availableItemIds, []);
+          assert.equal(deskStatus.state.nextAvailableItemId, null);
+
+          for (const verification of [
+            supervisorVerification,
+            exchangeVerification,
+            workerVerification,
+            deskVerification,
+          ]) {
+            assert.equal(verification.ok, true);
+            assert.deepEqual(
+              verification.findings.filter((entry) => entry.severity === 'error'),
+              [],
+            );
+          }
+
+          assert.equal(fs.readdirSync(supervisorPaths.intents).length, 3);
+          assert.equal(fs.readdirSync(supervisorPaths.runs).length, 3);
+          assert.equal(
+            fs.readdirSync(supervisorPaths.intents).every(
+              (name) => /^[a-f0-9]{64}\.json$/.test(name),
+            ),
+            true,
+          );
+          assert.equal(
+            fs.readdirSync(supervisorPaths.runs).every(
+              (name) => /^[a-f0-9]{64}\.json$/.test(name),
+            ),
+            true,
+          );
+          assert.equal(fs.readdirSync(exchangePaths.assignments).length, 2);
+          assert.equal(fs.readdirSync(exchangePaths.results).length, 2);
+          assert.equal(fs.readdirSync(workerPaths.invocations).length, 1);
+          assert.equal(fs.readdirSync(workerPaths.results).length, 1);
+          assert.equal(fs.readdirSync(workerPaths.outputs).length, 1);
+
+          for (const assignment of exchangeStatus.assignments) {
+            assert.equal(assignment.privateTextIncluded, false);
+            assert.equal(assignment.sourceTextIncluded, false);
+            assert.equal(assignment.authority, 'none');
+            assert.equal(assignment.graphEffect, 'none');
+            assert.equal(assignment.canonEffect, 'none');
+            assert.equal(assignment.answerEffect, 'none');
+          }
+          for (const intent of supervisorStatus.intents) {
+            assert.equal(intent.authority, 'none');
+            assert.equal(intent.graphEffect, 'none');
+            assert.equal(intent.canonEffect, 'none');
+            assert.equal(intent.answerEffect, 'none');
+          }
+          for (const run of supervisorStatus.runs) {
+            assert.equal(run.authority, 'none');
+            assert.equal(run.graphEffect, 'none');
+            assert.equal(run.canonEffect, 'none');
+            assert.equal(run.answerEffect, 'none');
+          }
+
+          const renderReference = render.automaticRun.result.resultReferences.find(
+            (reference) => reference.kind === 'reviewed-answer-render',
+          );
+          assert.ok(renderReference);
+          const outputPath = path.resolve(expected.estateRoot, renderReference.uri);
+          const output = fs.readFileSync(outputPath, 'utf8');
+          assert.equal([...output].length, expected.renderedTextCharacters);
+          assert.equal(
+            `sha256:${crypto.createHash('sha256').update(output).digest('hex')}`,
+            expected.renderedTextDigest,
+          );
+          assert.equal(
+            fs.existsSync(path.join(expected.estateRoot, '.transaction-lock')),
+            false,
+          );
+          NODE
+
+      - name: Complete Arc regression
+        id: regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm test | tee "$RUNNER_TEMP/full-tests.log"
+
+      - name: Production build
+        id: build
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run build | tee "$RUNNER_TEMP/build.log"
+
+      - name: Retain exact supervisor qualification
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          root='asoiaf-answer-desk-supervisor-qualification'
+          mkdir -p "$root"
+          cp "$RUNNER_TEMP"/*.txt "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/*.log "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/*.json "$root/" 2>/dev/null || true
+          if [ -d "$RUNNER_TEMP/answer-supervisor-fixture" ]; then
+            cp -R "$RUNNER_TEMP/answer-supervisor-fixture" "$root/fixture"
+          fi
+          if [ -d "$RUNNER_TEMP/answer-desk" ]; then
+            cp -R "$RUNNER_TEMP/answer-desk" "$root/estate"
+          fi
+          printf '%s\n' "$CANDIDATE_SHA" > "$root/candidate-sha.txt"
+          printf '%s\n' \
+            'selection=work-order-order-then-binding-priority' \
+            'leases=claim-only-on-dispatch' \
+            'writeAheadIntent=content-addressed' \
+            'requestReplay=exact' \
+            'externalDispatch=actor-role-capacity-bound' \
+            'automaticDispatch=reviewed-renderer-only' \
+            'networkAccess=none' \
+            'privateTextAccess=none' \
+            'humanReviewAuthority=none' \
+            'acquisitionAuthority=none' \
+            'reconciliationAuthority=none' \
+            'graphEffect=none' \
+            'canonEffect=none' \
+            'answerEffect=none' \
+            > "$root/qualification-boundary.txt"
+          find "$root" -type f ! -name SHA256SUMS -print0 \
+            | sort -z \
+            | xargs -0 sha256sum \
+            | sed "s#  $root/#  #" \
+            > "$root/SHA256SUMS"
+
+      - name: Upload supervisor qualification
+        if: always()
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: asoiaf-answer-desk-supervisor-qualification
+          path: asoiaf-answer-desk-supervisor-qualification
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish exact qualification summary
+        if: always()
+        env:
+          ARTIFACT_ID: ${{ steps.upload.outputs['artifact-id'] }}
+          ARTIFACT_DIGEST: ${{ steps.upload.outputs['artifact-digest'] }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo '## ASOIAF answer desk supervisor qualification'
+            echo
+            echo "- Candidate: \`$CANDIDATE_SHA\`"
+            echo "- Artifact: \`${ARTIFACT_ID:-not-issued}\`"
+            echo "- Artifact digest: \`${ARTIFACT_DIGEST:-not-issued}\`"
+            echo '- Scheduler: write-ahead JIT intent, one decision per tick.'
+            echo '- External work: actor-role capacity bound.'
+            echo '- Automatic work: reviewed renderer only.'
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,73 @@
+name: Publish ASOIAF answer desk supervisor code v1
+
+on:
+  push:
+    branches:
+      - feature/asoiaf-answer-desk-supervisor-v1
+    paths:
+      - '.github/publish-asoiaf-answer-desk-supervisor-code-v1.sh'
+      - '.github/workflows/publish-asoiaf-answer-desk-supervisor-code-v1.yml'
+  pull_request:
+    branches:
+      - feature/asoiaf-answer-desk-exchange-v1
+    paths:
+      - '.github/publish-asoiaf-answer-desk-supervisor-code-v1.sh'
+      - '.github/workflows/publish-asoiaf-answer-desk-supervisor-code-v1.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-asoiaf-answer-desk-supervisor-code-v1
+  cancel-in-progress: false
+
+jobs:
+  qualify_and_publish:
+    if: >-
+      github.repository == 'BigBirdReturns/axm-arc'
+      && (
+        (github.event_name == 'push' && github.ref_name == 'feature/asoiaf-answer-desk-supervisor-v1')
+        || (github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'feature/asoiaf-answer-desk-supervisor-v1')
+      )
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Check out exact supervisor publisher head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          show-progress: false
+
+      - name: Bind exact publisher transaction
+        env:
+          EXPECTED_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          test -z "$(git status --porcelain)"
+          test -f .github/publish-asoiaf-answer-desk-supervisor-code-v1.sh
+          chmod +x .github/publish-asoiaf-answer-desk-supervisor-code-v1.sh
+
+      - name: Materialize, qualify, and push ordinary supervisor code
+        shell: bash
+        run: .github/publish-asoiaf-answer-desk-supervisor-code-v1.sh
+
+      - name: Publish code-candidate summary
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          candidate="$(cat "$RUNNER_TEMP/supervisor-code-candidate-sha.txt")"
+          {
+            echo '## ASOIAF answer desk supervisor code publication'
+            echo
+            echo "- Ordinary-code candidate: \`$candidate\`"
+            echo '- Bundle and semantic patch identities verified.'
+            echo '- Operator registration and strict TypeScript passed.'
+            echo '- Focused supervisor stack and complete Arc regression passed.'
+            echo '- Production build passed.'
+            echo '- No protected workflow path was changed by this push.'
+          } >> "$GITHUB_STEP_SUMMARY"

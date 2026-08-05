@@ -802,7 +802,7 @@ function validatePrivateReferences(
       findings.push(finding("private-snippet-digest", "error", reference.referenceId, "private snippet digest is malformed"));
     }
     if (
-      reference.snippetCharacters !== null
+      reference.snippetCharacters != null
       && (!Number.isSafeInteger(reference.snippetCharacters) || reference.snippetCharacters < 1 || reference.snippetCharacters > 2_000)
     ) {
       findings.push(finding("private-snippet-size", "error", reference.referenceId, "private snippet character count is outside the bounded range"));

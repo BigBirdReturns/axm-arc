@@ -438,7 +438,9 @@ describe("ASOIAF research question dossier", () => {
       nextActions: [],
     };
     expect(
-      validateAsoiafResearchQuestionDossier(tampered).map(
+      validateAsoiafResearchQuestionDossier(
+        tampered as unknown as typeof dossier,
+      ).map(
         (finding) => finding.code,
       ),
     ).toEqual(

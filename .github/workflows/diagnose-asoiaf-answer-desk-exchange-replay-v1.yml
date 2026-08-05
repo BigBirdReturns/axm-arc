@@ -1,0 +1,87 @@
+name: Diagnose ASOIAF answer desk exchange replay v1
+
+on:
+  pull_request:
+    branches:
+      - feature/asoiaf-answer-desk-worker-v1
+    paths:
+      - '.github/workflows/diagnose-asoiaf-answer-desk-exchange-replay-v1.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: diagnose-asoiaf-answer-desk-exchange-replay-v1
+  cancel-in-progress: true
+
+jobs:
+  diagnose:
+    if: github.repository == 'BigBirdReturns/axm-arc' && github.event.pull_request.head.ref == 'feature/asoiaf-answer-desk-exchange-v1'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out exact exchange head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+          show-progress: false
+
+      - name: Reproduce the staged replay patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import textwrap
+
+          workflow = Path('.github/workflows/repair-and-qualify-asoiaf-answer-desk-exchange-replay-v1.yml').read_text(encoding='utf-8')
+          marker = "          python - <<'PY'\n"
+          if workflow.count(marker) != 1:
+              raise SystemExit('cannot locate exact staged replay repair')
+          body = workflow.split(marker, 1)[1].split('\n          PY\n', 1)[0]
+          exec(textwrap.dedent(body), {})
+          PY
+          git diff --check
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Run focused exchange test and publish only failures
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set +e
+          npx vitest run tests/narrative/canon/asoiaf-answer-desk-exchange.test.ts \
+            2>&1 | tee "$RUNNER_TEMP/exchange-test.log"
+          status=${PIPESTATUS[0]}
+          set -e
+          if [ "$status" -ne 0 ]; then
+            python - <<'PY'
+          from pathlib import Path
+
+          log = Path(Path(__import__('os').environ['RUNNER_TEMP']) / 'exchange-test.log').read_text(encoding='utf-8', errors='replace')
+          marker = 'Failed Tests'
+          start = log.find(marker)
+          excerpt = log[start:] if start >= 0 else '\n'.join(log.splitlines()[-180:])
+          excerpt = excerpt[:12000]
+          Path(Path(__import__('os').environ['RUNNER_TEMP']) / 'exchange-failure.md').write_text(
+              'Exact staged exchange replay failure on the current PR head:\n\n```text\n' + excerpt + '\n```\n',
+              encoding='utf-8',
+          )
+          PY
+            gh pr comment 253 --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/exchange-failure.md"
+            exit "$status"
+          fi
+          gh pr comment 253 --repo "$GITHUB_REPOSITORY" --body \
+            'The staged exchange replay patch passes the focused exchange test on the current PR head.'

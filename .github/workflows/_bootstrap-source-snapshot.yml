@@ -1,11 +1,6 @@
 name: Materialize authenticated answer transport
 
 on:
-  push:
-    branches:
-      - feature/asoiaf-answer-desk-transport-v1
-    paths:
-      - .github/workflows/_bootstrap-source-snapshot.yml
   pull_request:
     branches:
       - feature/asoiaf-answer-desk-exchange-v1
@@ -27,10 +22,10 @@ jobs:
       - name: Check out exact carrier head
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
-      - name: Materialize exact permanent transport surfaces
+      - name: Materialize exact non-workflow transport surfaces
         shell: bash
         run: |
           set -euo pipefail
@@ -41,8 +36,8 @@ jobs:
             "$RUNNER_TEMP/asoiaf-answer-transport-payload.tgz" \
             | sha256sum --check --strict
           tar -xzf "$RUNNER_TEMP/asoiaf-answer-transport-payload.tgz"
+          rm .github/workflows/asoiaf-answer-desk-transport.yml
           rm -rf .github/materialize/asoiaf-answer-transport
-          rm .github/workflows/_bootstrap-source-snapshot.yml
 
           cat > "$RUNNER_TEMP/expected-paths" <<'EOF'
           .github/materialize/asoiaf-answer-transport/part-00.b64
@@ -51,8 +46,6 @@ jobs:
           .github/materialize/asoiaf-answer-transport/part-03.b64
           .github/materialize/asoiaf-answer-transport/part-04.b64
           .github/materialize/asoiaf-answer-transport/part-05.b64
-          .github/workflows/_bootstrap-source-snapshot.yml
-          .github/workflows/asoiaf-answer-desk-transport.yml
           docs/ASOIAF_ANSWER_DESK_TRANSPORT.md
           package.json
           tests/fixtures/emit-asoiaf-answer-desk-transport-input.ts
@@ -62,16 +55,22 @@ jobs:
           EOF
 
           git diff --check
-          git add -A
+          git add -A .github/materialize/asoiaf-answer-transport \
+            docs/ASOIAF_ANSWER_DESK_TRANSPORT.md \
+            package.json \
+            tests/fixtures/emit-asoiaf-answer-desk-transport-input.ts \
+            tests/narrative/canon/asoiaf-answer-desk-transport.test.ts \
+            tools/asoiaf-answer-desk-transport.ts \
+            tools/lib/asoiaf-answer-desk-transport.ts
           git diff --cached --name-only | sort > "$RUNNER_TEMP/actual-paths"
           sort "$RUNNER_TEMP/expected-paths" -o "$RUNNER_TEMP/expected-paths"
           diff -u "$RUNNER_TEMP/expected-paths" "$RUNNER_TEMP/actual-paths"
 
-      - name: Commit exact permanent transport surfaces
+      - name: Commit exact non-workflow transport surfaces
         shell: bash
         run: |
           set -euo pipefail
           git config user.name 'BigBirdReturns transport qualification'
           git config user.email 'actions@users.noreply.github.com'
-          git commit -m 'Authenticate external ASOIAF answer transport'
+          git commit -m 'Materialize authenticated ASOIAF answer transport'
           git push origin HEAD:feature/asoiaf-answer-desk-transport-v1

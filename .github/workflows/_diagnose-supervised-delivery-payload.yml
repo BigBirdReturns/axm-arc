@@ -1,0 +1,67 @@
+name: Diagnose ASOIAF supervised delivery payload
+
+on:
+  push:
+    branches:
+      - feature/asoiaf-answer-desk-supervised-delivery-v1
+    paths:
+      - '.github/workflows/_diagnose-supervised-delivery-payload.yml'
+  pull_request:
+    branches:
+      - integration/asoiaf-answer-desk-supervised-transport-v1
+    types:
+      - opened
+      - synchronize
+      - reopened
+    paths:
+      - '.github/workflows/_diagnose-supervised-delivery-payload.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+          show-progress: false
+
+      - name: Record exact payload shape
+        shell: bash
+        run: |
+          set -u
+          root='.github/materialize/asoiaf-answer-supervised-delivery'
+          report="$RUNNER_TEMP/supervised-delivery-payload-diagnostic.txt"
+          : > "$report"
+          echo "candidate=$(git rev-parse HEAD)" >> "$report"
+          echo 'segment_sha256:' >> "$report"
+          sha256sum "$root"/part-*.b64 >> "$report" 2>&1 || true
+          cat "$root"/part-*.b64 > "$RUNNER_TEMP/payload.b64" 2>> "$report" || true
+          echo "concatenated_sha256=$(sha256sum "$RUNNER_TEMP/payload.b64" 2>/dev/null | awk '{print $1}')" >> "$report"
+          base64 --decode "$RUNNER_TEMP/payload.b64" > "$RUNNER_TEMP/payload.tgz" 2> "$RUNNER_TEMP/base64.stderr"
+          echo "base64_status=$?" >> "$report"
+          cat "$RUNNER_TEMP/base64.stderr" >> "$report"
+          echo "archive_sha256=$(sha256sum "$RUNNER_TEMP/payload.tgz" 2>/dev/null | awk '{print $1}')" >> "$report"
+          tar -tzf "$RUNNER_TEMP/payload.tgz" > "$RUNNER_TEMP/archive-paths.txt" 2> "$RUNNER_TEMP/tar.stderr"
+          echo "tar_status=$?" >> "$report"
+          cat "$RUNNER_TEMP/tar.stderr" >> "$report"
+          echo 'archive_paths:' >> "$report"
+          cat "$RUNNER_TEMP/archive-paths.txt" >> "$report" 2>/dev/null || true
+          tar -xzf "$RUNNER_TEMP/payload.tgz" 2>> "$report" || true
+          echo 'post_extract_status:' >> "$report"
+          git status --short >> "$report" 2>&1 || true
+          echo 'post_extract_diff_check:' >> "$report"
+          git diff --check >> "$report" 2>&1 || true
+          cat "$report"
+
+      - name: Upload payload diagnostic
+        uses: actions/upload-artifact@v4
+        with:
+          name: supervised-delivery-payload-diagnostic
+          path: ${{ runner.temp }}/supervised-delivery-payload-diagnostic.txt
+          if-no-files-found: error
+          retention-days: 2

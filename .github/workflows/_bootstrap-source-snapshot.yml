@@ -44,9 +44,26 @@ jobs:
           test "$(git rev-parse HEAD)" = '${{ github.event.pull_request.head.sha }}'
           test -z "$(git status --porcelain)"
 
-          payload='.github/transport-workflow-payload/workflow.yml.gz.b64'
-          test -f "$payload"
-          base64 --decode "$payload" > "$RUNNER_TEMP/transport-workflow.yml.gz"
+          chunk_root='.github/transport-workflow-payload/chunks'
+          printf '%s  %s\n' \
+            '212cd3c37d1742f24a65a0e83365b067828cb2a6690c59400791d71a22cc2fe5' \
+            "$chunk_root/part-00.b64" \
+            '73e06b963acf057e8fde1e9508bf77d1ac7e9ef6abe78709ab54fb3bdf126488' \
+            "$chunk_root/part-01.b64" \
+            '3a1d4e07c7cda6de251ccd823b37352a356ba2a8266308ced391c87214242781' \
+            "$chunk_root/part-02.b64" \
+            '03cb003e8233d0b03cfb6059bec9b09e30b4708a2dedb18c2b7c61a5680020d6' \
+            "$chunk_root/part-03.b64" \
+            | sha256sum --check --strict
+
+          cat "$chunk_root"/part-0{0,1,2,3}.b64 \
+            > "$RUNNER_TEMP/transport-workflow.b64"
+          printf '%s  %s\n' \
+            '287770b90bf2f98ab6919859f03805427a493c80032383917bbf7612f1c7a79c' \
+            "$RUNNER_TEMP/transport-workflow.b64" \
+            | sha256sum --check --strict
+          base64 --decode "$RUNNER_TEMP/transport-workflow.b64" \
+            > "$RUNNER_TEMP/transport-workflow.yml.gz"
           printf '%s  %s\n' \
             'f3622cd2293b016e646bfb7939e95fd1d41b89d40cfaf243fdc255de3d8b5886' \
             "$RUNNER_TEMP/transport-workflow.yml.gz" \

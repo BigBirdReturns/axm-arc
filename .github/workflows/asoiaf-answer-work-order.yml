@@ -1,0 +1,231 @@
+name: ASOIAF answer work order
+
+on:
+  pull_request:
+    paths:
+      - 'tools/lib/asoiaf-answer-work-order.ts'
+      - 'tools/asoiaf-answer-work-order.ts'
+      - 'tests/narrative/canon/asoiaf-answer-work-order.test.ts'
+      - 'docs/ASOIAF_ANSWER_WORK_ORDER.md'
+      - 'package.json'
+      - '.github/workflows/asoiaf-answer-work-order.yml'
+  push:
+    branches:
+      - feature/asoiaf-answer-work-order-v1
+    paths:
+      - 'tools/lib/asoiaf-answer-work-order.ts'
+      - 'tools/asoiaf-answer-work-order.ts'
+      - 'tests/narrative/canon/asoiaf-answer-work-order.test.ts'
+      - 'docs/ASOIAF_ANSWER_WORK_ORDER.md'
+      - 'package.json'
+      - '.github/workflows/asoiaf-answer-work-order.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qualify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Check out exact answer-work-order candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+          show-progress: false
+
+      - name: Record exact candidate identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = '${{ github.event.pull_request.head.sha || github.sha }}'
+          test -z "$(git status --porcelain)"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Strict TypeScript
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run typecheck | tee "$RUNNER_TEMP/typecheck.log"
+
+      - name: Focused lifecycle, answer, dossier, and reconciliation qualification
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm test -- \
+            tests/narrative/canon/asoiaf-answer-work-order.test.ts \
+            tests/narrative/canon/asoiaf-reviewed-answer-packet.test.ts \
+            tests/narrative/canon/asoiaf-research-question-dossier.test.ts \
+            tests/narrative/canon/asoiaf-external-reconciliation-packets.test.ts \
+            | tee "$RUNNER_TEMP/focused-tests.log"
+
+      - name: Exercise dossier-open and answer-ready operator states
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/answer-work-order-smoke"
+          mkdir -p "$root"
+          question='What does the exact holder-controlled AGOT evidence establish for this bounded candidate?'
+
+          npx vite-node tests/fixtures/emit-asoiaf-reviewed-answer-packet-input.ts \
+            "$root/answer-input.json" \
+            | tee "$root/answer-fixture.log"
+          npm run --silent asoiaf:reviewed-answer -- build \
+            --input "$root/answer-input.json" \
+            --out "$root/answer-packet.json" \
+            | tee "$root/answer-build.log"
+          npm run --silent asoiaf:reviewed-answer -- verify \
+            --file "$root/answer-packet.json" \
+            | tee "$root/answer-verify.json"
+          test "$(jq -r '.ok' "$root/answer-verify.json")" = 'true'
+
+          jq '{
+            dossier: .dossier,
+            createdBy: "qualification:answer-desk-open",
+            createdAt: "2026-08-05T04:30:00.000Z",
+            transactions: [],
+            answerPacket: null
+          }' "$root/answer-packet.json" > "$root/open-input.json"
+          npm run --silent asoiaf:answer-work-order -- build \
+            --input "$root/open-input.json" \
+            --out "$root/open-work-order.json" \
+            | tee "$root/open-build.log"
+          npm run --silent asoiaf:answer-work-order -- verify \
+            --file "$root/open-work-order.json" \
+            | tee "$root/open-verify.json"
+          npm run --silent asoiaf:answer-work-order -- status \
+            --file "$root/open-work-order.json" \
+            | tee "$root/open-status.json"
+          npm run --silent asoiaf:answer-work-order -- next \
+            --file "$root/open-work-order.json" \
+            | tee "$root/open-next.json"
+
+          test "$(jq -r '.ok' "$root/open-verify.json")" = 'true'
+          test "$(jq -r '.status' "$root/open-status.json")" = 'review-open'
+          test "$(jq -r '.answerReady' "$root/open-status.json")" = 'false'
+          test "$(jq -r '.boundedComplete' "$root/open-status.json")" = 'false'
+          test "$(jq -r '.nextItem.action' "$root/open-next.json")" = 'review-exact-locator'
+          jq -e '.openItems | any(.action == "review-exact-locator")' \
+            "$root/open-status.json" >/dev/null
+          jq -e '.openItems | any(.action == "reconcile-candidate")' \
+            "$root/open-status.json" >/dev/null
+          jq -e '.blockedItems | any(.action == "assemble-reviewed-answer")' \
+            "$root/open-status.json" >/dev/null
+
+          jq '{
+            dossier: .dossier,
+            createdBy: "qualification:answer-desk-ready",
+            createdAt: "2026-08-05T04:31:00.000Z",
+            transactions: .transactions,
+            answerPacket: .
+          }' "$root/answer-packet.json" > "$root/ready-input.json"
+          npm run --silent asoiaf:answer-work-order -- build \
+            --input "$root/ready-input.json" \
+            --out "$root/ready-work-order.json" \
+            | tee "$root/ready-build.log"
+          npm run --silent asoiaf:answer-work-order -- verify \
+            --file "$root/ready-work-order.json" \
+            | tee "$root/ready-verify.json"
+          npm run --silent asoiaf:answer-work-order -- status \
+            --file "$root/ready-work-order.json" \
+            | tee "$root/ready-status.json"
+          npm run --silent asoiaf:answer-work-order -- next \
+            --file "$root/ready-work-order.json" \
+            | tee "$root/ready-next.json"
+
+          test "$(jq -r '.ok' "$root/ready-verify.json")" = 'true'
+          test "$(jq -r '.status' "$root/ready-status.json")" = 'answer-ready-bounded'
+          test "$(jq -r '.answerReady' "$root/ready-status.json")" = 'true'
+          test "$(jq -r '.boundedComplete' "$root/ready-status.json")" = 'true'
+          test "$(jq -r '.nextItem.action' "$root/ready-next.json")" = 'render-reviewed-answer'
+          test "$(jq '.unresolvedCandidateIds | length' "$root/ready-status.json")" = '0'
+          test "$(jq '.unreviewedPrivateReferenceIds | length' "$root/ready-status.json")" = '0'
+          test "$(jq '.openGapIds | length' "$root/ready-status.json")" = '0'
+          jq -e '.openItems | length == 1 and .[0].action == "render-reviewed-answer"' \
+            "$root/ready-status.json" >/dev/null
+
+          test "$(jq -r '.authority' "$root/ready-work-order.json")" = 'none'
+          test "$(jq -r '.graphEffect' "$root/ready-work-order.json")" = 'none'
+          test "$(jq -r '.canonEffect' "$root/ready-work-order.json")" = 'none'
+          test "$(jq -r '.answerEffect' "$root/ready-work-order.json")" = 'none'
+          ! grep -Fq "$question" "$root/open-work-order.json"
+          ! grep -Fq "$question" "$root/ready-work-order.json"
+          test -z "$(git status --porcelain)"
+
+          cp "$root/open-input.json" "$RUNNER_TEMP/answer-work-order-open-input.json"
+          cp "$root/open-work-order.json" "$RUNNER_TEMP/answer-work-order-open.json"
+          cp "$root/open-status.json" "$RUNNER_TEMP/answer-work-order-open-status.json"
+          cp "$root/open-next.json" "$RUNNER_TEMP/answer-work-order-open-next.json"
+          cp "$root/ready-input.json" "$RUNNER_TEMP/answer-work-order-ready-input.json"
+          cp "$root/ready-work-order.json" "$RUNNER_TEMP/answer-work-order-ready.json"
+          cp "$root/ready-status.json" "$RUNNER_TEMP/answer-work-order-ready-status.json"
+          cp "$root/ready-next.json" "$RUNNER_TEMP/answer-work-order-ready-next.json"
+
+      - name: Complete Arc regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm test | tee "$RUNNER_TEMP/full-tests.log"
+
+      - name: Production build
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run build | tee "$RUNNER_TEMP/build.log"
+
+      - name: Retain exact answer-work-order qualification
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          root='asoiaf-answer-work-order-qualification'
+          mkdir -p "$root"
+          cp "$RUNNER_TEMP"/*.log "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/*.json "$root/" 2>/dev/null || true
+          printf '%s\n' '${{ github.event.pull_request.head.sha || github.sha }}' \
+            > "$root/candidate-sha.txt"
+          printf '%s\n' \
+            'liveNetworkInCI=false' \
+            'privateSourceTextReadInCI=false' \
+            'upstreamCustody=immutable-validated' \
+            'specificReferenceTasks=authoritative-projection' \
+            'specificGapTasks=authoritative-projection' \
+            'aggregateDossierNextActions=not-reemitted' \
+            'hiddenDossierReferences=explicit-work' \
+            'statuses=open-satisfied-limited-blocked' \
+            'lifecycle=research-review-reconciliation-assembly-verification-render' \
+            'answerReady=supplied-valid-packet-only' \
+            'boundedComplete=all-required-exact-work-satisfied' \
+            'plannerExecutionAuthority=none' \
+            'graphEffect=none' \
+            'canonEffect=none' \
+            'answerEffect=none' \
+            > "$root/answer-work-order-boundary.txt"
+          find "$root" -type f ! -name SHA256SUMS -print0 \
+            | sort -z \
+            | xargs -0 sha256sum \
+            | sed "s#  $root/#  #" \
+            > "$root/SHA256SUMS"
+
+      - name: Upload answer-work-order qualification
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: asoiaf-answer-work-order-qualification
+          path: asoiaf-answer-work-order-qualification
+          if-no-files-found: error
+          retention-days: 30

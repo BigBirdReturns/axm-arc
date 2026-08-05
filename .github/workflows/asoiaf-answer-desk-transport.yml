@@ -129,7 +129,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          npx vite-node tests/fixtures/emit-asoiaf-answer-desk-transport-input.ts \
+          node node_modules/vite-node/vite-node.mjs \
+            tests/fixtures/emit-asoiaf-answer-desk-transport-input.ts \
             --emit-qualification-shell \
             "$RUNNER_TEMP/asoiaf-answer-desk-transport-qualification.sh"
           bash "$RUNNER_TEMP/asoiaf-answer-desk-transport-qualification.sh"

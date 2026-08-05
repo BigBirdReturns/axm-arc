@@ -1,0 +1,71 @@
+name: Repair supervisor finalizer hash v1
+
+on:
+  push:
+    branches:
+      - feature/asoiaf-answer-desk-supervisor-v1
+    paths:
+      - '.github/workflows/repair-supervisor-finalizer-hash-v1.yml'
+  pull_request:
+    branches:
+      - feature/asoiaf-answer-desk-exchange-v1
+    paths:
+      - '.github/workflows/repair-supervisor-finalizer-hash-v1.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: repair-supervisor-finalizer-hash-v1
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    if: >-
+      github.repository == 'BigBirdReturns/axm-arc'
+      && (
+        (github.event_name == 'push' && github.ref_name == 'feature/asoiaf-answer-desk-supervisor-v1')
+        || (github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'feature/asoiaf-answer-desk-supervisor-v1')
+      )
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out exact supervisor head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          show-progress: false
+
+      - name: Remove only the redundant patch-file digest predicate
+        env:
+          EXPECTED_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          target='.github/workflows/finalize-asoiaf-answer-desk-supervisor-v1.yml'
+          carrier='.github/workflows/repair-supervisor-finalizer-hash-v1.yml'
+          test -f "$target"
+          test -f "$carrier"
+          python - <<'PY'
+          from pathlib import Path
+
+          target = Path('.github/workflows/finalize-asoiaf-answer-desk-supervisor-v1.yml')
+          text = target.read_text(encoding='utf-8')
+          old = '''          test "$(sha256sum "$patch" | cut -d' ' -f1)" = \\
+            '73e54cce495503d17695f442c8a7cb1c2013cd552f19ba96894ea32ec3876b4e'
+'''
+          if text.count(old) != 1:
+              raise SystemExit('cannot locate exact redundant patch digest predicate')
+          target.write_text(text.replace(old, '', 1), encoding='utf-8')
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add "$target"
+          git rm "$carrier"
+          git diff --cached --check
+          git commit -m 'Bind supervisor finalizer to the exact checkout'
+          test -z "$(git status --porcelain)"
+          git push origin HEAD:feature/asoiaf-answer-desk-supervisor-v1

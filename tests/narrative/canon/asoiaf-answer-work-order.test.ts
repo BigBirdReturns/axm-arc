@@ -39,8 +39,8 @@ const agotCandidates = ASOIAF_RECALL_ESTATE_PACKETS
       candidate.sourceHints.includes("AGOT")
       && candidate.reconciliationKeys.length > 0,
   );
-const primaryCandidate = agotCandidates[0];
-const secondaryCandidate = agotCandidates[1];
+const primaryCandidate = agotCandidates[0]!;
+const secondaryCandidate = agotCandidates[1]!;
 if (!primaryCandidate || !secondaryCandidate) {
   throw new Error("answer work-order tests require two AGOT recall candidates");
 }

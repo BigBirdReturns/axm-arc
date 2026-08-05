@@ -744,11 +744,31 @@ export function buildAsoiafAnswerDeskState(
   const staleLeaseIds: string[] = [];
   const settledLeaseIds: string[] = [];
   const activeItemKeys = new Set<string>();
+  const terminalItemKeys = new Set<string>();
 
   for (const lease of input.leases) {
     const settlement = settlementsByLease.get(lease.leaseId);
     if (settlement) {
       settledLeaseIds.push(lease.leaseId);
+      if (
+        lease.workOrderId === input.workOrder.workOrderId
+        && settlement.outcome === "rendered"
+      ) {
+        const settlementErrors = validateAsoiafAnswerWorkSettlement(
+          settlement,
+          {
+            lease,
+            beforeWorkOrder: input.workOrder,
+            afterWorkOrder: null,
+          },
+        ).filter((entry) => entry.severity === "error");
+        if (settlementErrors.length > 0) {
+          throw new Error(
+            `invalid rendered answer work settlement ${settlement.settlementId}`,
+          );
+        }
+        terminalItemKeys.add(lease.itemKey);
+      }
       continue;
     }
     if (
@@ -779,7 +799,10 @@ export function buildAsoiafAnswerDeskState(
 
   const openItems = input.workOrder.items.filter((item) => item.status === "open");
   const availableItemIds = openItems
-    .filter((item) => !activeItemKeys.has(asoiafAnswerWorkItemKey(item)))
+    .filter((item) => {
+      const itemKey = asoiafAnswerWorkItemKey(item);
+      return !activeItemKeys.has(itemKey) && !terminalItemKeys.has(itemKey);
+    })
     .map((item) => item.itemId);
   const blockedItemIds = input.workOrder.items
     .filter((item) => item.status === "blocked")

@@ -495,6 +495,27 @@ describe("ASOIAF answer work leases", () => {
     })).toEqual([]);
     expect(settlement.afterWorkOrderId).toBeNull();
     expect(settlement.afterStatus).toBe("rendered");
+
+    const state = buildAsoiafAnswerDeskState({
+      workOrder: readyOrder,
+      leases: [lease],
+      settlements: [settlement],
+      asOf: "2026-08-05T05:41:11.000Z",
+    });
+    expect(state.settledLeaseIds).toEqual([lease.leaseId]);
+    expect(state.availableItemIds).not.toContain(renderItem.itemId);
+    expect(state.nextAvailableItemId).toBeNull();
+    expect(() =>
+      claimAsoiafAnswerWorkItem({
+        workOrder: readyOrder,
+        itemId: renderItem.itemId,
+        workerId: "worker:second-renderer",
+        claimedAt: "2026-08-05T05:41:12.000Z",
+        leaseMilliseconds: 60_000,
+        existingLeases: [lease],
+        settlements: [settlement],
+      }),
+    ).toThrow(/terminal settlement/);
   });
 
   it("preserves failed, expired, and stale attempts as non-advancing terminals", () => {

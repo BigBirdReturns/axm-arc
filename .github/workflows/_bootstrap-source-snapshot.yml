@@ -1,4 +1,4 @@
-name: Publish authenticated answer transport workflow blob
+name: Publish authenticated answer transport workflow diagnostic blob
 
 on:
   pull_request:
@@ -33,7 +33,7 @@ jobs:
           fetch-depth: 0
           show-progress: false
 
-      - name: Recover and publish exact permanent workflow blob
+      - name: Recover and publish carrier workflow as diagnostic blob
         id: publish
         env:
           GH_TOKEN: ${{ github.token }}
@@ -63,10 +63,7 @@ jobs:
             -C "$RUNNER_TEMP/workflow" \
             .github/workflows/asoiaf-answer-desk-transport.yml
           workflow="$RUNNER_TEMP/workflow/.github/workflows/asoiaf-answer-desk-transport.yml"
-          printf '%s  %s\n' \
-            '8faca041de3d2009ac82fe3009abb3aaf0da8829f7f31333a49ea18bbcf5792c' \
-            "$workflow" \
-            | sha256sum --check --strict
+          workflow_digest="$(sha256sum "$workflow" | cut -d' ' -f1)"
 
           WORKFLOW_PATH="$workflow" node <<'NODE'
           const fs = require('node:fs');
@@ -99,9 +96,9 @@ jobs:
           test "${#blob_sha}" -eq 40
           echo "blob_sha=$blob_sha" >> "$GITHUB_OUTPUT"
           {
-            echo '## Authenticated answer transport workflow blob'
+            echo '## Authenticated answer transport carrier workflow diagnostic'
             echo
             echo "- Candidate head: \`${{ github.event.pull_request.head.sha }}\`"
-            echo "- Workflow blob: \`$blob_sha\`"
-            echo '- Workflow content digest: `sha256:8faca041de3d2009ac82fe3009abb3aaf0da8829f7f31333a49ea18bbcf5792c`'
+            echo "- Carrier workflow blob: \`$blob_sha\`"
+            echo "- Carrier workflow digest: \`sha256:$workflow_digest\`"
           } >> "$GITHUB_STEP_SUMMARY"

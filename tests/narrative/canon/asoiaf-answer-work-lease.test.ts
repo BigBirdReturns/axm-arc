@@ -44,14 +44,17 @@ const OPEN_ORDER_AT = "2026-08-05T05:20:00.000Z";
 const RECONCILED_ORDER_AT = "2026-08-05T05:30:00.000Z";
 const READY_ORDER_AT = "2026-08-05T05:40:00.000Z";
 
-const candidate = ASOIAF_RECALL_ESTATE_PACKETS
+const selectedCandidate = ASOIAF_RECALL_ESTATE_PACKETS
   .flatMap((packet) => packet.candidates)
   .find(
     (entry) =>
       entry.sourceHints.includes("AGOT")
       && entry.reconciliationKeys.length > 0,
   );
-if (!candidate) throw new Error("lease fixture requires one AGOT candidate");
+if (!selectedCandidate) {
+  throw new Error("lease fixture requires one AGOT candidate");
+}
+const candidate = selectedCandidate;
 
 function reviewPacket(): AsoiafExternalReviewPacket {
   const sourceId = "local-agot";

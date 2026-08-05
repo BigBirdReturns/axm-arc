@@ -9,6 +9,14 @@ on:
       - '.github/asoiaf-answer-desk-supervisor-v1.tar.gz.b64.01'
       - '.github/asoiaf-answer-desk-supervisor-v1.tar.gz.b64.02'
       - '.github/workflows/bootstrap-asoiaf-answer-desk-supervisor-v1.yml'
+  pull_request:
+    branches:
+      - feature/asoiaf-answer-desk-exchange-v1
+    paths:
+      - '.github/asoiaf-answer-desk-supervisor-v1.tar.gz.b64.00'
+      - '.github/asoiaf-answer-desk-supervisor-v1.tar.gz.b64.01'
+      - '.github/asoiaf-answer-desk-supervisor-v1.tar.gz.b64.02'
+      - '.github/workflows/bootstrap-asoiaf-answer-desk-supervisor-v1.yml'
   workflow_dispatch:
 
 permissions:
@@ -20,14 +28,19 @@ concurrency:
 
 jobs:
   materialize_qualify_and_push:
-    if: github.repository == 'BigBirdReturns/axm-arc' && github.ref_name == 'feature/asoiaf-answer-desk-supervisor-v1'
+    if: >-
+      github.repository == 'BigBirdReturns/axm-arc'
+      && (
+        (github.event_name == 'push' && github.ref_name == 'feature/asoiaf-answer-desk-supervisor-v1')
+        || (github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'feature/asoiaf-answer-desk-supervisor-v1')
+      )
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     steps:
       - name: Check out exact supervisor carrier head
         uses: actions/checkout@v4
         with:
-          ref: feature/asoiaf-answer-desk-supervisor-v1
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
           show-progress: false
 
@@ -35,7 +48,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git rev-parse HEAD)" = '${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}'
           test -z "$(git status --porcelain)"
           carrier_prefix='.github/asoiaf-answer-desk-supervisor-v1.tar.gz.b64'
           bootstrap='.github/workflows/bootstrap-asoiaf-answer-desk-supervisor-v1.yml'

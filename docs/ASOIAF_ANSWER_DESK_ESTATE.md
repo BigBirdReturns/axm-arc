@@ -136,7 +136,7 @@ The operator reads and writes local JSON custody only. It performs no network re
 
 ## Qualification boundary
 
-Synthetic qualification uses one exact holder-controlled AGOT dossier, an open work order, a passed primary reconciliation transaction, a reconciled work order, a bounded reviewed answer packet, and an answer-ready work order. No source prose is retained or read.
+Synthetic qualification uses one exact holder-controlled AGOT dossier with one immutable candidate gap, an open work order, a passed primary reconciliation transaction that makes the gap closable, a reconciled work order, a bounded reviewed answer packet that carries the exact gap closure, and an answer-ready work order. No source prose is retained or read.
 
 The focused suite proves:
 

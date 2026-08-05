@@ -1,0 +1,439 @@
+name: ASOIAF persistent answer desk estate
+
+on:
+  pull_request:
+    paths:
+      - 'tools/lib/asoiaf-answer-desk-estate.ts'
+      - 'tools/asoiaf-answer-desk-estate.ts'
+      - 'tests/fixtures/asoiaf-answer-desk-fixture.ts'
+      - 'tests/narrative/canon/asoiaf-answer-desk-estate.test.ts'
+      - 'docs/ASOIAF_ANSWER_DESK_ESTATE.md'
+      - 'package.json'
+      - '.github/workflows/asoiaf-answer-desk-estate.yml'
+  push:
+    branches:
+      - feature/asoiaf-answer-desk-estate-v1
+    paths:
+      - 'tools/lib/asoiaf-answer-desk-estate.ts'
+      - 'tools/asoiaf-answer-desk-estate.ts'
+      - 'tests/fixtures/asoiaf-answer-desk-fixture.ts'
+      - 'tests/narrative/canon/asoiaf-answer-desk-estate.test.ts'
+      - 'docs/ASOIAF_ANSWER_DESK_ESTATE.md'
+      - 'package.json'
+      - '.github/workflows/asoiaf-answer-desk-estate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qualify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 70
+    steps:
+      - name: Check out exact persistent-desk candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+          show-progress: false
+
+      - name: Bind exact read-only candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = '${{ github.event.pull_request.head.sha || github.sha }}'
+          test -z "$(git status --porcelain)"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Strict TypeScript
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run typecheck | tee "$RUNNER_TEMP/typecheck.log"
+
+      - name: Focused estate, lease, lifecycle, answer, dossier, and reconciliation qualification
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm test -- \
+            tests/narrative/canon/asoiaf-answer-desk-estate.test.ts \
+            tests/narrative/canon/asoiaf-answer-work-lease.test.ts \
+            tests/narrative/canon/asoiaf-answer-work-order.test.ts \
+            tests/narrative/canon/asoiaf-reviewed-answer-packet.test.ts \
+            tests/narrative/canon/asoiaf-research-question-dossier.test.ts \
+            tests/narrative/canon/asoiaf-external-reconciliation-packets.test.ts \
+            | tee "$RUNNER_TEMP/focused-tests.log"
+
+      - name: Exercise disk-backed adoption, claim, settlement, restart, refresh, and verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/persistent-answer-desk-smoke"
+          estate="$root/estate"
+          mkdir -p "$root"
+          question='What does the exact holder-controlled AGOT evidence establish for this bounded candidate?'
+
+          npx vite-node tests/fixtures/emit-asoiaf-reviewed-answer-packet-input.ts \
+            "$root/answer-input.json" \
+            | tee "$root/answer-fixture.log"
+          npm run --silent asoiaf:reviewed-answer -- build \
+            --input "$root/answer-input.json" \
+            --out "$root/answer-packet.json" \
+            | tee "$root/answer-build.log"
+          npm run --silent asoiaf:reviewed-answer -- verify \
+            --file "$root/answer-packet.json" \
+            | tee "$root/answer-verify.json"
+          test "$(jq -r '.ok' "$root/answer-verify.json")" = 'true'
+
+          jq '{
+            dossier: .dossier,
+            createdBy: "qualification:persistent-desk-open",
+            createdAt: "2026-08-05T06:20:00.000Z",
+            transactions: [],
+            answerPacket: null
+          }' "$root/answer-packet.json" > "$root/open-work-input.json"
+          jq '{
+            dossier: .dossier,
+            createdBy: "qualification:persistent-desk-reconciled",
+            createdAt: "2026-08-05T06:30:00.000Z",
+            transactions: .transactions,
+            answerPacket: null
+          }' "$root/answer-packet.json" > "$root/reconciled-work-input.json"
+          jq '{
+            dossier: .dossier,
+            createdBy: "qualification:persistent-desk-ready",
+            createdAt: "2026-08-05T06:40:00.000Z",
+            transactions: .transactions,
+            answerPacket: .
+          }' "$root/answer-packet.json" > "$root/ready-work-input.json"
+
+          npm run --silent asoiaf:answer-work-order -- build \
+            --input "$root/open-work-input.json" \
+            --out "$root/open-work-order.json" \
+            | tee "$root/open-work-build.log"
+          npm run --silent asoiaf:answer-work-order -- build \
+            --input "$root/reconciled-work-input.json" \
+            --out "$root/reconciled-work-order.json" \
+            | tee "$root/reconciled-work-build.log"
+          npm run --silent asoiaf:answer-work-order -- build \
+            --input "$root/ready-work-input.json" \
+            --out "$root/ready-work-order.json" \
+            | tee "$root/ready-work-build.log"
+
+          jq -n \
+            --arg root "$estate" \
+            --slurpfile workOrder "$root/open-work-order.json" \
+            '{
+              root: $root,
+              workOrder: $workOrder[0],
+              adoptedAt: "2026-08-05T06:20:01.000Z",
+              operatorId: "qualification:desk-adopt"
+            }' > "$root/adopt-input.json"
+          npm run --silent asoiaf:answer-desk -- adopt \
+            --input "$root/adopt-input.json" \
+            --out "$root/adopt-result.json" \
+            | tee "$root/adopt.log"
+          test "$(jq -r '.manifest.workOrderCount' "$root/adopt-result.json")" = '1'
+          test "$(jq -r '.manifest.leaseCount' "$root/adopt-result.json")" = '0'
+          test "$(jq -r '.manifest.settlementCount' "$root/adopt-result.json")" = '0'
+          test "$(jq -r '.replayed' "$root/adopt-result.json")" = 'false'
+
+          mkdir "$estate/.transaction-lock"
+          printf '{}\n' > "$estate/.transaction-lock/lock.json"
+          review_item_id="$(jq -r '.items[] | select(.action == "review-exact-locator") | .itemId' "$root/open-work-order.json")"
+          jq -n \
+            --arg root "$estate" \
+            --arg itemId "$review_item_id" \
+            '{
+              root: $root,
+              itemId: $itemId,
+              workerId: "qualification:desk-review-worker",
+              claimedAt: "2026-08-05T06:21:00.000Z",
+              leaseMilliseconds: 600000
+            }' > "$root/review-claim-input.json"
+          npm run --silent asoiaf:answer-desk -- claim \
+            --input "$root/review-claim-input.json" \
+            --out "$root/review-claim-result.json" \
+            | tee "$root/review-claim.log"
+          test "$(jq -r '.staleLocksRecovered' "$root/review-claim-result.json")" = '1'
+          test "$(jq -r '.manifest.staleLockRecoveryCount' "$root/review-claim-result.json")" = '1'
+          test ! -e "$estate/.transaction-lock"
+
+          npm run --silent asoiaf:answer-desk -- claim \
+            --input "$root/review-claim-input.json" \
+            --out "$root/review-claim-replay.json" \
+            | tee "$root/review-claim-replay.log"
+          test "$(jq -r '.replayed' "$root/review-claim-replay.json")" = 'true'
+          test "$(jq -r '.lease.leaseId' "$root/review-claim-replay.json")" = "$(jq -r '.lease.leaseId' "$root/review-claim-result.json")"
+          test "$(jq -r '.manifest.leaseCount' "$root/review-claim-replay.json")" = '1'
+
+          jq '.workerId = "qualification:desk-concurrent-worker"
+              | .claimedAt = "2026-08-05T06:21:30.000Z"' \
+            "$root/review-claim-input.json" > "$root/concurrent-claim-input.json"
+          set +e
+          npm run --silent asoiaf:answer-desk -- claim \
+            --input "$root/concurrent-claim-input.json" \
+            > "$root/concurrent-claim.stdout" \
+            2> "$root/concurrent-claim.stderr"
+          concurrent_exit=$?
+          set -e
+          test "$concurrent_exit" -ne 0
+          grep -q 'already has active lease' "$root/concurrent-claim.stderr"
+          test ! -e "$estate/.transaction-lock"
+
+          npm run --silent asoiaf:answer-desk -- status \
+            --root "$estate" \
+            | tee "$root/open-status.json"
+          npm run --silent asoiaf:answer-desk -- verify \
+            --root "$estate" \
+            | tee "$root/open-verify.json"
+          test "$(jq -r '.ok' "$root/open-verify.json")" = 'true'
+          test "$(jq '.counts.workOrders' "$root/open-status.json")" = '1'
+          test "$(jq '.counts.leases' "$root/open-status.json")" = '1'
+
+          review_lease_id="$(jq -r '.lease.leaseId' "$root/review-claim-result.json")"
+          transaction_id="$(jq -r '.transactions[0].transactionId' "$root/answer-packet.json")"
+          transaction_fingerprint="$(jq -r '.transactions[0].transactionFingerprint' "$root/answer-packet.json")"
+          jq -n \
+            --arg root "$estate" \
+            --arg leaseId "$review_lease_id" \
+            --slurpfile after "$root/reconciled-work-order.json" \
+            --arg transactionId "$transaction_id" \
+            --arg transactionFingerprint "$transaction_fingerprint" \
+            '{
+              root: $root,
+              leaseId: $leaseId,
+              completedAt: "2026-08-05T06:31:00.000Z",
+              outcome: "satisfied",
+              afterWorkOrder: $after[0],
+              resultReferences: [
+                {
+                  kind: "reviewed-answer-transaction",
+                  objectId: $transactionId,
+                  fingerprint: $transactionFingerprint,
+                  uri: null
+                }
+              ],
+              reason: "The refreshed qualified work order proves exact primary review and private locator custody."
+            }' > "$root/review-settle-input.json"
+          npm run --silent asoiaf:answer-desk -- settle \
+            --input "$root/review-settle-input.json" \
+            --out "$root/review-settle-result.json" \
+            | tee "$root/review-settle.log"
+          npm run --silent asoiaf:answer-desk -- settle \
+            --input "$root/review-settle-input.json" \
+            --out "$root/review-settle-replay.json" \
+            | tee "$root/review-settle-replay.log"
+          test "$(jq -r '.replayed' "$root/review-settle-replay.json")" = 'true'
+          test "$(jq -r '.settlement.settlementId' "$root/review-settle-replay.json")" = "$(jq -r '.settlement.settlementId' "$root/review-settle-result.json")"
+          test "$(jq -r '.manifest.latestWorkOrderId' "$root/review-settle-result.json")" = "$(jq -r '.workOrderId' "$root/reconciled-work-order.json")"
+          test "$(jq -r '.manifest.workOrderCount' "$root/review-settle-result.json")" = '2'
+          test "$(jq -r '.manifest.settlementCount' "$root/review-settle-result.json")" = '1'
+
+          close_item_id="$(jq -r '.items[] | select(.action == "close-gap") | .itemId' "$root/reconciled-work-order.json")"
+          jq -n \
+            --arg root "$estate" \
+            --arg itemId "$close_item_id" \
+            '{
+              root: $root,
+              itemId: $itemId,
+              workerId: "qualification:desk-assembly-worker",
+              claimedAt: "2026-08-05T06:31:10.000Z",
+              leaseMilliseconds: 600000
+            }' > "$root/close-claim-input.json"
+          npm run --silent asoiaf:answer-desk -- claim \
+            --input "$root/close-claim-input.json" \
+            --out "$root/close-claim-result.json" \
+            | tee "$root/close-claim.log"
+          close_lease_id="$(jq -r '.lease.leaseId' "$root/close-claim-result.json")"
+          packet_id="$(jq -r '.answerPacketId' "$root/answer-packet.json")"
+          packet_fingerprint="$(jq -r '.answerPacketFingerprint' "$root/answer-packet.json")"
+          jq -n \
+            --arg root "$estate" \
+            --arg leaseId "$close_lease_id" \
+            --slurpfile after "$root/ready-work-order.json" \
+            --arg packetId "$packet_id" \
+            --arg packetFingerprint "$packet_fingerprint" \
+            '{
+              root: $root,
+              leaseId: $leaseId,
+              completedAt: "2026-08-05T06:41:00.000Z",
+              outcome: "satisfied",
+              afterWorkOrder: $after[0],
+              resultReferences: [
+                {
+                  kind: "reviewed-answer-packet",
+                  objectId: $packetId,
+                  fingerprint: $packetFingerprint,
+                  uri: null
+                }
+              ],
+              reason: "The refreshed qualified work order proves the immutable dossier gap received an exact content-addressed closure."
+            }' > "$root/close-settle-input.json"
+          npm run --silent asoiaf:answer-desk -- settle \
+            --input "$root/close-settle-input.json" \
+            --out "$root/close-settle-result.json" \
+            | tee "$root/close-settle.log"
+          test "$(jq -r '.manifest.latestWorkOrderId' "$root/close-settle-result.json")" = "$(jq -r '.workOrderId' "$root/ready-work-order.json")"
+          test "$(jq -r '.manifest.workOrderCount' "$root/close-settle-result.json")" = '3'
+
+          render_item_id="$(jq -r '.items[] | select(.action == "render-reviewed-answer") | .itemId' "$root/ready-work-order.json")"
+          jq -n \
+            --arg root "$estate" \
+            --arg itemId "$render_item_id" \
+            '{
+              root: $root,
+              itemId: $itemId,
+              workerId: "qualification:desk-render-worker",
+              claimedAt: "2026-08-05T06:41:10.000Z",
+              leaseMilliseconds: 60000
+            }' > "$root/render-claim-input.json"
+          npm run --silent asoiaf:answer-desk -- claim \
+            --input "$root/render-claim-input.json" \
+            --out "$root/render-claim-result.json" \
+            | tee "$root/render-claim.log"
+          render_lease_id="$(jq -r '.lease.leaseId' "$root/render-claim-result.json")"
+          rendered_digest="$(jq -r '.renderedTextDigest' "$root/answer-packet.json")"
+          jq -n \
+            --arg root "$estate" \
+            --arg leaseId "$render_lease_id" \
+            --arg packetId "$packet_id" \
+            --arg digest "$rendered_digest" \
+            '{
+              root: $root,
+              leaseId: $leaseId,
+              completedAt: "2026-08-05T06:41:20.000Z",
+              outcome: "rendered",
+              afterWorkOrder: null,
+              resultReferences: [
+                {
+                  kind: "reviewed-answer-render",
+                  objectId: ($packetId + ":rendered"),
+                  fingerprint: $digest,
+                  uri: "renders/reviewed-answer.txt"
+                }
+              ],
+              reason: "The deterministic renderer emitted only the reviewed packet text and exact citation ledger."
+            }' > "$root/render-settle-input.json"
+          npm run --silent asoiaf:answer-desk -- settle \
+            --input "$root/render-settle-input.json" \
+            --out "$root/render-settle-result.json" \
+            | tee "$root/render-settle.log"
+          test "$(jq -r '.manifest.latestWorkOrderId' "$root/render-settle-result.json")" = "$(jq -r '.workOrderId' "$root/ready-work-order.json")"
+
+          npm run --silent asoiaf:answer-desk -- status \
+            --root "$estate" \
+            | tee "$root/restarted-status.json"
+          npm run --silent asoiaf:answer-desk -- refresh \
+            --root "$estate" \
+            --at "2026-08-05T06:42:00.000Z" \
+            --operator "qualification:desk-refresh" \
+            --out "$root/refreshed-state.json" \
+            | tee "$root/refresh.log"
+          npm run --silent asoiaf:answer-desk -- verify \
+            --root "$estate" \
+            | tee "$root/final-verify.json"
+          test "$(jq -r '.ok' "$root/final-verify.json")" = 'true'
+          test "$(jq '.counts.workOrders' "$root/restarted-status.json")" = '3'
+          test "$(jq '.counts.leases' "$root/restarted-status.json")" = '3'
+          test "$(jq '.counts.settlements' "$root/restarted-status.json")" = '3'
+          test "$(jq -r '.manifest.latestWorkOrderId' "$root/restarted-status.json")" = "$(jq -r '.workOrderId' "$root/ready-work-order.json")"
+          test "$(jq -r '.state.answerReady' "$root/restarted-status.json")" = 'true'
+          test "$(jq -r '.state.boundedComplete' "$root/restarted-status.json")" = 'true'
+          test "$(jq '.state.availableItemIds | length' "$root/restarted-status.json")" = '0'
+          test "$(jq -r '.state.nextAvailableItemId' "$root/restarted-status.json")" = 'null'
+          test "$(jq --arg id "$render_item_id" '.state.availableItemIds | index($id) == null' "$root/restarted-status.json")" = 'true'
+          test ! -e "$estate/.transaction-lock"
+          test "$(find "$estate/work-orders" -maxdepth 1 -type f -name '*:*' | wc -l)" = '0'
+          ! grep -R -Fq "$question" "$estate"
+
+          for file in \
+            "$estate/ANSWER-DESK.json" \
+            "$estate/DESK-STATE.json"; do
+            test "$(jq -r '.authority' "$file")" = 'none'
+            test "$(jq -r '.graphEffect' "$file")" = 'none'
+            test "$(jq -r '.canonEffect' "$file")" = 'none'
+            test "$(jq -r '.answerEffect' "$file")" = 'none'
+          done
+          test -z "$(git status --porcelain)"
+
+          cp "$root"/*.json "$RUNNER_TEMP/" 2>/dev/null || true
+          cp "$root"/*.log "$RUNNER_TEMP/" 2>/dev/null || true
+          cp "$root"/*.stderr "$RUNNER_TEMP/" 2>/dev/null || true
+          cp -R "$estate" "$RUNNER_TEMP/persistent-answer-desk-estate"
+
+      - name: Complete Arc regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm test | tee "$RUNNER_TEMP/full-tests.log"
+
+      - name: Production build
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run build | tee "$RUNNER_TEMP/build.log"
+
+      - name: Retain exact persistent-desk qualification
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          root='asoiaf-answer-desk-estate-qualification'
+          mkdir -p "$root"
+          cp "$RUNNER_TEMP"/*.log "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/*.json "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/*.stderr "$root/" 2>/dev/null || true
+          if [ -d "$RUNNER_TEMP/persistent-answer-desk-estate" ]; then
+            cp -R "$RUNNER_TEMP/persistent-answer-desk-estate" "$root/estate"
+          fi
+          printf '%s\n' '${{ github.event.pull_request.head.sha || github.sha }}' \
+            > "$root/candidate-sha.txt"
+          printf '%s\n' \
+            'liveNetworkInCI=false' \
+            'privateSourceTextReadInCI=false' \
+            'estateScope=one-dossier-one-question' \
+            'workOrderStorage=portable-content-addressed' \
+            'workOrderLedger=append-only' \
+            'leaseLedger=append-only' \
+            'settlementLedger=append-only' \
+            'mutationLock=atomic-directory' \
+            'staleLockRecovery=atomic-rename-counted' \
+            'logicalTime=monotonic' \
+            'existingCorruptionBlocksMutation=true' \
+            'claimReplay=idempotent' \
+            'settlementReplay=idempotent' \
+            'advancingSettlement=validated-before-head-adoption' \
+            'renderSettlement=head-unchanged-terminal-item-suppressed' \
+            'restart=complete-disk-reconstruction' \
+            'graphEffect=none' \
+            'canonEffect=none' \
+            'answerEffect=none' \
+            > "$root/persistent-desk-boundary.txt"
+          find "$root" -type f ! -name SHA256SUMS -print0 \
+            | sort -z \
+            | xargs -0 sha256sum \
+            | sed "s#  $root/#  #" \
+            > "$root/SHA256SUMS"
+
+      - name: Upload persistent-desk qualification
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: asoiaf-answer-desk-estate-qualification
+          path: asoiaf-answer-desk-estate-qualification
+          if-no-files-found: error
+          retention-days: 30

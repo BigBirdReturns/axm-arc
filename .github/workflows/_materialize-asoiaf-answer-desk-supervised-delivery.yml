@@ -41,21 +41,18 @@ jobs:
         run: |
           set -euo pipefail
           payload_root='.github/materialize/asoiaf-answer-supervised-delivery'
-          for part in 00 01 02 03 04; do
-            test -f "$payload_root/part-$part.b64"
-          done
-          cat \
-            "$payload_root/part-00.b64" \
-            "$payload_root/part-01.b64" \
-            "$payload_root/part-02.b64" \
-            "$payload_root/part-03.b64" \
-            "$payload_root/part-04.b64" \
-            > "$RUNNER_TEMP/supervised-delivery-surfaces.b64"
           printf '%s  %s\n' \
-            '6fccc952899c22081590a8d96e3f9941a7b91c10d189eb0903c90d0cdbae56f0' \
-            "$RUNNER_TEMP/supervised-delivery-surfaces.b64" \
+            '64d285c030afa4621024c6cd428e8a262ca9bdd9cc6a4f9e2cde1544886d27e9' "$payload_root/part-00.b64" \
+            'c17d5f08a7e98d4e3baefe6c7fa011dad6e059776677c25dfd7bf83c6313887b' "$payload_root/part-01.b64" \
+            '5cc0a7a31447a3d02676ed2b3be3929fb77a606d5235f066bf42e5816808c78b' "$payload_root/part-02.b64" \
+            'f31f133748c7dd663990d2b3856d085dfb98ec2dcdc83ab483031ebdacbf703b' "$payload_root/part-03.b64" \
+            'b5300b6b1e12e8e7e7249dfc5b1cb003554e53cc10ff08299bd5e4aae2a922f9' "$payload_root/part-04.b64" \
             | sha256sum --check --strict
-          base64 --decode "$RUNNER_TEMP/supervised-delivery-surfaces.b64" \
+          for part in 00 01 02 03 04; do
+            base64 --decode "$payload_root/part-$part.b64" \
+              > "$RUNNER_TEMP/part-$part.bin"
+          done
+          cat "$RUNNER_TEMP"/part-{00,01,02,03,04}.bin \
             > "$RUNNER_TEMP/supervised-delivery-surfaces.tgz"
           printf '%s  %s\n' \
             '41e96026361b7e9acc73318fdc2290a61a5e20c02d3a7f1e78d49dac9de56a60' \

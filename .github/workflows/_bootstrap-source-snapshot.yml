@@ -1,4 +1,4 @@
-name: Bootstrap source snapshot
+name: Bootstrap source and dependencies snapshot
 
 on:
   push:
@@ -28,19 +28,26 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Record exact source head
+      - name: Install exact locked dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Record exact source and dependency state
         shell: bash
         run: |
           set -euo pipefail
           git rev-parse HEAD > /tmp/candidate-sha.txt
           tar --exclude=.git --exclude=node_modules -czf /tmp/axm-arc-source.tgz .
+          tar -czf /tmp/axm-arc-node-modules.tgz node_modules
+          sha256sum /tmp/axm-arc-source.tgz /tmp/axm-arc-node-modules.tgz > /tmp/SHA256SUMS
 
-      - name: Upload source snapshot
+      - name: Upload source and dependency snapshot
         uses: actions/upload-artifact@v4
         with:
-          name: axm-arc-source-snapshot
+          name: axm-arc-source-dependency-snapshot
           path: |
             /tmp/axm-arc-source.tgz
+            /tmp/axm-arc-node-modules.tgz
             /tmp/candidate-sha.txt
+            /tmp/SHA256SUMS
           if-no-files-found: error
           retention-days: 1

@@ -28,7 +28,8 @@
     "asoiaf:answer-work-order": "vite-node tools/asoiaf-answer-work-order.ts --",
     "asoiaf:answer-work-lease": "vite-node tools/asoiaf-answer-work-lease.ts --",
     "asoiaf:answer-desk": "vite-node tools/asoiaf-answer-desk-estate.ts --",
-    "asoiaf:answer-worker": "vite-node tools/asoiaf-answer-desk-worker.ts --"
+    "asoiaf:answer-worker": "vite-node tools/asoiaf-answer-desk-worker.ts --",
+    "asoiaf:answer-exchange": "vite-node tools/asoiaf-answer-desk-exchange.ts --"
   },
   "dependencies": {
     "react": "^18.3.1",

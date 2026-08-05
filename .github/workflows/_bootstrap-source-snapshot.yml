@@ -1,4 +1,4 @@
-name: Materialize authenticated answer transport
+name: Publish authenticated answer transport workflow blob
 
 on:
   pull_request:
@@ -14,63 +14,94 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: publish-authenticated-answer-transport-workflow-blob
+  cancel-in-progress: true
+
 jobs:
-  materialize:
-    if: github.repository == 'BigBirdReturns/axm-arc'
+  publish_blob:
+    if: >-
+      github.repository == 'BigBirdReturns/axm-arc'
+      && github.event.pull_request.head.ref == 'feature/asoiaf-answer-desk-transport-v1'
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
-      - name: Check out exact carrier head
+      - name: Check out exact ordinary-code head
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
+          show-progress: false
 
-      - name: Materialize exact non-workflow transport surfaces
+      - name: Recover and publish exact permanent workflow blob
+        id: publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
         shell: bash
         run: |
           set -euo pipefail
-          cat .github/materialize/asoiaf-answer-transport/part-*.b64 \
-            | base64 --decode > "$RUNNER_TEMP/asoiaf-answer-transport-payload.tgz"
+          test "$(git rev-parse HEAD)" = '${{ github.event.pull_request.head.sha }}'
+          test -z "$(git status --porcelain)"
+
+          carrier='358477507871ae9b756e02b72c2495a6563b4b20'
+          carrier_prefix='.github/materialize/asoiaf-answer-transport/part-'
+          : > "$RUNNER_TEMP/transport-payload.b64"
+          for suffix in 00 01 02 03 04 05; do
+            git show "${carrier}:${carrier_prefix}${suffix}.b64" \
+              >> "$RUNNER_TEMP/transport-payload.b64"
+          done
+          base64 --decode "$RUNNER_TEMP/transport-payload.b64" \
+            > "$RUNNER_TEMP/transport-payload.tgz"
           printf '%s  %s\n' \
             'fee1ba7abf19b56384ca08016cbf8ef8dce5400e7c1ff375cca9a17616406b30' \
-            "$RUNNER_TEMP/asoiaf-answer-transport-payload.tgz" \
+            "$RUNNER_TEMP/transport-payload.tgz" \
             | sha256sum --check --strict
-          tar -xzf "$RUNNER_TEMP/asoiaf-answer-transport-payload.tgz"
-          rm .github/workflows/asoiaf-answer-desk-transport.yml
-          rm -rf .github/materialize/asoiaf-answer-transport
 
-          cat > "$RUNNER_TEMP/expected-paths" <<'EOF'
-          .github/materialize/asoiaf-answer-transport/part-00.b64
-          .github/materialize/asoiaf-answer-transport/part-01.b64
-          .github/materialize/asoiaf-answer-transport/part-02.b64
-          .github/materialize/asoiaf-answer-transport/part-03.b64
-          .github/materialize/asoiaf-answer-transport/part-04.b64
-          .github/materialize/asoiaf-answer-transport/part-05.b64
-          docs/ASOIAF_ANSWER_DESK_TRANSPORT.md
-          package.json
-          tests/fixtures/emit-asoiaf-answer-desk-transport-input.ts
-          tests/narrative/canon/asoiaf-answer-desk-transport.test.ts
-          tools/asoiaf-answer-desk-transport.ts
-          tools/lib/asoiaf-answer-desk-transport.ts
-          EOF
+          mkdir -p "$RUNNER_TEMP/workflow"
+          tar -xzf "$RUNNER_TEMP/transport-payload.tgz" \
+            -C "$RUNNER_TEMP/workflow" \
+            .github/workflows/asoiaf-answer-desk-transport.yml
+          workflow="$RUNNER_TEMP/workflow/.github/workflows/asoiaf-answer-desk-transport.yml"
+          printf '%s  %s\n' \
+            '8faca041de3d2009ac82fe3009abb3aaf0da8829f7f31333a49ea18bbcf5792c' \
+            "$workflow" \
+            | sha256sum --check --strict
 
-          git diff --check
-          git add -A .github/materialize/asoiaf-answer-transport \
-            docs/ASOIAF_ANSWER_DESK_TRANSPORT.md \
-            package.json \
-            tests/fixtures/emit-asoiaf-answer-desk-transport-input.ts \
-            tests/narrative/canon/asoiaf-answer-desk-transport.test.ts \
-            tools/asoiaf-answer-desk-transport.ts \
-            tools/lib/asoiaf-answer-desk-transport.ts
-          git diff --cached --name-only | sort > "$RUNNER_TEMP/actual-paths"
-          sort "$RUNNER_TEMP/expected-paths" -o "$RUNNER_TEMP/expected-paths"
-          diff -u "$RUNNER_TEMP/expected-paths" "$RUNNER_TEMP/actual-paths"
+          WORKFLOW_PATH="$workflow" node <<'NODE'
+          const fs = require('node:fs');
+          const path = process.env.WORKFLOW_PATH;
+          const repository = process.env.REPOSITORY;
+          const token = process.env.GH_TOKEN;
+          if (!path || !repository || !token) throw new Error('missing workflow publication environment');
+          const response = await fetch(`https://api.github.com/repos/${repository}/git/blobs`, {
+            method: 'POST',
+            headers: {
+              Accept: 'application/vnd.github+json',
+              Authorization: `Bearer ${token}`,
+              'X-GitHub-Api-Version': '2022-11-28',
+              'User-Agent': 'axm-arc-transport-workflow-publisher',
+            },
+            body: JSON.stringify({
+              content: fs.readFileSync(path).toString('base64'),
+              encoding: 'base64',
+            }),
+          });
+          const body = await response.json();
+          if (!response.ok || typeof body.sha !== 'string') {
+            throw new Error(`blob publication failed: ${response.status} ${JSON.stringify(body)}`);
+          }
+          fs.writeFileSync(`${process.env.RUNNER_TEMP}/transport-workflow-blob-sha.txt`, `${body.sha}\n`);
+          console.log(`TRANSPORT_WORKFLOW_BLOB_SHA=${body.sha}`);
+          NODE
 
-      - name: Commit exact non-workflow transport surfaces
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name 'BigBirdReturns transport qualification'
-          git config user.email 'actions@users.noreply.github.com'
-          git commit -m 'Materialize authenticated ASOIAF answer transport'
-          git push origin HEAD:feature/asoiaf-answer-desk-transport-v1
+          blob_sha="$(cat "$RUNNER_TEMP/transport-workflow-blob-sha.txt")"
+          test "${#blob_sha}" -eq 40
+          echo "blob_sha=$blob_sha" >> "$GITHUB_OUTPUT"
+          {
+            echo '## Authenticated answer transport workflow blob'
+            echo
+            echo "- Candidate head: \`${{ github.event.pull_request.head.sha }}\`"
+            echo "- Workflow blob: \`$blob_sha\`"
+            echo '- Workflow content digest: `sha256:8faca041de3d2009ac82fe3009abb3aaf0da8829f7f31333a49ea18bbcf5792c`'
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -31,7 +31,8 @@
     "asoiaf:answer-desk": "vite-node tools/asoiaf-answer-desk-estate.ts --",
     "asoiaf:answer-worker": "vite-node tools/asoiaf-answer-desk-worker.ts --",
     "asoiaf:answer-exchange": "vite-node tools/asoiaf-answer-desk-exchange.ts --",
-    "asoiaf:answer-transport": "vite-node tools/asoiaf-answer-desk-transport.ts --"
+    "asoiaf:answer-transport": "vite-node tools/asoiaf-answer-desk-transport.ts --",
+    "asoiaf:answer-transport-operations": "vite-node tools/asoiaf-answer-desk-transport-operations.ts --"
   },
   "dependencies": {
     "react": "^18.3.1",

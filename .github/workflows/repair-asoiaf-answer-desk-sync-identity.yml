@@ -1,0 +1,72 @@
+name: Repair ASOIAF answer desk synchronization identity
+
+on:
+  push:
+    branches:
+      - feature/asoiaf-answer-desk-estate-v1
+    paths:
+      - '.github/workflows/repair-asoiaf-answer-desk-sync-identity.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: repair-asoiaf-answer-desk-sync-identity
+  cancel-in-progress: true
+
+jobs:
+  repair:
+    if: github.repository == 'BigBirdReturns/axm-arc' && github.ref_name == 'feature/asoiaf-answer-desk-estate-v1'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out exact branch head
+        uses: actions/checkout@v4
+        with:
+          ref: feature/asoiaf-answer-desk-estate-v1
+          fetch-depth: 0
+          show-progress: false
+
+      - name: Add merge identity and remove this carrier
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          python - <<'PY'
+          from pathlib import Path
+
+          target = Path('.github/workflows/sync-and-qualify-asoiaf-answer-desk-estate-v2.yml')
+          text = target.read_text(encoding='utf-8')
+          anchor = (
+              '      - name: Merge exact rendered-terminal lease head\n'
+              '        shell: bash\n'
+              '        run: |\n'
+              '          set -euo pipefail\n'
+              '          git fetch --no-tags origin feature/asoiaf-answer-work-lease-v1\n'
+          )
+          replacement = (
+              '      - name: Merge exact rendered-terminal lease head\n'
+              '        shell: bash\n'
+              '        run: |\n'
+              '          set -euo pipefail\n'
+              "          git config user.name 'github-actions[bot]'\n"
+              "          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'\n"
+              '          git fetch --no-tags origin feature/asoiaf-answer-work-lease-v1\n'
+          )
+          if "git config user.name 'github-actions[bot]'" not in text:
+              if text.count(anchor) != 1:
+                  raise SystemExit('cannot locate exact synchronization merge step')
+              text = text.replace(anchor, replacement, 1)
+          target.write_text(text, encoding='utf-8')
+          if "git config user.name 'github-actions[bot]'" not in target.read_text(encoding='utf-8'):
+              raise SystemExit('merge identity repair was not retained')
+          PY
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .github/workflows/sync-and-qualify-asoiaf-answer-desk-estate-v2.yml
+          git rm .github/workflows/repair-asoiaf-answer-desk-sync-identity.yml
+          git diff --cached --check
+          git commit -m 'Repair persistent desk synchronization identity'
+          git push origin HEAD:feature/asoiaf-answer-desk-estate-v1

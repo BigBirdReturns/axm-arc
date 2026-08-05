@@ -1,5 +1,6 @@
 {
   "name": "axm-arc",
+  "description": "AXM Arc narrative systems and typed answer-desk tooling",
   "version": "1.0.0",
   "private": true,
   "type": "module",

@@ -15,7 +15,7 @@ describe("canonical story digest", () => {
     expect(canonicalStoryDigest(reordered)).toBe(canonicalStoryDigest(story));
 
     const changed = structuredClone(story);
-    changed.identity.version = `${changed.identity.version}-changed`;
+    changed.identity.title = `${changed.identity.title} changed`;
     expect(canonicalStoryDigest(changed)).not.toBe(canonicalStoryDigest(story));
   });
 
@@ -24,6 +24,6 @@ describe("canonical story digest", () => {
       BURN_PROTOCOL_CHAPTER_1_SOURCE.canonicalStory,
     ) as unknown as Record<string, unknown>;
     invalid.viewerState = { inferred: true };
-    expect(() => canonicalStoryDigest(invalid)).toThrow(/Unknown field/);
+    expect(() => canonicalStoryDigest(invalid)).toThrow(/Unrecognized key/);
   });
 });

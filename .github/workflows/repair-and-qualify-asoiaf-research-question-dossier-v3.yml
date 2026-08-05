@@ -1,0 +1,268 @@
+name: Repair and qualify ASOIAF research question dossier v3
+
+on:
+  push:
+    branches:
+      - feature/asoiaf-research-question-dossier-v1
+    paths:
+      - '.github/workflows/repair-and-qualify-asoiaf-research-question-dossier-v3.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: repair-and-qualify-asoiaf-research-question-dossier-v3
+  cancel-in-progress: false
+
+jobs:
+  repair_qualify_and_push_code:
+    if: github.repository == 'BigBirdReturns/axm-arc' && github.ref_name == 'feature/asoiaf-research-question-dossier-v1'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Check out exact dossier parent
+        uses: actions/checkout@v4
+        with:
+          ref: feature/asoiaf-research-question-dossier-v1
+          fetch-depth: 0
+          show-progress: false
+
+      - name: Bind exact code-only transaction
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$GITHUB_REF_NAME" = 'feature/asoiaf-research-question-dossier-v1'
+          test -z "$(git status --porcelain)"
+          test -f tools/lib/asoiaf-research-question-dossier.ts
+          test -f tests/narrative/canon/asoiaf-research-question-dossier.test.ts
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Apply exact strict-TypeScript repairs
+        id: repair
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          python - <<'PY' 2>&1 | tee "$RUNNER_TEMP/repair.log"
+          from pathlib import Path
+
+          source = Path('tools/lib/asoiaf-research-question-dossier.ts')
+          source_text = source.read_text(encoding='utf-8')
+          old_source = '''    if (
+                reference.snippetCharacters !== null
+                && (!Number.isSafeInteger(reference.snippetCharacters) || reference.snippetCharacters < 1 || reference.snippetCharacters > 2_000)
+              ) {'''
+          new_source = '''    if (
+                reference.snippetCharacters != null
+                && (!Number.isSafeInteger(reference.snippetCharacters) || reference.snippetCharacters < 1 || reference.snippetCharacters > 2_000)
+              ) {'''
+          if new_source not in source_text:
+              count = source_text.count(old_source)
+              if count != 1:
+                  raise SystemExit(f'snippet narrowing target count is {count}')
+              source.write_text(source_text.replace(old_source, new_source, 1), encoding='utf-8')
+
+          test = Path('tests/narrative/canon/asoiaf-research-question-dossier.test.ts')
+          test_text = test.read_text(encoding='utf-8')
+          old_test = '''      validateAsoiafResearchQuestionDossier(tampered).map(
+                    (finding) => finding.code,
+                  ),'''
+          new_test = '''      validateAsoiafResearchQuestionDossier(
+                    tampered as unknown as typeof dossier,
+                  ).map((finding) => finding.code),'''
+          if new_test not in test_text:
+              count = test_text.count(old_test)
+              if count != 1:
+                  raise SystemExit(f'tamper fixture cast target count is {count}')
+              test.write_text(test_text.replace(old_test, new_test, 1), encoding='utf-8')
+
+          source_now = source.read_text(encoding='utf-8')
+          test_now = test.read_text(encoding='utf-8')
+          if 'reference.snippetCharacters != null' not in source_now:
+              raise SystemExit('snippet narrowing repair missing')
+          if 'tampered as unknown as typeof dossier' not in test_now:
+              raise SystemExit('runtime tamper fixture cast missing')
+          print('ASOIAF_RESEARCH_DOSSIER_V3_REPAIR_COMPLETE')
+          PY
+          git diff --check
+
+      - name: Strict TypeScript
+        id: typecheck
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run typecheck 2>&1 | tee "$RUNNER_TEMP/typecheck.log"
+
+      - name: Focused research dossier qualification
+        id: focused
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npm test -- tests/narrative/canon/asoiaf-research-question-dossier.test.ts \
+            2>&1 | tee "$RUNNER_TEMP/focused-tests.log"
+
+      - name: Text-free operator smoke
+        id: smoke
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run --silent asoiaf:research-dossier -- compile \
+            --question 'Who is Varys?' \
+            --created-by 'researcher:ci' \
+            --at '2026-08-04T20:00:00.000Z' \
+            --lane entity-resolution \
+            --continuity book-main \
+            > "$RUNNER_TEMP/research-dossier-smoke.json"
+          test "$(jq -r '.question.questionTextRetained' "$RUNNER_TEMP/research-dossier-smoke.json")" = 'false'
+          test "$(jq -r '.answerReady' "$RUNNER_TEMP/research-dossier-smoke.json")" = 'false'
+          test "$(jq -r '.graphEffect' "$RUNNER_TEMP/research-dossier-smoke.json")" = 'none'
+          test "$(jq -r '.canonEffect' "$RUNNER_TEMP/research-dossier-smoke.json")" = 'none'
+          test "$(jq -r '.answerEffect' "$RUNNER_TEMP/research-dossier-smoke.json")" = 'none'
+
+      - name: Complete Arc regression
+        id: regression
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee "$RUNNER_TEMP/full-tests.log"
+
+      - name: Production build
+        id: build
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee "$RUNNER_TEMP/build.log"
+
+      - name: Commit and push exact code candidate
+        id: candidate
+        if: steps.repair.outcome == 'success' && steps.typecheck.outcome == 'success' && steps.focused.outcome == 'success' && steps.smoke.outcome == 'success' && steps.regression.outcome == 'success' && steps.build.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git ls-files --others --exclude-standard -z \
+            | while IFS= read -r -d '' generated; do
+                case "$generated" in
+                  *.js|*.js.map|*.d.ts) rm -f "$generated" ;;
+                esac
+              done
+          git diff --check
+          printf '%s\n' \
+            tools/lib/asoiaf-research-question-dossier.ts \
+            tests/narrative/canon/asoiaf-research-question-dossier.test.ts \
+            | sort > "$RUNNER_TEMP/expected-files.txt"
+          git diff --name-only | sort > "$RUNNER_TEMP/actual-files.txt"
+          diff -u "$RUNNER_TEMP/expected-files.txt" "$RUNNER_TEMP/actual-files.txt"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            tools/lib/asoiaf-research-question-dossier.ts \
+            tests/narrative/canon/asoiaf-research-question-dossier.test.ts
+          git diff --cached --check
+          git commit -m 'Harden ASOIAF research dossier validation'
+          final_sha="$(git rev-parse HEAD)"
+          git push origin HEAD:feature/asoiaf-research-question-dossier-v1
+          echo "final_sha=$final_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Retain exact repair qualification diagnostics
+        if: always()
+        env:
+          FINAL_SHA: ${{ steps.candidate.outputs.final_sha }}
+          REPAIR: ${{ steps.repair.outcome }}
+          TYPECHECK: ${{ steps.typecheck.outcome }}
+          FOCUSED: ${{ steps.focused.outcome }}
+          SMOKE: ${{ steps.smoke.outcome }}
+          REGRESSION: ${{ steps.regression.outcome }}
+          BUILD: ${{ steps.build.outcome }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          root='asoiaf-research-question-dossier-repair-v3'
+          mkdir -p "$root"
+          cp "$RUNNER_TEMP"/*.log "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP/research-dossier-smoke.json" "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP/expected-files.txt" "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP/actual-files.txt" "$root/" 2>/dev/null || true
+          printf '%s\n' "$GITHUB_SHA" > "$root/trigger-sha.txt"
+          printf '%s\n' "${FINAL_SHA:-not-issued}" > "$root/candidate-sha.txt"
+          printf '%s\n' \
+            "repair=$REPAIR" \
+            "typecheck=$TYPECHECK" \
+            "focused=$FOCUSED" \
+            "smoke=$SMOKE" \
+            "regression=$REGRESSION" \
+            "build=$BUILD" \
+            > "$root/outcomes.txt"
+          printf '%s\n' \
+            'questionTextRetained=false' \
+            'privateSnippetLength=optional-bounded' \
+            'tamperValidation=runtime-cast-only' \
+            'routeAuthority=none' \
+            'recallAuthority=none' \
+            'evidenceReady=false' \
+            'answerReady=false' \
+            'graphEffect=none' \
+            'canonEffect=none' \
+            'answerEffect=none' \
+            > "$root/dossier-boundary.txt"
+          find "$root" -type f ! -name SHA256SUMS -print0 \
+            | sort -z \
+            | xargs -0 sha256sum \
+            | sed "s#  $root/#  #" \
+            > "$root/SHA256SUMS"
+
+      - name: Upload exact repair qualification diagnostics
+        if: always()
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: asoiaf-research-question-dossier-repair-v3
+          path: asoiaf-research-question-dossier-repair-v3
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Post bounded repair result
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FINAL_SHA: ${{ steps.candidate.outputs.final_sha }}
+          ARTIFACT_ID: ${{ steps.upload.outputs['artifact-id'] }}
+          ARTIFACT_DIGEST: ${{ steps.upload.outputs['artifact-digest'] }}
+          REPAIR: ${{ steps.repair.outcome }}
+          TYPECHECK: ${{ steps.typecheck.outcome }}
+          FOCUSED: ${{ steps.focused.outcome }}
+          SMOKE: ${{ steps.smoke.outcome }}
+          REGRESSION: ${{ steps.regression.outcome }}
+          BUILD: ${{ steps.build.outcome }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -n "${FINAL_SHA:-}" ]; then
+            gh pr comment 243 --repo "$GITHUB_REPOSITORY" --body \
+              "Research dossier code is qualified and pushed on candidate \`${FINAL_SHA}\`. Strict TypeScript, the focused dossier suite, the text-free operator smoke, the complete Arc regression, and production build passed. Artifact \`${ARTIFACT_ID}\` has ZIP digest \`${ARTIFACT_DIGEST}\`. Connector settlement remains responsible only for removing the three disposable repair workflows and verifying the exact final head."
+          else
+            gh pr comment 243 --repo "$GITHUB_REPOSITORY" --body \
+              "Research dossier repair v3 did not issue a candidate. Repair \`${REPAIR}\`, TypeScript \`${TYPECHECK}\`, focused \`${FOCUSED}\`, smoke \`${SMOKE}\`, regression \`${REGRESSION}\`, build \`${BUILD}\`. Artifact \`${ARTIFACT_ID}\` has ZIP digest \`${ARTIFACT_DIGEST}\`. No dossier qualification is claimed."
+            exit 1
+          fi

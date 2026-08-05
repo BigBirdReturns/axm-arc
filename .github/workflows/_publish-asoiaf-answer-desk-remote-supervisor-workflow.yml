@@ -1,0 +1,111 @@
+name: Publish ASOIAF remote supervisor workflow blob
+
+on:
+  push:
+    branches:
+      - feature/asoiaf-answer-desk-remote-supervisor-v1
+    paths:
+      - '.github/workflows/_publish-asoiaf-answer-desk-remote-supervisor-workflow.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-asoiaf-answer-desk-remote-supervisor-workflow
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.repository == 'BigBirdReturns/axm-arc'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out exact publisher head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          show-progress: false
+
+      - name: Reconstruct, verify, and publish workflow blob
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const crypto = require('node:crypto');
+          const fs = require('node:fs');
+          const path = require('node:path');
+
+          const chunkShas = [
+            '75fc9adbe8ccfbf3a6ab6985388c494a9310178c',
+            'c507424d48f056ad0f46e8c892d9702edbf11871',
+            '1d7436ae8ea30562518edd33cadbf399dd97d4b2',
+            '5b595c659077962356715d2f5deaa4432e9e47e3',
+            'e1483ff0d988440ad383d2b1dab4b7cdbd6e6666',
+            '2dd75a27dabc4b0b3dc3c382bfa700b67069a7cc',
+          ];
+          const expectedSha256 = '3dbc9df1f8175a2fe69aa869ef900170af46d31ec74c1a6b73c2e977d5b82d17';
+          const expectedBlobSha = 'cc5900620b0d7000b4fc4e07d7a1e558ca57de58';
+          const token = process.env.GH_TOKEN;
+          const repository = process.env.REPOSITORY;
+          const target = path.join(process.env.RUNNER_TEMP, 'asoiaf-answer-desk-remote-supervisor.yml');
+          if (!token || !repository) throw new Error('missing GitHub publication environment');
+
+          (async () => {
+            const chunks = [];
+            for (const sha of chunkShas) {
+              const response = await fetch(`https://api.github.com/repos/${repository}/git/blobs/${sha}`, {
+                headers: {
+                  Accept: 'application/vnd.github+json',
+                  Authorization: `Bearer ${token}`,
+                  'X-GitHub-Api-Version': '2022-11-28',
+                  'User-Agent': 'axm-arc-remote-supervisor-workflow-publisher',
+                },
+              });
+              const body = await response.json();
+              if (!response.ok || body.sha !== sha || body.encoding !== 'base64') {
+                throw new Error(`workflow chunk retrieval failed for ${sha}: ${response.status} ${JSON.stringify(body)}`);
+              }
+              chunks.push(Buffer.from(String(body.content).replace(/\n/g, ''), 'base64'));
+            }
+            const workflow = Buffer.concat(chunks);
+            const digest = crypto.createHash('sha256').update(workflow).digest('hex');
+            if (digest !== expectedSha256) {
+              throw new Error(`workflow digest mismatch: ${digest}`);
+            }
+            const gitObject = Buffer.concat([
+              Buffer.from(`blob ${workflow.length}\0`, 'utf8'),
+              workflow,
+            ]);
+            const blobSha = crypto.createHash('sha1').update(gitObject).digest('hex');
+            if (blobSha !== expectedBlobSha) {
+              throw new Error(`workflow Git blob mismatch: ${blobSha}`);
+            }
+            fs.writeFileSync(target, workflow);
+
+            const publish = await fetch(`https://api.github.com/repos/${repository}/git/blobs`, {
+              method: 'POST',
+              headers: {
+                Accept: 'application/vnd.github+json',
+                Authorization: `Bearer ${token}`,
+                'X-GitHub-Api-Version': '2022-11-28',
+                'User-Agent': 'axm-arc-remote-supervisor-workflow-publisher',
+              },
+              body: JSON.stringify({
+                content: workflow.toString('base64'),
+                encoding: 'base64',
+              }),
+            });
+            const published = await publish.json();
+            if (!publish.ok || published.sha !== expectedBlobSha) {
+              throw new Error(`workflow blob publication failed: ${publish.status} ${JSON.stringify(published)}`);
+            }
+            console.log(`REMOTE_SUPERVISOR_WORKFLOW_BLOB_SHA=${published.sha}`);
+          })().catch((error) => {
+            console.error(error);
+            process.exitCode = 1;
+          });
+          NODE

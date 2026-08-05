@@ -30,16 +30,17 @@ const ANSWER_REVIEWER = "qualification:answer-reviewer";
 const SOURCE_REVIEWED_AT = "2026-08-05T04:00:00.000Z";
 const ANSWER_REVIEWED_AT = "2026-08-05T04:15:00.000Z";
 
-const recallCandidate = ASOIAF_RECALL_ESTATE_PACKETS
+const selectedRecallCandidate = ASOIAF_RECALL_ESTATE_PACKETS
   .flatMap((packet) => packet.candidates)
   .find(
     (candidate) =>
       candidate.sourceHints.includes("AGOT")
       && candidate.reconciliationKeys.length > 0,
   );
-if (!recallCandidate) {
+if (!selectedRecallCandidate) {
   throw new Error("qualified recall estate has no AGOT candidate fixture");
 }
+const recallCandidate = selectedRecallCandidate;
 
 function reviewPacket(): AsoiafExternalReviewPacket {
   const sourceId = "local-agot";

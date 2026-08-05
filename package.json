@@ -24,7 +24,8 @@
     "asoiaf:structured-acquisition:health": "vite-node tools/asoiaf-structured-acquisition-source-health.ts --",
     "asoiaf:structured-admission:health": "vite-node tools/asoiaf-structured-observation-admission-health.ts --",
     "asoiaf:research-dossier": "vite-node tools/asoiaf-research-question-dossier.ts --",
-    "asoiaf:reviewed-answer": "vite-node tools/asoiaf-reviewed-answer-packet.ts --"
+    "asoiaf:reviewed-answer": "vite-node tools/asoiaf-reviewed-answer-packet.ts --",
+    "asoiaf:answer-work-order": "vite-node tools/asoiaf-answer-work-order.ts --"
   },
   "dependencies": {
     "react": "^18.3.1",

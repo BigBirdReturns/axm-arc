@@ -1,4 +1,5 @@
 name: Materialize ASOIAF supervised delivery surfaces
+# Retriggered after diagnostic stabilization; branch writes remain frozen until completion.
 
 on:
   push:

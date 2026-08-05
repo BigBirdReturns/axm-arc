@@ -1,0 +1,101 @@
+name: Publish ASOIAF persistent answer desk receipt
+
+on:
+  workflow_run:
+    workflows:
+      - ASOIAF persistent answer desk estate
+    types:
+      - completed
+
+permissions:
+  actions: read
+  contents: read
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: publish-asoiaf-answer-desk-receipt-${{ github.event.workflow_run.id }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: >-
+      github.repository == 'BigBirdReturns/axm-arc'
+      && github.event.workflow_run.head_branch == 'feature/asoiaf-answer-desk-estate-v1'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Resolve exact run and artifact custody
+        id: receipt
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/answer-desk-receipt"
+          mkdir -p "$root"
+          gh api --method GET \
+            "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" \
+            > "$root/run.json"
+          gh api --method GET \
+            "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/artifacts" \
+            -f per_page=100 \
+            > "$root/artifacts.json"
+          jq -c '
+            .artifacts
+            | map(select(
+                .name == "asoiaf-answer-desk-estate-qualification"
+                and .expired == false
+              ))
+            | sort_by(.created_at)
+            | last // empty
+          ' "$root/artifacts.json" > "$root/artifact.json"
+
+          artifact_id="not-issued"
+          artifact_digest="not-issued"
+          artifact_size="0"
+          if [ -s "$root/artifact.json" ]; then
+            artifact_id="$(jq -r '.id' "$root/artifact.json")"
+            artifact_digest="$(jq -r '.digest' "$root/artifact.json")"
+            artifact_size="$(jq -r '.size_in_bytes' "$root/artifact.json")"
+          fi
+          printf '%s\n' "$RUN_ID" > "$root/run-id.txt"
+          printf '%s\n' "$HEAD_SHA" > "$root/head-sha.txt"
+          printf '%s\n' "$CONCLUSION" > "$root/conclusion.txt"
+          printf '%s\n' "$artifact_id" > "$root/artifact-id.txt"
+          printf '%s\n' "$artifact_digest" > "$root/artifact-digest.txt"
+          printf '%s\n' "$artifact_size" > "$root/artifact-size.txt"
+          echo "artifact_id=$artifact_id" >> "$GITHUB_OUTPUT"
+          echo "artifact_digest=$artifact_digest" >> "$GITHUB_OUTPUT"
+          echo "artifact_size=$artifact_size" >> "$GITHUB_OUTPUT"
+
+      - name: Post exact qualification receipt
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          ARTIFACT_ID: ${{ steps.receipt.outputs.artifact_id }}
+          ARTIFACT_DIGEST: ${{ steps.receipt.outputs.artifact_digest }}
+          ARTIFACT_SIZE: ${{ steps.receipt.outputs.artifact_size }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          body="$RUNNER_TEMP/answer-desk-receipt.md"
+          if [ "$CONCLUSION" = 'success' ] && [ "$ARTIFACT_ID" != 'not-issued' ]; then
+            cat > "$body" <<EOF
+          Persistent answer-desk exact-head qualification passed on candidate \`${HEAD_SHA}\` in workflow run \`${RUN_ID}\`. Strict TypeScript, the focused estate, lease, lifecycle, answer, dossier, and reconciliation suites, the disk-backed adoption, stale-lock recovery, idempotent claim and settlement, concurrent exclusion, refreshed-head advancement, render-terminal, restart, refresh, and verification smoke, the complete Arc regression suite, and the production build passed.
+
+          Qualification artifact \`${ARTIFACT_ID}\` is ${ARTIFACT_SIZE} bytes with ZIP digest \`${ARTIFACT_DIGEST}\`. The artifact retains the complete temporary desk estate, append-only work-order, lease, and settlement ledgers, manifest, current state, operator receipts, qualification logs, boundary declaration, and \`SHA256SUMS\`.
+
+          The evidence tier is local estate and transaction-custody qualification over synthetic immutable answer-work objects. The target is atomic mutation, append-only replay, portable storage, stale-lock recovery, monotonic logical time, rendered-terminal suppression, and complete restart reconstruction rather than ASOIAF truth or task execution. The control question is whether the local desk can restart from disk and prove every qualified head, claim, settlement, expiry, stale lease, rendered terminal, and available item while no caller can bypass the append-only ledgers or make the estate acquire the authority of the underlying task.
+          EOF
+          else
+            cat > "$body" <<EOF
+          Persistent answer-desk qualification did not pass on candidate \`${HEAD_SHA}\` in workflow run \`${RUN_ID}\`. Conclusion \`${CONCLUSION}\`; artifact \`${ARTIFACT_ID}\`; artifact digest \`${ARTIFACT_DIGEST}\`. No persistent-estate qualification or custody claim is issued from this run.
+          EOF
+          fi
+          gh pr comment 251 --repo "$GITHUB_REPOSITORY" --body-file "$body"

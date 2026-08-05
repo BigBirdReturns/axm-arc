@@ -30,43 +30,93 @@ jobs:
           fetch-depth: 1
           show-progress: false
 
-      - name: Record exact payload shape
+      - name: Retain exact fragment bytes and geometry
         shell: bash
         run: |
-          set +e
-          set -u
+          set -euo pipefail
           root='.github/materialize/asoiaf-answer-supervised-delivery'
-          report="$RUNNER_TEMP/supervised-delivery-payload-diagnostic.txt"
-          : > "$report"
-          echo "candidate=$(git rev-parse HEAD)" >> "$report"
-          echo 'segment_sha256:' >> "$report"
-          sha256sum "$root"/part-*.b64 >> "$report" 2>&1
-          cat "$root"/part-*.b64 > "$RUNNER_TEMP/payload.b64" 2>> "$report"
-          concatenated_sha="$(sha256sum "$RUNNER_TEMP/payload.b64" 2>/dev/null | awk '{print $1}')"
-          echo "concatenated_sha256=$concatenated_sha" >> "$report"
-          base64 --decode "$RUNNER_TEMP/payload.b64" > "$RUNNER_TEMP/payload.tgz" 2> "$RUNNER_TEMP/base64.stderr"
-          echo "base64_status=$?" >> "$report"
-          cat "$RUNNER_TEMP/base64.stderr" >> "$report"
-          archive_sha="$(sha256sum "$RUNNER_TEMP/payload.tgz" 2>/dev/null | awk '{print $1}')"
-          echo "archive_sha256=$archive_sha" >> "$report"
-          tar -tzf "$RUNNER_TEMP/payload.tgz" > "$RUNNER_TEMP/archive-paths.txt" 2> "$RUNNER_TEMP/tar.stderr"
-          echo "tar_status=$?" >> "$report"
-          cat "$RUNNER_TEMP/tar.stderr" >> "$report"
-          echo 'archive_paths:' >> "$report"
-          cat "$RUNNER_TEMP/archive-paths.txt" >> "$report" 2>/dev/null
-          tar -xzf "$RUNNER_TEMP/payload.tgz" 2>> "$report"
-          echo "extract_status=$?" >> "$report"
-          echo 'post_extract_status:' >> "$report"
-          git status --short >> "$report" 2>&1
-          echo 'post_extract_diff_check:' >> "$report"
-          git diff --check >> "$report" 2>&1
-          cat "$report"
-          exit 0
+          out="$RUNNER_TEMP/supervised-delivery-payload-diagnostic"
+          mkdir -p "$out/fragments"
+          cp "$root"/part-*.b64 "$out/fragments/"
+          git rev-parse HEAD > "$out/candidate-sha.txt"
+
+          ROOT="$root" OUT="$out" python3 <<'PY'
+          import base64
+          import hashlib
+          import itertools
+          import json
+          import os
+          import pathlib
+          import re
+
+          root = pathlib.Path(os.environ['ROOT'])
+          out = pathlib.Path(os.environ['OUT'])
+          entries = []
+          fragments = []
+          for path in sorted(root.glob('part-*.b64')):
+              raw = path.read_bytes()
+              compact = re.sub(rb'\s+', b'', raw)
+              fragments.append((path.name, raw, compact))
+              illegal = [
+                  {'offset': index, 'byte': value}
+                  for index, value in enumerate(compact)
+                  if value not in b'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/='
+              ]
+              entries.append({
+                  'name': path.name,
+                  'rawBytes': len(raw),
+                  'compactBytes': len(compact),
+                  'compactModulo4': len(compact) % 4,
+                  'rawSha256': hashlib.sha256(raw).hexdigest(),
+                  'compactSha256': hashlib.sha256(compact).hexdigest(),
+                  'prefix': compact[:96].decode('ascii', errors='replace'),
+                  'suffix': compact[-96:].decode('ascii', errors='replace'),
+                  'paddingOffsets': [i for i, value in enumerate(compact) if value == ord('=')],
+                  'illegal': illegal[:20],
+              })
+
+          concatenated = b''.join(fragment[2] for fragment in fragments)
+          report = {
+              'format': 'axm-supervised-delivery-payload-diagnostic/2',
+              'candidateSha': (out / 'candidate-sha.txt').read_text().strip(),
+              'fragments': entries,
+              'orderedCompactBytes': len(concatenated),
+              'orderedCompactModulo4': len(concatenated) % 4,
+              'orderedCompactSha256': hashlib.sha256(concatenated).hexdigest(),
+              'expectedCarrierSha256': '6fccc952899c22081590a8d96e3f9941a7b91c10d189eb0903c90d0cdbae56f0',
+              'expectedArchiveSha256': '41e96026361b7e9acc73318fdc2290a61a5e20c02d3a7f1e78d49dac9de56a60',
+          }
+
+          candidates = []
+          for label, payload in [
+              ('ordered-compact', concatenated),
+              ('ordered-compact-without-padding', concatenated.replace(b'=', b'')),
+          ]:
+              for padding in range(4):
+                  candidate = payload + (b'=' * padding)
+                  try:
+                      decoded = base64.b64decode(candidate, validate=False)
+                  except Exception as error:
+                      candidates.append({'label': label, 'padding': padding, 'error': str(error)})
+                      continue
+                  candidates.append({
+                      'label': label,
+                      'padding': padding,
+                      'decodedBytes': len(decoded),
+                      'decodedSha256': hashlib.sha256(decoded).hexdigest(),
+                      'gzipHeader': decoded[:3].hex(),
+                  })
+          report['decodeCandidates'] = candidates
+          (out / 'report.json').write_text(json.dumps(report, indent=2) + '\n')
+          (out / 'ordered-compact.b64').write_bytes(concatenated)
+          PY
+
+          cat "$out/report.json"
 
       - name: Upload payload diagnostic
         uses: actions/upload-artifact@v4
         with:
-          name: supervised-delivery-payload-diagnostic
-          path: ${{ runner.temp }}/supervised-delivery-payload-diagnostic.txt
+          name: supervised-delivery-payload-diagnostic-v2
+          path: ${{ runner.temp }}/supervised-delivery-payload-diagnostic
           if-no-files-found: error
           retention-days: 2

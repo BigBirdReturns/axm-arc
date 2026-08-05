@@ -301,7 +301,7 @@ describe("ASOIAF external answer desk exchange", () => {
         ),
         afterWorkOrder: null,
       }),
-    ).toThrow(/advancing settlement requires a refreshed answer work order/);
+    ).toThrow(/advancing external result requires a refreshed answer work order/);
     expect(
       fs.existsSync(asoiafAnswerExchangePaths(headRoot).results),
     ).toBe(false);
@@ -439,7 +439,7 @@ describe("ASOIAF external answer desk exchange", () => {
     ).toEqual(
       expect.arrayContaining([
         "exchange-assignment-projection",
-        "exchange-assignment-desk-custody",
+        "exchange-assignment-pending",
       ]),
     );
 

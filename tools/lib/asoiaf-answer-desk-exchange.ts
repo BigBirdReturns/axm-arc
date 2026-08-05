@@ -590,14 +590,25 @@ export function issueAsoiafAnswerExchangeAssignment(
       throw new Error(`answer work item ${itemId} is not available to external actor role ${input.actorRole}`);
     }
   }
-  const claim = claimAsoiafAnswerDeskWork({
-    root: input.root,
-    itemId,
-    workerId: input.actorId,
-    claimedAt: input.claimedAt,
-    leaseMilliseconds: input.leaseMilliseconds,
-    operatorId: input.operatorId ?? `${input.actorId}:exchange-claim`,
-  });
+  const claim: AsoiafAnswerDeskClaimResult = existingLease
+    ? (() => {
+        const status = readAsoiafAnswerDeskStatus(input.root);
+        return {
+          manifest: status.manifest,
+          state: status.state,
+          lease: existingLease,
+          replayed: true,
+          staleLocksRecovered: 0,
+        };
+      })()
+    : claimAsoiafAnswerDeskWork({
+        root: input.root,
+        itemId,
+        workerId: input.actorId,
+        claimedAt: input.claimedAt,
+        leaseMilliseconds: input.leaseMilliseconds,
+        operatorId: input.operatorId ?? `${input.actorId}:exchange-claim`,
+      });
   const status = readAsoiafAnswerDeskStatus(input.root);
   const workOrderRecord = status.workOrders.find(
     (entry) => entry.workOrderId === claim.lease.workOrderId,
@@ -614,11 +625,30 @@ export function issueAsoiafAnswerExchangeAssignment(
     actorRole: input.actorRole,
     issuedAt: input.issuedAt ?? input.claimedAt,
   });
-  const persisted = persistAssignment(input.root, assignment);
+  const exchangePaths = asoiafAnswerExchangePaths(input.root);
+  const existingAssignments = listJson<AsoiafAnswerExchangeAssignment>(
+    exchangePaths.assignments,
+  ).filter((entry) => entry.leaseId === assignment.leaseId);
+  if (existingAssignments.length > 1) {
+    throw new Error(`external lease ${assignment.leaseId} has duplicate assignment bundles`);
+  }
+  const retainedAssignment = existingAssignments[0] ?? assignment;
+  if (JSON.stringify(retainedAssignment) !== JSON.stringify(assignment)) {
+    throw new Error(`external lease ${assignment.leaseId} already has a different assignment bundle`);
+  }
+  const persisted = existingAssignments.length === 1
+    ? {
+        uri: relativeUri(
+          input.root,
+          assignmentPath(exchangePaths, retainedAssignment),
+        ),
+        replayed: true,
+      }
+    : persistAssignment(input.root, assignment);
   return {
     plan,
     claim,
-    assignment,
+    assignment: retainedAssignment,
     assignmentUri: persisted.uri,
     assignmentReplayed: persisted.replayed,
   };
@@ -668,12 +698,15 @@ export function buildAsoiafAnswerExchangeResult(input: {
       `external result kind must remain within ${input.assignment.acceptedResultKinds.join(", ")}`,
     );
   }
+  const afterWorkOrder = input.afterWorkOrder ?? null;
   const advancing = input.outcome === "satisfied"
     || input.outcome === "preserved-as-limitation";
+  if (advancing && !afterWorkOrder) {
+    throw new Error("advancing external result requires a refreshed answer work order");
+  }
   if (advancing && resultReferences.length === 0) {
     throw new Error("advancing external result requires at least one accepted result reference");
   }
-  const afterWorkOrder = input.afterWorkOrder ?? null;
   const core = {
     format: ASOIAF_ANSWER_EXCHANGE_RESULT_FORMAT,
     assignmentId: input.assignment.assignmentId,
@@ -839,22 +872,59 @@ export function admitAsoiafAnswerExchangeResult(
   const expectedSettlement = previewSettlement(input.root, assignment, result);
   const paths = asoiafAnswerExchangePaths(input.root);
   const target = resultPath(paths, result);
-  const resultReplayed = writeJsonExclusiveOrReplay(target, result);
-  const settlement = settleAsoiafAnswerDeskWork({
-    root: input.root,
-    leaseId: assignment.leaseId,
-    completedAt: result.completedAt,
-    outcome: result.outcome,
-    afterWorkOrder: result.afterWorkOrder,
-    resultReferences: settlementReferences(input.root, result),
-    reason: result.reason,
-    operatorId: input.operatorId ?? `${input.actorId}:exchange-settle`,
-  });
+  const existingResults = listJson<AsoiafAnswerExchangeResult>(
+    paths.results,
+  ).filter((entry) => entry.assignmentId === result.assignmentId);
+  if (existingResults.length > 1) {
+    throw new Error(`external assignment ${result.assignmentId} has duplicate result envelopes`);
+  }
+  if (
+    existingResults[0]
+    && JSON.stringify(existingResults[0]) !== JSON.stringify(result)
+  ) {
+    throw new Error(`external assignment ${result.assignmentId} already has a different result envelope`);
+  }
+  const deskStatus = readAsoiafAnswerDeskStatus(input.root);
+  const existingSettlement = deskStatus.settlements.find(
+    (entry) => entry.leaseId === assignment.leaseId,
+  );
+  if (
+    existingSettlement
+    && JSON.stringify(existingSettlement) !== JSON.stringify(expectedSettlement)
+  ) {
+    throw new Error(`external assignment ${result.assignmentId} already has a different terminal settlement`);
+  }
+  const resultReplayed = existingResults.length === 1
+    ? true
+    : writeJsonExclusiveOrReplay(target, result);
+  const settlement: AsoiafAnswerDeskSettleResult = existingSettlement
+    ? {
+        manifest: deskStatus.manifest,
+        state: deskStatus.state,
+        settlement: existingSettlement,
+        adoptedWorkOrder: result.afterWorkOrderId
+          ? deskStatus.workOrders.find(
+              (entry) => entry.workOrderId === result.afterWorkOrderId,
+            ) ?? null
+          : null,
+        replayed: true,
+        staleLocksRecovered: 0,
+      }
+    : settleAsoiafAnswerDeskWork({
+        root: input.root,
+        leaseId: assignment.leaseId,
+        completedAt: result.completedAt,
+        outcome: result.outcome,
+        afterWorkOrder: result.afterWorkOrder,
+        resultReferences: settlementReferences(input.root, result),
+        reason: result.reason,
+        operatorId: input.operatorId ?? `${input.actorId}:exchange-settle`,
+      });
   if (JSON.stringify(settlement.settlement) !== JSON.stringify(expectedSettlement)) {
     throw new Error("persistent desk settlement differs from prevalidated external result custody");
   }
   return {
-    result,
+    result: existingResults[0] ?? result,
     resultUri: relativeUri(input.root, target),
     resultReplayed,
     settlement,

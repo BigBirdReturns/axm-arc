@@ -1,0 +1,89 @@
+name: Persistence custody
+
+on:
+  pull_request:
+    paths:
+      - 'src/game/lib/persistence.ts'
+      - 'src/game/lib/storage.ts'
+      - 'src/game/lib/ledger.ts'
+      - 'src/game/lib/raid-night.ts'
+      - 'src/game/lib/download.ts'
+      - 'src/game/components/RaidNightScreen.tsx'
+      - 'src/game/App.tsx'
+      - 'src/i18n/messages.ts'
+      - 'tests/game/persistence-custody-v1.test.ts'
+      - 'tests/game/storage.test.ts'
+      - 'docs/PERSISTENCE_CUSTODY_V1.md'
+      - '.github/workflows/persistence-custody.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'src/game/lib/persistence.ts'
+      - 'src/game/lib/storage.ts'
+      - 'src/game/lib/ledger.ts'
+      - 'src/game/lib/raid-night.ts'
+      - 'src/game/lib/download.ts'
+      - 'src/game/components/RaidNightScreen.tsx'
+      - 'src/game/App.tsx'
+      - 'src/i18n/messages.ts'
+      - 'tests/game/persistence-custody-v1.test.ts'
+      - 'tests/game/storage.test.ts'
+      - 'docs/PERSISTENCE_CUSTODY_V1.md'
+      - '.github/workflows/persistence-custody.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  persistence:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          show-progress: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Record exact candidate
+        env:
+          CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+          mkdir -p persistence-custody-receipt
+          printf '%s\n' "$CANDIDATE_SHA" > persistence-custody-receipt/candidate-sha.txt
+          git diff --check
+      - name: TypeScript
+        run: |
+          set -euo pipefail
+          npm run typecheck 2>&1 | tee persistence-custody-receipt/typecheck.log
+      - name: Transaction, rollback, recovery, and player-surface contracts
+        run: |
+          set -euo pipefail
+          npm test -- tests/game/persistence-custody-v1.test.ts tests/game/raid-night.test.ts tests/game/ledger.test.ts tests/i18n/i18n.test.ts tests/game/storage.test.ts 2>&1 | tee persistence-custody-receipt/focused-tests.log
+      - name: Complete Arc regression suite
+        run: |
+          set -euo pipefail
+          npm test 2>&1 | tee persistence-custody-receipt/vitest.log
+      - name: Production build
+        run: |
+          set -euo pipefail
+          npm run build 2>&1 | tee persistence-custody-receipt/build.log
+      - name: Upload persistence receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: arc-persistence-custody-receipt
+          path: persistence-custody-receipt
+          if-no-files-found: warn
+          retention-days: 30

@@ -10,6 +10,17 @@ try {
   /* not a git checkout — leave as 'dev' */
 }
 
+// Reproducible-build boundary. The service-worker cache name used to contain
+// Date.now(), which made two builds of the same source tree differ byte-for-byte.
+// The exact Git identity is already the correct cache boundary. SOURCE_DATE_EPOCH
+// remains available for packagers that intentionally need a second deterministic
+// build coordinate, but no wall clock enters the output by default.
+const sourceDateEpoch = process.env.SOURCE_DATE_EPOCH?.trim() ?? '';
+if (sourceDateEpoch && !/^\d+$/.test(sourceDateEpoch)) {
+  throw new Error(`Invalid SOURCE_DATE_EPOCH="${sourceDateEpoch}". Expected whole Unix seconds.`);
+}
+const cacheVersion = sourceDateEpoch ? `${buildSha}-${sourceDateEpoch}` : buildSha;
+
 // Build-time deploy variant. Flips positioning copy on the entry surfaces
 // (title screen CTAs and kicker) without forking code — the engine and all
 // gameplay remain identical. Set via `VITE_VARIANT=enterprise-first npm run
@@ -79,8 +90,8 @@ self.addEventListener('fetch', (event) => {
           }
           return res;
         }),
-    ),
-  );
+    );
+  });
 });
 `;
 
@@ -109,7 +120,7 @@ function swPrecachePlugin(): Plugin {
       this.emitFile({
         type: 'asset',
         fileName: 'sw.js',
-        source: SW_SOURCE.replace('__CACHE_VERSION__', `${buildSha}-${Date.now()}`).replace(
+        source: SW_SOURCE.replace('__CACHE_VERSION__', cacheVersion).replace(
           '__PRECACHE__',
           JSON.stringify(precache),
         ),

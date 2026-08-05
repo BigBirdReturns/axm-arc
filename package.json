@@ -1,6 +1,6 @@
 {
   "name": "axm-arc",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -13,7 +13,13 @@
     "check": "npm run typecheck && npm test",
     "sim:karazhan": "vite-node src/sim/karazhan-sim-cli.ts --",
     "build:godscar-reference": "vite-node tools/build-godscar-reference.ts",
-    "build:dark-tomb-reference": "vite-node tools/build-dark-tomb-reference.ts"
+    "build:dark-tomb-reference": "vite-node tools/build-dark-tomb-reference.ts",
+    "build:common-ship-reference": "vite-node tools/build-common-ship-reference.ts",
+    "build:relief-connected-fixture": "vite-node tools/build-relief-connected-fixture.ts",
+    "build:clean-room-reference": "vite-node tools/build-clean-room-reference.ts",
+    "creator:cli": "vite-node tools/creator-kit-cli.ts --",
+    "build:creator-kit": "vite build --config vite.creator-kit.config.ts",
+    "build:creator-recovery-kit": "npm run build:creator-kit && vite-node tools/build-creator-recovery-kit.ts"
   },
   "dependencies": {
     "react": "^18.3.1",

@@ -1,4 +1,5 @@
 import type { GodscarPocketSource } from "./types.js";
+import { ILYON_CONSEQUENCE_PLANE_LEDGER, withSecondRecensionNote } from "./second-recension.js";
 
 export const KIND_GODS_OF_ILYON_BLUEPRINT: GodscarPocketSource = {
   format: "godscar-pocket/1",
@@ -7,9 +8,12 @@ export const KIND_GODS_OF_ILYON_BLUEPRINT: GodscarPocketSource = {
     title: "The Kind Gods of Ilyon",
     description: "An ocean world must decide whether salvation remains a gift after its cures, food systems, and peace are revealed as the first layer of a planetary integration program.",
     author: "BigBirdReturns",
-    version: "1.0.0",
+    version: "1.1.0",
     estimatedCycles: 12,
-    parentCanons: ["The Godscar Codex, Book I: The Open Universe · first recension"],
+    parentCanons: [
+      "The Godscar Codex, Book I: The Open Universe · first recension",
+      "The Godscar Codex, Second Recension Addenda · Book I: The Consequence Plane",
+    ],
     canonRelation: "compatible",
   },
   controlQuestion: "Who possesses the authority to refuse salvation on behalf of people who will suffer without it?",
@@ -127,10 +131,10 @@ export const KIND_GODS_OF_ILYON_BLUEPRINT: GodscarPocketSource = {
       success: "The evidence leaves with its limits intact. Ilyon survives as neither laboratory nor sealed exception, but as a pocket whose refusal can be tested.", partial: "The archive escapes through one faction's relay. The truth survives, already entangled with the institution that carried it.", failure: "The route opens before custody is agreed. Ilyon becomes a prize in the argument its evidence was meant to discipline.", reputationGain: 5, currencyReward: 60,
     },
   ],
-  notes: {
+  notes: withSecondRecensionNote({
     foundation: "The Godscar Codex, Book I: The Open Universe",
     intent: "Reference cartridge demonstrating the six-pressure Story Engine, disciplined canon uncertainty, faction receipts, and persistent consequences.",
-  },
+  }, "book-i", ILYON_CONSEQUENCE_PLANE_LEDGER),
 };
 
 export function newGodscarPocketSkeleton(): GodscarPocketSource {

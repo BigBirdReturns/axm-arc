@@ -1,0 +1,77 @@
+{
+  "format": "rodoh-creator-error-catalog/1",
+  "errors": [
+    {
+      "id": "json.limit",
+      "class": "refusal",
+      "meaning": "The input exceeds a published byte, depth, node, array, object, string, or number-token limit.",
+      "operatorAction": "Reduce the artifact or split authored scope. Do not raise the limit without a versioned compatibility decision."
+    },
+    {
+      "id": "json.duplicate-key",
+      "class": "refusal",
+      "meaning": "One JSON object declares the same decoded key more than once.",
+      "operatorAction": "Remove the duplicate. The runtime will not guess which value was intended."
+    },
+    {
+      "id": "arc.schema",
+      "class": "refusal",
+      "meaning": "The parsed object is not a valid Arc under the named engine contract.",
+      "operatorAction": "Correct the reported field. The validator does not manufacture a default for authored law."
+    },
+    {
+      "id": "source-plane.unknown",
+      "class": "refusal",
+      "meaning": "The source object names an unregistered creator source format.",
+      "operatorAction": "Use a registered format or author an ordinary generic Arc. Book IV is not registered in v1."
+    },
+    {
+      "id": "source-plane.invalid",
+      "class": "refusal",
+      "meaning": "A registered source-plane extension exists but cannot be validated or recovered exactly.",
+      "operatorAction": "Repair the source itself. Do not edit the compiled Arc to hide the failed source."
+    },
+    {
+      "id": "campaign.stall",
+      "class": "simulation-failure",
+      "meaning": "The bounded conformance policy found no lawful action that changed reachability before its stall limit.",
+      "operatorAction": "Inspect gates, founding roster, preparation, resources, and state transitions."
+    },
+    {
+      "id": "campaign.max-cycles",
+      "class": "simulation-failure",
+      "meaning": "The campaign did not complete within the declared cycle boundary.",
+      "operatorAction": "Treat this as pacing or structural evidence. Record any calibration as an authored-law change."
+    },
+    {
+      "id": "campaign.gate-bypass",
+      "class": "engine-failure",
+      "meaning": "A proposed assignment reached resolution despite failing the engine's actual access authority.",
+      "operatorAction": "Block release and repair the shared authority. A test or client may not waive the gate."
+    },
+    {
+      "id": "campaign.warning",
+      "class": "simulation-failure",
+      "meaning": "The engine emitted a warning while completing a bounded sweep.",
+      "operatorAction": "Classify the warning before acceptance. Do not count a warning-bearing run as clean completion."
+    },
+    {
+      "id": "run.integrity",
+      "class": "custody-refusal",
+      "meaning": "The portable-run payload does not match its recorded integrity digest.",
+      "operatorAction": "Recover the exact source copy. Do not relabel or recompute the digest over untrusted changed bytes."
+    },
+    {
+      "id": "run.identity",
+      "class": "custody-refusal",
+      "meaning": "The run's authored Arc digest does not match the embedded Arc.",
+      "operatorAction": "Refuse restore. A run cannot migrate into different authored law without an explicit migration event."
+    },
+    {
+      "id": "storage.write",
+      "class": "custody-failure",
+      "meaning": "The holder's local browser store rejected a write.",
+      "operatorAction": "Keep the exact portable artifact available for export and present the failed write visibly."
+    }
+  ]
+}

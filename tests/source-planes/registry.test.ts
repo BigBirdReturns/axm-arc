@@ -17,14 +17,22 @@ const EXPECTED = [
   ["godscar-pocket", "godscar-pocket/1", "godscar.pocket@1"],
   ["dark-tomb-pocket", "dark-tomb-pocket/1", "godscar.dark-tomb@1"],
   ["common-ship-pocket", "common-ship-pocket/1", "godscar.common-ship@1"],
+  ["burn-protocol", "burn-protocol/1", "burn.protocol@1"],
 ] as const;
 
 describe("creator source-plane registry", () => {
-  it("publishes one stable ordered definition for every accepted Codex source plane", () => {
-    expect(SOURCE_PLANE_REGISTRY.map((definition) => [definition.id, definition.format, definition.extensionKey])).toEqual(EXPECTED);
-    expect(new Set(SOURCE_PLANE_REGISTRY.map((definition) => definition.id)).size).toBe(SOURCE_PLANE_REGISTRY.length);
-    expect(new Set(SOURCE_PLANE_REGISTRY.map((definition) => definition.format)).size).toBe(SOURCE_PLANE_REGISTRY.length);
-    expect(new Set(SOURCE_PLANE_REGISTRY.map((definition) => definition.extensionKey)).size).toBe(SOURCE_PLANE_REGISTRY.length);
+  it("publishes one stable ordered definition for every accepted creator source plane", () => {
+    expect(SOURCE_PLANE_REGISTRY.map((definition) => [
+      definition.id,
+      definition.format,
+      definition.extensionKey,
+    ])).toEqual(EXPECTED);
+    expect(new Set(SOURCE_PLANE_REGISTRY.map((definition) => definition.id)).size)
+      .toBe(SOURCE_PLANE_REGISTRY.length);
+    expect(new Set(SOURCE_PLANE_REGISTRY.map((definition) => definition.format)).size)
+      .toBe(SOURCE_PLANE_REGISTRY.length);
+    expect(new Set(SOURCE_PLANE_REGISTRY.map((definition) => definition.extensionKey)).size)
+      .toBe(SOURCE_PLANE_REGISTRY.length);
   });
 
   it("resolves definitions through id, format, extension, and source without switch statements", () => {

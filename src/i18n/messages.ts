@@ -49,6 +49,14 @@ export type MessageId =
   | "common.flex"
   | "common.pass"
   | "common.fail"
+  // ── load-bearing persistence ──
+  | "persistence.unsaved"
+  | "persistence.failure"
+  | "persistence.serializationFailure"
+  | "persistence.rollbackFailure"
+  | "persistence.retry"
+  | "persistence.exportRecovery"
+  | "persistence.recoveryExported"
   | "common.exportRun"
   | "save.unsaved"
   | "save.exported"
@@ -857,6 +865,14 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "common.flex": "Flex",
     "common.pass": "PASS",
     "common.fail": "FAIL",
+
+    "persistence.unsaved": "Unsaved",
+    "persistence.failure": (p) => `Storage write failed (${str(p, "reason")}). This session is still in memory; do not close this page until retry succeeds or you export a recovery file.`,
+    "persistence.serializationFailure": "The current state could not be serialized. It remains in memory, but no recovery file can be prepared yet. Do not close this page.",
+    "persistence.rollbackFailure": "The write failed and the previous stored value could not be verified. Keep this page open and export the in-memory recovery file before doing anything else.",
+    "persistence.retry": "Retry save",
+    "persistence.exportRecovery": "Export recovery file",
+    "persistence.recoveryExported": "Recovery file exported.",
 
     "nav.roster": "Roster",
     "nav.assign": "Assign",
@@ -1721,6 +1737,14 @@ export const MESSAGES: Record<Locale, Partial<Record<MessageId, MessageValue>>> 
     "common.flex": "機動",
     "common.pass": "通過",
     "common.fail": "未過",
+
+    "persistence.unsaved": "尚未儲存",
+    "persistence.failure": (p) => `儲存空間寫入失敗（${str(p, "reason")}）。目前資料仍在記憶體中；在重試成功或匯出復原檔之前，請勿關閉此頁面。`,
+    "persistence.serializationFailure": "目前狀態無法序列化。資料仍在記憶體中，但尚無法建立復原檔；請勿關閉此頁面。",
+    "persistence.rollbackFailure": "寫入失敗，且無法驗證先前的儲存值。請保持此頁面開啟，並先匯出記憶體中的復原檔。",
+    "persistence.retry": "重試儲存",
+    "persistence.exportRecovery": "匯出復原檔",
+    "persistence.recoveryExported": "復原檔已匯出。",
     "common.exportRun": "匯出執行紀錄",
     "save.unsaved": (p) => `此執行紀錄尚未安全儲存：${str(p, "reason")}。請立即匯出以保留完整狀態。`,
     "save.exported": (p) => `已將完整執行紀錄匯出為 ${str(p, "file")}。`,

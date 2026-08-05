@@ -1,0 +1,39 @@
+{
+  "format": "burn-protocol-source-frontier-recovery-contract/1",
+  "parent": {
+    "basename": "Star_Trek_Discovery_The_Burn_Protocol_Web_Series_v0.62.0.zip",
+    "bytes": 641627846,
+    "manifestBasename": "v0.62.0-file-manifest.json",
+    "sha256": "f67dcd2c632720566e38b04c0a6b844188de24c967a77a4be31978a5ff82349a"
+  },
+  "release": "0.62.0",
+  "selection": {
+    "episode": 4,
+    "chapter": 2,
+    "tokens": [
+      "episode-04",
+      "e04-c2",
+      "a04c2"
+    ],
+    "requiredClassifications": {
+      "canonical-episode-source": 1,
+      "compiled-reader-source": 1,
+      "canonical-script-render": 1,
+      "chapter-source": 1,
+      "canonical-lettering": 1,
+      "chapter-panel-art-source": 1,
+      "chapter-provenance": 1,
+      "chapter-recovery-receipt": 1,
+      "plate-map": 1,
+      "panel-raster": 1,
+      "plate-raster": 1
+    }
+  },
+  "evidenceBoundary": {
+    "status": "source-required",
+    "continuationPanelId": "E04-C2-P21",
+    "pathNames": "selected from the exact parent manifest by bounded identity tokens; no Chapter 2 path is treated as a receipt before manifest verification",
+    "exactBytesOrHashesClaimed": false,
+    "rule": "The recovery tool must verify the exact parent archive, discover one authoritative manifest, select matching records, and verify each emitted file against its manifest byte count and SHA-256. Missing classifications produce source-required status and exit code 3; contradictory custody fails with exit code 2."
+  }
+}

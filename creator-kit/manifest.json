@@ -1,0 +1,50 @@
+{
+  "format": "rodoh-creator-recovery-kit/1",
+  "runtime": {
+    "nodeMinimumMajor": 22,
+    "entrypoint": "bin/rodoh-cartridge.mjs",
+    "requiresNetwork": false,
+    "requiresRepositoryCheckout": false
+  },
+  "engine": "1.3.0",
+  "portableRun": "axm-cartridge-run/v3",
+  "cartridgeIdentity": "cart1_<sha256>",
+  "commands": [
+    "validate",
+    "digest",
+    "inspect",
+    "simulate",
+    "recover-source",
+    "verify-run"
+  ],
+  "registeredSourcePlanes": [
+    "godscar-pocket/1",
+    "dark-tomb-pocket/1",
+    "common-ship-pocket/1"
+  ],
+  "bookIV": {
+    "publicationStatus": "reviewed canon",
+    "runtimeStatus": "staged post-1.0",
+    "registered": false
+  },
+  "examples": {
+    "complete": "examples/orchard-at-low-tide/orchard-at-low-tide.source.arc.json",
+    "compiled": "examples/orchard-at-low-tide/orchard-at-low-tide.arc.json",
+    "malformed": "examples/orchard-at-low-tide/orchard-at-low-tide.invalid.arc.json",
+    "changedRun": "examples/orchard-at-low-tide/orchard-at-low-tide.changed.run.json",
+    "custody": "examples/orchard-at-low-tide/manifest.json"
+  },
+  "contracts": {
+    "genericArc": "contracts/GENERIC_ARC_CONTRACT.md",
+    "canonicalization": "contracts/CART1_CANONICALIZATION.md",
+    "resourceLimits": "contracts/IMPORT_RESOURCE_LIMITS.md",
+    "conformanceVectors": "contracts/cart1-v1-vectors.json",
+    "godscarPocket": "contracts/GODSCAR_POCKET_FORMAT.md",
+    "darkTombPocket": "contracts/DARK_TOMB_POCKET_FORMAT.md",
+    "commonShipPocket": "contracts/COMMON_SHIP_POCKET_FORMAT.md",
+    "schemaSource": "contracts/reference-source/schema.ts",
+    "publicTypes": "contracts/reference-source/types.ts",
+    "errors": "ERROR_CATALOG.json"
+  },
+  "releaseRule": "The assembled kit records SHA-256 and byte length for every file and proves that two independent builds of the same exact Arc head are byte-identical."
+}

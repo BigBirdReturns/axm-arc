@@ -1,0 +1,44 @@
+{
+  "format": "axm-cart1-conformance-vectors/1",
+  "algorithm": "cart1-v1",
+  "authority": "docs/CART1_CANONICALIZATION.md",
+  "vectors": [
+    {
+      "id": "first-charter",
+      "source": "src/arcs/first-charter.ts",
+      "digest": "cart1_d8888842c6a7a7ba758a8eea567c71fcc8f998ff8af75208ed44ef4eee74edeb"
+    },
+    {
+      "id": "karazhan",
+      "source": "src/arcs/karazhan.ts",
+      "digest": "cart1_776adac1b9372d0331ddd774af8b94c80b46bd6bbc4763334cf01def46111144"
+    },
+    {
+      "id": "kind-gods-of-ilyon",
+      "source": "cartridges/kind-gods-of-ilyon.arc.json",
+      "digest": "cart1_17054e128dc6fd517fc47f163d92da58d72f9302a84d9d3b04589083afc10f0e"
+    },
+    {
+      "id": "lamp-district",
+      "source": "cartridges/lamp-district.arc.json",
+      "digest": "cart1_05530ae780a30f2f79fb0ddf030ba0e92321d736f146e8e16ddb325ae948b23e"
+    },
+    {
+      "id": "relief-circuit",
+      "source": "cartridges/relief-circuit.arc.json",
+      "digest": "cart1_15a9f3792ff8a68948053a06cefcbf586e9960158ca051a187e1ab341b7a2e65"
+    },
+    {
+      "id": "orchard-at-low-tide",
+      "source": "cartridges/clean-room/orchard-at-low-tide.arc.json",
+      "digest": "cart1_3be11e31edc0d7674abf930aad1027281089ca5c2ec2a34f4edb83168b6b86bb"
+    }
+  ],
+  "properties": [
+    "root custody metadata is excluded",
+    "nested custody-named fields remain authored law",
+    "object insertion order is irrelevant",
+    "array order is authored law",
+    "any authored scalar change changes the digest"
+  ]
+}

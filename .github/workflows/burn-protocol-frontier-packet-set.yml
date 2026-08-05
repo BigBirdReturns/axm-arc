@@ -1,0 +1,164 @@
+name: Burn Protocol frontier packet-set verification
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/burn-protocol-frontier-packet-set.yml"
+      - "docs/BURN_PROTOCOL_FRONTIER_PACKET_SET.md"
+      - "tools/burn-protocol-source-frontier/verify_packet_set.py"
+      - "tools/burn-protocol-source-frontier/test_verify_packet_set.py"
+      - "tools/burn-protocol-source-frontier/test_harvest_packet_set.py"
+      - "tools/burn-protocol-source-frontier/harvest.py"
+      - "tools/burn-protocol-source-frontier/harvest_archives.py"
+      - "tools/burn-protocol-source-frontier/harvest_common.py"
+      - "tools/burn-protocol-source-frontier/harvest_main.py"
+      - "tools/burn-protocol-source-frontier/contracts/e05c1-source-intake.contract.json"
+  push:
+    branches:
+      - main
+      - feature/burn-protocol-frontier-packet-set-v1
+    paths:
+      - ".github/workflows/burn-protocol-frontier-packet-set.yml"
+      - "docs/BURN_PROTOCOL_FRONTIER_PACKET_SET.md"
+      - "tools/burn-protocol-source-frontier/verify_packet_set.py"
+      - "tools/burn-protocol-source-frontier/test_verify_packet_set.py"
+      - "tools/burn-protocol-source-frontier/test_harvest_packet_set.py"
+      - "tools/burn-protocol-source-frontier/harvest.py"
+      - "tools/burn-protocol-source-frontier/harvest_archives.py"
+      - "tools/burn-protocol-source-frontier/harvest_common.py"
+      - "tools/burn-protocol-source-frontier/harvest_main.py"
+      - "tools/burn-protocol-source-frontier/contracts/e05c1-source-intake.contract.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qualify-packet-set:
+    name: packet-set verifier (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-24.04
+          - windows-latest
+    steps:
+      - name: Check out exact candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+
+      - name: Record exact candidate identity
+        shell: bash
+        run: git rev-parse HEAD
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compile packet-set authority
+        shell: bash
+        run: >-
+          python -m compileall -q
+          tools/burn-protocol-source-frontier/verify_packet_set.py
+          tools/burn-protocol-source-frontier/test_verify_packet_set.py
+          tools/burn-protocol-source-frontier/test_harvest_packet_set.py
+          tools/burn-protocol-source-frontier/harvest.py
+          tools/burn-protocol-source-frontier/harvest_archives.py
+          tools/burn-protocol-source-frontier/harvest_common.py
+          tools/burn-protocol-source-frontier/harvest_main.py
+
+      - name: Exercise packet bytes, approval, wrappers, and refusal law
+        shell: bash
+        run: |
+          set -euo pipefail
+          (
+            cd tools/burn-protocol-source-frontier
+            python -m unittest \
+              test_verify_packet_set.py \
+              test_harvest_packet_set.py \
+              -v
+          ) 2>&1 | tee packet-set-tests.log
+
+      - name: Retain exact qualification receipt
+        shell: bash
+        env:
+          QUALIFICATION_ROOT: burn-protocol-frontier-packet-set-qualification-${{ matrix.os }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          import re
+          import shutil
+          import subprocess
+          from pathlib import Path
+
+          root = Path(os.environ["QUALIFICATION_ROOT"])
+          root.mkdir(parents=True, exist_ok=True)
+          files = [
+              Path(".github/workflows/burn-protocol-frontier-packet-set.yml"),
+              Path("docs/BURN_PROTOCOL_FRONTIER_PACKET_SET.md"),
+              Path("tools/burn-protocol-source-frontier/verify_packet_set.py"),
+              Path("tools/burn-protocol-source-frontier/test_verify_packet_set.py"),
+              Path("tools/burn-protocol-source-frontier/test_harvest_packet_set.py"),
+              Path("tools/burn-protocol-source-frontier/harvest.py"),
+              Path("tools/burn-protocol-source-frontier/harvest_archives.py"),
+              Path("tools/burn-protocol-source-frontier/harvest_common.py"),
+              Path("tools/burn-protocol-source-frontier/harvest_main.py"),
+              Path("tools/burn-protocol-source-frontier/contracts/e05c1-source-intake.contract.json"),
+              Path("packet-set-tests.log"),
+          ]
+          for source in files:
+              target = root / source
+              target.parent.mkdir(parents=True, exist_ok=True)
+              shutil.copy2(source, target)
+
+          log = Path("packet-set-tests.log").read_text(encoding="utf-8")
+          match = re.search(r"Ran (\d+) tests? in", log)
+          if match is None or "OK" not in log:
+              raise SystemExit("packet-set test log does not contain a passing receipt")
+          head = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+          receipt = {
+              "format": "burn-protocol-frontier-packet-set-qualification/1",
+              "status": "pass",
+              "candidate": head,
+              "runner": os.environ.get("RUNNER_OS"),
+              "tests": int(match.group(1)),
+              "frontier": "E05-C1-P01",
+              "authority": {
+                  "byteVerification": "complete",
+                  "transportApproval": "external-sha256-pin-required",
+                  "sourceAmendment": "separate-reviewed-authority-required",
+                  "canonicalInference": "none",
+              },
+          }
+          (root / "QUALIFICATION_RECEIPT.json").write_text(
+              json.dumps(receipt, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          lines = []
+          for path in sorted(root.rglob("*")):
+              if path.is_file() and path.name != "SHA256SUMS":
+                  digest = hashlib.sha256(path.read_bytes()).hexdigest()
+                  lines.append(f"{digest}  {path.relative_to(root).as_posix()}")
+          (root / "SHA256SUMS").write_text("\n".join(lines) + "\n", encoding="utf-8")
+          PY
+
+      - name: Upload packet-set qualification
+        uses: actions/upload-artifact@v4
+        with:
+          name: burn-protocol-frontier-packet-set-qualification-${{ matrix.os }}
+          path: burn-protocol-frontier-packet-set-qualification-${{ matrix.os }}
+          if-no-files-found: error
+          retention-days: 30
+          include-hidden-files: true

@@ -1,0 +1,133 @@
+name: Burn Protocol canonical through Episode 4
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/burn-protocol-canonical-episode-4.yml'
+      - 'src/burn-protocol/**'
+      - 'src/canonical-story/**'
+      - 'tests/canonical-story/**'
+      - 'tests/source-planes/registry.test.ts'
+      - 'tools/build-burn-protocol-episode-4.ts'
+  push:
+    branches: [feature/burn-protocol-canonical-story-episode-4-chapter-3-v1]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qualify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out exact candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+          show-progress: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck and focused contracts
+        run: |
+          set -euo pipefail
+          npm run typecheck | tee "$RUNNER_TEMP/typecheck.log"
+          npm test -- \
+            tests/canonical-story/burn-protocol-episode-4-chapter-2.test.ts \
+            tests/canonical-story/burn-protocol-episode-4-chapter-3.test.ts \
+            tests/source-planes/registry.test.ts \
+            | tee "$RUNNER_TEMP/focused-tests.log"
+
+      - name: Build deterministic publication twice
+        run: |
+          set -euo pipefail
+          a="$RUNNER_TEMP/publication-a"
+          b="$RUNNER_TEMP/publication-b"
+          npx vite-node tools/build-burn-protocol-episode-4.ts "$a" | tee "$RUNNER_TEMP/publication-a.log"
+          npx vite-node tools/build-burn-protocol-episode-4.ts "$b" | tee "$RUNNER_TEMP/publication-b.log"
+          diff -ru "$a" "$b"
+          (cd "$a" && sha256sum -c SHA256SUMS)
+          printf 'BURN_EPISODE_4_PUBLICATION=%s\n' "$a" >> "$GITHUB_ENV"
+
+      - name: Assert complete Episode 4 law
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const root = process.env.BURN_EPISODE_4_PUBLICATION;
+          const prefix = 'burn-protocol-through-episode-04';
+          const arc = JSON.parse(fs.readFileSync(path.join(root, `${prefix}.arc.json`), 'utf8'));
+          const source = JSON.parse(fs.readFileSync(path.join(root, `${prefix}.burn.json`), 'utf8'));
+          const coverage = JSON.parse(fs.readFileSync(path.join(root, `${prefix}.coverage.json`), 'utf8'));
+          const episode4 = source.canonicalStory.episodes[3];
+          const chapter3 = episode4.chapters[2];
+          const fail = (message) => { throw new Error(message); };
+          if (arc.meta.id !== 'burn-protocol' || arc.challenges.length !== 0 || arc.roles.length !== 0) fail('Arc authority drift.');
+          if (source.identity.version !== '0.10.0') fail('Version drift.');
+          if (source.canonicalStory.episodes.length !== 4 || source.canonicalStory.episodes.some((episode) => !episode.complete)) fail('Episode completion drift.');
+          if (episode4.chapters.length !== 3 || episode4.nextChapterId !== null) fail('Episode 4 extent drift.');
+          if (chapter3.title !== "The Dead Man's Checksum"
+              || chapter3.openingPanelId !== 'E04-C3-P41'
+              || chapter3.terminalPanelId !== 'E04-C3-P60'
+              || chapter3.nextPanelId !== 'E05-C1-P01') fail('A04C3 identity drift.');
+          if (episode4.chapters[1].nextPanelId !== chapter3.openingPanelId
+              || chapter3.previousPanelId !== episode4.chapters[1].terminalPanelId) fail('P40/P41 seam drift.');
+          if (coverage.episodes !== 4 || coverage.chapters !== 12 || coverage.panels !== 240 || coverage.plates !== 48) fail('Coverage drift.');
+          if (coverage.unresolvedTextPanels !== 240 || coverage.unresolvedPlateMappings !== 48) fail('Expression standing drift.');
+          if (coverage.choiceNodes !== 0 || coverage.productionReady !== false) fail('Authority standing drift.');
+          if (JSON.stringify(coverage.incompleteEpisodeIds) !== '[]'
+              || JSON.stringify(coverage.continuationPanelIds) !== JSON.stringify(['E05-C1-P01'])) fail('Continuation drift.');
+          if (coverage.sourceRequiredAssets.length !== 1
+              || coverage.sourceRequiredAssets[0].id !== 'asset:E03-C2-P31') fail('P31 custody drift.');
+          if (!chapter3.panels.every((panel) => panel.text.status === 'source-required')
+              || !chapter3.plates.every((plate) => plate.panelMapping.status === 'source-required')) fail('Unavailable expression was promoted.');
+          const receipts = new Map(source.canonicalStory.sourceReceipts.map((receipt) => [receipt.id, receipt]));
+          for (const [id, pathName, bytes, sha256] of [
+            ['a04c3-chapter-source', 'source/art/A04C3/chapter.json', 2016, 'b2ff5fbf635b677684a3c3eb843fc358a0be101edaa1610fb05966b4e92cf814'],
+            ['a04c3-lettering-source', 'source/art/A04C3/lettering.json', 28761, '4f13e90c9616cd1e13025ac4e5c51b497593ce1a65f08dd36c384feb1e0d4012'],
+            ['a04c3-scroll-plates', 'manifests/a04c3-scroll-plates.json', 1521, '96d12414747c00f6073016f2ddcff5b5fa45f4f167b610d4a7087612f98fbdd8'],
+          ]) {
+            const receipt = receipts.get(id);
+            if (!receipt || receipt.path !== pathName || receipt.bytes !== bytes || receipt.sha256 !== sha256 || receipt.available !== false) fail(`Receipt drift: ${id}`);
+          }
+          NODE
+
+      - name: Complete regression and build
+        run: |
+          set -euo pipefail
+          npm test | tee "$RUNNER_TEMP/full-tests.log"
+          npm run build | tee "$RUNNER_TEMP/build.log"
+
+      - name: Retain qualification
+        if: always()
+        run: |
+          set -euo pipefail
+          root="burn-protocol-canonical-through-episode-4-qualification"
+          mkdir -p "$root"
+          cp -R "${BURN_EPISODE_4_PUBLICATION:-$RUNNER_TEMP/publication-a}" "$root/publication" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/*.log "$root/" 2>/dev/null || true
+          printf '%s\n' "${{ github.event.pull_request.head.sha || github.sha }}" > "$root/arc-candidate-sha.txt"
+          find "$root" -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum | sed "s#  $root/#  #" > "$root/SHA256SUMS"
+
+      - name: Upload qualification
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: burn-protocol-canonical-through-episode-4-qualification
+          path: burn-protocol-canonical-through-episode-4-qualification
+          if-no-files-found: error
+          retention-days: 30

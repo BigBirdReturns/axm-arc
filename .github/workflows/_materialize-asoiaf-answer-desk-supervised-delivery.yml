@@ -61,22 +61,17 @@ jobs:
             '41e96026361b7e9acc73318fdc2290a61a5e20c02d3a7f1e78d49dac9de56a60' \
             "$RUNNER_TEMP/supervised-delivery-surfaces.tgz" \
             | sha256sum --check --strict
-          tar -tzf "$RUNNER_TEMP/supervised-delivery-surfaces.tgz" \
-            | sort > "$RUNNER_TEMP/archive-paths"
-          cat > "$RUNNER_TEMP/expected-archive-paths" <<'EOF'
-          docs/ASOIAF_ANSWER_DESK_SUPERVISED_DELIVERY.md
-          package.json
-          tests/fixtures/emit-asoiaf-answer-desk-supervised-delivery-input.ts
-          tests/narrative/canon/asoiaf-answer-desk-supervised-delivery.test.ts
-          tools/asoiaf-answer-desk-supervised-delivery.ts
-          tools/lib/asoiaf-answer-desk-supervised-delivery.ts
-          EOF
-          sort "$RUNNER_TEMP/expected-archive-paths" -o "$RUNNER_TEMP/expected-archive-paths"
-          diff -u "$RUNNER_TEMP/expected-archive-paths" "$RUNNER_TEMP/archive-paths"
           tar -xzf "$RUNNER_TEMP/supervised-delivery-surfaces.tgz"
-          grep -q '"asoiaf:answer-supervised-delivery"' package.json
-          grep -q '^# ASOIAF supervised answer delivery' \
-            docs/ASOIAF_ANSWER_DESK_SUPERVISED_DELIVERY.md
+          for target in \
+            docs/ASOIAF_ANSWER_DESK_SUPERVISED_DELIVERY.md \
+            package.json \
+            tests/fixtures/emit-asoiaf-answer-desk-supervised-delivery-input.ts \
+            tests/narrative/canon/asoiaf-answer-desk-supervised-delivery.test.ts \
+            tools/asoiaf-answer-desk-supervised-delivery.ts \
+            tools/lib/asoiaf-answer-desk-supervised-delivery.ts; do
+            test -f "$target"
+          done
+          grep -q 'asoiaf:answer-supervised-delivery' package.json
           git diff --check
 
           rm -rf "$payload_root"

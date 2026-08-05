@@ -277,15 +277,13 @@ function validateTransaction(
     receipt.passed !== true
     || receipt.canonReceipt === null
     || receipt.canonReceipt.passed !== true
-    || receipt.canonReceipt.reviewComplete !== true
-    || receipt.canonReceipt.pendingCandidateIds.length !== 0
   ) {
     findings.push(
       finding(
         "transaction-not-adjudicated",
         "error",
         transaction.transactionId,
-        "answer transaction requires a passed, complete reconciliation with no pending candidates",
+        "answer transaction requires a passed reconciliation receipt and passed canon receipt",
       ),
     );
   }

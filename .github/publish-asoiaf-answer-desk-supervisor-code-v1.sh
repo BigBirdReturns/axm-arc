@@ -123,6 +123,8 @@ done
 
 git commit -m 'Materialize persistent answer desk supervisor'
 final_sha="$(git rev-parse HEAD)"
+git reset --hard HEAD
+git clean -fd
 test -z "$(git status --porcelain)"
 git push origin HEAD:feature/asoiaf-answer-desk-supervisor-v1
 printf '%s\n' "$final_sha" > "$RUNNER_TEMP/supervisor-code-candidate-sha.txt"

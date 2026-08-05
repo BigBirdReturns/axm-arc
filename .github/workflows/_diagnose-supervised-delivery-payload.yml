@@ -1,4 +1,4 @@
-name: Diagnose ASOIAF supervised delivery payload
+name: Recover ASOIAF supervised delivery payload
 
 on:
   push:
@@ -20,103 +20,142 @@ permissions:
   contents: read
 
 jobs:
-  diagnose:
+  recover:
+    if: github.repository == 'BigBirdReturns/axm-arc'
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-          fetch-depth: 1
+          fetch-depth: 0
           show-progress: false
 
-      - name: Retain exact fragment bytes and geometry
+      - name: Recover exact carrier from reachable Git history
         shell: bash
         run: |
           set -euo pipefail
           root='.github/materialize/asoiaf-answer-supervised-delivery'
-          out="$RUNNER_TEMP/supervised-delivery-payload-diagnostic"
-          mkdir -p "$out/fragments"
-          cp "$root"/part-*.b64 "$out/fragments/"
+          out="$RUNNER_TEMP/supervised-delivery-payload-recovery"
+          mkdir -p "$out/current-fragments" "$out/matches" "$out/historical-blobs"
+          cp "$root"/part-*.b64 "$out/current-fragments/"
           git rev-parse HEAD > "$out/candidate-sha.txt"
+          git log --all --reverse --date=iso-strict \
+            --format='%H%x09%P%x09%aI%x09%s' \
+            -- "$root" .github/workflows/_bootstrap-supervised-delivery-source.yml \
+            > "$out/relevant-history.tsv"
 
-          ROOT="$root" OUT="$out" python3 <<'PY'
-          import base64
+          OUT="$out" ROOT="$root" python3 <<'PY'
           import hashlib
-          import itertools
           import json
           import os
           import pathlib
           import re
+          import subprocess
 
-          root = pathlib.Path(os.environ['ROOT'])
           out = pathlib.Path(os.environ['OUT'])
-          entries = []
+          root = os.environ['ROOT']
+          expected_carrier = '6fccc952899c22081590a8d96e3f9941a7b91c10d189eb0903c90d0cdbae56f0'
+          expected_archive = '41e96026361b7e9acc73318fdc2290a61a5e20c02d3a7f1e78d49dac9de56a60'
+
+          objects = subprocess.check_output(
+              ['git', 'rev-list', '--objects', '--all'],
+              text=True,
+          ).splitlines()
+          relevant = []
+          all_blob_shas = []
+          for line in objects:
+              sha, _, path = line.partition(' ')
+              try:
+                  kind = subprocess.check_output(
+                      ['git', 'cat-file', '-t', sha],
+                      text=True,
+                      stderr=subprocess.DEVNULL,
+                  ).strip()
+              except subprocess.CalledProcessError:
+                  continue
+              if kind != 'blob':
+                  continue
+              all_blob_shas.append(sha)
+              if 'supervised-delivery' in path or 'SUPERVISED_DELIVERY' in path:
+                  relevant.append((sha, path))
+
+          seen = set()
+          records = []
+          matches = []
+          for sha, path in relevant:
+              if sha in seen:
+                  continue
+              seen.add(sha)
+              data = subprocess.check_output(['git', 'cat-file', 'blob', sha])
+              digest = hashlib.sha256(data).hexdigest()
+              record = {
+                  'gitBlobSha': sha,
+                  'path': path,
+                  'bytes': len(data),
+                  'sha256': digest,
+                  'prefixHex': data[:32].hex(),
+                  'suffixHex': data[-32:].hex(),
+              }
+              records.append(record)
+              target = out / 'historical-blobs' / f'{sha}-{pathlib.Path(path).name}'
+              target.write_bytes(data)
+              if digest in {expected_carrier, expected_archive}:
+                  match = dict(record)
+                  match['expectedKind'] = 'carrier' if digest == expected_carrier else 'archive'
+                  matches.append(match)
+                  (out / 'matches' / f'{match["expectedKind"]}-{sha}').write_bytes(data)
+
+          if not matches:
+              for sha in sorted(set(all_blob_shas)):
+                  if sha in seen:
+                      continue
+                  data = subprocess.check_output(['git', 'cat-file', 'blob', sha])
+                  digest = hashlib.sha256(data).hexdigest()
+                  if digest not in {expected_carrier, expected_archive}:
+                      continue
+                  match = {
+                      'gitBlobSha': sha,
+                      'path': None,
+                      'bytes': len(data),
+                      'sha256': digest,
+                      'prefixHex': data[:32].hex(),
+                      'suffixHex': data[-32:].hex(),
+                      'expectedKind': 'carrier' if digest == expected_carrier else 'archive',
+                  }
+                  matches.append(match)
+                  (out / 'matches' / f'{match["expectedKind"]}-{sha}').write_bytes(data)
+
           fragments = []
-          for path in sorted(root.glob('part-*.b64')):
+          for path in sorted((out / 'current-fragments').glob('part-*.b64')):
               raw = path.read_bytes()
               compact = re.sub(rb'\s+', b'', raw)
-              fragments.append((path.name, raw, compact))
-              illegal = [
-                  {'offset': index, 'byte': value}
-                  for index, value in enumerate(compact)
-                  if value not in b'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/='
-              ]
-              entries.append({
+              fragments.append({
                   'name': path.name,
-                  'rawBytes': len(raw),
+                  'bytes': len(raw),
+                  'sha256': hashlib.sha256(raw).hexdigest(),
                   'compactBytes': len(compact),
                   'compactModulo4': len(compact) % 4,
-                  'rawSha256': hashlib.sha256(raw).hexdigest(),
-                  'compactSha256': hashlib.sha256(compact).hexdigest(),
-                  'prefix': compact[:96].decode('ascii', errors='replace'),
-                  'suffix': compact[-96:].decode('ascii', errors='replace'),
-                  'paddingOffsets': [i for i, value in enumerate(compact) if value == ord('=')],
-                  'illegal': illegal[:20],
               })
 
-          concatenated = b''.join(fragment[2] for fragment in fragments)
           report = {
-              'format': 'axm-supervised-delivery-payload-diagnostic/2',
+              'format': 'axm-supervised-delivery-payload-recovery/1',
               'candidateSha': (out / 'candidate-sha.txt').read_text().strip(),
-              'fragments': entries,
-              'orderedCompactBytes': len(concatenated),
-              'orderedCompactModulo4': len(concatenated) % 4,
-              'orderedCompactSha256': hashlib.sha256(concatenated).hexdigest(),
-              'expectedCarrierSha256': '6fccc952899c22081590a8d96e3f9941a7b91c10d189eb0903c90d0cdbae56f0',
-              'expectedArchiveSha256': '41e96026361b7e9acc73318fdc2290a61a5e20c02d3a7f1e78d49dac9de56a60',
+              'expectedCarrierSha256': expected_carrier,
+              'expectedArchiveSha256': expected_archive,
+              'relevantHistoricalBlobCount': len(records),
+              'scannedBlobCount': len(set(all_blob_shas)),
+              'matches': matches,
+              'currentFragments': fragments,
           }
-
-          candidates = []
-          for label, payload in [
-              ('ordered-compact', concatenated),
-              ('ordered-compact-without-padding', concatenated.replace(b'=', b'')),
-          ]:
-              for padding in range(4):
-                  candidate = payload + (b'=' * padding)
-                  try:
-                      decoded = base64.b64decode(candidate, validate=False)
-                  except Exception as error:
-                      candidates.append({'label': label, 'padding': padding, 'error': str(error)})
-                      continue
-                  candidates.append({
-                      'label': label,
-                      'padding': padding,
-                      'decodedBytes': len(decoded),
-                      'decodedSha256': hashlib.sha256(decoded).hexdigest(),
-                      'gzipHeader': decoded[:3].hex(),
-                  })
-          report['decodeCandidates'] = candidates
           (out / 'report.json').write_text(json.dumps(report, indent=2) + '\n')
-          (out / 'ordered-compact.b64').write_bytes(concatenated)
+          print(json.dumps(report, indent=2))
           PY
 
-          cat "$out/report.json"
-
-      - name: Upload payload diagnostic
+      - name: Upload payload recovery
         uses: actions/upload-artifact@v4
         with:
-          name: supervised-delivery-payload-diagnostic-v2
-          path: ${{ runner.temp }}/supervised-delivery-payload-diagnostic
+          name: supervised-delivery-payload-recovery
+          path: ${{ runner.temp }}/supervised-delivery-payload-recovery
           if-no-files-found: error
           retention-days: 2

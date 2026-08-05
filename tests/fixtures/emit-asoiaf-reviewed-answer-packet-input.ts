@@ -178,9 +178,19 @@ const dossier = buildAsoiafResearchQuestionDossier({
       continuityId: "book-main",
     },
   ],
-  gaps: [],
+  gaps: [
+    {
+      kind: "recall-unreconciled",
+      laneId: "entity-resolution",
+      continuityId: "book-main",
+      candidateId: recallCandidate.id,
+      detail:
+        "The bounded candidate remained unresolved when the immutable qualification dossier was compiled.",
+    },
+  ],
 });
 
+const claimId = "answer-claim:qualification:agot-answer";
 const input: AsoiafReviewedAnswerPacketInput = {
   dossier,
   reviewedBy: ANSWER_REVIEWER,
@@ -188,7 +198,7 @@ const input: AsoiafReviewedAnswerPacketInput = {
   transactions: [transaction],
   claims: [
     {
-      id: "answer-claim:qualification:agot-answer",
+      id: claimId,
       order: 1,
       continuityId: "book-main",
       text:
@@ -198,7 +208,15 @@ const input: AsoiafReviewedAnswerPacketInput = {
       resolutionDecisionIds: [resolution.decisionId],
     },
   ],
-  gapClosures: [],
+  gapClosures: [
+    {
+      id: "answer-gap-closure:qualification:agot-answer",
+      gapId: dossier.gaps[0]!.gapId,
+      claimIds: [claimId],
+      rationale:
+        "The cited primary reconciliation transaction resolves the exact candidate named by the immutable qualification gap.",
+    },
+  ],
   limitations: [],
 };
 

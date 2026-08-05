@@ -1,0 +1,37 @@
+name: Bootstrap source snapshot
+
+on:
+  push:
+    branches:
+      - feature/asoiaf-answer-desk-transport-v1
+    paths:
+      - .github/workflows/_bootstrap-source-snapshot.yml
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out exact branch head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Record exact source head
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rev-parse HEAD > /tmp/candidate-sha.txt
+          tar --exclude=.git --exclude=node_modules -czf /tmp/axm-arc-source.tgz .
+
+      - name: Upload source snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: axm-arc-source-snapshot
+          path: |
+            /tmp/axm-arc-source.tgz
+            /tmp/candidate-sha.txt
+          if-no-files-found: error
+          retention-days: 1

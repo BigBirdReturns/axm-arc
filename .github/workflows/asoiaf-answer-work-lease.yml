@@ -1,0 +1,380 @@
+name: ASOIAF answer work lease
+
+on:
+  pull_request:
+    paths:
+      - 'tools/lib/asoiaf-answer-work-lease.ts'
+      - 'tools/asoiaf-answer-work-lease.ts'
+      - 'tests/narrative/canon/asoiaf-answer-work-lease.test.ts'
+      - 'docs/ASOIAF_ANSWER_WORK_LEASE.md'
+      - 'package.json'
+      - '.github/workflows/asoiaf-answer-work-lease.yml'
+  push:
+    branches:
+      - feature/asoiaf-answer-work-lease-v1
+    paths:
+      - 'tools/lib/asoiaf-answer-work-lease.ts'
+      - 'tools/asoiaf-answer-work-lease.ts'
+      - 'tests/narrative/canon/asoiaf-answer-work-lease.test.ts'
+      - 'docs/ASOIAF_ANSWER_WORK_LEASE.md'
+      - 'package.json'
+      - '.github/workflows/asoiaf-answer-work-lease.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qualify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 65
+    steps:
+      - name: Check out exact answer-work-lease candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+          show-progress: false
+
+      - name: Record exact candidate identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = '${{ github.event.pull_request.head.sha || github.sha }}'
+          test -z "$(git status --porcelain)"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Strict TypeScript
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run typecheck | tee "$RUNNER_TEMP/typecheck.log"
+
+      - name: Focused lease, lifecycle, and answer qualification
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm test -- \
+            tests/narrative/canon/asoiaf-answer-work-lease.test.ts \
+            tests/narrative/canon/asoiaf-answer-work-order.test.ts \
+            tests/narrative/canon/asoiaf-reviewed-answer-packet.test.ts \
+            tests/narrative/canon/asoiaf-research-question-dossier.test.ts \
+            | tee "$RUNNER_TEMP/focused-tests.log"
+
+      - name: Exercise claim, exclusion, advancement, state, and render custody
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/answer-work-lease-smoke"
+          mkdir -p "$root"
+          question='What does the exact holder-controlled AGOT evidence establish for this bounded candidate?'
+
+          npx vite-node tests/fixtures/emit-asoiaf-reviewed-answer-packet-input.ts \
+            "$root/answer-input.json" \
+            | tee "$root/answer-fixture.log"
+          npm run --silent asoiaf:reviewed-answer -- build \
+            --input "$root/answer-input.json" \
+            --out "$root/answer-packet.json" \
+            | tee "$root/answer-build.log"
+          npm run --silent asoiaf:reviewed-answer -- verify \
+            --file "$root/answer-packet.json" \
+            | tee "$root/answer-verify.json"
+          test "$(jq -r '.ok' "$root/answer-verify.json")" = 'true'
+
+          jq '{
+            dossier: .dossier,
+            createdBy: "qualification:lease-open",
+            createdAt: "2026-08-05T05:20:00.000Z",
+            transactions: [],
+            answerPacket: null
+          }' "$root/answer-packet.json" > "$root/open-work-input.json"
+          jq '{
+            dossier: .dossier,
+            createdBy: "qualification:lease-reconciled",
+            createdAt: "2026-08-05T05:30:00.000Z",
+            transactions: .transactions,
+            answerPacket: null
+          }' "$root/answer-packet.json" > "$root/reconciled-work-input.json"
+          jq '{
+            dossier: .dossier,
+            createdBy: "qualification:lease-ready",
+            createdAt: "2026-08-05T05:40:00.000Z",
+            transactions: .transactions,
+            answerPacket: .
+          }' "$root/answer-packet.json" > "$root/ready-work-input.json"
+
+          npm run --silent asoiaf:answer-work-order -- build \
+            --input "$root/open-work-input.json" \
+            --out "$root/open-work-order.json" \
+            | tee "$root/open-work-build.log"
+          npm run --silent asoiaf:answer-work-order -- build \
+            --input "$root/reconciled-work-input.json" \
+            --out "$root/reconciled-work-order.json" \
+            | tee "$root/reconciled-work-build.log"
+          npm run --silent asoiaf:answer-work-order -- build \
+            --input "$root/ready-work-input.json" \
+            --out "$root/ready-work-order.json" \
+            | tee "$root/ready-work-build.log"
+
+          review_item_id="$(jq -r '.items[] | select(.action == "review-exact-locator") | .itemId' "$root/open-work-order.json")"
+          test -n "$review_item_id"
+          jq -n \
+            --slurpfile workOrder "$root/open-work-order.json" \
+            --arg itemId "$review_item_id" \
+            '{
+              workOrder: $workOrder[0],
+              itemId: $itemId,
+              workerId: "worker:qualification-review",
+              claimedAt: "2026-08-05T05:21:00.000Z",
+              leaseMilliseconds: 600000,
+              existingLeases: [],
+              settlements: []
+            }' > "$root/review-claim-input.json"
+          npm run --silent asoiaf:answer-work-lease -- claim \
+            --input "$root/review-claim-input.json" \
+            --out "$root/review-lease.json" \
+            | tee "$root/review-claim.log"
+          npm run --silent asoiaf:answer-work-lease -- verify-lease \
+            --lease "$root/review-lease.json" \
+            --work-order "$root/open-work-order.json" \
+            | tee "$root/review-lease-verify.json"
+          test "$(jq -r '.ok' "$root/review-lease-verify.json")" = 'true'
+
+          jq \
+            --slurpfile lease "$root/review-lease.json" \
+            '.workerId = "worker:qualification-duplicate"
+             | .claimedAt = "2026-08-05T05:21:30.000Z"
+             | .existingLeases = $lease' \
+            "$root/review-claim-input.json" \
+            > "$root/duplicate-claim-input.json"
+          set +e
+          npm run --silent asoiaf:answer-work-lease -- claim \
+            --input "$root/duplicate-claim-input.json" \
+            > "$root/duplicate-claim.stdout" \
+            2> "$root/duplicate-claim.stderr"
+          duplicate_exit=$?
+          set -e
+          test "$duplicate_exit" -ne 0
+          grep -q 'already has active lease' "$root/duplicate-claim.stderr"
+
+          jq -n \
+            --slurpfile workOrder "$root/open-work-order.json" \
+            --slurpfile lease "$root/review-lease.json" \
+            '{
+              workOrder: $workOrder[0],
+              leases: $lease,
+              settlements: [],
+              asOf: "2026-08-05T05:21:30.000Z"
+            }' > "$root/active-state-input.json"
+          npm run --silent asoiaf:answer-work-lease -- state \
+            --input "$root/active-state-input.json" \
+            --out "$root/active-state.json" \
+            | tee "$root/active-state-build.log"
+          npm run --silent asoiaf:answer-work-lease -- verify-state \
+            --state "$root/active-state.json" \
+            --input "$root/active-state-input.json" \
+            | tee "$root/active-state-verify.json"
+          test "$(jq -r '.ok' "$root/active-state-verify.json")" = 'true'
+          test "$(jq '.activeLeaseIds | length' "$root/active-state.json")" = '1'
+          test "$(jq --arg id "$review_item_id" '.availableItemIds | index($id) == null' "$root/active-state.json")" = 'true'
+
+          transaction_id="$(jq -r '.transactions[0].transactionId' "$root/answer-packet.json")"
+          transaction_fingerprint="$(jq -r '.transactions[0].transactionFingerprint' "$root/answer-packet.json")"
+          jq -n \
+            --slurpfile lease "$root/review-lease.json" \
+            --slurpfile before "$root/open-work-order.json" \
+            --slurpfile after "$root/reconciled-work-order.json" \
+            --arg transactionId "$transaction_id" \
+            --arg transactionFingerprint "$transaction_fingerprint" \
+            '{
+              lease: $lease[0],
+              beforeWorkOrder: $before[0],
+              completedAt: "2026-08-05T05:31:00.000Z",
+              outcome: "satisfied",
+              afterWorkOrder: $after[0],
+              resultReferences: [
+                {
+                  kind: "reviewed-answer-transaction",
+                  objectId: $transactionId,
+                  fingerprint: $transactionFingerprint,
+                  uri: null
+                }
+              ],
+              reason: "The refreshed qualified work order proves exact primary review and private locator custody.",
+              priorSettlements: []
+            }' > "$root/review-settlement-input.json"
+          npm run --silent asoiaf:answer-work-lease -- settle \
+            --input "$root/review-settlement-input.json" \
+            --out "$root/review-settlement.json" \
+            | tee "$root/review-settle.log"
+          npm run --silent asoiaf:answer-work-lease -- verify-settlement \
+            --settlement "$root/review-settlement.json" \
+            --lease "$root/review-lease.json" \
+            --before "$root/open-work-order.json" \
+            --after "$root/reconciled-work-order.json" \
+            | tee "$root/review-settlement-verify.json"
+          test "$(jq -r '.ok' "$root/review-settlement-verify.json")" = 'true'
+          test "$(jq -r '.afterStatus' "$root/review-settlement.json")" = 'satisfied'
+
+          jq -n \
+            --slurpfile workOrder "$root/reconciled-work-order.json" \
+            --slurpfile lease "$root/review-lease.json" \
+            --slurpfile settlement "$root/review-settlement.json" \
+            '{
+              workOrder: $workOrder[0],
+              leases: $lease,
+              settlements: $settlement,
+              asOf: "2026-08-05T05:31:01.000Z"
+            }' > "$root/settled-state-input.json"
+          npm run --silent asoiaf:answer-work-lease -- state \
+            --input "$root/settled-state-input.json" \
+            --out "$root/settled-state.json" \
+            | tee "$root/settled-state-build.log"
+          test "$(jq '.settledLeaseIds | length' "$root/settled-state.json")" = '1'
+          test "$(jq '.activeLeaseIds | length' "$root/settled-state.json")" = '0'
+
+          render_item_id="$(jq -r '.items[] | select(.action == "render-reviewed-answer") | .itemId' "$root/ready-work-order.json")"
+          test -n "$render_item_id"
+          jq -n \
+            --slurpfile workOrder "$root/ready-work-order.json" \
+            --arg itemId "$render_item_id" \
+            '{
+              workOrder: $workOrder[0],
+              itemId: $itemId,
+              workerId: "worker:qualification-render",
+              claimedAt: "2026-08-05T05:41:00.000Z",
+              leaseMilliseconds: 60000,
+              existingLeases: [],
+              settlements: []
+            }' > "$root/render-claim-input.json"
+          npm run --silent asoiaf:answer-work-lease -- claim \
+            --input "$root/render-claim-input.json" \
+            --out "$root/render-lease.json" \
+            | tee "$root/render-claim.log"
+
+          answer_packet_id="$(jq -r '.answerPacketId' "$root/answer-packet.json")"
+          rendered_digest="$(jq -r '.renderedTextDigest' "$root/answer-packet.json")"
+          jq -n \
+            --slurpfile lease "$root/render-lease.json" \
+            --slurpfile before "$root/ready-work-order.json" \
+            --arg packetId "$answer_packet_id" \
+            --arg digest "$rendered_digest" \
+            '{
+              lease: $lease[0],
+              beforeWorkOrder: $before[0],
+              completedAt: "2026-08-05T05:41:10.000Z",
+              outcome: "rendered",
+              afterWorkOrder: null,
+              resultReferences: [
+                {
+                  kind: "reviewed-answer-render",
+                  objectId: ($packetId + ":rendered"),
+                  fingerprint: $digest,
+                  uri: null
+                }
+              ],
+              reason: "The deterministic renderer emitted only the reviewed packet text and exact citation ledger.",
+              priorSettlements: []
+            }' > "$root/render-settlement-input.json"
+          npm run --silent asoiaf:answer-work-lease -- settle \
+            --input "$root/render-settlement-input.json" \
+            --out "$root/render-settlement.json" \
+            | tee "$root/render-settle.log"
+          npm run --silent asoiaf:answer-work-lease -- verify-settlement \
+            --settlement "$root/render-settlement.json" \
+            --lease "$root/render-lease.json" \
+            --before "$root/ready-work-order.json" \
+            | tee "$root/render-settlement-verify.json"
+          test "$(jq -r '.ok' "$root/render-settlement-verify.json")" = 'true'
+          test "$(jq -r '.outcome' "$root/render-settlement.json")" = 'rendered'
+          test "$(jq -r '.afterWorkOrderId' "$root/render-settlement.json")" = 'null'
+
+          for object in \
+            "$root/review-lease.json" \
+            "$root/review-settlement.json" \
+            "$root/active-state.json" \
+            "$root/settled-state.json" \
+            "$root/render-lease.json" \
+            "$root/render-settlement.json"; do
+            test "$(jq -r '.authority' "$object")" = 'none'
+            test "$(jq -r '.graphEffect' "$object")" = 'none'
+            test "$(jq -r '.canonEffect' "$object")" = 'none'
+            test "$(jq -r '.answerEffect' "$object")" = 'none'
+            ! grep -Fq "$question" "$object"
+          done
+          test -z "$(git status --porcelain)"
+
+          cp "$root"/*.json "$RUNNER_TEMP/" 2>/dev/null || true
+          cp "$root"/*.log "$RUNNER_TEMP/" 2>/dev/null || true
+          cp "$root"/*.stderr "$RUNNER_TEMP/" 2>/dev/null || true
+
+      - name: Complete Arc regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm test | tee "$RUNNER_TEMP/full-tests.log"
+
+      - name: Production build
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run build | tee "$RUNNER_TEMP/build.log"
+
+      - name: Retain exact lease qualification
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          root='asoiaf-answer-work-lease-qualification'
+          mkdir -p "$root"
+          cp "$RUNNER_TEMP"/*.log "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/*.json "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/*.stderr "$root/" 2>/dev/null || true
+          printf '%s\n' '${{ github.event.pull_request.head.sha || github.sha }}' \
+            > "$root/candidate-sha.txt"
+          printf '%s\n' \
+            'liveNetworkInCI=false' \
+            'privateSourceTextReadInCI=false' \
+            'claim=exact-open-item-only' \
+            'leaseDuration=one-second-through-twenty-four-hours' \
+            'activeConcurrentLease=refused' \
+            'expiredLease=item-released' \
+            'advancement=refreshed-qualified-work-order-required' \
+            'resultReference=exact-fingerprint-required' \
+            'render=answer-ready-result-only' \
+            'honestTerminals=refused-failed-cancelled-expired-stale' \
+            'terminalReplay=refused' \
+            'deskState=active-expired-stale-settled-available-blocked' \
+            'leaseAuthority=none' \
+            'settlementAuthority=none' \
+            'deskAuthority=none' \
+            'graphEffect=none' \
+            'canonEffect=none' \
+            'answerEffect=none' \
+            > "$root/answer-work-lease-boundary.txt"
+          find "$root" -type f ! -name SHA256SUMS -print0 \
+            | sort -z \
+            | xargs -0 sha256sum \
+            | sed "s#  $root/#  #" \
+            > "$root/SHA256SUMS"
+
+      - name: Upload answer-work-lease qualification
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: asoiaf-answer-work-lease-qualification
+          path: asoiaf-answer-work-lease-qualification
+          if-no-files-found: error
+          retention-days: 30

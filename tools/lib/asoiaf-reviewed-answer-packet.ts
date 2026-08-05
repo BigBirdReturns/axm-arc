@@ -1,6 +1,5 @@
 import {
   compareCodepoints,
-  orderRecordKeysDeep,
   orderedStrings,
 } from "../../src/engine/determinism.js";
 import { narrativeFingerprint } from "../../src/narrative/fingerprint.js";
@@ -23,6 +22,8 @@ import {
 
 export const ASOIAF_REVIEWED_ANSWER_TRANSACTION_FORMAT =
   "axm-asoiaf-reviewed-answer-transaction/1" as const;
+export const ASOIAF_REVIEWED_ANSWER_GAP_CLOSURE_FORMAT =
+  "axm-asoiaf-reviewed-answer-gap-closure/1" as const;
 export const ASOIAF_REVIEWED_ANSWER_PACKET_FORMAT =
   "axm-asoiaf-reviewed-answer-packet/1" as const;
 
@@ -69,6 +70,22 @@ export interface AsoiafReviewedAnswerClaim
   canonEffect: "none";
 }
 
+export interface AsoiafReviewedAnswerGapClosureInput {
+  id: string;
+  gapId: string;
+  claimIds: string[];
+  rationale: string;
+}
+
+export interface AsoiafReviewedAnswerGapClosure
+  extends AsoiafReviewedAnswerGapClosureInput {
+  format: typeof ASOIAF_REVIEWED_ANSWER_GAP_CLOSURE_FORMAT;
+  closureFingerprint: `sha256:${string}`;
+  standing: "resolved-by-adjudicated-claim";
+  graphEffect: "none";
+  canonEffect: "none";
+}
+
 export interface AsoiafReviewedAnswerLimitationInput {
   id: string;
   text: string;
@@ -88,14 +105,16 @@ export interface AsoiafReviewedAnswerPacketInput {
   dossier: AsoiafResearchQuestionDossier;
   reviewedBy: string;
   reviewedAt: string;
-  transactions: AsoiafReviewedAnswerTransactionInput[];
+  transactions: AsoiafReviewedAnswerTransaction[];
   claims: AsoiafReviewedAnswerClaimInput[];
+  gapClosures?: AsoiafReviewedAnswerGapClosureInput[];
   limitations?: AsoiafReviewedAnswerLimitationInput[];
 }
 
 export interface AsoiafReviewedAnswerPacket {
   format: typeof ASOIAF_REVIEWED_ANSWER_PACKET_FORMAT;
   answerPacketId: string;
+  dossier: AsoiafResearchQuestionDossier;
   dossierId: string;
   dossierFingerprint: `sha256:${string}`;
   questionId: string;
@@ -105,6 +124,7 @@ export interface AsoiafReviewedAnswerPacket {
   reviewedAt: string;
   transactions: AsoiafReviewedAnswerTransaction[];
   claims: AsoiafReviewedAnswerClaim[];
+  gapClosures: AsoiafReviewedAnswerGapClosure[];
   limitations: AsoiafReviewedAnswerLimitation[];
   scope: AsoiafReviewedAnswerScope;
   renderedTextDigest: `sha256:${string}`;
@@ -164,24 +184,6 @@ function transactionCore(input: AsoiafReviewedAnswerTransactionInput) {
   };
 }
 
-function answerTransaction(
-  input: AsoiafReviewedAnswerTransactionInput,
-): AsoiafReviewedAnswerTransaction {
-  const core = transactionCore(input);
-  const transactionFingerprint = sha256(core);
-  return {
-    ...core,
-    transactionId: collectorContentId("asoiaf-reviewed-answer-transaction", {
-      packetId: input.packet.id,
-      packetFingerprint: input.packet.packetFingerprint,
-      reconciliationReceiptFingerprint:
-        input.reconciliationReceipt.receiptFingerprint,
-      transactionFingerprint,
-    }),
-    transactionFingerprint,
-  };
-}
-
 function externalReceiptCore(
   receipt: AsoiafExternalReconciliationReceipt,
 ): Omit<AsoiafExternalReconciliationReceipt, "receiptFingerprint"> {
@@ -194,6 +196,16 @@ function validateTransaction(
 ): AsoiafReviewedAnswerFinding[] {
   const findings: AsoiafReviewedAnswerFinding[] = [];
   const { packet, reconciliationReceipt: receipt } = transaction;
+  if (transaction.format !== ASOIAF_REVIEWED_ANSWER_TRANSACTION_FORMAT) {
+    findings.push(
+      finding(
+        "transaction-format",
+        "error",
+        transaction.transactionId,
+        "answer transaction format is invalid",
+      ),
+    );
+  }
   for (const packetFinding of validateAsoiafExternalReviewPacket(packet)) {
     if (packetFinding.severity === "error") {
       findings.push(
@@ -293,6 +305,35 @@ function validateTransaction(
   return findings;
 }
 
+export function buildAsoiafReviewedAnswerTransaction(
+  input: AsoiafReviewedAnswerTransactionInput,
+): AsoiafReviewedAnswerTransaction {
+  const core = transactionCore(input);
+  const transactionFingerprint = sha256(core);
+  const transaction: AsoiafReviewedAnswerTransaction = {
+    ...core,
+    transactionId: collectorContentId("asoiaf-reviewed-answer-transaction", {
+      packetId: input.packet.id,
+      packetFingerprint: input.packet.packetFingerprint,
+      reconciliationReceiptFingerprint:
+        input.reconciliationReceipt.receiptFingerprint,
+      transactionFingerprint,
+    }),
+    transactionFingerprint,
+  };
+  const errors = validateTransaction(transaction).filter(
+    (entry) => entry.severity === "error",
+  );
+  if (errors.length > 0) {
+    throw new Error(
+      `invalid reviewed answer transaction: ${errors
+        .map((entry) => `${entry.code}:${entry.subjectId}`)
+        .join(", ")}`,
+    );
+  }
+  return transaction;
+}
+
 function approvedResolution(
   resolution: CanonReconciliationResolution,
 ): resolution is CanonReconciliationResolution & {
@@ -357,6 +398,29 @@ function buildClaim(
   };
 }
 
+function gapClosureCore(input: AsoiafReviewedAnswerGapClosureInput) {
+  return {
+    format: ASOIAF_REVIEWED_ANSWER_GAP_CLOSURE_FORMAT,
+    id: input.id,
+    gapId: input.gapId,
+    claimIds: orderedStrings(input.claimIds),
+    rationale: input.rationale,
+    standing: "resolved-by-adjudicated-claim" as const,
+    graphEffect: "none" as const,
+    canonEffect: "none" as const,
+  };
+}
+
+function buildGapClosure(
+  input: AsoiafReviewedAnswerGapClosureInput,
+): AsoiafReviewedAnswerGapClosure {
+  const core = gapClosureCore(input);
+  return {
+    ...core,
+    closureFingerprint: sha256(core),
+  };
+}
+
 function buildLimitation(
   input: AsoiafReviewedAnswerLimitationInput,
 ): AsoiafReviewedAnswerLimitation {
@@ -410,12 +474,7 @@ export function validateAsoiafReviewedAnswerPacket(
   packet: AsoiafReviewedAnswerPacket,
 ): AsoiafReviewedAnswerFinding[] {
   const findings: AsoiafReviewedAnswerFinding[] = [];
-  for (const dossierFinding of validateAsoiafResearchQuestionDossier(
-    packet.transactions.length >= 0
-      ? (packet as unknown as { dossier?: AsoiafResearchQuestionDossier }).dossier
-        ?? ({ format: "missing" } as unknown as AsoiafResearchQuestionDossier)
-      : ({ format: "missing" } as unknown as AsoiafResearchQuestionDossier),
-  )) {
+  for (const dossierFinding of validateAsoiafResearchQuestionDossier(packet.dossier)) {
     if (dossierFinding.severity === "error") {
       findings.push(
         finding(
@@ -428,149 +487,531 @@ export function validateAsoiafReviewedAnswerPacket(
     }
   }
   if (packet.format !== ASOIAF_REVIEWED_ANSWER_PACKET_FORMAT) {
-    findings.push(finding("answer-format", "error", packet.answerPacketId, "answer packet format is invalid"));
+    findings.push(
+      finding(
+        "answer-format",
+        "error",
+        packet.answerPacketId,
+        "answer packet format is invalid",
+      ),
+    );
+  }
+  if (
+    packet.dossierId !== packet.dossier.dossierId
+    || packet.dossierFingerprint !== packet.dossier.dossierFingerprint
+    || packet.questionId !== packet.dossier.question.questionId
+    || packet.questionDigest !== packet.dossier.question.questionDigest
+    || JSON.stringify(packet.continuityIds)
+      !== JSON.stringify(orderedStrings(packet.dossier.question.continuityIds))
+  ) {
+    findings.push(
+      finding(
+        "answer-dossier-parity",
+        "error",
+        packet.answerPacketId,
+        "answer packet question and dossier custody are stale",
+      ),
+    );
   }
   if (!nonempty(packet.reviewedBy) || !Number.isFinite(Date.parse(packet.reviewedAt))) {
-    findings.push(finding("answer-reviewer", "error", packet.answerPacketId, "answer packet requires a named reviewer and valid review time"));
+    findings.push(
+      finding(
+        "answer-reviewer",
+        "error",
+        packet.answerPacketId,
+        "answer packet requires a named reviewer and valid review time",
+      ),
+    );
   }
   if (packet.claims.length === 0) {
-    findings.push(finding("answer-empty", "error", packet.answerPacketId, "answer packet requires at least one adjudicated claim"));
+    findings.push(
+      finding(
+        "answer-empty",
+        "error",
+        packet.answerPacketId,
+        "answer packet requires at least one adjudicated claim",
+      ),
+    );
   }
   if (!unique(packet.transactions.map((entry) => entry.transactionId))) {
-    findings.push(finding("duplicate-transaction", "error", packet.answerPacketId, "answer packet contains duplicate transaction identities"));
+    findings.push(
+      finding(
+        "duplicate-transaction",
+        "error",
+        packet.answerPacketId,
+        "answer packet contains duplicate transaction identities",
+      ),
+    );
   }
   if (!unique(packet.claims.map((entry) => entry.id))) {
-    findings.push(finding("duplicate-answer-claim", "error", packet.answerPacketId, "answer packet contains duplicate claim identities"));
+    findings.push(
+      finding(
+        "duplicate-answer-claim",
+        "error",
+        packet.answerPacketId,
+        "answer packet contains duplicate claim identities",
+      ),
+    );
+  }
+  if (
+    !unique(packet.gapClosures.map((entry) => entry.id))
+    || !unique(packet.gapClosures.map((entry) => entry.gapId))
+  ) {
+    findings.push(
+      finding(
+        "duplicate-gap-closure",
+        "error",
+        packet.answerPacketId,
+        "answer packet contains duplicate closure or gap identities",
+      ),
+    );
   }
   if (!unique(packet.limitations.map((entry) => entry.id))) {
-    findings.push(finding("duplicate-limitation", "error", packet.answerPacketId, "answer packet contains duplicate limitation identities"));
+    findings.push(
+      finding(
+        "duplicate-limitation",
+        "error",
+        packet.answerPacketId,
+        "answer packet contains duplicate limitation identities",
+      ),
+    );
   }
+
   const transactionsById = new Map(
     packet.transactions.map((entry) => [entry.transactionId, entry] as const),
   );
   for (const transaction of packet.transactions) {
     findings.push(...validateTransaction(transaction));
+    if (!packet.dossier.route.sourceIds.includes(transaction.packet.sourceId)) {
+      findings.push(
+        finding(
+          "transaction-source-outside-dossier",
+          "error",
+          transaction.transactionId,
+          `${transaction.packet.sourceId} is outside the dossier route`,
+        ),
+      );
+    }
   }
-  const expectedOrders = packet.claims.map((claim) => claim.order).sort((a, b) => a - b);
+
+  const expectedOrders = packet.claims
+    .map((claim) => claim.order)
+    .sort((left, right) => left - right);
   if (
     JSON.stringify(expectedOrders)
     !== JSON.stringify(packet.claims.map((_, index) => index + 1))
   ) {
-    findings.push(finding("answer-order", "error", packet.answerPacketId, "answer claim order must be contiguous from one"));
+    findings.push(
+      finding(
+        "answer-order",
+        "error",
+        packet.answerPacketId,
+        "answer claim order must be contiguous from one",
+      ),
+    );
   }
+
+  const dossierCandidateIds = new Set(
+    packet.dossier.recallReferences.map((reference) => reference.candidateId),
+  );
   const usedTransactions = new Set<string>();
   for (const claim of packet.claims) {
     const transaction = transactionsById.get(claim.transactionId);
     if (!transaction) {
-      findings.push(finding("answer-transaction-missing", "error", claim.id, "answer claim references an unknown reconciliation transaction"));
+      findings.push(
+        finding(
+          "answer-transaction-missing",
+          "error",
+          claim.id,
+          "answer claim references an unknown reconciliation transaction",
+        ),
+      );
       continue;
     }
     usedTransactions.add(transaction.transactionId);
     if (!packet.continuityIds.includes(claim.continuityId)) {
-      findings.push(finding("answer-continuity", "error", claim.id, "answer claim continuity is outside the dossier scope"));
+      findings.push(
+        finding(
+          "answer-continuity",
+          "error",
+          claim.id,
+          "answer claim continuity is outside the dossier scope",
+        ),
+      );
     }
     if (transaction.packet.continuityId !== claim.continuityId) {
-      findings.push(finding("answer-transaction-continuity", "error", claim.id, "answer claim continuity differs from its reviewed packet"));
+      findings.push(
+        finding(
+          "answer-transaction-continuity",
+          "error",
+          claim.id,
+          "answer claim continuity differs from its reviewed packet",
+        ),
+      );
     }
     if (!nonempty(claim.text) || claim.textCharacters < 1 || claim.textCharacters > 4_000) {
-      findings.push(finding("answer-text", "error", claim.id, "answer claim text is empty or exceeds 4,000 characters"));
+      findings.push(
+        finding(
+          "answer-text",
+          "error",
+          claim.id,
+          "answer claim text is empty or exceeds 4,000 characters",
+        ),
+      );
     }
     if (claim.textDigest !== sha256(claim.text)) {
-      findings.push(finding("answer-text-digest", "error", claim.id, "answer claim text digest is stale"));
+      findings.push(
+        finding(
+          "answer-text-digest",
+          "error",
+          claim.id,
+          "answer claim text digest is stale",
+        ),
+      );
     }
     if (claim.evidenceRecordIds.length === 0 || claim.resolutionDecisionIds.length === 0) {
-      findings.push(finding("answer-evidence-empty", "error", claim.id, "answer claim requires evidence records and adjudication decisions"));
+      findings.push(
+        finding(
+          "answer-evidence-empty",
+          "error",
+          claim.id,
+          "answer claim requires evidence records and adjudication decisions",
+        ),
+      );
     }
     const packetClaims = new Map(
       transaction.packet.claims.map((entry) => [entry.evidenceRecordId, entry] as const),
     );
     const canonReceipt = transaction.reconciliationReceipt.canonReceipt;
     const resolutions = new Map(
-      (canonReceipt?.resolutions ?? []).map((entry) => [entry.decisionId, entry] as const),
+      (canonReceipt?.resolutions ?? [])
+        .map((entry) => [entry.decisionId, entry] as const),
     );
     for (const evidenceRecordId of claim.evidenceRecordIds) {
       const packetClaim = packetClaims.get(evidenceRecordId);
       if (!packetClaim) {
-        findings.push(finding("answer-evidence-unknown", "error", claim.id, `${evidenceRecordId} is absent from the reviewed packet`));
+        findings.push(
+          finding(
+            "answer-evidence-unknown",
+            "error",
+            claim.id,
+            `${evidenceRecordId} is absent from the reviewed packet`,
+          ),
+        );
       } else if (packetClaim.authorityRole !== "primary") {
-        findings.push(finding("answer-evidence-nonprimary", "error", claim.id, `${evidenceRecordId} enters as ${packetClaim.authorityRole}`));
+        findings.push(
+          finding(
+            "answer-evidence-nonprimary",
+            "error",
+            claim.id,
+            `${evidenceRecordId} enters as ${packetClaim.authorityRole}`,
+          ),
+        );
       }
       if (!canonReceipt?.promotedRecordIds.includes(evidenceRecordId)) {
-        findings.push(finding("answer-evidence-not-promoted", "error", claim.id, `${evidenceRecordId} was not promoted by reconciliation`));
+        findings.push(
+          finding(
+            "answer-evidence-not-promoted",
+            "error",
+            claim.id,
+            `${evidenceRecordId} was not promoted by reconciliation`,
+          ),
+        );
       }
     }
     for (const decisionId of claim.resolutionDecisionIds) {
       const resolution = resolutions.get(decisionId);
       if (!resolution || !approvedResolution(resolution)) {
-        findings.push(finding("answer-resolution", "error", claim.id, `${decisionId} is absent, rejected, or deferred`));
+        findings.push(
+          finding(
+            "answer-resolution",
+            "error",
+            claim.id,
+            `${decisionId} is absent, rejected, or deferred`,
+          ),
+        );
       } else if (
         !claim.evidenceRecordIds.some((recordId) =>
           resolution.evidenceRecordIds.includes(recordId),
         )
       ) {
-        findings.push(finding("answer-resolution-evidence", "error", claim.id, `${decisionId} does not cite this answer claim's evidence`));
+        findings.push(
+          finding(
+            "answer-resolution-evidence",
+            "error",
+            claim.id,
+            `${decisionId} does not cite this answer claim's evidence`,
+          ),
+        );
+      }
+    }
+    for (const candidateId of claim.candidateIds) {
+      if (!dossierCandidateIds.has(candidateId)) {
+        findings.push(
+          finding(
+            "candidate-outside-dossier",
+            "error",
+            claim.id,
+            `${candidateId} is absent from the dossier recall set`,
+          ),
+        );
       }
     }
     const rebuilt = buildClaim(claim, transaction);
     if (JSON.stringify(rebuilt) !== JSON.stringify(claim)) {
-      findings.push(finding("answer-claim-projection", "error", claim.id, "answer claim custody projection is stale"));
+      findings.push(
+        finding(
+          "answer-claim-projection",
+          "error",
+          claim.id,
+          "answer claim custody projection is stale",
+        ),
+      );
     }
   }
   for (const transaction of packet.transactions) {
     if (!usedTransactions.has(transaction.transactionId)) {
-      findings.push(finding("unused-transaction", "error", transaction.transactionId, "answer packet contains an unused reconciliation transaction"));
+      findings.push(
+        finding(
+          "unused-transaction",
+          "error",
+          transaction.transactionId,
+          "answer packet contains an unused reconciliation transaction",
+        ),
+      );
     }
   }
-  const gapIds = new Set(
-    (packet as unknown as { dossier?: AsoiafResearchQuestionDossier }).dossier?.gaps
-      .map((gap) => gap.gapId) ?? [],
+
+  const gapsById = new Map(
+    packet.dossier.gaps.map((gap) => [gap.gapId, gap] as const),
   );
+  const claimsById = new Map(
+    packet.claims.map((claim) => [claim.id, claim] as const),
+  );
+  const closedGapIds = new Set<string>();
+  for (const closure of packet.gapClosures) {
+    const gap = gapsById.get(closure.gapId);
+    if (!gap) {
+      findings.push(
+        finding(
+          "gap-closure-gap",
+          "error",
+          closure.id,
+          `${closure.gapId} is absent from the dossier`,
+        ),
+      );
+      continue;
+    }
+    closedGapIds.add(closure.gapId);
+    if (!nonempty(closure.rationale) || closure.rationale.trim().length < 32) {
+      findings.push(
+        finding(
+          "gap-closure-rationale",
+          "error",
+          closure.id,
+          "gap closure requires a substantive reviewer rationale",
+        ),
+      );
+    }
+    if (closure.claimIds.length === 0 || !unique(closure.claimIds)) {
+      findings.push(
+        finding(
+          "gap-closure-claims",
+          "error",
+          closure.id,
+          "gap closure requires unique adjudicated answer claims",
+        ),
+      );
+    }
+    const closureClaims = closure.claimIds
+      .map((claimId) => claimsById.get(claimId))
+      .filter((claim): claim is AsoiafReviewedAnswerClaim => claim !== undefined);
+    for (const claimId of closure.claimIds) {
+      if (!claimsById.has(claimId)) {
+        findings.push(
+          finding(
+            "gap-closure-claim",
+            "error",
+            closure.id,
+            `${claimId} is absent from the answer packet`,
+          ),
+        );
+      }
+    }
+    if (
+      gap.candidateId
+      && !closureClaims.some((claim) => claim.candidateIds.includes(gap.candidateId!))
+    ) {
+      findings.push(
+        finding(
+          "gap-closure-candidate",
+          "error",
+          closure.id,
+          "gap closure claims do not adjudicate the dossier candidate",
+        ),
+      );
+    }
+    if (
+      gap.observationId
+      && !closureClaims.some((claim) => claim.observationId === gap.observationId)
+    ) {
+      findings.push(
+        finding(
+          "gap-closure-observation",
+          "error",
+          closure.id,
+          "gap closure claims do not bind the dossier observation",
+        ),
+      );
+    }
+    if (
+      gap.sourceId
+      && !closureClaims.some((claim) => claim.sourceId === gap.sourceId)
+    ) {
+      findings.push(
+        finding(
+          "gap-closure-source",
+          "error",
+          closure.id,
+          "gap closure claims do not bind the dossier source",
+        ),
+      );
+    }
+    const expectedClosure = buildGapClosure(closure);
+    if (JSON.stringify(expectedClosure) !== JSON.stringify(closure)) {
+      findings.push(
+        finding(
+          "gap-closure-projection",
+          "error",
+          closure.id,
+          "gap closure projection is stale",
+        ),
+      );
+    }
+  }
+
   const rejectedOrDeferredReferenceIds = new Set(
-    (packet as unknown as { dossier?: AsoiafResearchQuestionDossier }).dossier
-      ?.structuredReferences
-      .filter((reference) => reference.standing === "rejected" || reference.standing === "deferred")
-      .map((reference) => reference.referenceId) ?? [],
+    packet.dossier.structuredReferences
+      .filter(
+        (reference) =>
+          reference.standing === "rejected"
+          || reference.standing === "deferred",
+      )
+      .map((reference) => reference.referenceId),
   );
-  const coveredGapIds = new Set(packet.limitations.flatMap((entry) => entry.relatedGapIds ?? []));
-  const coveredReferenceIds = new Set(packet.limitations.flatMap((entry) => entry.relatedReferenceIds ?? []));
-  for (const gapId of gapIds) {
-    if (!coveredGapIds.has(gapId)) {
-      findings.push(finding("uncovered-gap", "error", gapId, "every dossier gap must appear in an explicit answer limitation"));
+  const limitedGapIds = new Set(
+    packet.limitations.flatMap((entry) => entry.relatedGapIds ?? []),
+  );
+  const limitedReferenceIds = new Set(
+    packet.limitations.flatMap((entry) => entry.relatedReferenceIds ?? []),
+  );
+  for (const gapId of gapsById.keys()) {
+    if (!closedGapIds.has(gapId) && !limitedGapIds.has(gapId)) {
+      findings.push(
+        finding(
+          "uncovered-gap",
+          "error",
+          gapId,
+          "every dossier gap must be closed or appear in an explicit answer limitation",
+        ),
+      );
+    }
+    if (closedGapIds.has(gapId) && limitedGapIds.has(gapId)) {
+      findings.push(
+        finding(
+          "gap-both-closed-and-limited",
+          "error",
+          gapId,
+          "a dossier gap cannot be both closed and retained as a limitation",
+        ),
+      );
     }
   }
   for (const referenceId of rejectedOrDeferredReferenceIds) {
-    if (!coveredReferenceIds.has(referenceId)) {
-      findings.push(finding("uncovered-disposition", "error", referenceId, "every rejected or deferred structured reference must appear in an explicit answer limitation"));
+    if (!limitedReferenceIds.has(referenceId)) {
+      findings.push(
+        finding(
+          "uncovered-disposition",
+          "error",
+          referenceId,
+          "every rejected or deferred structured reference must appear in an explicit answer limitation",
+        ),
+      );
     }
   }
   for (const limitation of packet.limitations) {
     if (!nonempty(limitation.text) || limitation.textDigest !== sha256(limitation.text)) {
-      findings.push(finding("limitation-text", "error", limitation.id, "answer limitation text is empty or has a stale digest"));
+      findings.push(
+        finding(
+          "limitation-text",
+          "error",
+          limitation.id,
+          "answer limitation text is empty or has a stale digest",
+        ),
+      );
     }
     for (const gapId of limitation.relatedGapIds ?? []) {
-      if (!gapIds.has(gapId)) {
-        findings.push(finding("limitation-gap", "error", limitation.id, `${gapId} is absent from the dossier`));
+      if (!gapsById.has(gapId)) {
+        findings.push(
+          finding(
+            "limitation-gap",
+            "error",
+            limitation.id,
+            `${gapId} is absent from the dossier`,
+          ),
+        );
       }
     }
     for (const referenceId of limitation.relatedReferenceIds ?? []) {
       if (!rejectedOrDeferredReferenceIds.has(referenceId)) {
-        findings.push(finding("limitation-reference", "error", limitation.id, `${referenceId} is not a rejected or deferred dossier reference`));
+        findings.push(
+          finding(
+            "limitation-reference",
+            "error",
+            limitation.id,
+            `${referenceId} is not a rejected or deferred dossier reference`,
+          ),
+        );
       }
     }
+    const rebuilt = buildLimitation(limitation);
+    if (JSON.stringify(rebuilt) !== JSON.stringify(limitation)) {
+      findings.push(
+        finding(
+          "limitation-projection",
+          "error",
+          limitation.id,
+          "answer limitation projection is stale",
+        ),
+      );
+    }
   }
+
   const expectedScope: AsoiafReviewedAnswerScope =
-    gapIds.size > 0 || rejectedOrDeferredReferenceIds.size > 0
-      ? "partial"
-      : "bounded-complete";
+    packet.limitations.length > 0 ? "partial" : "bounded-complete";
   if (packet.scope !== expectedScope) {
-    findings.push(finding("answer-scope", "error", packet.answerPacketId, "answer scope differs from unresolved dossier material"));
+    findings.push(
+      finding(
+        "answer-scope",
+        "error",
+        packet.answerPacketId,
+        "answer scope differs from its explicit limitations",
+      ),
+    );
   }
   const rendered = renderClaimsAndLimitations(packet);
   if (
     packet.renderedTextDigest !== sha256(rendered)
     || packet.renderedTextCharacters !== [...rendered].length
   ) {
-    findings.push(finding("rendered-text", "error", packet.answerPacketId, "rendered answer digest or character count is stale"));
+    findings.push(
+      finding(
+        "rendered-text",
+        "error",
+        packet.answerPacketId,
+        "rendered answer digest or character count is stale",
+      ),
+    );
   }
   if (
     packet.answerReady !== true
@@ -581,44 +1022,46 @@ export function validateAsoiafReviewedAnswerPacket(
     || packet.canonEffect !== "none"
     || packet.answerEffect !== "render-reviewed-packet"
   ) {
-    findings.push(finding("answer-authority", "error", packet.answerPacketId, "answer packet crossed its render-only authority boundary"));
+    findings.push(
+      finding(
+        "answer-authority",
+        "error",
+        packet.answerPacketId,
+        "answer packet crossed its render-only authority boundary",
+      ),
+    );
   }
   const expectedFingerprint = sha256(packetCore(packet));
   if (packet.answerPacketFingerprint !== expectedFingerprint) {
-    findings.push(finding("answer-fingerprint", "error", packet.answerPacketId, "answer packet fingerprint is stale"));
+    findings.push(
+      finding(
+        "answer-fingerprint",
+        "error",
+        packet.answerPacketId,
+        "answer packet fingerprint is stale",
+      ),
+    );
   }
   const expectedId = collectorContentId("asoiaf-reviewed-answer-packet", {
     dossierId: packet.dossierId,
     answerPacketFingerprint: expectedFingerprint,
   });
   if (packet.answerPacketId !== expectedId) {
-    findings.push(finding("answer-identity", "error", packet.answerPacketId, "answer packet identity is not content addressed"));
+    findings.push(
+      finding(
+        "answer-identity",
+        "error",
+        packet.answerPacketId,
+        "answer packet identity is not content addressed",
+      ),
+    );
   }
   return sortedFindings(findings);
 }
 
-export interface AsoiafReviewedAnswerPacketWithDossier
-  extends AsoiafReviewedAnswerPacket {
-  dossier: AsoiafResearchQuestionDossier;
-}
-
-function fullPacketCore(
-  packet: AsoiafReviewedAnswerPacketWithDossier,
-): Omit<
-  AsoiafReviewedAnswerPacketWithDossier,
-  "answerPacketId" | "answerPacketFingerprint"
-> {
-  const {
-    answerPacketId: _id,
-    answerPacketFingerprint: _fingerprint,
-    ...core
-  } = packet;
-  return core;
-}
-
 export function buildAsoiafReviewedAnswerPacket(
   input: AsoiafReviewedAnswerPacketInput,
-): AsoiafReviewedAnswerPacketWithDossier {
+): AsoiafReviewedAnswerPacket {
   const dossierErrors = validateAsoiafResearchQuestionDossier(input.dossier)
     .filter((entry) => entry.severity === "error");
   if (dossierErrors.length > 0) {
@@ -628,14 +1071,28 @@ export function buildAsoiafReviewedAnswerPacket(
         .join(", ")}`,
     );
   }
-  const transactions = input.transactions
-    .map(answerTransaction)
+  const transactions = [...input.transactions]
     .sort((left, right) => compareCodepoints(left.transactionId, right.transactionId));
+  for (const transaction of transactions) {
+    const errors = validateTransaction(transaction).filter(
+      (entry) => entry.severity === "error",
+    );
+    if (errors.length > 0) {
+      throw new Error(
+        `invalid reviewed answer transaction: ${errors
+          .map((entry) => `${entry.code}:${entry.subjectId}`)
+          .join(", ")}`,
+      );
+    }
+  }
   const transactionsById = new Map(
     transactions.map((entry) => [entry.transactionId, entry] as const),
   );
   const claims = [...input.claims]
-    .sort((left, right) => left.order - right.order || compareCodepoints(left.id, right.id))
+    .sort(
+      (left, right) =>
+        left.order - right.order || compareCodepoints(left.id, right.id),
+    )
     .map((claim) => {
       const transaction = transactionsById.get(claim.transactionId);
       if (!transaction) {
@@ -643,13 +1100,12 @@ export function buildAsoiafReviewedAnswerPacket(
       }
       return buildClaim(claim, transaction);
     });
+  const gapClosures = (input.gapClosures ?? [])
+    .map(buildGapClosure)
+    .sort((left, right) => compareCodepoints(left.id, right.id));
   const limitations = (input.limitations ?? [])
     .map(buildLimitation)
     .sort((left, right) => compareCodepoints(left.id, right.id));
-  const gapCount = input.dossier.gaps.length;
-  const dispositionCount = input.dossier.structuredReferences.filter(
-    (reference) => reference.standing === "rejected" || reference.standing === "deferred",
-  ).length;
   const rendered = renderClaimsAndLimitations({ claims, limitations });
   const core = {
     format: ASOIAF_REVIEWED_ANSWER_PACKET_FORMAT,
@@ -663,8 +1119,9 @@ export function buildAsoiafReviewedAnswerPacket(
     reviewedAt: input.reviewedAt,
     transactions,
     claims,
+    gapClosures,
     limitations,
-    scope: (gapCount > 0 || dispositionCount > 0
+    scope: (limitations.length > 0
       ? "partial"
       : "bounded-complete") as AsoiafReviewedAnswerScope,
     renderedTextDigest: sha256(rendered),
@@ -677,8 +1134,8 @@ export function buildAsoiafReviewedAnswerPacket(
     canonEffect: "none" as const,
     answerEffect: "render-reviewed-packet" as const,
   };
-  const answerPacketFingerprint = sha256(orderRecordKeysDeep(core));
-  const packet: AsoiafReviewedAnswerPacketWithDossier = {
+  const answerPacketFingerprint = sha256(core);
+  const packet: AsoiafReviewedAnswerPacket = {
     ...core,
     answerPacketId: collectorContentId("asoiaf-reviewed-answer-packet", {
       dossierId: input.dossier.dossierId,
@@ -699,7 +1156,7 @@ export function buildAsoiafReviewedAnswerPacket(
 }
 
 export function renderAsoiafReviewedAnswerPacket(
-  packet: AsoiafReviewedAnswerPacketWithDossier,
+  packet: AsoiafReviewedAnswerPacket,
 ): string {
   const errors = validateAsoiafReviewedAnswerPacket(packet)
     .filter((entry) => entry.severity === "error");

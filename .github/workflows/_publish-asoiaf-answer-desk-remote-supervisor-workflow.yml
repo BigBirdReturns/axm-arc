@@ -6,6 +6,15 @@ on:
       - feature/asoiaf-answer-desk-remote-supervisor-v1
     paths:
       - '.github/workflows/_publish-asoiaf-answer-desk-remote-supervisor-workflow.yml'
+  pull_request:
+    branches:
+      - integration/asoiaf-answer-desk-supervised-transport-v1
+    types:
+      - opened
+      - synchronize
+      - reopened
+    paths:
+      - '.github/workflows/_publish-asoiaf-answer-desk-remote-supervisor-workflow.yml'
 
 permissions:
   contents: write
@@ -23,7 +32,7 @@ jobs:
       - name: Check out exact publisher head
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 1
           show-progress: false
 

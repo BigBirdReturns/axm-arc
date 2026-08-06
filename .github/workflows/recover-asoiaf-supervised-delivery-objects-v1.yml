@@ -1,0 +1,146 @@
+name: Recover ASOIAF supervised delivery source objects v1
+
+on:
+  push:
+    branches:
+      - observer/asoiaf-supervised-delivery-object-recovery-v1
+    paths:
+      - '.github/workflows/recover-asoiaf-supervised-delivery-objects-v1.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: recover-asoiaf-supervised-delivery-objects-v1
+  cancel-in-progress: false
+
+jobs:
+  recover:
+    if: github.repository == 'BigBirdReturns/axm-arc'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Check out observer custody
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          show-progress: false
+
+      - name: Fetch every repository ref available to the runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --force --tags origin \
+            '+refs/heads/*:refs/remotes/origin/*' \
+            '+refs/pull/*/head:refs/remotes/pull/*'
+
+      - name: Scan every fetched Git blob for exact and semantic source identities
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/asoiaf-supervised-delivery-object-recovery"
+          mkdir -p "$out/exact" "$out/candidates"
+          git rev-parse HEAD > "$out/observer-sha.txt"
+          git for-each-ref --format='%(refname)%09%(objectname)' \
+            refs/heads refs/remotes refs/tags > "$out/fetched-refs.tsv"
+          git rev-list --objects --all > "$out/reachable-objects.txt"
+          git cat-file --batch-all-objects --batch-check='%(objectname) %(objecttype) %(objectsize)' \
+            > "$out/all-local-objects.txt"
+
+          OUT="$out" python3 <<'PY'
+          import hashlib
+          import json
+          import os
+          import pathlib
+          import re
+          import subprocess
+
+          out = pathlib.Path(os.environ['OUT'])
+          expected = {
+              'workflow': ('f3a0006ac78ee22f2eaacff0015c771c896e30439ee8afb639e3b0b81ccc2c47', '.yml'),
+              'documentation': ('bfed202e169ad657b79d355b9b041ab87f36c4bda9ac679321ffe6ff40d6edbf', '.md'),
+              'package': ('47d35b8410b0b5f96db9df88fcdb1e5d8168cbbbe3ccdf8720fbcba847ee6c85', '.json'),
+              'fixture': ('194a19cc7afa35621e9f55c64d418693d1170cf4d3c752934b5f30c970d44ac9', '.ts'),
+              'test': ('68e0836d636c969e5e4ff690d0d65d066fcec7d8722d73af22698cd42610c626', '.test.ts'),
+              'cli': ('4175416ade8c20eddce586864aa3073f7e906cb1d454a29f381bf520aa763a36', '.ts'),
+              'library': ('4996a9cd978825ef03570ae5161e552321ecc5727cc2dbe290b5243cdd88ee11', '.ts'),
+          }
+          by_digest = {digest: (name, suffix) for name, (digest, suffix) in expected.items()}
+          path_map = {}
+          for line in (out / 'reachable-objects.txt').read_text(errors='replace').splitlines():
+              sha, _, path = line.partition(' ')
+              if path:
+                  path_map.setdefault(sha, set()).add(path)
+
+          exact = []
+          candidates = []
+          scanned = 0
+          candidate_terms = (
+              b'asoiaf-answer-supervised-delivery',
+              b'AsoiafAnswerSupervisedDelivery',
+              b'ASOIAF_ANSWER_SUPERVISED_DELIVERY',
+              b'ASOIAF supervised answer delivery',
+              b'ASOIAF supervised answer-desk delivery',
+          )
+          object_lines = (out / 'all-local-objects.txt').read_text().splitlines()
+          for line in object_lines:
+              parts = line.split()
+              if len(parts) != 3 or parts[1] != 'blob':
+                  continue
+              sha, _, size_text = parts
+              size = int(size_text)
+              scanned += 1
+              data = subprocess.check_output(['git', 'cat-file', 'blob', sha])
+              digest = hashlib.sha256(data).hexdigest()
+              paths = sorted(path_map.get(sha, set()))
+              if digest in by_digest:
+                  name, suffix = by_digest[digest]
+                  target = out / 'exact' / f'{name}-{sha}{suffix}'
+                  target.write_bytes(data)
+                  exact.append({
+                      'kind': name,
+                      'gitBlobSha': sha,
+                      'sha256': digest,
+                      'bytes': len(data),
+                      'paths': paths,
+                      'artifactPath': target.relative_to(out).as_posix(),
+                  })
+              if size <= 1_500_000 and any(term in data for term in candidate_terms):
+                  suffix = pathlib.Path(paths[0]).suffix if paths else '.bin'
+                  if suffix not in {'.ts', '.md', '.yml', '.yaml', '.json', '.txt'}:
+                      suffix = '.bin'
+                  target = out / 'candidates' / f'{sha}{suffix}'
+                  target.write_bytes(data)
+                  candidates.append({
+                      'gitBlobSha': sha,
+                      'sha256': digest,
+                      'bytes': len(data),
+                      'paths': paths,
+                      'artifactPath': target.relative_to(out).as_posix(),
+                  })
+
+          report = {
+              'format': 'axm-asoiaf-supervised-delivery-object-recovery/1',
+              'scannedBlobCount': scanned,
+              'expected': {name: digest for name, (digest, _) in expected.items()},
+              'exactMatches': sorted(exact, key=lambda item: item['kind']),
+              'semanticCandidates': sorted(candidates, key=lambda item: (item['sha256'], item['gitBlobSha'])),
+          }
+          (out / 'report.json').write_text(json.dumps(report, indent=2) + '\n')
+          print(json.dumps(report, indent=2))
+          PY
+
+          find "$out" -type f ! -name SHA256SUMS -print0 \
+            | sort -z \
+            | xargs -0 sha256sum \
+            | sed "s#  $out/#  #" > "$out/SHA256SUMS"
+
+      - name: Upload object recovery
+        uses: actions/upload-artifact@v4
+        with:
+          name: asoiaf-supervised-delivery-object-recovery-v1
+          path: ${{ runner.temp }}/asoiaf-supervised-delivery-object-recovery
+          if-no-files-found: error
+          retention-days: 2

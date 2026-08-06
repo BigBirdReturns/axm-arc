@@ -15,43 +15,86 @@ on:
       - reopened
     paths:
       - '.github/workflows/_export-asoiaf-supervised-delivery-base.yml'
+  workflow_dispatch:
 
 permissions:
-  contents: read
+  actions: read
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: resolve-asoiaf-supervised-delivery-tree-identities
+  cancel-in-progress: false
 
 jobs:
   resolve:
     if: github.repository == 'BigBirdReturns/axm-arc'
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 30
+    env:
+      PR_NUMBER: '258'
+      BASE_BRANCH: integration/asoiaf-answer-desk-supervised-transport-v1
+      BASE_SHA: 52287c5406594ad6e1d1add7d0aef36274179a3e
+      TARGET_BRANCH: feature/asoiaf-answer-desk-supervised-delivery-v1
+      ARCHIVE_BYTES: '45733'
+      ARCHIVE_SHA256: ec29c3d2c1f5040c673afa76be720e4fa1ac3674164e200d6da9fa53771376b8
+      ARCHIVE_GIT_BLOB: 5b8936e97f503da9b2ea536fd02f650548cd3999
+      RECEIPT_ROOT: ${{ runner.temp }}/asoiaf-supervised-delivery-recovery-publication-v10
+      SOURCE_ROOT: ${{ runner.temp }}/asoiaf-supervised-delivery-recovered-source-v10
+      UNPACK_ROOT: ${{ runner.temp }}/asoiaf-supervised-delivery-recovery-unpack-v10
+      ARCHIVE_PATH: ${{ runner.temp }}/PR258_carrier_free_recovery_candidate.zip
+      STAGING_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
     steps:
-      - name: Check out exact construction head
+      - name: Check out exact staging transaction
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ env.STAGING_SHA }}
           fetch-depth: 0
           show-progress: false
 
-      - name: Resolve exact commit and tree identities
+      - name: Execute deterministic carrier-free publisher
+        id: publisher
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          base_ref='origin/integration/asoiaf-answer-desk-supervised-transport-v1'
-          candidate_sha="$(git rev-parse HEAD)"
-          candidate_tree="$(git rev-parse 'HEAD^{tree}')"
-          base_sha="$(git rev-parse "$base_ref^{commit}")"
-          base_tree="$(git rev-parse "$base_ref^{tree}")"
-          printf '%s\n' \
-            "CANDIDATE_SHA=$candidate_sha" \
-            "CANDIDATE_TREE=$candidate_tree" \
-            "BASE_SHA=$base_sha" \
-            "BASE_TREE=$base_tree" \
-            | tee "$RUNNER_TEMP/supervised-delivery-tree-identities.txt"
+          export GITHUB_SHA="$STAGING_SHA"
+          gzip -dc .github/recovery-v10/publish-pr258-v10.sh.gz > "$RUNNER_TEMP/publish-pr258-v10.sh"
+          chmod +x "$RUNNER_TEMP/publish-pr258-v10.sh"
+          "$RUNNER_TEMP/publish-pr258-v10.sh"
 
-      - name: Upload exact tree identities
+      - name: Upload publication receipt
+        if: always()
+        id: artifact
         uses: actions/upload-artifact@v4
         with:
-          name: asoiaf-supervised-delivery-tree-identities
-          path: ${{ runner.temp }}/supervised-delivery-tree-identities.txt
+          name: asoiaf-supervised-delivery-recovery-publication-v10
+          path: ${{ runner.temp }}/asoiaf-supervised-delivery-recovery-publication-v10
           if-no-files-found: error
-          retention-days: 2
+          retention-days: 7
+          compression-level: 6
+
+      - name: Report bounded publication result
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARTIFACT_ID: ${{ steps.artifact.outputs.artifact-id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          stage=unknown
+          published=false
+          candidate='not-issued'
+          test -f "$RECEIPT_ROOT/stage.txt" && stage="$(cat "$RECEIPT_ROOT/stage.txt")"
+          test -f "$RECEIPT_ROOT/published.txt" && published="$(cat "$RECEIPT_ROOT/published.txt")"
+          test -f "$RECEIPT_ROOT/candidate-sha.txt" && candidate="$(cat "$RECEIPT_ROOT/candidate-sha.txt")"
+          if test "$published" = true; then
+            gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body \
+              "Carrier-free supervised delivery was published on exact sole-parent head \`$candidate\`, directly above \`$BASE_SHA\`, with exactly seven permanent surfaces. Publication run \`$GITHUB_RUN_ID\`; receipt artifact \`${ARTIFACT_ID:-not-issued}\`. This is a publication receipt only. Exact-head permanent workflow qualification and independent artifact verification remain required."
+          else
+            gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body \
+              "Carrier-free supervised-delivery recovery publisher v10 refused staging head \`$STAGING_SHA\` at stage \`$stage\`. Run \`$GITHUB_RUN_ID\`; receipt artifact \`${ARTIFACT_ID:-not-issued}\`. No recovered candidate or terminal qualification is asserted."
+          fi
+          test "$published" = true

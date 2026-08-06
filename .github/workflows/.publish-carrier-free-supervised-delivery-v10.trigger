@@ -1,2 +1,2 @@
 trigger=publish-carrier-free-supervised-delivery-v10
-retrigger=3
+retrigger=4

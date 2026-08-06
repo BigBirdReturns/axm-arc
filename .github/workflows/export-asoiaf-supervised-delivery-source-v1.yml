@@ -1,0 +1,101 @@
+name: Export ASOIAF supervised delivery source v1
+
+on:
+  push:
+    branches:
+      - observer/asoiaf-supervised-delivery-source-export-v1
+    paths:
+      - '.github/workflows/export-asoiaf-supervised-delivery-source-v1.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    if: github.repository == 'BigBirdReturns/axm-arc'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      TARGET_SHA: 4f62638816ac4de44220299a7e8d0a47d5be2131
+      BASE_SHA: 52287c5406594ad6e1d1add7d0aef36274179a3e
+      ARCHIVE_SHA256: ec29c3d2c1f5040c673afa76be720e4fa1ac3674164e200d6da9fa53771376b8
+      ARCHIVE_BYTES: '45733'
+      BASE64_BYTES: '60980'
+    steps:
+      - name: Check out exact supervised-delivery construction head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TARGET_SHA }}
+          fetch-depth: 0
+          show-progress: false
+
+      - name: Reconstruct and verify exact recovery candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$TARGET_SHA"
+          git cat-file -e "$BASE_SHA^{commit}"
+          root='.github/materialize/asoiaf-answer-supervised-delivery'
+          for index in 00 01 02 03 04; do
+            test -f "$root/part-$index.b64"
+          done
+
+          archive="$RUNNER_TEMP/PR258-carrier-free-recovery-candidate.zip"
+          ROOT="$root" ARCHIVE="$archive" python3 <<'PY'
+          import base64
+          import hashlib
+          import os
+          import re
+          from pathlib import Path
+
+          root = Path(os.environ['ROOT'])
+          raw = ''.join((root / f'part-{index:02d}.b64').read_text(encoding='utf-8') for index in range(5))
+          encoded = ''.join(re.findall(r'[A-Za-z0-9+/=]', raw))
+          expected_characters = int(os.environ['BASE64_BYTES'])
+          if len(encoded) != expected_characters:
+              raise SystemExit(f'base64 character count {len(encoded)} != {expected_characters}')
+          decoded = base64.b64decode(encoded, validate=True)
+          expected_bytes = int(os.environ['ARCHIVE_BYTES'])
+          if len(decoded) != expected_bytes:
+              raise SystemExit(f'archive bytes {len(decoded)} != {expected_bytes}')
+          digest = hashlib.sha256(decoded).hexdigest()
+          if digest != os.environ['ARCHIVE_SHA256']:
+              raise SystemExit(f'archive digest {digest} != {os.environ["ARCHIVE_SHA256"]}')
+          Path(os.environ['ARCHIVE']).write_bytes(decoded)
+          print(f'base64Characters={len(encoded)}')
+          print(f'archiveBytes={len(decoded)}')
+          print(f'archiveSha256=sha256:{digest}')
+          PY
+
+          unzip -t "$archive"
+          export_root="$RUNNER_TEMP/export"
+          mkdir -p "$export_root/unpacked"
+          unzip -q "$archive" -d "$export_root/unpacked"
+          candidate="$export_root/unpacked/PR258_carrier_free_recovery_candidate"
+          test -d "$candidate/source"
+          (cd "$candidate" && sha256sum --check --strict SHA256SUMS)
+          manifest="$candidate/MANIFEST.json"
+          test "$(jq -r .format "$manifest")" = 'axm-asoiaf-answer-supervised-delivery-recovery-candidate/1'
+          test "$(jq -r .repository "$manifest")" = "$GITHUB_REPOSITORY"
+          test "$(jq -r .baseHead "$manifest")" = "$BASE_SHA"
+          test "$(jq -r .permanentSurfaceCount "$manifest")" = '7'
+          test "$(jq '.permanentSurfaces | length' "$manifest")" = '7'
+          cp "$archive" "$export_root/"
+          cp "$manifest" "$export_root/MANIFEST.json"
+          cp "$candidate/SHA256SUMS" "$export_root/CANDIDATE-SHA256SUMS"
+          printf '%s\n' \
+            "targetSha=$TARGET_SHA" \
+            "baseSha=$BASE_SHA" \
+            "archiveBytes=$ARCHIVE_BYTES" \
+            "archiveSha256=$ARCHIVE_SHA256" \
+            > "$export_root/EXPORT-RECEIPT.txt"
+
+      - name: Upload exact supervised-delivery source export
+        uses: actions/upload-artifact@v4
+        with:
+          name: asoiaf-supervised-delivery-source-export-v1
+          path: ${{ runner.temp }}/export
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0

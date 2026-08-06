@@ -14,8 +14,10 @@ import {
   serializeAsoiafAnswerCredentialTransportResultStatement,
   verifyAsoiafAnswerCredentialBrokerEstate,
   type AsoiafAnswerCredentialBrokerRequest,
-  type AsoiafAnswerCredentialProviderClass,
 } from "./lib/asoiaf-answer-credential-broker.js";
+import type {
+  AsoiafAnswerCredentialProviderClass,
+} from "./lib/asoiaf-answer-credential-deployment.js";
 import type {
   AsoiafAnswerTransportProofAlgorithm,
 } from "./lib/asoiaf-answer-desk-transport-enrollment.js";

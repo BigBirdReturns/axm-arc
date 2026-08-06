@@ -1,0 +1,82 @@
+name: Observe ASOIAF supervised delivery object recovery v1
+
+on:
+  push:
+    branches:
+      - observer/asoiaf-supervised-delivery-object-recovery-v1
+    paths:
+      - '.github/workflows/observe-asoiaf-supervised-delivery-object-recovery-v1.yml'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  pull-requests: write
+
+jobs:
+  observe:
+    if: github.repository == 'BigBirdReturns/axm-arc'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TARGET_BRANCH: observer/asoiaf-supervised-delivery-object-recovery-v1
+      WORKFLOW_FILE: recover-asoiaf-supervised-delivery-objects-v1.yml
+    steps:
+      - name: Check out observer
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          show-progress: false
+
+      - name: Locate recovery and publish artifact identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_id=''
+          for attempt in $(seq 1 120); do
+            gh api --method GET \
+              "repos/$GITHUB_REPOSITORY/actions/workflows/$WORKFLOW_FILE/runs" \
+              -f branch="$TARGET_BRANCH" \
+              -f event=push \
+              -f per_page=20 \
+              > "$RUNNER_TEMP/runs.json"
+            run_id="$(jq -r '.workflow_runs[0].id // empty' "$RUNNER_TEMP/runs.json")"
+            test -n "$run_id" && break
+            sleep 5
+          done
+          test -n "$run_id"
+
+          status=''
+          conclusion=''
+          for attempt in $(seq 1 360); do
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id" > "$RUNNER_TEMP/run.json"
+            status="$(jq -r .status "$RUNNER_TEMP/run.json")"
+            conclusion="$(jq -r '.conclusion // empty' "$RUNNER_TEMP/run.json")"
+            test "$status" = completed && break
+            sleep 5
+          done
+          test "$status" = completed
+
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/artifacts?per_page=100" \
+            > "$RUNNER_TEMP/artifacts.json"
+          artifact_id="$(jq -r '.artifacts[] | select(.name == "asoiaf-supervised-delivery-object-recovery-v1") | .id' "$RUNNER_TEMP/artifacts.json" | head -1)"
+          artifact_digest="$(jq -r '.artifacts[] | select(.name == "asoiaf-supervised-delivery-object-recovery-v1") | .digest // empty' "$RUNNER_TEMP/artifacts.json" | head -1)"
+          artifact_size="$(jq -r '.artifacts[] | select(.name == "asoiaf-supervised-delivery-object-recovery-v1") | .size_in_bytes // empty' "$RUNNER_TEMP/artifacts.json" | head -1)"
+          if test "$conclusion" = success; then
+            gh pr comment 258 --repo "$GITHUB_REPOSITORY" --body \
+              "ASOIAF_SUPERVISED_DELIVERY_OBJECT_RECOVERY_V1 run=\`$run_id\` conclusion=\`success\` artifact=\`${artifact_id:-none}\` digest=\`${artifact_digest:-none}\` bytes=\`${artifact_size:-none}\`."
+            test -n "$artifact_id"
+          else
+            gh run view "$run_id" --repo "$GITHUB_REPOSITORY" --log-failed \
+              > "$RUNNER_TEMP/failed.log" 2>&1 || true
+            {
+              echo "ASOIAF_SUPERVISED_DELIVERY_OBJECT_RECOVERY_V1 run=\`$run_id\` conclusion=\`${conclusion:-none}\`."
+              echo
+              echo '```text'
+              tail -n 260 "$RUNNER_TEMP/failed.log"
+              echo '```'
+            } > "$RUNNER_TEMP/comment.md"
+            gh pr comment 258 --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/comment.md"
+            exit 1
+          fi

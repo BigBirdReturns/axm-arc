@@ -1,0 +1,83 @@
+name: Observe rebuilt ASOIAF supervised delivery diagnostic v2
+
+on:
+  push:
+    branches:
+      - observer/asoiaf-supervised-delivery-diagnostic-v2
+    paths:
+      - '.github/workflows/observe-asoiaf-supervised-delivery-diagnostic-v2.yml'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  pull-requests: write
+
+jobs:
+  observe:
+    if: github.repository == 'BigBirdReturns/axm-arc'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TARGET_BRANCH: diagnostic/asoiaf-supervised-delivery-rebuild-v1
+      TARGET_SHA: 005cbff0de1bac23af30408a588e42c9f7125d04
+      WORKFLOW_FILE: diagnose-asoiaf-supervised-delivery-rebuild-v2.yml
+    steps:
+      - name: Check out observer
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          show-progress: false
+
+      - name: Locate exact diagnostic and publish job ledger
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_id=''
+          for attempt in $(seq 1 120); do
+            gh api --method GET \
+              "repos/$GITHUB_REPOSITORY/actions/workflows/$WORKFLOW_FILE/runs" \
+              -f branch="$TARGET_BRANCH" \
+              -f event=push \
+              -f per_page=20 \
+              > "$RUNNER_TEMP/runs.json"
+            run_id="$(jq -r --arg sha "$TARGET_SHA" '.workflow_runs[] | select(.head_sha == $sha) | .id' "$RUNNER_TEMP/runs.json" | head -1)"
+            test -n "$run_id" && break
+            sleep 5
+          done
+          test -n "$run_id"
+
+          status=''
+          conclusion=''
+          for attempt in $(seq 1 900); do
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id" > "$RUNNER_TEMP/run.json"
+            status="$(jq -r .status "$RUNNER_TEMP/run.json")"
+            conclusion="$(jq -r '.conclusion // empty' "$RUNNER_TEMP/run.json")"
+            test "$status" = completed && break
+            sleep 5
+          done
+          test "$status" = completed
+
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/jobs?per_page=100" \
+            > "$RUNNER_TEMP/jobs.json"
+          {
+            echo "Supervised-delivery rebuild diagnostic v2 run \`$run_id\` for \`$TARGET_SHA\` completed with conclusion \`${conclusion:-none}\`."
+            echo
+            echo '```json'
+            jq '{total_count, jobs: [.jobs[] | {id,name,status,conclusion,steps:[.steps[]? | {number,name,status,conclusion}]}]}' "$RUNNER_TEMP/jobs.json"
+            echo '```'
+          } > "$RUNNER_TEMP/comment.md"
+          if test "$conclusion" != success; then
+            gh run view "$run_id" --repo "$GITHUB_REPOSITORY" --log-failed \
+              > "$RUNNER_TEMP/failed.log" 2>&1 || true
+            {
+              echo
+              echo 'Failed log tail:'
+              echo '```text'
+              tail -n 360 "$RUNNER_TEMP/failed.log"
+              echo '```'
+            } >> "$RUNNER_TEMP/comment.md"
+          fi
+          gh pr comment 258 --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/comment.md"
+          test "$conclusion" = success

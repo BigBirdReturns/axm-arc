@@ -1,4 +1,4 @@
-name: Export ASOIAF supervised delivery base
+name: Resolve ASOIAF supervised delivery tree identities
 
 on:
   push:
@@ -20,10 +20,10 @@ permissions:
   contents: read
 
 jobs:
-  export:
+  resolve:
     if: github.repository == 'BigBirdReturns/axm-arc'
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 10
     steps:
       - name: Check out exact construction head
         uses: actions/checkout@v4
@@ -32,45 +32,26 @@ jobs:
           fetch-depth: 0
           show-progress: false
 
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install exact locked dependencies
-        run: npm ci --no-audit --no-fund
-
-      - name: Retain source floor, history, and dependency tree
+      - name: Resolve exact commit and tree identities
         shell: bash
         run: |
           set -euo pipefail
-          root="$RUNNER_TEMP/asoiaf-supervised-delivery-base"
-          mkdir -p "$root"
-          git rev-parse HEAD > "$root/candidate-sha.txt"
-          git rev-parse 'origin/integration/asoiaf-answer-desk-supervised-transport-v1^{commit}' \
-            > "$root/base-sha.txt"
-          git log --all --reverse --date=iso-strict \
-            --format='%H%x09%P%x09%aI%x09%s' \
-            > "$root/history.tsv"
-          tar \
-            --exclude=.git \
-            --exclude=node_modules \
-            --exclude=.github/materialize/asoiaf-answer-supervised-delivery \
-            --exclude=.github/workflows/_bootstrap-supervised-delivery-source.yml \
-            --exclude=.github/workflows/_diagnose-supervised-delivery-payload.yml \
-            --exclude=.github/workflows/_materialize-asoiaf-answer-desk-supervised-delivery.yml \
-            --exclude=.github/workflows/_export-asoiaf-supervised-delivery-base.yml \
-            -czf "$root/source.tar.gz" .
-          tar -czf "$root/node_modules.tar.gz" node_modules
-          sha256sum "$root/source.tar.gz" "$root/node_modules.tar.gz" \
-            > "$root/SHA256SUMS"
+          base_ref='origin/integration/asoiaf-answer-desk-supervised-transport-v1'
+          candidate_sha="$(git rev-parse HEAD)"
+          candidate_tree="$(git rev-parse 'HEAD^{tree}')"
+          base_sha="$(git rev-parse "$base_ref^{commit}")"
+          base_tree="$(git rev-parse "$base_ref^{tree}")"
+          printf '%s\n' \
+            "CANDIDATE_SHA=$candidate_sha" \
+            "CANDIDATE_TREE=$candidate_tree" \
+            "BASE_SHA=$base_sha" \
+            "BASE_TREE=$base_tree" \
+            | tee "$RUNNER_TEMP/supervised-delivery-tree-identities.txt"
 
-      - name: Upload exact source floor and dependency tree
+      - name: Upload exact tree identities
         uses: actions/upload-artifact@v4
         with:
-          name: asoiaf-supervised-delivery-development-floor
-          path: ${{ runner.temp }}/asoiaf-supervised-delivery-base
+          name: asoiaf-supervised-delivery-tree-identities
+          path: ${{ runner.temp }}/supervised-delivery-tree-identities.txt
           if-no-files-found: error
           retention-days: 2
-          compression-level: 1

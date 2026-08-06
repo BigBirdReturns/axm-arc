@@ -1,0 +1,48 @@
+name: Export ASOIAF supervised delivery rebuild base v1
+
+on:
+  push:
+    branches:
+      - observer/asoiaf-supervised-delivery-rebuild-v1
+    paths:
+      - '.github/workflows/export-asoiaf-supervised-delivery-rebuild-base-v1.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    if: github.repository == 'BigBirdReturns/axm-arc'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      BASE_SHA: 52287c5406594ad6e1d1add7d0aef36274179a3e
+    steps:
+      - name: Check out exact integration parent
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.BASE_SHA }}
+          fetch-depth: 1
+          show-progress: false
+
+      - name: Export exact source tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$BASE_SHA"
+          out="$RUNNER_TEMP/asoiaf-supervised-delivery-rebuild-base"
+          mkdir -p "$out"
+          git archive --format=tar.gz --output="$out/source.tar.gz" "$BASE_SHA"
+          sha256sum "$out/source.tar.gz" > "$out/source.tar.gz.sha256"
+          printf '%s\n' "$BASE_SHA" > "$out/base-sha.txt"
+          tar -tzf "$out/source.tar.gz" | sort > "$out/source-paths.txt"
+
+      - name: Upload exact rebuild base
+        uses: actions/upload-artifact@v4
+        with:
+          name: asoiaf-supervised-delivery-rebuild-base-v1
+          path: ${{ runner.temp }}/asoiaf-supervised-delivery-rebuild-base
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0

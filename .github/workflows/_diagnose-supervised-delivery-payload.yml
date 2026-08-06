@@ -36,7 +36,18 @@ jobs:
           fetch-depth: 0
           show-progress: false
 
+      - name: Initialize bounded publication diagnostics
+        shell: bash
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/pr258-carrier-free-recovery"
+          mkdir -p "$work"
+          printf '%s\n' 'initialized' > "$work/failure-stage.txt"
+          printf '%s\n' "$GITHUB_RUN_ID" > "$work/run-id.txt"
+          printf '%s\n' "$GITHUB_SHA" > "$work/construction-sha.txt"
+
       - name: Reconstruct the exact recovery archive from content-addressed Git blobs
+        id: reconstruct
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -47,6 +58,7 @@ jobs:
           git cat-file -e "$BASE_SHA^{commit}"
 
           work="$RUNNER_TEMP/pr258-carrier-free-recovery"
+          printf '%s\n' 'reconstruct-start' > "$work/failure-stage.txt"
           mkdir -p "$work/chunks" "$work/unpack"
           ledger="$work/chunk-ledger.tsv"
           cat > "$ledger" <<'EOF'
@@ -76,6 +88,7 @@ jobs:
           index=0
           while IFS=$'\t' read -r sha expected_bytes; do
             test -n "$sha"
+            printf 'chunk-%02d-fetch\n' "$index" > "$work/failure-stage.txt"
             response="$work/chunks/$(printf '%02d' "$index").json"
             chunk="$work/chunks/$(printf '%02d' "$index").txt"
             curl --fail --silent --show-error --location \
@@ -85,6 +98,7 @@ jobs:
               -H 'X-GitHub-Api-Version: 2022-11-28' \
               "https://api.github.com/repos/$GITHUB_REPOSITORY/git/blobs/$sha" \
               -o "$response"
+            printf 'chunk-%02d-verify\n' "$index" > "$work/failure-stage.txt"
             test "$(jq -r .sha "$response")" = "$sha"
             test "$(jq -r .encoding "$response")" = 'base64'
             jq -r .content "$response" | base64 --decode > "$chunk"
@@ -96,10 +110,12 @@ jobs:
           test "$index" = '20'
           test "$(wc -c < "$work/candidate.b64" | tr -d ' ')" = "$BASE64_BYTES"
 
+          printf '%s\n' 'archive-decode' > "$work/failure-stage.txt"
           base64 --decode "$work/candidate.b64" > "$work/candidate.zip"
           test "$(wc -c < "$work/candidate.zip" | tr -d ' ')" = "$ARCHIVE_BYTES"
           test "$(sha256sum "$work/candidate.zip" | awk '{print $1}')" = "$ARCHIVE_SHA256"
           test "$(git hash-object "$work/candidate.zip")" = "$ARCHIVE_GIT_BLOB"
+          printf '%s\n' 'archive-integrity' > "$work/failure-stage.txt"
           unzip -t "$work/candidate.zip"
           unzip -q "$work/candidate.zip" -d "$work/unpack"
 
@@ -107,6 +123,7 @@ jobs:
           test -d "$candidate/source"
           (cd "$candidate" && sha256sum --check --strict SHA256SUMS)
 
+          printf '%s\n' 'manifest-verify' > "$work/failure-stage.txt"
           manifest="$candidate/MANIFEST.json"
           test "$(jq -r .format "$manifest")" = 'axm-asoiaf-answer-supervised-delivery-recovery-candidate/1'
           test "$(jq -r .repository "$manifest")" = "$GITHUB_REPOSITORY"
@@ -115,34 +132,45 @@ jobs:
           test "$(jq -r .permanentSurfaceCount "$manifest")" = '7'
           test "$(jq '.permanentSurfaces | length' "$manifest")" = '7'
           printf '%s\n' "$candidate" > "$RUNNER_TEMP/candidate-root.txt"
+          printf '%s\n' 'reconstruct-complete' > "$work/failure-stage.txt"
 
       - name: Create one carrier-free branch directly from the exact qualified integration base
+        id: publish_branch
         shell: bash
         run: |
           set -euo pipefail
+          work="$RUNNER_TEMP/pr258-carrier-free-recovery"
+          printf '%s\n' 'branch-start' > "$work/failure-stage.txt"
           candidate="$(cat "$RUNNER_TEMP/candidate-root.txt")"
           manifest="$candidate/MANIFEST.json"
 
+          printf '%s\n' 'branch-existence-check' > "$work/failure-stage.txt"
           if git ls-remote --exit-code --heads origin "$TARGET_BRANCH" >/dev/null 2>&1; then
             echo "target recovery branch already exists: $TARGET_BRANCH" >&2
             exit 1
           fi
 
+          printf '%s\n' 'branch-create' > "$work/failure-stage.txt"
           git switch --detach "$BASE_SHA"
           git switch -c "$TARGET_BRANCH"
           test "$(git rev-parse HEAD)" = "$BASE_SHA"
           test -z "$(git status --porcelain)"
 
+          printf '%s\n' 'surface-copy' > "$work/failure-stage.txt"
           while IFS=$'\t' read -r file expected_sha expected_blob expected_bytes; do
+            printf 'surface-copy:%s\n' "$file" > "$work/failure-stage.txt"
             source_file="$candidate/source/$file"
             test -f "$source_file"
-            test "sha256:$(sha256sum "$source_file" | awk '{print $1}')" = "$expected_sha"
+            actual_sha="$(sha256sum "$source_file" | awk '{print $1}')"
+            printf '%s\t%s\t%s\n' "$file" "$actual_sha" "${expected_sha#sha256:}" >> "$work/surface-hashes.tsv"
+            test "$actual_sha" = "${expected_sha#sha256:}"
             test "$(git hash-object "$source_file")" = "$expected_blob"
             test "$(wc -c < "$source_file" | tr -d ' ')" = "$expected_bytes"
             mkdir -p "$(dirname "$file")"
             cp "$source_file" "$file"
           done < <(jq -r '.permanentSurfaces[] | [.path,.sha256,.gitBlobSha1,(.bytes|tostring)] | @tsv' "$manifest")
 
+          printf '%s\n' 'diff-verify' > "$work/failure-stage.txt"
           jq -r '.permanentSurfaces[].path' "$manifest" | sort > "$RUNNER_TEMP/expected-paths.txt"
           git add -A
           git diff --cached --check
@@ -152,11 +180,14 @@ jobs:
           diff -u "$RUNNER_TEMP/expected-paths.txt" "$RUNNER_TEMP/base-diff-paths.txt"
 
           while IFS=$'\t' read -r file expected_sha expected_blob expected_bytes; do
-            test "sha256:$(sha256sum "$file" | awk '{print $1}')" = "$expected_sha"
+            actual_sha="$(sha256sum "$file" | awk '{print $1}')"
+            printf '%s\t%s\t%s\n' "$file" "$actual_sha" "${expected_sha#sha256:}" >> "$work/staged-surface-hashes.tsv"
+            test "$actual_sha" = "${expected_sha#sha256:}"
             test "$(git hash-object "$file")" = "$expected_blob"
             test "$(wc -c < "$file" | tr -d ' ')" = "$expected_bytes"
           done < <(jq -r '.permanentSurfaces[] | [.path,.sha256,.gitBlobSha1,(.bytes|tostring)] | @tsv' "$manifest")
 
+          printf '%s\n' 'secret-scan' > "$work/failure-stage.txt"
           if grep -IlE --binary-files=without-match \
             -- '-----BEGIN (PRIVATE KEY|RSA PRIVATE KEY|EC PRIVATE KEY|OPENSSH PRIVATE KEY|CERTIFICATE REQUEST|CERTIFICATE)-----' \
             $(cat "$RUNNER_TEMP/expected-paths.txt") | grep -q .; then
@@ -168,14 +199,17 @@ jobs:
             exit 1
           fi
 
+          printf '%s\n' 'commit' > "$work/failure-stage.txt"
           git config user.name 'BigBirdReturns supervised-delivery recovery'
           git config user.email 'actions@users.noreply.github.com'
           git commit -m 'Restore certificate-authenticated ASOIAF supervised delivery'
           final_sha="$(git rev-parse HEAD)"
           test "$(git show -s --format=%P HEAD)" = "$BASE_SHA"
           test -z "$(git status --porcelain)"
+          printf '%s\n' 'push' > "$work/failure-stage.txt"
           git push origin HEAD:"$TARGET_BRANCH"
           printf '%s\n' "$final_sha" | tee "$RUNNER_TEMP/recovery-head.txt"
+          printf '%s\n' 'complete' > "$work/failure-stage.txt"
 
           {
             echo '## Carrier-free recovery branch published'
@@ -188,6 +222,18 @@ jobs:
             echo '- Qualification claim: none pending exact-head GitHub workflows'
           } >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Upload bounded publication diagnostics
+        if: always()
+        id: diagnostics
+        uses: actions/upload-artifact@v4
+        with:
+          name: asoiaf-supervised-delivery-recovery-publication-${{ github.run_id }}
+          path: ${{ runner.temp }}/pr258-carrier-free-recovery
+          if-no-files-found: error
+          retention-days: 2
+          compression-level: 6
+          overwrite: false
+
       - name: Report bounded publication result
         if: always()
         env:
@@ -195,9 +241,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          stage_file="$RUNNER_TEMP/pr258-carrier-free-recovery/failure-stage.txt"
+          stage="unknown"
+          if test -f "$stage_file"; then stage="$(cat "$stage_file")"; fi
+          artifact_id='${{ steps.diagnostics.outputs.artifact-id }}'
           if test -f "$RUNNER_TEMP/recovery-head.txt"; then
             head="$(cat "$RUNNER_TEMP/recovery-head.txt")"
-            gh pr comment 258 --repo "$GITHUB_REPOSITORY" --body "Carrier-free supervised-delivery recovery branch \`$TARGET_BRANCH\` was published directly from exact base \`$BASE_SHA\` at head \`$head\`. The branch contains exactly seven permanent surfaces and no construction carrier. This publication makes no terminal qualification claim; exact-head GitHub qualification and independent artifact inspection remain pending."
+            gh pr comment 258 --repo "$GITHUB_REPOSITORY" --body "Carrier-free supervised-delivery recovery branch \`$TARGET_BRANCH\` was published directly from exact base \`$BASE_SHA\` at head \`$head\`. The branch contains exactly seven permanent surfaces and no construction carrier. This publication makes no terminal qualification claim; exact-head GitHub qualification and independent artifact inspection remain pending. Publication run: \`$GITHUB_RUN_ID\`; diagnostic artifact: \`${artifact_id:-not-issued}\`."
           else
-            gh pr comment 258 --repo "$GITHUB_REPOSITORY" --body "Carrier-free supervised-delivery recovery publication failed on construction head \`$GITHUB_SHA\`. No recovery branch or terminal qualification claim is asserted from this transaction."
+            gh pr comment 258 --repo "$GITHUB_REPOSITORY" --body "Carrier-free supervised-delivery recovery publication failed on construction head \`$GITHUB_SHA\` at stage \`$stage\`. Run: \`$GITHUB_RUN_ID\`; diagnostic artifact: \`${artifact_id:-not-issued}\`. No recovery branch or terminal qualification claim is asserted from this transaction."
           fi

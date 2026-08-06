@@ -1,0 +1,327 @@
+name: Publish recovered ASOIAF supervised delivery candidate v3
+
+on:
+  push:
+    branches:
+      - observer/asoiaf-supervised-delivery-recovery-publisher-v2
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: publish-recovered-asoiaf-supervised-delivery-v3
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.repository == 'BigBirdReturns/axm-arc'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      PR_NUMBER: '258'
+      BASE_BRANCH: integration/asoiaf-answer-desk-supervised-transport-v1
+      BASE_SHA: 52287c5406594ad6e1d1add7d0aef36274179a3e
+      TARGET_BRANCH: feature/asoiaf-answer-desk-supervised-delivery-v1
+      ARCHIVE_BLOB_SHA: c2048bbb02fc0fe2aaf76f4ad1899ac119367b6c
+      BLOB_EXPECTED_BYTES: '60980'
+      BLOB_EXPECTED_SHA256: e5b088442908c1c7c7ae9d1214136c4618ce384c225851a8953f5d607654d574
+      ARCHIVE_EXPECTED_BYTES: '45733'
+      ARCHIVE_EXPECTED_SHA256: ec29c3d2c1f5040c673afa76be720e4fa1ac3674164e200d6da9fa53771376b8
+      FIXED_COMMIT_DATE: '2026-08-06T04:00:00Z'
+    steps:
+      - name: Check out exact observer custody
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          show-progress: false
+
+      - name: Resolve exact target and reconstruct recovery source
+        id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --force origin \
+            "+refs/heads/$BASE_BRANCH:refs/remotes/origin/$BASE_BRANCH" \
+            "+refs/heads/$TARGET_BRANCH:refs/remotes/origin/$TARGET_BRANCH"
+          test "$(git rev-parse refs/remotes/origin/$BASE_BRANCH)" = "$BASE_SHA"
+
+          gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" > "$RUNNER_TEMP/pr-before.json"
+          test "$(jq -r .state "$RUNNER_TEMP/pr-before.json")" = open
+          test "$(jq -r .draft "$RUNNER_TEMP/pr-before.json")" = true
+          test "$(jq -r .merged "$RUNNER_TEMP/pr-before.json")" = false
+          test "$(jq -r .base.ref "$RUNNER_TEMP/pr-before.json")" = "$BASE_BRANCH"
+          test "$(jq -r .base.sha "$RUNNER_TEMP/pr-before.json")" = "$BASE_SHA"
+          test "$(jq -r .head.ref "$RUNNER_TEMP/pr-before.json")" = "$TARGET_BRANCH"
+          replaced_sha="$(jq -r .head.sha "$RUNNER_TEMP/pr-before.json")"
+          test -n "$replaced_sha"
+          git merge-base --is-ancestor "$BASE_SHA" "$replaced_sha"
+          printf '%s\n' "$replaced_sha" > "$RUNNER_TEMP/replaced-head.txt"
+
+          gh api "repos/$GITHUB_REPOSITORY/git/blobs/$ARCHIVE_BLOB_SHA" > "$RUNNER_TEMP/archive-blob.json"
+          OUT="$RUNNER_TEMP" python3 <<'PY'
+          import base64
+          import hashlib
+          import json
+          import os
+          import re
+          import stat
+          import zipfile
+          from pathlib import Path, PurePosixPath
+
+          out = Path(os.environ['OUT'])
+          body = json.loads((out / 'archive-blob.json').read_text())
+          if body.get('sha') != os.environ['ARCHIVE_BLOB_SHA'] or body.get('encoding') != 'base64':
+              raise SystemExit('recovery Git blob identity or encoding mismatch')
+
+          stored = base64.b64decode(str(body.get('content') or '').replace('\n', ''), validate=True)
+          stored_digest = hashlib.sha256(stored).hexdigest()
+          if len(stored) != int(os.environ['BLOB_EXPECTED_BYTES']) or stored_digest != os.environ['BLOB_EXPECTED_SHA256']:
+              raise SystemExit(f'recovery Git blob mismatch: {len(stored)} {stored_digest}')
+          if not re.fullmatch(rb'[A-Za-z0-9+/=]+', stored):
+              raise SystemExit('recovery Git blob is not canonical base64 text')
+
+          archive = base64.b64decode(stored, validate=True)
+          archive_digest = hashlib.sha256(archive).hexdigest()
+          if len(archive) != int(os.environ['ARCHIVE_EXPECTED_BYTES']) or archive_digest != os.environ['ARCHIVE_EXPECTED_SHA256']:
+              raise SystemExit(f'recovery archive mismatch: {len(archive)} {archive_digest}')
+
+          archive_path = out / 'PR258_carrier_free_recovery_candidate.zip'
+          archive_path.write_bytes(archive)
+          extract_root = out / 'recovery-candidate'
+          extract_root.mkdir(parents=True, exist_ok=True)
+          with zipfile.ZipFile(archive_path) as zf:
+              bad = zf.testzip()
+              if bad:
+                  raise SystemExit(f'ZIP integrity failure: {bad}')
+              for info in zf.infolist():
+                  path = PurePosixPath(info.filename)
+                  if path.is_absolute() or '..' in path.parts:
+                      raise SystemExit(f'unsafe ZIP path: {info.filename}')
+                  mode = (info.external_attr >> 16) & 0o170000
+                  if mode == stat.S_IFLNK:
+                      raise SystemExit(f'ZIP symlink refused: {info.filename}')
+              zf.extractall(extract_root)
+
+          report = {
+              'format': 'axm-pr258-supervised-delivery-recovery-materialization/3',
+              'gitBlobSha1': os.environ['ARCHIVE_BLOB_SHA'],
+              'storedBytes': len(stored),
+              'storedSha256': stored_digest,
+              'archiveBytes': len(archive),
+              'archiveSha256': archive_digest,
+              'zipIntegrity': 'passed',
+          }
+          (out / 'materialization.json').write_text(json.dumps(report, indent=2) + '\n')
+          print(json.dumps(report, indent=2))
+          PY
+
+          candidate="$(find "$RUNNER_TEMP/recovery-candidate" -type f -name MANIFEST.json -printf '%h\n' | head -n1)"
+          test -n "$candidate"
+          test -d "$candidate/source"
+          (cd "$candidate" && sha256sum -c SHA256SUMS)
+
+          manifest="$candidate/MANIFEST.json"
+          test "$(jq -r .format "$manifest")" = 'axm-asoiaf-answer-supervised-delivery-recovery-candidate/1'
+          test "$(jq -r .repository "$manifest")" = "$GITHUB_REPOSITORY"
+          test "$(jq -r .baseHead "$manifest")" = "$BASE_SHA"
+          test "$(jq -r .basePullRequest "$manifest")" = '257'
+          test "$(jq -r .permanentSurfaceCount "$manifest")" = '7'
+          test "$(jq -r .intendedBranch "$manifest")" = 'recovery/asoiaf-answer-desk-supervised-delivery-v1'
+
+          cat > "$RUNNER_TEMP/expected-paths.txt" <<'EOF'
+          .github/workflows/asoiaf-answer-desk-supervised-delivery.yml
+          docs/ASOIAF_ANSWER_DESK_SUPERVISED_DELIVERY.md
+          package.json
+          tests/fixtures/emit-asoiaf-answer-desk-supervised-delivery-input.ts
+          tests/narrative/canon/asoiaf-answer-desk-supervised-delivery.test.ts
+          tools/asoiaf-answer-desk-supervised-delivery.ts
+          tools/lib/asoiaf-answer-desk-supervised-delivery.ts
+          EOF
+          sed -i 's/^          //' "$RUNNER_TEMP/expected-paths.txt"
+          sort -o "$RUNNER_TEMP/expected-paths.txt" "$RUNNER_TEMP/expected-paths.txt"
+          jq -r '.permanentSurfaces[].path' "$manifest" | sort > "$RUNNER_TEMP/manifest-paths.txt"
+          diff -u "$RUNNER_TEMP/expected-paths.txt" "$RUNNER_TEMP/manifest-paths.txt"
+
+          while IFS=$'\t' read -r path expected_sha expected_blob; do
+            source_file="$candidate/source/$path"
+            test -f "$source_file"
+            test "sha256:$(sha256sum "$source_file" | awk '{print $1}')" = "$expected_sha"
+            test "$(git hash-object "$source_file")" = "$expected_blob"
+          done < <(jq -r '.permanentSurfaces[] | [.path,.sha256,.gitBlobSha1] | @tsv' "$manifest")
+
+          if find "$candidate/source" -type f \( \
+            -iname '*.key' -o -iname '*.pem' -o -iname '*.p12' -o -iname '*.pfx' \
+            -o -iname '*.csr' -o -iname '*.crt' -o -iname '*.der' \
+          \) | grep -q .; then
+            echo 'recovery source contains a secret-bearing path' >&2
+            exit 1
+          fi
+
+          echo "candidate_root=$candidate" >> "$GITHUB_OUTPUT"
+          echo "replaced_sha=$replaced_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Construct one deterministic base-parent seven-surface commit
+        id: commit
+        env:
+          CANDIDATE_ROOT: ${{ steps.source.outputs.candidate_root }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout --detach "$BASE_SHA"
+          manifest="$CANDIDATE_ROOT/MANIFEST.json"
+          while IFS=$'\t' read -r path _ expected_blob; do
+            source_file="$CANDIDATE_ROOT/source/$path"
+            install -D -m 0644 "$source_file" "$path"
+            test "$(git hash-object "$path")" = "$expected_blob"
+          done < <(jq -r '.permanentSurfaces[] | [.path,.sha256,.gitBlobSha1] | @tsv' "$manifest")
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          find . -type d -name '__pycache__' -prune -exec rm -rf {} +
+          git add -A
+          git diff --cached --check
+          git diff --cached --name-only "$BASE_SHA" -- | sort > "$RUNNER_TEMP/actual-paths.txt"
+          diff -u "$RUNNER_TEMP/expected-paths.txt" "$RUNNER_TEMP/actual-paths.txt"
+
+          GIT_AUTHOR_DATE="$FIXED_COMMIT_DATE" \
+          GIT_COMMITTER_DATE="$FIXED_COMMIT_DATE" \
+            git commit -m 'Recover certificate-authenticated ASOIAF supervised delivery'
+          candidate_sha="$(git rev-parse HEAD)"
+          test "$(git show -s --format=%P HEAD)" = "$BASE_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
+          while IFS=$'\t' read -r path _ expected_blob; do
+            test "$(git rev-parse "HEAD:$path")" = "$expected_blob"
+          done < <(jq -r '.permanentSurfaces[] | [.path,.sha256,.gitBlobSha1] | @tsv' "$manifest")
+
+          printf '%s\n' "$candidate_sha" > "$RUNNER_TEMP/candidate-sha.txt"
+          printf '%s\n' "$BASE_SHA" > "$RUNNER_TEMP/base-sha.txt"
+          git diff --name-status "$BASE_SHA" HEAD > "$RUNNER_TEMP/final-diff.txt"
+          echo "candidate_sha=$candidate_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Cancel all older target-branch writers
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_SHA: ${{ steps.commit.outputs.candidate_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 90); do
+            gh api --method GET "repos/$GITHUB_REPOSITORY/actions/runs" \
+              -f branch="$TARGET_BRANCH" -f per_page=100 > "$RUNNER_TEMP/target-runs.json"
+            jq -r --arg candidate "$CANDIDATE_SHA" '.workflow_runs[] | select(.head_sha != $candidate and (.status == "queued" or .status == "in_progress" or .status == "waiting" or .status == "requested" or .status == "pending")) | .id' \
+              "$RUNNER_TEMP/target-runs.json" > "$RUNNER_TEMP/active-old-runs.txt"
+            if test ! -s "$RUNNER_TEMP/active-old-runs.txt"; then
+              break
+            fi
+            while read -r run_id; do
+              test -n "$run_id" || continue
+              gh api --method POST "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/cancel" >/dev/null 2>&1 || true
+            done < "$RUNNER_TEMP/active-old-runs.txt"
+            sleep 2
+          done
+          gh api --method GET "repos/$GITHUB_REPOSITORY/actions/runs" \
+            -f branch="$TARGET_BRANCH" -f per_page=100 > "$RUNNER_TEMP/target-runs-final.json"
+          active="$(jq --arg candidate "$CANDIDATE_SHA" '[.workflow_runs[] | select(.head_sha != $candidate and (.status == "queued" or .status == "in_progress" or .status == "waiting" or .status == "requested" or .status == "pending"))] | length' "$RUNNER_TEMP/target-runs-final.json")"
+          test "$active" = '0'
+
+      - name: Replace PR branch and prove stable seven-surface custody
+        id: publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_SHA: ${{ steps.commit.outputs.candidate_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          patch_ref() {
+            gh api --method PATCH \
+              "repos/$GITHUB_REPOSITORY/git/refs/heads/$TARGET_BRANCH" \
+              -f sha="$CANDIDATE_SHA" -F force=true >/dev/null
+          }
+          patch_ref
+          stable=0
+          for attempt in $(seq 1 120); do
+            observed="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$TARGET_BRANCH" --jq .object.sha)"
+            if test "$observed" = "$CANDIDATE_SHA"; then
+              stable=$((stable + 1))
+              if test "$stable" -ge 20; then
+                break
+              fi
+            else
+              stable=0
+              patch_ref
+            fi
+            sleep 2
+          done
+          test "$stable" -ge 20
+
+          gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" > "$RUNNER_TEMP/pr-after.json"
+          test "$(jq -r .state "$RUNNER_TEMP/pr-after.json")" = open
+          test "$(jq -r .draft "$RUNNER_TEMP/pr-after.json")" = true
+          test "$(jq -r .merged "$RUNNER_TEMP/pr-after.json")" = false
+          test "$(jq -r .base.sha "$RUNNER_TEMP/pr-after.json")" = "$BASE_SHA"
+          test "$(jq -r .head.sha "$RUNNER_TEMP/pr-after.json")" = "$CANDIDATE_SHA"
+          gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/files?per_page=100" --slurp \
+            | jq -r 'add | map(.filename) | sort | .[]' > "$RUNNER_TEMP/pr-paths.txt"
+          diff -u "$RUNNER_TEMP/expected-paths.txt" "$RUNNER_TEMP/pr-paths.txt"
+          echo "published=true" >> "$GITHUB_OUTPUT"
+
+      - name: Retain publication receipt
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/pr258-supervised-delivery-recovery-publication-v3"
+          mkdir -p "$root"
+          for file in \
+            replaced-head.txt candidate-sha.txt base-sha.txt final-diff.txt \
+            expected-paths.txt manifest-paths.txt actual-paths.txt pr-paths.txt \
+            pr-before.json pr-after.json archive-blob.json materialization.json \
+            target-runs.json target-runs-final.json \
+            PR258_carrier_free_recovery_candidate.zip; do
+            if test -f "$RUNNER_TEMP/$file"; then cp "$RUNNER_TEMP/$file" "$root/"; fi
+          done
+          if test -n "${{ steps.source.outputs.candidate_root }}" && test -f "${{ steps.source.outputs.candidate_root }}/MANIFEST.json"; then
+            cp "${{ steps.source.outputs.candidate_root }}/MANIFEST.json" "$root/source-manifest.json"
+          fi
+          printf '%s\n' \
+            "observerSha=$GITHUB_SHA" \
+            "baseSha=$BASE_SHA" \
+            "targetBranch=$TARGET_BRANCH" \
+            "published=${{ steps.publish.outputs.published || 'false' }}" \
+            > "$root/publication-boundary.txt"
+          find "$root" -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum \
+            | sed "s#  $root/#  #" > "$root/SHA256SUMS"
+
+      - name: Upload publication receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr258-supervised-delivery-recovery-publication-v3
+          path: ${{ runner.temp }}/pr258-supervised-delivery-recovery-publication-v3
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Report recovered candidate publication
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_SHA: ${{ steps.commit.outputs.candidate_sha }}
+        shell: bash
+        run: |
+          gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body \
+            "Recovered supervised-delivery source is published on new exact sole-parent head \`$CANDIDATE_SHA\`, based directly on \`$BASE_SHA\`. The durable recovery archive reproduced \`sha256:$ARCHIVE_EXPECTED_SHA256\`, and PR #258 now contains exactly seven permanent surfaces. This does not resurrect missing head \`01483599237bf6436e80c1fc0476ed7da545e07b\`; it is a new recovery candidate requiring its own exact-head qualification and independent artifact verification."
+
+      - name: Report bounded refusal
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body \
+            "The isolated supervised-delivery recovery publisher v3 refused observer head \`$GITHUB_SHA\`. No recovered candidate or terminal qualification is asserted by this transaction."

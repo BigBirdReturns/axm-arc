@@ -1,0 +1,55 @@
+name: Export ASOIAF supervised delivery base
+
+on:
+  push:
+    branches:
+      - feature/asoiaf-answer-desk-supervised-delivery-v1
+    paths:
+      - '.github/workflows/_export-asoiaf-supervised-delivery-base.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    if: github.repository == 'BigBirdReturns/axm-arc'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out exact construction head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          show-progress: false
+
+      - name: Retain source floor and history
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/asoiaf-supervised-delivery-base"
+          mkdir -p "$root"
+          git rev-parse HEAD > "$root/candidate-sha.txt"
+          git rev-parse 'integration/asoiaf-answer-desk-supervised-transport-v1^{commit}' \
+            > "$root/base-sha.txt"
+          git log --all --reverse --date=iso-strict \
+            --format='%H%x09%P%x09%aI%x09%s' \
+            > "$root/history.tsv"
+          tar \
+            --exclude=.git \
+            --exclude=node_modules \
+            --exclude=.github/materialize/asoiaf-answer-supervised-delivery \
+            --exclude=.github/workflows/_bootstrap-supervised-delivery-source.yml \
+            --exclude=.github/workflows/_diagnose-supervised-delivery-payload.yml \
+            --exclude=.github/workflows/_materialize-asoiaf-answer-desk-supervised-delivery.yml \
+            --exclude=.github/workflows/_export-asoiaf-supervised-delivery-base.yml \
+            -czf "$root/source.tar.gz" .
+          sha256sum "$root/source.tar.gz" > "$root/source.tar.gz.sha256"
+
+      - name: Upload exact source floor
+        uses: actions/upload-artifact@v4
+        with:
+          name: asoiaf-supervised-delivery-base-source
+          path: ${{ runner.temp }}/asoiaf-supervised-delivery-base
+          if-no-files-found: error
+          retention-days: 2

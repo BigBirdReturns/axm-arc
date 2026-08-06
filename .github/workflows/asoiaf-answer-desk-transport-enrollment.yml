@@ -1,0 +1,354 @@
+name: ASOIAF answer transport enrollment
+
+on:
+  push:
+    branches:
+      - feature/asoiaf-answer-desk-transport-enrollment-v1
+    paths:
+      - '.github/workflows/asoiaf-answer-desk-transport-enrollment.yml'
+      - 'docs/ASOIAF_ANSWER_DESK_TRANSPORT_ENROLLMENT.md'
+      - 'package.json'
+      - 'tests/fixtures/emit-asoiaf-answer-desk-transport-enrollment-input.ts'
+      - 'tests/narrative/canon/asoiaf-answer-desk-transport-enrollment.test.ts'
+      - 'tools/asoiaf-answer-desk-transport-enrollment.ts'
+      - 'tools/lib/asoiaf-answer-desk-transport-enrollment.ts'
+  pull_request:
+    branches:
+      - feature/asoiaf-answer-desk-transport-operations-v1
+    paths:
+      - '.github/workflows/asoiaf-answer-desk-transport-enrollment.yml'
+      - 'docs/ASOIAF_ANSWER_DESK_TRANSPORT_ENROLLMENT.md'
+      - 'package.json'
+      - 'tests/fixtures/emit-asoiaf-answer-desk-transport-enrollment-input.ts'
+      - 'tests/narrative/canon/asoiaf-answer-desk-transport-enrollment.test.ts'
+      - 'tools/asoiaf-answer-desk-transport-enrollment.ts'
+      - 'tools/lib/asoiaf-answer-desk-transport-enrollment.ts'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: asoiaf-answer-transport-enrollment-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qualify:
+    if: github.repository == 'BigBirdReturns/axm-arc'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Check out exact enrollment candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+          show-progress: false
+
+      - name: Record exact candidate identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          candidate_sha="$(git rev-parse HEAD)"
+          test -z "$(git status --porcelain)"
+          printf '%s\n' "$candidate_sha"
+          echo "CANDIDATE_SHA=$candidate_sha" >> "$GITHUB_ENV"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install exact locked dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Verify permanent enrollment operator registration
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run --silent asoiaf:answer-transport-enrollment -- help \
+            | tee "$RUNNER_TEMP/enrollment-help.txt"
+          grep -q 'ASOIAF answer transport enrollment and issuer governance' \
+            "$RUNNER_TEMP/enrollment-help.txt"
+          for command in \
+            policy proof request approval-statement approve order record link status verify paths; do
+            grep -q "$command" "$RUNNER_TEMP/enrollment-help.txt"
+          done
+
+      - name: Strict TypeScript
+        id: typecheck
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run typecheck | tee "$RUNNER_TEMP/typecheck.log"
+
+      - name: Focused enrollment and downstream qualification
+        id: focused
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm test -- \
+            tests/narrative/canon/asoiaf-answer-desk-transport-enrollment.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-transport-operations.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-transport.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-exchange.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-worker.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-estate.test.ts \
+            tests/narrative/canon/asoiaf-answer-work-lease.test.ts \
+            tests/narrative/canon/asoiaf-answer-work-order.test.ts \
+            tests/narrative/canon/asoiaf-reviewed-answer-packet.test.ts \
+            tests/narrative/canon/asoiaf-research-question-dossier.test.ts \
+            tests/narrative/canon/asoiaf-external-reconciliation-packets.test.ts \
+            | tee "$RUNNER_TEMP/focused-tests.log"
+
+      - name: Exercise proof, quorum, issuance, admission link, and exact replay
+        id: smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture="$RUNNER_TEMP/enrollment-fixture"
+          estate="$RUNNER_TEMP/answer-desk"
+          receipts="$RUNNER_TEMP/enrollment-receipts"
+          mkdir -p "$fixture" "$receipts"
+
+          npx vite-node tests/fixtures/emit-asoiaf-answer-desk-transport-enrollment-input.ts \
+            "$fixture" \
+            "$estate" \
+            | tee "$receipts/fixture-emission.json"
+
+          npm run --silent asoiaf:answer-transport-enrollment -- policy \
+            --input "$fixture/policy-input.json" \
+            --out "$receipts/policy-first.json"
+          npm run --silent asoiaf:answer-transport-enrollment -- policy \
+            --input "$fixture/policy-input.json" \
+            --out "$receipts/policy-replay.json"
+
+          npm run --silent asoiaf:answer-transport-enrollment -- proof \
+            --input "$fixture/proof-input.json" \
+            --out "$receipts/proof-signing-envelope.json"
+          npm run --silent asoiaf:answer-transport-enrollment -- request \
+            --input "$fixture/request-input.json" \
+            --out "$receipts/request-first.json"
+          npm run --silent asoiaf:answer-transport-enrollment -- request \
+            --input "$fixture/request-input.json" \
+            --out "$receipts/request-replay.json"
+
+          for number in 1 2; do
+            npm run --silent asoiaf:answer-transport-enrollment -- approval-statement \
+              --input "$fixture/approval-statement-${number}-input.json" \
+              --out "$receipts/approval-statement-${number}.json"
+            npm run --silent asoiaf:answer-transport-enrollment -- approve \
+              --input "$fixture/approval-${number}-input.json" \
+              --out "$receipts/approval-${number}-first.json"
+            npm run --silent asoiaf:answer-transport-enrollment -- approve \
+              --input "$fixture/approval-${number}-input.json" \
+              --out "$receipts/approval-${number}-replay.json"
+          done
+
+          npm run --silent asoiaf:answer-transport-enrollment -- order \
+            --input "$fixture/order-input.json" \
+            --out "$receipts/order-first.json"
+          npm run --silent asoiaf:answer-transport-enrollment -- order \
+            --input "$fixture/order-input.json" \
+            --out "$receipts/order-replay.json"
+
+          npm run --silent asoiaf:answer-transport-enrollment -- record \
+            --input "$fixture/record-input.json" \
+            --out "$receipts/issuance-first.json"
+          npm run --silent asoiaf:answer-transport-enrollment -- record \
+            --input "$fixture/record-input.json" \
+            --out "$receipts/issuance-replay.json"
+
+          npm run --silent asoiaf:answer-transport-enrollment -- link \
+            --input "$fixture/link-input.json" \
+            --out "$receipts/link-first.json"
+          npm run --silent asoiaf:answer-transport-enrollment -- link \
+            --input "$fixture/link-input.json" \
+            --out "$receipts/link-replay.json"
+
+          npm run --silent asoiaf:answer-transport-enrollment -- status \
+            --root "$estate" \
+            --out "$receipts/status.json"
+          npm run --silent asoiaf:answer-transport-enrollment -- verify \
+            --root "$estate" \
+            --out "$receipts/verification.json"
+          npm run --silent asoiaf:answer-transport-enrollment -- paths \
+            --root "$estate" \
+            --out "$receipts/paths.json"
+
+          cp "$fixture/expected.json" "$receipts/expected.json"
+
+          node - "$receipts" "$estate" <<'NODE'
+          const assert = require('node:assert/strict');
+          const fs = require('node:fs');
+          const path = require('node:path');
+
+          const [receipts, estate] = process.argv.slice(2);
+          const read = (name) => JSON.parse(
+            fs.readFileSync(path.join(receipts, name), 'utf8'),
+          );
+          const expected = read('expected.json');
+          const policyFirst = read('policy-first.json');
+          const policyReplay = read('policy-replay.json');
+          const proof = read('proof-signing-envelope.json');
+          const requestFirst = read('request-first.json');
+          const requestReplay = read('request-replay.json');
+          const orderFirst = read('order-first.json');
+          const orderReplay = read('order-replay.json');
+          const issuanceFirst = read('issuance-first.json');
+          const issuanceReplay = read('issuance-replay.json');
+          const linkFirst = read('link-first.json');
+          const linkReplay = read('link-replay.json');
+          const status = read('status.json');
+          const verification = read('verification.json');
+
+          assert.equal(policyFirst.policy.policyId, expected.policyId);
+          assert.equal(policyReplay.replayed, true);
+          assert.equal(proof.signingBytesSha256, expected.proofSigningBytesSha256);
+          assert.equal(proof.privateKeyRetained, false);
+          assert.equal(requestFirst.request.requestId, expected.requestId);
+          assert.equal(requestReplay.replayed, true);
+          for (let number = 1; number <= 2; number += 1) {
+            assert.equal(read(`approval-${number}-replay.json`).replayed, true);
+          }
+          assert.equal(orderFirst.order.orderId, expected.orderId);
+          assert.equal(orderReplay.replayed, true);
+          assert.equal(issuanceFirst.issuance.issuanceId, expected.issuanceId);
+          assert.equal(issuanceReplay.replayed, true);
+          assert.equal(
+            issuanceFirst.issuance.certificate.certificateFingerprint,
+            expected.certificateFingerprint,
+          );
+          assert.equal(linkFirst.link.linkId, expected.admissionLinkId);
+          assert.equal(linkReplay.replayed, true);
+          assert.deepEqual(status.counts, expected.counts);
+          assert.equal(verification.ok, true);
+          assert.deepEqual(verification.findings, []);
+
+          const enrollmentRoot = path.join(estate, 'answer-transport-enrollment');
+          const walk = (directory) => {
+            for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+              const target = path.join(directory, entry.name);
+              if (entry.isDirectory()) {
+                walk(target);
+                continue;
+              }
+              assert.equal(/\.(key|pem|p12|pfx|csr)$/i.test(entry.name), false);
+              const text = fs.readFileSync(target, 'utf8');
+              assert.equal(
+                /-----BEGIN (?:PRIVATE KEY|RSA PRIVATE KEY|EC PRIVATE KEY|CERTIFICATE REQUEST)-----/.test(text),
+                false,
+              );
+            }
+          };
+          walk(enrollmentRoot);
+          assert.equal(
+            fs.existsSync(path.join(
+              path.dirname(receipts),
+              'enrollment-fixture',
+              '.projection-estate',
+            )),
+            false,
+          );
+          NODE
+
+          test -z "$(git status --porcelain)"
+
+      - name: Complete Arc regression
+        id: regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm test | tee "$RUNNER_TEMP/full-tests.log"
+
+      - name: Production build
+        id: build
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run build | tee "$RUNNER_TEMP/build.log"
+
+      - name: Retain exact enrollment qualification
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          source="$RUNNER_TEMP/enrollment-receipts"
+          root='asoiaf-answer-transport-enrollment-qualification'
+          mkdir -p "$root"
+          cp "$RUNNER_TEMP/enrollment-help.txt" "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP/typecheck.log" "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP/focused-tests.log" "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP/full-tests.log" "$root/" 2>/dev/null || true
+          cp "$RUNNER_TEMP/build.log" "$root/" 2>/dev/null || true
+          cp -R "$source"/. "$root/receipts/" 2>/dev/null || true
+          cp -R "$RUNNER_TEMP/answer-desk/answer-transport-enrollment" \
+            "$root/estate" 2>/dev/null || true
+          printf '%s\n' "$CANDIDATE_SHA" > "$root/candidate-sha.txt"
+          printf '%s\n' \
+            'plane=pre-admission-certificate-governance' \
+            'proofOfPossession=required' \
+            'ordinaryApprovalThreshold=2' \
+            'emergencyApprovalThreshold=3' \
+            'signedApprovals=true' \
+            'oneOrderPerRequest=true' \
+            'oneIssuancePerOrder=true' \
+            'certificateVerification=issue-time' \
+            'runtimeAdmission=separate-qualified-plane' \
+            'issuerCertificateRetained=false' \
+            'issuedCertificateRetained=false' \
+            'privateKeyRetained=false' \
+            'rawKeyReferenceRetained=false' \
+            'graphEffect=none' \
+            'canonEffect=none' \
+            'answerEffect=none' \
+            > "$root/qualification-boundary.txt"
+
+          if find "$root" -type f \( \
+            -iname '*.key' -o -iname '*.pem' -o -iname '*.p12' \
+            -o -iname '*.pfx' -o -iname '*.csr' -o -iname '*.crt' \
+          \) | grep -q .; then
+            echo 'qualification artifact contains forbidden certificate or key material' >&2
+            exit 1
+          fi
+          if grep -RIlE --binary-files=without-match \
+            -e '-----BEGIN (PRIVATE KEY|RSA PRIVATE KEY|EC PRIVATE KEY|CERTIFICATE REQUEST|CERTIFICATE)-----' \
+            "$root" | grep -q .; then
+            echo 'qualification artifact contains forbidden PEM material' >&2
+            exit 1
+          fi
+
+          find "$root" -type f ! -name SHA256SUMS -print0 \
+            | sort -z \
+            | xargs -0 sha256sum \
+            | sed "s#  $root/#  #" \
+            > "$root/SHA256SUMS"
+
+      - name: Upload enrollment qualification
+        if: always()
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: asoiaf-answer-transport-enrollment-qualification
+          path: asoiaf-answer-transport-enrollment-qualification
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish exact qualification summary
+        if: always()
+        env:
+          ARTIFACT_ID: ${{ steps.upload.outputs['artifact-id'] }}
+          ARTIFACT_DIGEST: ${{ steps.upload.outputs['artifact-digest'] }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo '## ASOIAF answer transport enrollment qualification'
+            echo
+            echo "- Candidate: \`$CANDIDATE_SHA\`"
+            echo "- Artifact: \`${ARTIFACT_ID:-not-issued}\`"
+            echo "- Artifact digest: \`${ARTIFACT_DIGEST:-not-issued}\`"
+            echo '- Proof of possession, signed quorum, one-leaf order, issued-certificate verification, runtime-link custody, and exact replay are required.'
+            echo '- No certificate, private key, CSR, or raw key reference is retained.'
+          } >> "$GITHUB_STEP_SUMMARY"

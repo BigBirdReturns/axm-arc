@@ -176,7 +176,7 @@ jobs:
           const repository = process.env.REPOSITORY;
           if (!out || !token || !repository) throw new Error('missing recovery environment');
 
-          const digest = (buffer) => crypto.createHash('node:crypto').update(buffer).digest('hex');
+          const digest = (buffer) => crypto.createHash('sha256').update(buffer).digest('hex');
           const probe = (file) => {
             const result = spawnSync('tar', ['-tzf', file], { encoding: 'utf8' });
             return {

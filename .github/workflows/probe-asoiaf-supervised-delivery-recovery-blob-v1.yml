@@ -1,0 +1,99 @@
+name: Probe ASOIAF supervised delivery recovery blob v1
+
+on:
+  push:
+    branches:
+      - observer/asoiaf-supervised-delivery-recovery-publisher-v1
+    paths:
+      - '.github/workflows/probe-asoiaf-supervised-delivery-recovery-blob-v1.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    if: github.repository == 'BigBirdReturns/axm-arc'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      BLOB_SHA: 752caffa6e98ee456f640a701b9f52df9d51e9df
+      EXPECTED_BASE64_CHARACTERS: '60980'
+      EXPECTED_ARCHIVE_BYTES: '45733'
+      EXPECTED_ARCHIVE_SHA256: ec29c3d2c1f5040c673afa76be720e4fa1ac3674164e200d6da9fa53771376b8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          show-progress: false
+
+      - name: Fetch and verify one content-addressed recovery blob
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/pr258-recovery-blob-probe"
+          mkdir -p "$out"
+          gh api "repos/$GITHUB_REPOSITORY/git/blobs/$BLOB_SHA" > "$out/git-blob.json"
+          OUT="$out" python3 <<'PY'
+          import base64
+          import hashlib
+          import json
+          import os
+          import re
+          import zipfile
+          from pathlib import Path
+
+          out = Path(os.environ['OUT'])
+          body = json.loads((out / 'git-blob.json').read_text())
+          expected_sha = os.environ['BLOB_SHA']
+          if body.get('sha') != expected_sha or body.get('encoding') != 'base64':
+              raise SystemExit(f'Git blob identity mismatch: {body.get("sha")} {body.get("encoding")}')
+          stored = base64.b64decode(str(body.get('content') or '').replace('\n', ''), validate=True)
+          text = re.sub(rb'\s+', b'', stored)
+          stored_digest = hashlib.sha256(stored).hexdigest()
+          text_digest = hashlib.sha256(text).hexdigest()
+          if len(text) != int(os.environ['EXPECTED_BASE64_CHARACTERS']):
+              raise SystemExit(f'base64 text length mismatch: {len(text)}')
+          if not re.fullmatch(rb'[A-Za-z0-9+/=]+', text):
+              raise SystemExit('stored blob is not canonical base64 text')
+          archive = base64.b64decode(text, validate=True)
+          archive_digest = hashlib.sha256(archive).hexdigest()
+          if len(archive) != int(os.environ['EXPECTED_ARCHIVE_BYTES']):
+              raise SystemExit(f'archive byte length mismatch: {len(archive)}')
+          if archive_digest != os.environ['EXPECTED_ARCHIVE_SHA256']:
+              raise SystemExit(f'archive SHA-256 mismatch: {archive_digest}')
+          archive_path = out / 'PR258_carrier_free_recovery_candidate.zip'
+          archive_path.write_bytes(archive)
+          with zipfile.ZipFile(archive_path) as zf:
+              bad = zf.testzip()
+              if bad:
+                  raise SystemExit(f'ZIP integrity failure: {bad}')
+              paths = sorted(info.filename for info in zf.infolist() if not info.is_dir())
+          report = {
+              'format': 'axm-pr258-supervised-delivery-recovery-blob-probe/1',
+              'gitBlobSha1': expected_sha,
+              'storedBytes': len(stored),
+              'storedSha256': stored_digest,
+              'base64Characters': len(text),
+              'base64TextSha256': text_digest,
+              'archiveBytes': len(archive),
+              'archiveSha256': archive_digest,
+              'zipIntegrity': 'passed',
+              'paths': paths,
+          }
+          (out / 'report.json').write_text(json.dumps(report, indent=2) + '\n')
+          print(json.dumps(report, indent=2))
+          PY
+          find "$out" -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum \
+            | sed "s#  $out/#  #" > "$out/SHA256SUMS"
+
+      - name: Upload exact probe receipt
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr258-supervised-delivery-recovery-blob-probe-v1
+          path: ${{ runner.temp }}/pr258-recovery-blob-probe
+          if-no-files-found: error
+          retention-days: 2

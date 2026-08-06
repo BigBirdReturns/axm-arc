@@ -1,0 +1,235 @@
+name: ASOIAF enrollment and supervised-delivery integration
+
+on:
+  push:
+    branches:
+      - integration/asoiaf-answer-desk-enrollment-supervised-delivery-v1
+    paths:
+      - '.github/workflows/asoiaf-answer-desk-enrollment-supervised-delivery-integration.yml'
+      - 'docs/ASOIAF_ANSWER_DESK_TRANSPORT_ENROLLMENT.md'
+      - 'package.json'
+      - 'tests/fixtures/emit-asoiaf-answer-desk-transport-enrollment-input.ts'
+      - 'tests/narrative/canon/asoiaf-answer-desk-transport-enrollment.test.ts'
+      - 'tools/asoiaf-answer-desk-transport-enrollment.ts'
+      - 'tools/lib/asoiaf-answer-desk-transport-enrollment.ts'
+  pull_request:
+    branches:
+      - feature/asoiaf-answer-desk-supervised-delivery-v1
+    paths:
+      - '.github/workflows/asoiaf-answer-desk-enrollment-supervised-delivery-integration.yml'
+      - 'docs/ASOIAF_ANSWER_DESK_TRANSPORT_ENROLLMENT.md'
+      - 'package.json'
+      - 'tests/fixtures/emit-asoiaf-answer-desk-transport-enrollment-input.ts'
+      - 'tests/narrative/canon/asoiaf-answer-desk-transport-enrollment.test.ts'
+      - 'tools/asoiaf-answer-desk-transport-enrollment.ts'
+      - 'tools/lib/asoiaf-answer-desk-transport-enrollment.ts'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: asoiaf-enrollment-supervised-delivery-integration-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qualify:
+    if: github.repository == 'BigBirdReturns/axm-arc'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Check out exact integration candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          show-progress: false
+
+      - name: Verify exact ordered parents and seven-surface diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          candidate_sha="$(git rev-parse HEAD)"
+          parent_line="$(git show -s --format=%P HEAD)"
+          supervised_sha='a18f822362608a32aa36a343de28b2ed72a3723d'
+          enrollment_sha='9ef3e7ab44cf48496b28c24011dff15c3bc53ae0'
+          test "$parent_line" = "$supervised_sha $enrollment_sha"
+          git merge-base --is-ancestor "$supervised_sha" HEAD
+          git merge-base --is-ancestor "$enrollment_sha" HEAD
+          test -z "$(git status --porcelain)"
+          printf '%s\n' "$candidate_sha" > "$RUNNER_TEMP/candidate-sha.txt"
+          printf '%s\n' "$parent_line" > "$RUNNER_TEMP/parent-shas.txt"
+          echo "CANDIDATE_SHA=$candidate_sha" >> "$GITHUB_ENV"
+          cat > "$RUNNER_TEMP/expected-paths.txt" <<'EOF'
+          .github/workflows/asoiaf-answer-desk-enrollment-supervised-delivery-integration.yml
+          docs/ASOIAF_ANSWER_DESK_TRANSPORT_ENROLLMENT.md
+          package.json
+          tests/fixtures/emit-asoiaf-answer-desk-transport-enrollment-input.ts
+          tests/narrative/canon/asoiaf-answer-desk-transport-enrollment.test.ts
+          tools/asoiaf-answer-desk-transport-enrollment.ts
+          tools/lib/asoiaf-answer-desk-transport-enrollment.ts
+          EOF
+          sed -i 's/^          //' "$RUNNER_TEMP/expected-paths.txt"
+          sort -o "$RUNNER_TEMP/expected-paths.txt" "$RUNNER_TEMP/expected-paths.txt"
+          git diff --name-only "$supervised_sha" HEAD | sort > "$RUNNER_TEMP/actual-paths.txt"
+          diff -u "$RUNNER_TEMP/expected-paths.txt" "$RUNNER_TEMP/actual-paths.txt"
+          git diff --check "$supervised_sha" HEAD
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install exact locked dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Verify imported parent implementations and operator registrations
+        shell: bash
+        run: |
+          set -euo pipefail
+          supervised_sha='a18f822362608a32aa36a343de28b2ed72a3723d'
+          enrollment_sha='9ef3e7ab44cf48496b28c24011dff15c3bc53ae0'
+          for path in \
+            docs/ASOIAF_ANSWER_DESK_TRANSPORT_ENROLLMENT.md \
+            tests/fixtures/emit-asoiaf-answer-desk-transport-enrollment-input.ts \
+            tests/narrative/canon/asoiaf-answer-desk-transport-enrollment.test.ts \
+            tools/asoiaf-answer-desk-transport-enrollment.ts \
+            tools/lib/asoiaf-answer-desk-transport-enrollment.ts; do
+            test "$(git rev-parse "HEAD:$path")" = "$(git rev-parse "$enrollment_sha:$path")"
+          done
+          for path in \
+            .github/workflows/asoiaf-answer-desk-supervised-delivery.yml \
+            docs/ASOIAF_ANSWER_DESK_SUPERVISED_DELIVERY.md \
+            tests/fixtures/emit-asoiaf-answer-desk-supervised-delivery-input.ts \
+            tests/narrative/canon/asoiaf-answer-desk-supervised-delivery.test.ts \
+            tools/asoiaf-answer-desk-supervised-delivery.ts \
+            tools/lib/asoiaf-answer-desk-supervised-delivery.ts; do
+            test "$(git rev-parse "HEAD:$path")" = "$(git rev-parse "$supervised_sha:$path")"
+          done
+          npm run --silent asoiaf:answer-supervised-delivery -- help \
+            | tee "$RUNNER_TEMP/supervised-help.txt"
+          npm run --silent asoiaf:answer-transport-enrollment -- help \
+            | tee "$RUNNER_TEMP/enrollment-help.txt"
+
+      - name: Strict TypeScript
+        id: typecheck
+        shell: bash
+        run: |
+          set -euo pipefail
+          find src tests tools \( -name '*.js' -o -name '*.js.map' -o -name '*.d.ts' \) -delete
+          rm -f tsconfig.tsbuildinfo
+          npm run typecheck | tee "$RUNNER_TEMP/typecheck.log"
+
+      - name: Focused joint qualification
+        id: focused
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm test -- \
+            tests/narrative/canon/asoiaf-answer-desk-transport-enrollment.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-supervised-delivery.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-supervisor.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-transport-operations.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-transport.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-exchange.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-worker.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-estate.test.ts \
+            tests/narrative/canon/asoiaf-answer-work-lease.test.ts \
+            tests/narrative/canon/asoiaf-answer-work-order.test.ts \
+            tests/narrative/canon/asoiaf-reviewed-answer-packet.test.ts \
+            tests/narrative/canon/asoiaf-research-question-dossier.test.ts \
+            tests/narrative/canon/asoiaf-external-reconciliation-packets.test.ts \
+            | tee "$RUNNER_TEMP/focused-tests.log"
+
+      - name: Complete Arc regression
+        id: regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          find src tests tools \( -name '*.js' -o -name '*.js.map' -o -name '*.d.ts' \) -delete
+          rm -f tsconfig.tsbuildinfo
+          npm test | tee "$RUNNER_TEMP/full-tests.log"
+
+      - name: Production build
+        id: build
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run build | tee "$RUNNER_TEMP/build.log"
+
+      - name: Retain integration qualification
+        if: always()
+        id: retain
+        env:
+          TYPECHECK_OUTCOME: ${{ steps.typecheck.outcome }}
+          FOCUSED_OUTCOME: ${{ steps.focused.outcome }}
+          REGRESSION_OUTCOME: ${{ steps.regression.outcome }}
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          root='asoiaf-enrollment-supervised-delivery-integration-qualification'
+          mkdir -p "$root/logs"
+          for file in candidate-sha.txt parent-shas.txt actual-paths.txt supervised-help.txt enrollment-help.txt typecheck.log focused-tests.log full-tests.log build.log; do
+            if test -f "$RUNNER_TEMP/$file"; then cp "$RUNNER_TEMP/$file" "$root/logs/"; fi
+          done
+          printf '%s\n' \
+            'integrationBehavior=new-authority-none' \
+            'enrollmentImplementation=byte-identical' \
+            'supervisedDeliveryImplementation=byte-identical' \
+            'privateKeyCustodyMoved=false' \
+            'networkDispatchByEnrollment=false' \
+            'certificateIssuanceByDelivery=false' \
+            'taskAuthority=none' \
+            'graphEffect=none' \
+            'canonEffect=none' \
+            'answerEffect=none' \
+            > "$root/integration-boundary.txt"
+          cat > "$root/outcomes.json" <<EOF
+          {"typecheck":"$TYPECHECK_OUTCOME","focused":"$FOCUSED_OUTCOME","regression":"$REGRESSION_OUTCOME","build":"$BUILD_OUTCOME"}
+          EOF
+          if find "$root" -type f \( \
+            -iname '*.key' -o -iname '*.pem' -o -iname '*.p12' \
+            -o -iname '*.pfx' -o -iname '*.csr' -o -iname '*.crt' \
+          \) | grep -q .; then
+            echo 'integration qualification contains forbidden credential paths' >&2
+            exit 1
+          fi
+          if grep -RIlE --binary-files=without-match \
+            -- '-----BEGIN (PRIVATE KEY|RSA PRIVATE KEY|EC PRIVATE KEY|CERTIFICATE REQUEST|CERTIFICATE)-----' \
+            "$root" | grep -q .; then
+            echo 'integration qualification contains forbidden PEM material' >&2
+            exit 1
+          fi
+          find "$root" -type f ! -name SHA256SUMS -print0 \
+            | sort -z | xargs -0 sha256sum \
+            | sed "s#  $root/#  #" > "$root/SHA256SUMS"
+
+      - name: Upload integration qualification
+        if: always()
+        id: artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: asoiaf-enrollment-supervised-delivery-integration-qualification
+          path: asoiaf-enrollment-supervised-delivery-integration-qualification
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 6
+
+      - name: Publish qualification summary
+        if: always()
+        env:
+          ARTIFACT_ID: ${{ steps.artifact.outputs.artifact-id }}
+          ARTIFACT_DIGEST: ${{ steps.artifact.outputs.artifact-digest }}
+        shell: bash
+        run: |
+          {
+            echo '## ASOIAF enrollment and supervised-delivery integration qualification'
+            echo
+            echo "- Candidate: \`$CANDIDATE_SHA\`"
+            echo '- Ordered parents: `a18f822362608a32aa36a343de28b2ed72a3723d 9ef3e7ab44cf48496b28c24011dff15c3bc53ae0`'
+            echo "- Artifact: \`${ARTIFACT_ID:-not-issued}\`"
+            echo "- Artifact digest: \`${ARTIFACT_DIGEST:-not-issued}\`"
+            echo '- Integration behavior: source coexistence, new authority none.'
+          } >> "$GITHUB_STEP_SUMMARY"

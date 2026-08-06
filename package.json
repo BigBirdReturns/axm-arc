@@ -34,7 +34,8 @@
     "asoiaf:answer-supervisor": "vite-node tools/asoiaf-answer-desk-supervisor.ts --",
     "asoiaf:answer-transport": "vite-node tools/asoiaf-answer-desk-transport.ts --",
     "asoiaf:answer-transport-operations": "vite-node tools/asoiaf-answer-desk-transport-operations.ts --",
-    "asoiaf:answer-supervised-delivery": "vite-node tools/asoiaf-answer-desk-supervised-delivery.ts --"
+    "asoiaf:answer-supervised-delivery": "vite-node tools/asoiaf-answer-desk-supervised-delivery.ts --",
+    "asoiaf:answer-transport-enrollment": "vite-node tools/asoiaf-answer-desk-transport-enrollment.ts --"
   },
   "dependencies": {
     "react": "^18.3.1",

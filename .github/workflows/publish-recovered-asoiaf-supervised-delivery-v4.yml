@@ -27,6 +27,13 @@ jobs:
       BASE_BRANCH: integration/asoiaf-answer-desk-supervised-transport-v1
       BASE_SHA: 52287c5406594ad6e1d1add7d0aef36274179a3e
       TARGET_BRANCH: feature/asoiaf-answer-desk-supervised-delivery-v1
+      ARCHIVE_BYTES: '45733'
+      ARCHIVE_SHA256: ec29c3d2c1f5040c673afa76be720e4fa1ac3674164e200d6da9fa53771376b8
+      ARCHIVE_GIT_BLOB: 5b8936e97f503da9b2ea536fd02f650548cd3999
+      RECEIPT_ROOT: ${{ runner.temp }}/asoiaf-supervised-delivery-recovery-publication-v10
+      SOURCE_ROOT: ${{ runner.temp }}/asoiaf-supervised-delivery-recovered-source-v10
+      UNPACK_ROOT: ${{ runner.temp }}/asoiaf-supervised-delivery-recovery-unpack-v10
+      ARCHIVE_PATH: ${{ runner.temp }}/PR258_carrier_free_recovery_candidate.zip
     steps:
       - name: Check out exact observer transaction
         uses: actions/checkout@v4
@@ -35,192 +42,25 @@ jobs:
           fetch-depth: 0
           show-progress: false
 
-      - name: Resolve target and reconstruct exact permanent source blobs
-        id: source
+      - name: Execute deterministic carrier-free publisher
+        id: publisher
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          receipt="$RUNNER_TEMP/asoiaf-supervised-delivery-recovery-publication-v4"
-          source_root="$RUNNER_TEMP/recovered-source"
-          mkdir -p "$receipt" "$source_root"
-          printf '%s\n' 'resolve-target' > "$receipt/stage.txt"
-          printf '%s\n' "$GITHUB_SHA" > "$receipt/observer-sha.txt"
-          printf '%s\n' "$BASE_SHA" > "$receipt/base-sha.txt"
-
-          git fetch --force origin \
-            "+refs/heads/$BASE_BRANCH:refs/remotes/origin/$BASE_BRANCH" \
-            "+refs/heads/$TARGET_BRANCH:refs/remotes/origin/$TARGET_BRANCH"
-          test "$(git rev-parse refs/remotes/origin/$BASE_BRANCH)" = "$BASE_SHA"
-
-          gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" > "$receipt/pr-before.json"
-          test "$(jq -r .state "$receipt/pr-before.json")" = open
-          test "$(jq -r .draft "$receipt/pr-before.json")" = true
-          test "$(jq -r .merged "$receipt/pr-before.json")" = false
-          test "$(jq -r .base.ref "$receipt/pr-before.json")" = "$BASE_BRANCH"
-          test "$(jq -r .base.sha "$receipt/pr-before.json")" = "$BASE_SHA"
-          test "$(jq -r .head.ref "$receipt/pr-before.json")" = "$TARGET_BRANCH"
-          replaced_head="$(jq -r .head.sha "$receipt/pr-before.json")"
-          test -n "$replaced_head"
-          test "$(git rev-parse refs/remotes/origin/$TARGET_BRANCH)" = "$replaced_head"
-          git merge-base --is-ancestor "$BASE_SHA" "$replaced_head"
-          printf '%s\n' "$replaced_head" > "$receipt/replaced-head.txt"
-
-          cat > "$receipt/permanent-blob-ledger.tsv" <<'EOF'
-          .github/workflows/asoiaf-answer-desk-supervised-delivery.yml	75294b57f4c8597bf6ba86d74aaf200c9c8871bd	14230	3e66d0233d758e611100b11dff0e9a95d0161b02733da9e2f36f8539a0919072
-          docs/ASOIAF_ANSWER_DESK_SUPERVISED_DELIVERY.md	271b02152394a3e1870229ce55d02d1fb511da93	13076	aa42b9ebd6f358c787d756a66d2f0a2fdbf21031ef33942a42dec80eb682ced7
-          package.json	fbe82a00ce1b8147525cd362fdeca99b0437bcbe	2725	47d35b8410b0b5f96db9df88fcdb1e5d8168cbbbe3ccdf8720fbcba847ee6c85
-          tests/fixtures/emit-asoiaf-answer-desk-supervised-delivery-input.ts	84029c4217698a0a19f3c347f8046688d66e01b0	39046	0bc94cd732d43b4723e54e8becb98cffc8177e7135a0b4d435f1cb784ebdbfb2
-          tests/narrative/canon/asoiaf-answer-desk-supervised-delivery.test.ts	854d95abfd37da26a06826ece3ba0cd9c9a96a70	25872	db028414048cb4e0721630ba99ec23ccf901e651a7d9e9280515fd7c9e0d8d1b
-          tools/asoiaf-answer-desk-supervised-delivery.ts	8a52f8853fdb77ebe58f8af8832480981bdc1873	7521	42c26ebfa43653f30570d800e94503f31a44bb87e2945a1b3f4cf33618539700
-          tools/lib/asoiaf-answer-desk-supervised-delivery.ts	e7eed136c6dc3b783b8b26e30ae533568c9128ca	90372	39161cb0e2e0fd976922825c3678ae139e106393e3f7282b5f298e497c7530a1
-          EOF
-          sed -i 's/^          //' "$receipt/permanent-blob-ledger.tsv"
-
-          printf '%s\n' 'reconstruct-source' > "$receipt/stage.txt"
-          index=0
-          while IFS=$'\t' read -r path blob expected_bytes expected_sha256; do
-            test -n "$path"
-            response="$RUNNER_TEMP/blob-$index.json"
-            target="$source_root/$path"
-            mkdir -p "$(dirname "$target")"
-            gh api "repos/$GITHUB_REPOSITORY/git/blobs/$blob" > "$response"
-            test "$(jq -r .sha "$response")" = "$blob"
-            test "$(jq -r .encoding "$response")" = base64
-            jq -r .content "$response" | tr -d '\n' | base64 --decode > "$target"
-            test "$(wc -c < "$target" | tr -d ' ')" = "$expected_bytes"
-            test "$(sha256sum "$target" | awk '{print $1}')" = "$expected_sha256"
-            test "$(git hash-object "$target")" = "$blob"
-            index=$((index + 1))
-          done < "$receipt/permanent-blob-ledger.tsv"
-          test "$index" = 7
-
-          echo "source_root=$source_root" >> "$GITHUB_OUTPUT"
-          echo "receipt_root=$receipt" >> "$GITHUB_OUTPUT"
-          echo "replaced_head=$replaced_head" >> "$GITHUB_OUTPUT"
-
-      - name: Construct deterministic sole-parent seven-surface commit
-        id: commit
-        env:
-          SOURCE_ROOT: ${{ steps.source.outputs.source_root }}
-          RECEIPT_ROOT: ${{ steps.source.outputs.receipt_root }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          printf '%s\n' 'construct-commit' > "$RECEIPT_ROOT/stage.txt"
-          git checkout --detach "$BASE_SHA"
-          test "$(git rev-parse HEAD)" = "$BASE_SHA"
-
-          while IFS=$'\t' read -r path blob expected_bytes expected_sha256; do
-            source="$SOURCE_ROOT/$path"
-            mkdir -p "$(dirname "$path")"
-            cp "$source" "$path"
-            test "$(git hash-object "$path")" = "$blob"
-            test "$(wc -c < "$path" | tr -d ' ')" = "$expected_bytes"
-            test "$(sha256sum "$path" | awk '{print $1}')" = "$expected_sha256"
-          done < "$RECEIPT_ROOT/permanent-blob-ledger.tsv"
-
-          cut -f1 "$RECEIPT_ROOT/permanent-blob-ledger.tsv" | sort \
-            > "$RECEIPT_ROOT/expected-paths.txt"
-          git add -A
-          git diff --cached --check
-          git diff --cached --name-only "$BASE_SHA" -- | sort \
-            > "$RECEIPT_ROOT/actual-paths.txt"
-          diff -u "$RECEIPT_ROOT/expected-paths.txt" "$RECEIPT_ROOT/actual-paths.txt"
-
-          if grep -Ei -- '(^|/)[^/]*\.(key|pem|p12|pfx|csr|crt)$' \
-            "$RECEIPT_ROOT/expected-paths.txt"; then
-            echo 'permanent surface path is secret-bearing' >&2
-            exit 1
-          fi
-          if grep -IlE --binary-files=without-match \
-            -- '-----BEGIN (PRIVATE KEY|RSA PRIVATE KEY|EC PRIVATE KEY|OPENSSH PRIVATE KEY|CERTIFICATE REQUEST|CERTIFICATE)-----' \
-            $(cat "$RECEIPT_ROOT/expected-paths.txt") | grep -q .; then
-            echo 'permanent surfaces contain credential material' >&2
-            exit 1
-          fi
-
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          GIT_AUTHOR_DATE='2026-08-06T00:00:00Z' \
-          GIT_COMMITTER_DATE='2026-08-06T00:00:00Z' \
-            git commit -m 'Restore certificate-authenticated ASOIAF supervised delivery'
-          candidate_sha="$(git rev-parse HEAD)"
-          test "$(git show -s --format=%P HEAD)" = "$BASE_SHA"
-          test -z "$(git status --porcelain --untracked-files=all)"
-
-          while IFS=$'\t' read -r path blob _ _; do
-            test "$(git rev-parse "HEAD:$path")" = "$blob"
-          done < "$RECEIPT_ROOT/permanent-blob-ledger.tsv"
-
-          printf '%s\n' "$candidate_sha" > "$RECEIPT_ROOT/candidate-sha.txt"
-          git diff --name-status "$BASE_SHA" "$candidate_sha" \
-            > "$RECEIPT_ROOT/final-diff.txt"
-          echo "candidate_sha=$candidate_sha" >> "$GITHUB_OUTPUT"
-
-      - name: Publish with exact current-head lease
-        id: publish
-        env:
-          GH_TOKEN: ${{ github.token }}
-          CANDIDATE_SHA: ${{ steps.commit.outputs.candidate_sha }}
-          RECEIPT_ROOT: ${{ steps.source.outputs.receipt_root }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          printf '%s\n' 'publish' > "$RECEIPT_ROOT/stage.txt"
-          gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" > "$RECEIPT_ROOT/pr-publish.json"
-          test "$(jq -r .state "$RECEIPT_ROOT/pr-publish.json")" = open
-          test "$(jq -r .draft "$RECEIPT_ROOT/pr-publish.json")" = true
-          test "$(jq -r .merged "$RECEIPT_ROOT/pr-publish.json")" = false
-          test "$(jq -r .base.ref "$RECEIPT_ROOT/pr-publish.json")" = "$BASE_BRANCH"
-          test "$(jq -r .base.sha "$RECEIPT_ROOT/pr-publish.json")" = "$BASE_SHA"
-          test "$(jq -r .head.ref "$RECEIPT_ROOT/pr-publish.json")" = "$TARGET_BRANCH"
-          current_head="$(jq -r .head.sha "$RECEIPT_ROOT/pr-publish.json")"
-          test -n "$current_head"
-
-          if test "$current_head" != "$CANDIDATE_SHA"; then
-            git fetch --force origin "+refs/heads/$TARGET_BRANCH:refs/remotes/origin/$TARGET_BRANCH"
-            test "$(git rev-parse refs/remotes/origin/$TARGET_BRANCH)" = "$current_head"
-            git merge-base --is-ancestor "$BASE_SHA" "$current_head"
-            git push \
-              --force-with-lease="refs/heads/$TARGET_BRANCH:$current_head" \
-              origin "$CANDIDATE_SHA:refs/heads/$TARGET_BRANCH"
-          fi
-
-          git fetch --force origin "+refs/heads/$TARGET_BRANCH:refs/remotes/origin/$TARGET_BRANCH"
-          test "$(git rev-parse refs/remotes/origin/$TARGET_BRANCH)" = "$CANDIDATE_SHA"
-          printf '%s\n' 'published' > "$RECEIPT_ROOT/stage.txt"
-          printf '%s\n' true > "$RECEIPT_ROOT/published.txt"
-          echo "published=true" >> "$GITHUB_OUTPUT"
-
-      - name: Finalize publication receipt
-        if: always()
-        env:
-          RECEIPT_ROOT: ${{ steps.source.outputs.receipt_root }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -n "${RECEIPT_ROOT:-}"
-          printf '%s\n' \
-            "observerSha=$GITHUB_SHA" \
-            "baseSha=$BASE_SHA" \
-            "targetBranch=$TARGET_BRANCH" \
-            "published=${{ steps.publish.outputs.published || 'false' }}" \
-            > "$RECEIPT_ROOT/publication-boundary.txt"
-          find "$RECEIPT_ROOT" -type f ! -name SHA256SUMS -print0 \
-            | sort -z \
-            | xargs -0 sha256sum \
-            | sed "s#  $RECEIPT_ROOT/#  #" \
-            > "$RECEIPT_ROOT/SHA256SUMS"
+          gzip -dc .github/recovery-v10/publish-pr258-v10.sh.gz > "$RUNNER_TEMP/publish-pr258-v10.sh"
+          chmod +x "$RUNNER_TEMP/publish-pr258-v10.sh"
+          "$RUNNER_TEMP/publish-pr258-v10.sh"
 
       - name: Upload publication receipt
         if: always()
         id: artifact
         uses: actions/upload-artifact@v4
         with:
-          name: asoiaf-supervised-delivery-recovery-publication-v4
-          path: ${{ steps.source.outputs.receipt_root }}
+          name: asoiaf-supervised-delivery-recovery-publication-v10
+          path: ${{ runner.temp }}/asoiaf-supervised-delivery-recovery-publication-v10
           if-no-files-found: error
           retention-days: 7
           compression-level: 6
@@ -229,22 +69,21 @@ jobs:
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
-          CANDIDATE_SHA: ${{ steps.commit.outputs.candidate_sha }}
-          PUBLISHED: ${{ steps.publish.outputs.published }}
           ARTIFACT_ID: ${{ steps.artifact.outputs.artifact-id }}
-          RECEIPT_ROOT: ${{ steps.source.outputs.receipt_root }}
         shell: bash
         run: |
           set -euo pipefail
           stage=unknown
-          if test -n "${RECEIPT_ROOT:-}" && test -f "$RECEIPT_ROOT/stage.txt"; then
-            stage="$(cat "$RECEIPT_ROOT/stage.txt")"
-          fi
-          if test "$PUBLISHED" = true; then
+          published=false
+          candidate='not-issued'
+          test -f "$RECEIPT_ROOT/stage.txt" && stage="$(cat "$RECEIPT_ROOT/stage.txt")"
+          test -f "$RECEIPT_ROOT/published.txt" && published="$(cat "$RECEIPT_ROOT/published.txt")"
+          test -f "$RECEIPT_ROOT/candidate-sha.txt" && candidate="$(cat "$RECEIPT_ROOT/candidate-sha.txt")"
+          if test "$published" = true; then
             gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body \
-              "Carrier-free supervised delivery was published on exact sole-parent head \`$CANDIDATE_SHA\`, directly above \`$BASE_SHA\`, with exactly seven permanent surfaces. Publication run \`$GITHUB_RUN_ID\`; receipt artifact \`${ARTIFACT_ID:-not-issued}\`. This is a publication receipt only. Exact-head permanent workflow qualification and independent artifact verification remain required."
+              "Carrier-free supervised delivery was published on exact sole-parent head \`$candidate\`, directly above \`$BASE_SHA\`, with exactly seven permanent surfaces. Publication run \`$GITHUB_RUN_ID\`; receipt artifact \`${ARTIFACT_ID:-not-issued}\`. This is a publication receipt only. Exact-head permanent workflow qualification and independent artifact verification remain required."
           else
             gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body \
               "Carrier-free supervised-delivery recovery publisher v4 refused observer head \`$GITHUB_SHA\` at stage \`$stage\`. Run \`$GITHUB_RUN_ID\`; receipt artifact \`${ARTIFACT_ID:-not-issued}\`. No recovered candidate or terminal qualification is asserted."
-            exit 1
           fi
+          test "$published" = true

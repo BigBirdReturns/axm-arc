@@ -1,4 +1,4 @@
-name: Diagnose rebuilt ASOIAF supervised delivery v2
+name: Publish rebuilt ASOIAF supervised delivery v3
 
 on:
   push:
@@ -9,47 +9,57 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   issues: read
   pull-requests: write
 
 concurrency:
-  group: diagnose-asoiaf-supervised-delivery-rebuild-v2
+  group: publish-rebuilt-asoiaf-supervised-delivery-v3
   cancel-in-progress: false
 
 jobs:
-  diagnose:
+  publish:
     if: github.repository == 'BigBirdReturns/axm-arc'
     runs-on: ubuntu-24.04
-    timeout-minutes: 80
+    timeout-minutes: 35
     env:
       GH_TOKEN: ${{ github.token }}
+      PR_NUMBER: '258'
+      BASE_BRANCH: integration/asoiaf-answer-desk-supervised-transport-v1
       BASE_SHA: 52287c5406594ad6e1d1add7d0aef36274179a3e
+      TARGET_BRANCH: feature/asoiaf-answer-desk-supervised-delivery-v1
       PAYLOAD_ISSUE: '263'
       ARCHIVE_SHA256: e808c4d0d2097669509b084fbace88ff187a545dccd73e5f786fdd100cc9e9e7
+      RECEIPT_ROOT: ${{ runner.temp }}/asoiaf-supervised-delivery-rebuild-publication-v3
     steps:
-      - name: Check out exact integration parent
+      - name: Check out exact qualified integration parent
         uses: actions/checkout@v4
         with:
           ref: ${{ env.BASE_SHA }}
-          fetch-depth: 1
+          fetch-depth: 0
           show-progress: false
 
-      - name: Reconstruct exact diagnostic source
-        id: reconstruct
+      - name: Reconstruct, verify, and publish exact seven-surface candidate
+        id: publish
         continue-on-error: true
         shell: bash
         run: |
-          set -o pipefail
+          set -euo pipefail
+          mkdir -p "$RECEIPT_ROOT"
+          printf '%s\n' reconstruct > "$RECEIPT_ROOT/stage.txt"
+          printf '%s\n' "$GITHUB_SHA" > "$RECEIPT_ROOT/publisher-sha.txt"
+          printf '%s\n' "$BASE_SHA" > "$RECEIPT_ROOT/base-sha.txt"
           test "$(git rev-parse HEAD)" = "$BASE_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
+
           gh api --paginate \
             "repos/$GITHUB_REPOSITORY/issues/$PAYLOAD_ISSUE/comments?per_page=100" \
             --slurp > "$RUNNER_TEMP/payload-pages.json"
 
           PAGES="$RUNNER_TEMP/payload-pages.json" \
-          ARCHIVE="$RUNNER_TEMP/pr258-diagnostic-payload.zip" \
-          REPORT="$RUNNER_TEMP/reconstruction.json" \
-          python3 <<'PY' 2>&1 | tee "$RUNNER_TEMP/reconstruct.log"
+          ARCHIVE="$RUNNER_TEMP/pr258-rebuild-payload.zip" \
+          REPORT="$RECEIPT_ROOT/reconstruction.json" \
+          python3 <<'PY'
           import base64
           import hashlib
           import json
@@ -71,8 +81,7 @@ jobs:
           comments = [comment for page in pages for comment in page]
           segments = {}
           parts = {}
-          observations = []
-
+          selected = []
           for comment in comments:
               body = str(comment.get('body') or '').replace('\r\n', '\n').strip()
               lines = body.split('\n')
@@ -96,13 +105,6 @@ jobs:
                       headers[key] = value
               payload = ''.join(payload_lines).strip()
               digest = hashlib.sha256(payload.encode('ascii')).hexdigest() if payload else None
-              observations.append({
-                  'commentId': comment.get('id'),
-                  'marker': marker,
-                  'headers': headers,
-                  'computedLength': len(payload),
-                  'computedSha256': digest,
-              })
               try:
                   total = int(headers.get('total', '-1'))
                   declared_length = int(headers.get('length', '-1'))
@@ -123,6 +125,7 @@ jobs:
                       and digest == expected_digest
                   ):
                       segments[sequence] = payload
+                      selected.append(comment.get('id'))
               else:
                   try:
                       part = int(headers.get('part', '-1'))
@@ -138,18 +141,17 @@ jobs:
                       and digest == expected_digest
                   ):
                       parts[part] = payload
-
-          if len(parts) != 4:
-              raise SystemExit(f'exact sequence-00 parts present: {sorted(parts)}, expected [0,1,2,3]')
+                      selected.append(comment.get('id'))
+          if sorted(parts) != [0, 1, 2, 3]:
+              raise SystemExit(f'exact sequence-00 parts present: {sorted(parts)}')
           repaired_zero = ''.join(parts[index] for index in range(4))
           if len(repaired_zero) != segment_expected[0][0]:
               raise SystemExit('repaired sequence 00 length mismatch')
           if hashlib.sha256(repaired_zero.encode('ascii')).hexdigest() != segment_expected[0][1]:
               raise SystemExit('repaired sequence 00 digest mismatch')
           segments[0] = repaired_zero
-          missing = [sequence for sequence in range(3) if sequence not in segments]
-          if missing:
-              raise SystemExit(f'missing exact segments after repair: {missing}')
+          if sorted(segments) != [0, 1, 2]:
+              raise SystemExit(f'exact segments present: {sorted(segments)}')
           encoded = ''.join(segments[index] for index in range(3))
           if len(encoded) != 23496:
               raise SystemExit(f'base64 characters {len(encoded)} != 23496')
@@ -160,138 +162,163 @@ jobs:
           if digest != os.environ['ARCHIVE_SHA256']:
               raise SystemExit(f'archive digest {digest} != {os.environ["ARCHIVE_SHA256"]}')
           Path(os.environ['ARCHIVE']).write_bytes(decoded)
-          report = {
-              'format': 'axm-asoiaf-supervised-delivery-rebuild-diagnostic/2',
-              'selectedSegments': sorted(segments),
-              'selectedSequence00Parts': sorted(parts),
+          Path(os.environ['REPORT']).write_text(json.dumps({
+              'format': 'axm-asoiaf-supervised-delivery-rebuild-publication/3',
+              'selectedCommentIds': selected,
               'base64Characters': len(encoded),
               'archiveBytes': len(decoded),
               'archiveSha256': f'sha256:{digest}',
-              'observations': observations,
-          }
-          Path(os.environ['REPORT']).write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
-          print(json.dumps(report, indent=2))
+          }, indent=2) + '\n', encoding='utf-8')
           PY
 
-          archive="$RUNNER_TEMP/pr258-diagnostic-payload.zip"
-          unzip -t "$archive"
-          unpack="$RUNNER_TEMP/pr258-diagnostic"
+          unzip -t "$RUNNER_TEMP/pr258-rebuild-payload.zip" \
+            | tee "$RECEIPT_ROOT/archive-integrity.log"
+          unpack="$RUNNER_TEMP/pr258-rebuild"
           mkdir -p "$unpack"
-          unzip -q "$archive" -d "$unpack"
-          (cd "$unpack" && sha256sum --check --strict SHA256SUMS)
+          unzip -q "$RUNNER_TEMP/pr258-rebuild-payload.zip" -d "$unpack"
+          (cd "$unpack" && sha256sum --check --strict SHA256SUMS) \
+            | tee "$RECEIPT_ROOT/archive-sha256-verification.log"
+
           cp "$unpack/source/package.json" package.json
+          mkdir -p tools/lib tools tests/narrative/canon tests/fixtures docs .github/workflows
           cp "$unpack/source/tools/lib/asoiaf-answer-desk-supervised-delivery.ts" \
             tools/lib/asoiaf-answer-desk-supervised-delivery.ts
           cp "$unpack/source/tools/asoiaf-answer-desk-supervised-delivery.ts" \
             tools/asoiaf-answer-desk-supervised-delivery.ts
           cp "$unpack/source/tests/narrative/canon/asoiaf-answer-desk-supervised-delivery.test.ts" \
             tests/narrative/canon/asoiaf-answer-desk-supervised-delivery.test.ts
-          git diff --check
 
-      - name: Set up Node
-        if: steps.reconstruct.outcome == 'success'
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
+          fetch_blob() {
+            local sha="$1"
+            local target="$2"
+            local response="$RUNNER_TEMP/blob-$sha.json"
+            mkdir -p "$(dirname "$target")"
+            gh api "repos/$GITHUB_REPOSITORY/git/blobs/$sha" > "$response"
+            test "$(jq -r .sha "$response")" = "$sha"
+            test "$(jq -r .encoding "$response")" = base64
+            jq -r .content "$response" | tr -d '\n' | base64 --decode > "$target"
+            test "$(git hash-object "$target")" = "$sha"
+          }
+          fetch_blob 75294b57f4c8597bf6ba86d74aaf200c9c8871bd \
+            .github/workflows/asoiaf-answer-desk-supervised-delivery.yml
+          fetch_blob 271b02152394a3e1870229ce55d02d1fb511da93 \
+            docs/ASOIAF_ANSWER_DESK_SUPERVISED_DELIVERY.md
+          fetch_blob 84029c4217698a0a19f3c347f8046688d66e01b0 \
+            tests/fixtures/emit-asoiaf-answer-desk-supervised-delivery-input.ts
 
-      - name: Install dependencies
-        if: steps.reconstruct.outcome == 'success'
-        id: install
-        continue-on-error: true
-        run: npm ci --no-audit --no-fund
+          cat > "$RECEIPT_ROOT/permanent-surfaces.tsv" <<'EOF'
+          .github/workflows/asoiaf-answer-desk-supervised-delivery.yml	75294b57f4c8597bf6ba86d74aaf200c9c8871bd	3e66d0233d758e611100b11dff0e9a95d0161b02733da9e2f36f8539a0919072
+          docs/ASOIAF_ANSWER_DESK_SUPERVISED_DELIVERY.md	271b02152394a3e1870229ce55d02d1fb511da93	aa42b9ebd6f358c787d756a66d2f0a2fdbf21031ef33942a42dec80eb682ced7
+          package.json	fbe82a00ce1b8147525cd362fdeca99b0437bcbe	47d35b8410b0b5f96db9df88fcdb1e5d8168cbbbe3ccdf8720fbcba847ee6c85
+          tests/fixtures/emit-asoiaf-answer-desk-supervised-delivery-input.ts	84029c4217698a0a19f3c347f8046688d66e01b0	0bc94cd732d43b4723e54e8becb98cffc8177e7135a0b4d435f1cb784ebdbfb2
+          tests/narrative/canon/asoiaf-answer-desk-supervised-delivery.test.ts	854d95abfd37da26a06826ece3ba0cd9c9a96a70	db028414048cb4e0721630ba99ec23ccf901e651a7d9e9280515fd7c9e0d8d1b
+          tools/asoiaf-answer-desk-supervised-delivery.ts	8a52f8853fdb77ebe58f8af8832480981bdc1873	42c26ebfa43653f30570d800e94503f31a44bb87e2945a1b3f4cf33618539700
+          tools/lib/asoiaf-answer-desk-supervised-delivery.ts	e7eed136c6dc3b783b8b26e30ae533568c9128ca	39161cb0e2e0fd976922825c3678ae139e106393e3f7282b5f298e497c7530a1
+          EOF
+          sed -i 's/^          //' "$RECEIPT_ROOT/permanent-surfaces.tsv"
+          : > "$RECEIPT_ROOT/permanent-surface-verification.tsv"
+          while IFS=$'\t' read -r file expected_blob expected_sha256; do
+            actual_blob="$(git hash-object "$file")"
+            actual_sha256="$(sha256sum "$file" | awk '{print $1}')"
+            printf '%s\t%s\t%s\n' "$file" "$actual_blob" "$actual_sha256" \
+              >> "$RECEIPT_ROOT/permanent-surface-verification.tsv"
+            test "$actual_blob" = "$expected_blob"
+            test "$actual_sha256" = "$expected_sha256"
+          done < "$RECEIPT_ROOT/permanent-surfaces.tsv"
 
-      - name: Strict TypeScript
-        if: steps.install.outcome == 'success'
-        id: typecheck
-        continue-on-error: true
-        shell: bash
-        run: |
-          set -o pipefail
-          find src tests tools \( -name '*.js' -o -name '*.js.map' -o -name '*.d.ts' \) -delete
-          rm -f tsconfig.tsbuildinfo
-          npm run typecheck 2>&1 | tee "$RUNNER_TEMP/typecheck.log"
+          cut -f1 "$RECEIPT_ROOT/permanent-surfaces.tsv" | sort \
+            > "$RECEIPT_ROOT/expected-paths.txt"
+          git add -A
+          git diff --cached --check
+          git diff --cached --name-only "$BASE_SHA" -- | sort \
+            > "$RECEIPT_ROOT/actual-paths.txt"
+          diff -u "$RECEIPT_ROOT/expected-paths.txt" "$RECEIPT_ROOT/actual-paths.txt"
 
-      - name: Focused supervised-delivery stack
-        if: steps.install.outcome == 'success'
-        id: focused
-        continue-on-error: true
-        shell: bash
-        run: |
-          set -o pipefail
-          npm test -- \
-            tests/narrative/canon/asoiaf-answer-desk-supervised-delivery.test.ts \
-            tests/narrative/canon/asoiaf-answer-desk-supervisor.test.ts \
-            tests/narrative/canon/asoiaf-answer-desk-transport-operations.test.ts \
-            tests/narrative/canon/asoiaf-answer-desk-transport.test.ts \
-            tests/narrative/canon/asoiaf-answer-desk-exchange.test.ts \
-            tests/narrative/canon/asoiaf-answer-desk-worker.test.ts \
-            tests/narrative/canon/asoiaf-answer-desk-estate.test.ts \
-            tests/narrative/canon/asoiaf-answer-work-lease.test.ts \
-            tests/narrative/canon/asoiaf-answer-work-order.test.ts \
-            tests/narrative/canon/asoiaf-reviewed-answer-packet.test.ts \
-            tests/narrative/canon/asoiaf-research-question-dossier.test.ts \
-            tests/narrative/canon/asoiaf-external-reconciliation-packets.test.ts \
-            2>&1 | tee "$RUNNER_TEMP/focused-tests.log"
+          if grep -Ei -- '(^|/)[^/]*\.(key|pem|p12|pfx|csr|crt)$' \
+            "$RECEIPT_ROOT/expected-paths.txt"; then
+            echo 'secret-bearing permanent path' >&2
+            exit 1
+          fi
 
-      - name: Production build
-        if: steps.install.outcome == 'success'
-        id: build
-        continue-on-error: true
-        shell: bash
-        run: |
-          set -o pipefail
-          npm run build 2>&1 | tee "$RUNNER_TEMP/build.log"
+          printf '%s\n' preflight > "$RECEIPT_ROOT/stage.txt"
+          gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" > "$RECEIPT_ROOT/pr-before.json"
+          test "$(jq -r .state "$RECEIPT_ROOT/pr-before.json")" = open
+          test "$(jq -r .draft "$RECEIPT_ROOT/pr-before.json")" = true
+          test "$(jq -r .merged "$RECEIPT_ROOT/pr-before.json")" = false
+          test "$(jq -r .base.ref "$RECEIPT_ROOT/pr-before.json")" = "$BASE_BRANCH"
+          test "$(jq -r .base.sha "$RECEIPT_ROOT/pr-before.json")" = "$BASE_SHA"
+          test "$(jq -r .head.ref "$RECEIPT_ROOT/pr-before.json")" = "$TARGET_BRANCH"
+          current_head="$(jq -r .head.sha "$RECEIPT_ROOT/pr-before.json")"
+          test -n "$current_head"
+          git fetch --force origin "+refs/heads/$TARGET_BRANCH:refs/remotes/origin/$TARGET_BRANCH"
+          test "$(git rev-parse refs/remotes/origin/$TARGET_BRANCH)" = "$current_head"
+          git merge-base --is-ancestor "$BASE_SHA" "$current_head"
+          printf '%s\n' "$current_head" > "$RECEIPT_ROOT/replaced-head.txt"
 
-      - name: Retain diagnostic evidence
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Restore certificate-authenticated ASOIAF supervised delivery'
+          candidate_sha="$(git rev-parse HEAD)"
+          test "$(git show -s --format=%P HEAD)" = "$BASE_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
+          printf '%s\n' "$candidate_sha" > "$RECEIPT_ROOT/candidate-sha.txt"
+
+          printf '%s\n' publish > "$RECEIPT_ROOT/stage.txt"
+          git push \
+            --force-with-lease="refs/heads/$TARGET_BRANCH:$current_head" \
+            origin "HEAD:refs/heads/$TARGET_BRANCH"
+          git fetch --force origin "+refs/heads/$TARGET_BRANCH:refs/remotes/origin/$TARGET_BRANCH"
+          test "$(git rev-parse refs/remotes/origin/$TARGET_BRANCH)" = "$candidate_sha"
+          printf '%s\n' true > "$RECEIPT_ROOT/published.txt"
+          printf '%s\n' complete > "$RECEIPT_ROOT/stage.txt"
+          echo "candidate_sha=$candidate_sha" >> "$GITHUB_OUTPUT"
+          echo "published=true" >> "$GITHUB_OUTPUT"
+
+      - name: Finalize publication receipt
         if: always()
         shell: bash
         run: |
           set -euo pipefail
-          root='asoiaf-supervised-delivery-rebuild-diagnostic-v2'
-          mkdir -p "$root"
-          for file in reconstruction.json reconstruct.log typecheck.log focused-tests.log build.log; do
-            test -f "$RUNNER_TEMP/$file" && cp "$RUNNER_TEMP/$file" "$root/"
-          done
+          mkdir -p "$RECEIPT_ROOT"
+          test -f "$RECEIPT_ROOT/stage.txt" || printf '%s\n' failed-before-stage > "$RECEIPT_ROOT/stage.txt"
           printf '%s\n' \
+            "publisherSha=$GITHUB_SHA" \
             "baseSha=$BASE_SHA" \
-            "reconstruct=${{ steps.reconstruct.outcome }}" \
-            "install=${{ steps.install.outcome }}" \
-            "typecheck=${{ steps.typecheck.outcome }}" \
-            "focused=${{ steps.focused.outcome }}" \
-            "build=${{ steps.build.outcome }}" \
-            > "$root/outcomes.txt"
-          find "$root" -type f ! -name SHA256SUMS -print0 \
+            "targetBranch=$TARGET_BRANCH" \
+            "published=${{ steps.publish.outputs.published || 'false' }}" \
+            > "$RECEIPT_ROOT/publication-boundary.txt"
+          find "$RECEIPT_ROOT" -type f ! -name SHA256SUMS -print0 \
             | sort -z | xargs -0 sha256sum \
-            | sed "s#  $root/#  #" > "$root/SHA256SUMS"
+            | sed "s#  $RECEIPT_ROOT/#  #" > "$RECEIPT_ROOT/SHA256SUMS"
 
-      - name: Upload diagnostic evidence
+      - name: Upload publication receipt
         if: always()
         id: artifact
         uses: actions/upload-artifact@v4
         with:
-          name: asoiaf-supervised-delivery-rebuild-diagnostic-v2
-          path: asoiaf-supervised-delivery-rebuild-diagnostic-v2
+          name: asoiaf-supervised-delivery-rebuild-publication-v3
+          path: ${{ runner.temp }}/asoiaf-supervised-delivery-rebuild-publication-v3
           if-no-files-found: error
           retention-days: 7
+          compression-level: 6
 
-      - name: Publish exact diagnostic result
+      - name: Report bounded publication result
         if: always()
         env:
           ARTIFACT_ID: ${{ steps.artifact.outputs.artifact-id }}
           ARTIFACT_DIGEST: ${{ steps.artifact.outputs.artifact-digest }}
-          RECONSTRUCT: ${{ steps.reconstruct.outcome }}
-          INSTALL: ${{ steps.install.outcome }}
-          TYPECHECK: ${{ steps.typecheck.outcome }}
-          FOCUSED: ${{ steps.focused.outcome }}
-          BUILD: ${{ steps.build.outcome }}
+          CANDIDATE_SHA: ${{ steps.publish.outputs.candidate_sha }}
+          PUBLISHED: ${{ steps.publish.outputs.published }}
         shell: bash
         run: |
           set -euo pipefail
-          gh pr comment 258 --repo "$GITHUB_REPOSITORY" --body \
-            "ASOIAF_SUPERVISED_DELIVERY_REBUILD_DIAGNOSTIC_V2 base=\`$BASE_SHA\` reconstruct=\`${RECONSTRUCT:-skipped}\` install=\`${INSTALL:-skipped}\` typecheck=\`${TYPECHECK:-skipped}\` focused=\`${FOCUSED:-skipped}\` build=\`${BUILD:-skipped}\` artifact=\`${ARTIFACT_ID:-none}\` digest=\`${ARTIFACT_DIGEST:-none}\`."
-          test "$RECONSTRUCT" = success
-          test "$INSTALL" = success
-          test "$TYPECHECK" = success
-          test "$FOCUSED" = success
-          test "$BUILD" = success
+          stage=unknown
+          test -f "$RECEIPT_ROOT/stage.txt" && stage="$(cat "$RECEIPT_ROOT/stage.txt")"
+          if test "$PUBLISHED" = true; then
+            gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body \
+              "ASOIAF_SUPERVISED_DELIVERY_REBUILD_PUBLICATION_V3 head=\`$CANDIDATE_SHA\` base=\`$BASE_SHA\` surfaces=\`7\` soleParent=\`true\` carrierFree=\`true\` run=\`$GITHUB_RUN_ID\` artifact=\`${ARTIFACT_ID:-none}\` digest=\`${ARTIFACT_DIGEST:-none}\`. Exact-head permanent qualification remains required."
+          else
+            gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body \
+              "ASOIAF_SUPERVISED_DELIVERY_REBUILD_PUBLICATION_V3 refused publisher head \`$GITHUB_SHA\` at stage \`$stage\`; run=\`$GITHUB_RUN_ID\` artifact=\`${ARTIFACT_ID:-none}\`. No recovered candidate or qualification claim is asserted."
+          fi
+          test "$PUBLISHED" = true

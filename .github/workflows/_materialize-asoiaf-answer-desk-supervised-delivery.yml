@@ -1,4 +1,3 @@
-# Retriggered to restore the carrier-free supervised-delivery candidate from its verified publication blobs.
 name: Publish carrier-free ASOIAF supervised delivery
 
 on:
@@ -7,6 +6,7 @@ on:
       - feature/asoiaf-answer-desk-supervised-delivery-v1
     paths:
       - '.github/workflows/_materialize-asoiaf-answer-desk-supervised-delivery.yml'
+      - '.github/workflows/.publish-carrier-free-supervised-delivery-v10.trigger'
   pull_request:
     branches:
       - integration/asoiaf-answer-desk-supervised-transport-v1
@@ -14,11 +14,12 @@ on:
       - opened
       - synchronize
       - reopened
-    paths:
-      - '.github/workflows/_materialize-asoiaf-answer-desk-supervised-delivery.yml'
+  workflow_dispatch:
 
 permissions:
+  actions: read
   contents: write
+  pull-requests: write
 
 concurrency:
   group: publish-carrier-free-asoiaf-supervised-delivery
@@ -28,166 +29,71 @@ jobs:
   publish:
     if: github.repository == 'BigBirdReturns/axm-arc'
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 30
+    env:
+      PR_NUMBER: '258'
+      BASE_BRANCH: integration/asoiaf-answer-desk-supervised-transport-v1
+      BASE_SHA: 52287c5406594ad6e1d1add7d0aef36274179a3e
+      TARGET_BRANCH: feature/asoiaf-answer-desk-supervised-delivery-v1
+      ARCHIVE_BYTES: '45733'
+      ARCHIVE_SHA256: ec29c3d2c1f5040c673afa76be720e4fa1ac3674164e200d6da9fa53771376b8
+      ARCHIVE_GIT_BLOB: 5b8936e97f503da9b2ea536fd02f650548cd3999
+      RECEIPT_ROOT: ${{ runner.temp }}/asoiaf-supervised-delivery-recovery-publication-v10
+      SOURCE_ROOT: ${{ runner.temp }}/asoiaf-supervised-delivery-recovered-source-v10
+      UNPACK_ROOT: ${{ runner.temp }}/asoiaf-supervised-delivery-recovery-unpack-v10
+      ARCHIVE_PATH: ${{ runner.temp }}/PR258_carrier_free_recovery_candidate.zip
+      STAGING_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
     steps:
-      - name: Check out exact construction head
+      - name: Check out exact staging transaction
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ env.STAGING_SHA }}
           fetch-depth: 0
           show-progress: false
 
-      - name: Reconstruct and verify exact publication archive
+      - name: Execute deterministic carrier-free publisher
+        id: publisher
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
-          REPOSITORY: ${{ github.repository }}
         shell: bash
         run: |
           set -euo pipefail
-          test -z "$(git status --porcelain)"
+          export GITHUB_SHA="$STAGING_SHA"
+          gzip -dc .github/recovery-v10/publish-pr258-v10.sh.gz > "$RUNNER_TEMP/publish-pr258-v10.sh"
+          chmod +x "$RUNNER_TEMP/publish-pr258-v10.sh"
+          "$RUNNER_TEMP/publish-pr258-v10.sh"
 
-          node <<'NODE'
-          const crypto = require('node:crypto');
-          const fs = require('node:fs');
-          const path = require('node:path');
+      - name: Upload publication receipt
+        if: always()
+        id: artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: asoiaf-supervised-delivery-recovery-publication-v10
+          path: ${{ runner.temp }}/asoiaf-supervised-delivery-recovery-publication-v10
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 6
 
-          const chunks = [
-            {
-              sha: 'f0e9c1a6afe75498512c31e50b5dc539c8f7a2c7',
-              bytes: 24000,
-              digest: '6e90519ca5aac9e44858997b132a5954ada6214cdff374071832eda8430241e9',
-            },
-            {
-              sha: '903c7498030db950e4b4737ae67db9ddf4a18d2d',
-              bytes: 6760,
-              digest: '54ba211b3eb08cdce2fe88dae0be63ace82d4f952eed5a8281ca2295983a657c',
-            },
-          ];
-          const expectedBytes = 30760;
-          const expectedDigest = '7cd7797a664dd546a9ee83772ae7c012b550ef87ae44b8dfb5eff3c774a2c243';
-          const token = process.env.GH_TOKEN;
-          const repository = process.env.REPOSITORY;
-          const target = path.join(process.env.RUNNER_TEMP, 'asoiaf-supervised-delivery-surfaces.tar.gz');
-          if (!token || !repository) throw new Error('missing GitHub publication environment');
-
-          (async () => {
-            const buffers = [];
-            for (const chunk of chunks) {
-              const response = await fetch(`https://api.github.com/repos/${repository}/git/blobs/${chunk.sha}`, {
-                headers: {
-                  Accept: 'application/vnd.github+json',
-                  Authorization: `Bearer ${token}`,
-                  'X-GitHub-Api-Version': '2022-11-28',
-                  'User-Agent': 'axm-arc-supervised-delivery-publisher',
-                },
-              });
-              const body = await response.json();
-              if (!response.ok || body.sha !== chunk.sha || body.encoding !== 'base64') {
-                throw new Error(`publication chunk retrieval failed for ${chunk.sha}: ${response.status} ${JSON.stringify(body)}`);
-              }
-              const buffer = Buffer.from(String(body.content).replace(/\n/g, ''), 'base64');
-              const digest = crypto.createHash('sha256').update(buffer).digest('hex');
-              if (buffer.length !== chunk.bytes || digest !== chunk.digest) {
-                throw new Error(`publication chunk verification failed for ${chunk.sha}: ${buffer.length} ${digest}`);
-              }
-              buffers.push(buffer);
-            }
-            const archive = Buffer.concat(buffers);
-            const digest = crypto.createHash('sha256').update(archive).digest('hex');
-            if (archive.length !== expectedBytes || digest !== expectedDigest) {
-              throw new Error(`publication archive verification failed: ${archive.length} ${digest}`);
-            }
-            fs.writeFileSync(target, archive);
-          })().catch((error) => {
-            console.error(error);
-            process.exitCode = 1;
-          });
-          NODE
-
-          printf '%s  %s\n' \
-            '7cd7797a664dd546a9ee83772ae7c012b550ef87ae44b8dfb5eff3c774a2c243' \
-            "$RUNNER_TEMP/asoiaf-supervised-delivery-surfaces.tar.gz" \
-            | sha256sum --check --strict
-          tar -tzf "$RUNNER_TEMP/asoiaf-supervised-delivery-surfaces.tar.gz" \
-            | sort > "$RUNNER_TEMP/archive-paths.txt"
-          cat > "$RUNNER_TEMP/expected-archive-paths.txt" <<'EOF'
-          .github/workflows/asoiaf-answer-desk-supervised-delivery.yml
-          docs/ASOIAF_ANSWER_DESK_SUPERVISED_DELIVERY.md
-          package.json
-          tests/fixtures/emit-asoiaf-answer-desk-supervised-delivery-input.ts
-          tests/narrative/canon/asoiaf-answer-desk-supervised-delivery.test.ts
-          tools/asoiaf-answer-desk-supervised-delivery.ts
-          tools/lib/asoiaf-answer-desk-supervised-delivery.ts
-          EOF
-          sort "$RUNNER_TEMP/expected-archive-paths.txt" -o "$RUNNER_TEMP/expected-archive-paths.txt"
-          diff -u "$RUNNER_TEMP/expected-archive-paths.txt" "$RUNNER_TEMP/archive-paths.txt"
-          tar -xzf "$RUNNER_TEMP/asoiaf-supervised-delivery-surfaces.tar.gz"
-
-          printf '%s  %s\n' \
-            'f3a0006ac78ee22f2eaacff0015c771c896e30439ee8afb639e3b0b81ccc2c47' '.github/workflows/asoiaf-answer-desk-supervised-delivery.yml' \
-            'bfed202e169ad657b79d355b9b041ab87f36c4bda9ac679321ffe6ff40d6edbf' 'docs/ASOIAF_ANSWER_DESK_SUPERVISED_DELIVERY.md' \
-            '47d35b8410b0b5f96db9df88fcdb1e5d8168cbbbe3ccdf8720fbcba847ee6c85' 'package.json' \
-            '194a19cc7afa35621e9f55c64d418693d1170cf4d3c752934b5f30c970d44ac9' 'tests/fixtures/emit-asoiaf-answer-desk-supervised-delivery-input.ts' \
-            '68e0836d636c969e5e4ff690d0d65d066fcec7d8722d73af22698cd42610c626' 'tests/narrative/canon/asoiaf-answer-desk-supervised-delivery.test.ts' \
-            '4175416ade8c20eddce586864aa3073f7e906cb1d454a29f381bf520aa763a36' 'tools/asoiaf-answer-desk-supervised-delivery.ts' \
-            '4996a9cd978825ef03570ae5161e552321ecc5727cc2dbe290b5243cdd88ee11' 'tools/lib/asoiaf-answer-desk-supervised-delivery.ts' \
-            | sha256sum --check --strict
-
-      - name: Remove every construction carrier and verify the final diff
+      - name: Report bounded publication result
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARTIFACT_ID: ${{ steps.artifact.outputs.artifact-id }}
         shell: bash
         run: |
           set -euo pipefail
-          rm -rf .github/materialize/asoiaf-answer-supervised-delivery
-          rm -f \
-            .github/workflows/_bootstrap-supervised-delivery-source.yml \
-            .github/workflows/_diagnose-supervised-delivery-payload.yml \
-            .github/workflows/_export-asoiaf-supervised-delivery-base.yml \
-            .github/workflows/_materialize-asoiaf-answer-desk-supervised-delivery.yml
-
-          cat > "$RUNNER_TEMP/expected-commit-paths.txt" <<'EOF'
-          .github/materialize/asoiaf-answer-supervised-delivery/part-00.b64
-          .github/materialize/asoiaf-answer-supervised-delivery/part-01.b64
-          .github/materialize/asoiaf-answer-supervised-delivery/part-02.b64
-          .github/materialize/asoiaf-answer-supervised-delivery/part-03.b64
-          .github/materialize/asoiaf-answer-supervised-delivery/part-04.b64
-          .github/workflows/_bootstrap-supervised-delivery-source.yml
-          .github/workflows/_diagnose-supervised-delivery-payload.yml
-          .github/workflows/_export-asoiaf-supervised-delivery-base.yml
-          .github/workflows/_materialize-asoiaf-answer-desk-supervised-delivery.yml
-          .github/workflows/asoiaf-answer-desk-supervised-delivery.yml
-          docs/ASOIAF_ANSWER_DESK_SUPERVISED_DELIVERY.md
-          package.json
-          tests/fixtures/emit-asoiaf-answer-desk-supervised-delivery-input.ts
-          tests/narrative/canon/asoiaf-answer-desk-supervised-delivery.test.ts
-          tools/asoiaf-answer-desk-supervised-delivery.ts
-          tools/lib/asoiaf-answer-desk-supervised-delivery.ts
-          EOF
-
-          git add -A
-          git diff --cached --name-only | sort > "$RUNNER_TEMP/actual-commit-paths.txt"
-          sort "$RUNNER_TEMP/expected-commit-paths.txt" -o "$RUNNER_TEMP/expected-commit-paths.txt"
-          diff -u "$RUNNER_TEMP/expected-commit-paths.txt" "$RUNNER_TEMP/actual-commit-paths.txt"
-
-          base_sha='52287c5406594ad6e1d1add7d0aef36274179a3e'
-          cat > "$RUNNER_TEMP/expected-final-paths.txt" <<'EOF'
-          .github/workflows/asoiaf-answer-desk-supervised-delivery.yml
-          docs/ASOIAF_ANSWER_DESK_SUPERVISED_DELIVERY.md
-          package.json
-          tests/fixtures/emit-asoiaf-answer-desk-supervised-delivery-input.ts
-          tests/narrative/canon/asoiaf-answer-desk-supervised-delivery.test.ts
-          tools/asoiaf-answer-desk-supervised-delivery.ts
-          tools/lib/asoiaf-answer-desk-supervised-delivery.ts
-          EOF
-          git diff --name-only "$base_sha" -- | sort > "$RUNNER_TEMP/actual-final-paths.txt"
-          sort "$RUNNER_TEMP/expected-final-paths.txt" -o "$RUNNER_TEMP/expected-final-paths.txt"
-          diff -u "$RUNNER_TEMP/expected-final-paths.txt" "$RUNNER_TEMP/actual-final-paths.txt"
-          git diff --check "$base_sha" --
-
-      - name: Commit and publish exact carrier-free surfaces
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name 'BigBirdReturns supervised delivery qualification'
-          git config user.email 'actions@users.noreply.github.com'
-          git commit -m 'Add certificate-authenticated ASOIAF supervised delivery'
-          git push origin HEAD:feature/asoiaf-answer-desk-supervised-delivery-v1
+          stage=unknown
+          published=false
+          candidate='not-issued'
+          test -f "$RECEIPT_ROOT/stage.txt" && stage="$(cat "$RECEIPT_ROOT/stage.txt")"
+          test -f "$RECEIPT_ROOT/published.txt" && published="$(cat "$RECEIPT_ROOT/published.txt")"
+          test -f "$RECEIPT_ROOT/candidate-sha.txt" && candidate="$(cat "$RECEIPT_ROOT/candidate-sha.txt")"
+          if test "$published" = true; then
+            gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body \
+              "Carrier-free supervised delivery was published on exact sole-parent head \`$candidate\`, directly above \`$BASE_SHA\`, with exactly seven permanent surfaces. Publication run \`$GITHUB_RUN_ID\`; receipt artifact \`${ARTIFACT_ID:-not-issued}\`. This is a publication receipt only. Exact-head permanent workflow qualification and independent artifact verification remain required."
+          else
+            gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body \
+              "Carrier-free supervised-delivery recovery publisher v10 refused staging head \`$STAGING_SHA\` at stage \`$stage\`. Run \`$GITHUB_RUN_ID\`; receipt artifact \`${ARTIFACT_ID:-not-issued}\`. No recovered candidate or terminal qualification is asserted."
+          fi
+          test "$published" = true

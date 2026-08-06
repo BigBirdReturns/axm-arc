@@ -1,3 +1,4 @@
+# Retriggered after initial workflow registration.
 name: Recover ASOIAF supervised delivery source objects v1
 
 on:
@@ -54,7 +55,6 @@ jobs:
           import json
           import os
           import pathlib
-          import re
           import subprocess
 
           out = pathlib.Path(os.environ['OUT'])

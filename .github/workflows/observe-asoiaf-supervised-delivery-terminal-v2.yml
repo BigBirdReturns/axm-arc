@@ -1,0 +1,438 @@
+name: Observe recovered ASOIAF supervised delivery terminal v2
+
+on:
+  push:
+    branches:
+      - observer/asoiaf-supervised-delivery-terminal-v2
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: write
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: observe-recovered-asoiaf-supervised-delivery-terminal-v2
+  cancel-in-progress: false
+
+jobs:
+  observe:
+    if: github.repository == 'BigBirdReturns/axm-arc'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      PR_NUMBER: '258'
+      BASE_BRANCH: integration/asoiaf-answer-desk-supervised-transport-v1
+      BASE_SHA: 52287c5406594ad6e1d1add7d0aef36274179a3e
+      HEAD_BRANCH: feature/asoiaf-answer-desk-supervised-delivery-v1
+      DELETED_HEAD: 01483599237bf6436e80c1fc0476ed7da545e07b
+      WORKFLOW_NAME: ASOIAF supervised answer delivery
+      RECEIPT_MARKER: ASOIAF_SUPERVISED_DELIVERY_RECOVERY_TERMINAL_V2
+    steps:
+      - name: Check out exact observer custody
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          show-progress: false
+
+      - name: Wait for exact carrier-free recovered candidate
+        id: candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > "$RUNNER_TEMP/expected-paths.txt" <<'EOF'
+          .github/workflows/asoiaf-answer-desk-supervised-delivery.yml
+          docs/ASOIAF_ANSWER_DESK_SUPERVISED_DELIVERY.md
+          package.json
+          tests/fixtures/emit-asoiaf-answer-desk-supervised-delivery-input.ts
+          tests/narrative/canon/asoiaf-answer-desk-supervised-delivery.test.ts
+          tools/asoiaf-answer-desk-supervised-delivery.ts
+          tools/lib/asoiaf-answer-desk-supervised-delivery.ts
+          EOF
+          sed -i 's/^          //' "$RUNNER_TEMP/expected-paths.txt"
+          sort -o "$RUNNER_TEMP/expected-paths.txt" "$RUNNER_TEMP/expected-paths.txt"
+
+          cat > "$RUNNER_TEMP/expected-blobs.tsv" <<'EOF'
+          .github/workflows/asoiaf-answer-desk-supervised-delivery.yml	75294b57f4c8597bf6ba86d74aaf200c9c8871bd
+          docs/ASOIAF_ANSWER_DESK_SUPERVISED_DELIVERY.md	271b02152394a3e1870229ce55d02d1fb511da93
+          package.json	fbe82a00ce1b8147525cd362fdeca99b0437bcbe
+          tests/fixtures/emit-asoiaf-answer-desk-supervised-delivery-input.ts	84029c4217698a0a19f3c347f8046688d66e01b0
+          tests/narrative/canon/asoiaf-answer-desk-supervised-delivery.test.ts	854d95abfd37da26a06826ece3ba0cd9c9a96a70
+          tools/asoiaf-answer-desk-supervised-delivery.ts	8a52f8853fdb77ebe58f8af8832480981bdc1873
+          tools/lib/asoiaf-answer-desk-supervised-delivery.ts	e7eed136c6dc3b783b8b26e30ae533568c9128ca
+          EOF
+          sed -i 's/^          //' "$RUNNER_TEMP/expected-blobs.tsv"
+
+          ready=false
+          for attempt in $(seq 1 300); do
+            gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" > "$RUNNER_TEMP/pr.json"
+            test "$(jq -r .state "$RUNNER_TEMP/pr.json")" = open
+            test "$(jq -r .draft "$RUNNER_TEMP/pr.json")" = true
+            test "$(jq -r .merged "$RUNNER_TEMP/pr.json")" = false
+            test "$(jq -r .base.ref "$RUNNER_TEMP/pr.json")" = "$BASE_BRANCH"
+            test "$(jq -r .base.sha "$RUNNER_TEMP/pr.json")" = "$BASE_SHA"
+            test "$(jq -r .head.ref "$RUNNER_TEMP/pr.json")" = "$HEAD_BRANCH"
+            candidate_sha="$(jq -r .head.sha "$RUNNER_TEMP/pr.json")"
+            if test "$candidate_sha" = "$DELETED_HEAD"; then
+              echo 'deleted historical identity cannot be accepted as a recovery candidate' >&2
+              exit 1
+            fi
+            gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/files?per_page=100" --slurp \
+              | jq -r 'add | map(.filename) | sort | .[]' > "$RUNNER_TEMP/actual-paths.txt"
+            if diff -u "$RUNNER_TEMP/expected-paths.txt" "$RUNNER_TEMP/actual-paths.txt"; then
+              ready=true
+              break
+            fi
+            sleep 10
+          done
+          if test "$ready" != true; then
+            gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body \
+              'The recovered supervised-delivery terminal observer timed out before a carrier-free seven-surface head appeared. No exact-head qualification claim is made.'
+            exit 1
+          fi
+
+          gh api "repos/$GITHUB_REPOSITORY/commits/$candidate_sha" > "$RUNNER_TEMP/commit.json"
+          test "$(jq '.parents | length' "$RUNNER_TEMP/commit.json")" = '1'
+          test "$(jq -r '.parents[0].sha' "$RUNNER_TEMP/commit.json")" = "$BASE_SHA"
+
+          git fetch --force origin \
+            "+refs/heads/$BASE_BRANCH:refs/remotes/origin/$BASE_BRANCH" \
+            "+refs/heads/$HEAD_BRANCH:refs/remotes/origin/$HEAD_BRANCH"
+          test "$(git rev-parse refs/remotes/origin/$BASE_BRANCH)" = "$BASE_SHA"
+          test "$(git rev-parse refs/remotes/origin/$HEAD_BRANCH)" = "$candidate_sha"
+          test "$(git show -s --format=%P "$candidate_sha")" = "$BASE_SHA"
+          git diff --check "$BASE_SHA" "$candidate_sha"
+          while IFS=$'\t' read -r path expected_blob; do
+            test "$(git rev-parse "$candidate_sha:$path")" = "$expected_blob"
+          done < "$RUNNER_TEMP/expected-blobs.tsv"
+
+          printf '%s\n' "$candidate_sha" > "$RUNNER_TEMP/candidate-sha.txt"
+          printf '%s\n' "$BASE_SHA" > "$RUNNER_TEMP/base-sha.txt"
+          git diff --name-status "$BASE_SHA" "$candidate_sha" > "$RUNNER_TEMP/final-diff.txt"
+          echo "candidate_sha=$candidate_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for complete successful exact-head workflow matrix
+        id: runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_SHA: ${{ steps.candidate.outputs.candidate_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > "$RUNNER_TEMP/expected-workflows.txt" <<'EOF'
+          ASOIAF answer work lease
+          ASOIAF answer work order
+          ASOIAF external collector
+          ASOIAF persistent answer desk estate
+          ASOIAF research question dossier
+          ASOIAF reviewed answer packet
+          ASOIAF structured acquisition source health
+          ASOIAF structured observation admission health
+          ASOIAF supervised answer delivery
+          Arc product parity
+          Arc supply-chain evidence
+          Canon constraint bible
+          Creator recovery kit
+          Gate 7A clean-room cartridge
+          test
+          EOF
+          sed -i 's/^          //' "$RUNNER_TEMP/expected-workflows.txt"
+          sort -o "$RUNNER_TEMP/expected-workflows.txt" "$RUNNER_TEMP/expected-workflows.txt"
+
+          ready=false
+          for attempt in $(seq 1 360); do
+            gh api --method GET "repos/$GITHUB_REPOSITORY/actions/runs" \
+              -f head_sha="$CANDIDATE_SHA" -f per_page=100 > "$RUNNER_TEMP/runs.json"
+            CANDIDATE_SHA="$CANDIDATE_SHA" EXPECTED="$RUNNER_TEMP/expected-workflows.txt" \
+            RUNS="$RUNNER_TEMP/runs.json" STATE="$RUNNER_TEMP/run-state.json" python3 <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          candidate = os.environ['CANDIDATE_SHA']
+          expected = [line for line in Path(os.environ['EXPECTED']).read_text().splitlines() if line]
+          payload = json.loads(Path(os.environ['RUNS']).read_text())
+          latest = {}
+          for run in payload.get('workflow_runs', []):
+              if run.get('head_sha') != candidate or run.get('name') not in expected:
+                  continue
+              name = run['name']
+              if name not in latest or int(run.get('run_number') or 0) > int(latest[name].get('run_number') or 0):
+                  latest[name] = run
+          projection, missing, pending, failed = [], [], [], []
+          for name in expected:
+              run = latest.get(name)
+              if run is None:
+                  missing.append(name)
+                  projection.append({'name': name, 'status': 'missing', 'conclusion': None, 'id': None})
+                  continue
+              item = {
+                  'name': name,
+                  'id': run.get('id'),
+                  'status': run.get('status'),
+                  'conclusion': run.get('conclusion'),
+                  'runNumber': run.get('run_number'),
+                  'url': run.get('html_url'),
+              }
+              projection.append(item)
+              if run.get('status') != 'completed':
+                  pending.append(item)
+              elif run.get('conclusion') != 'success':
+                  failed.append(item)
+          state = {
+              'format': 'axm-pr258-recovery-exact-head-run-state/1',
+              'candidateSha': candidate,
+              'projection': projection,
+              'missing': missing,
+              'pending': pending,
+              'failed': failed,
+              'ready': not missing and not pending and not failed,
+          }
+          Path(os.environ['STATE']).write_text(json.dumps(state, indent=2) + '\n')
+          print(json.dumps(state, indent=2))
+          PY
+            if test "$(jq '.failed | length' "$RUNNER_TEMP/run-state.json")" != '0'; then
+              gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body \
+                "The recovered supervised-delivery terminal observer found a failed latest exact-head workflow on \`$CANDIDATE_SHA\`. No terminal qualification claim is made."
+              exit 1
+            fi
+            if test "$(jq -r .ready "$RUNNER_TEMP/run-state.json")" = true; then
+              ready=true
+              break
+            fi
+            sleep 10
+          done
+          if test "$ready" != true; then
+            gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body \
+              "The recovered supervised-delivery terminal observer timed out waiting for the complete successful exact-head workflow matrix on \`$CANDIDATE_SHA\`."
+            exit 1
+          fi
+          cp "$RUNNER_TEMP/run-state.json" "$RUNNER_TEMP/exact-head-runs.json"
+          run_id="$(jq -r --arg name "$WORKFLOW_NAME" '.projection[] | select(.name == $name) | .id' "$RUNNER_TEMP/run-state.json")"
+          test -n "$run_id"
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+
+      - name: Independently verify permanent qualification artifact
+        id: artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_SHA: ${{ steps.candidate.outputs.candidate_sha }}
+          RUN_ID: ${{ steps.runs.outputs.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/artifacts?per_page=100" > "$RUNNER_TEMP/artifacts.json"
+          jq -c '[.artifacts[] | select(.expired == false and (.name | test("supervised.*delivery.*qualification"; "i")))] | sort_by(.created_at) | last // empty' \
+            "$RUNNER_TEMP/artifacts.json" > "$RUNNER_TEMP/artifact.json"
+          test -s "$RUNNER_TEMP/artifact.json"
+          artifact_id="$(jq -r .id "$RUNNER_TEMP/artifact.json")"
+          artifact_name="$(jq -r .name "$RUNNER_TEMP/artifact.json")"
+          artifact_digest="$(jq -r .digest "$RUNNER_TEMP/artifact.json")"
+          artifact_size="$(jq -r .size_in_bytes "$RUNNER_TEMP/artifact.json")"
+          test -n "$artifact_id"
+          test "$artifact_digest" != null
+          zip="$RUNNER_TEMP/supervised-delivery-qualification.zip"
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id/zip" > "$zip"
+          computed="sha256:$(sha256sum "$zip" | awk '{print $1}')"
+          test "$computed" = "$artifact_digest"
+          unzip -t "$zip" | tee "$RUNNER_TEMP/zip-integrity.log"
+          unpack="$RUNNER_TEMP/supervised-delivery-artifact"
+          mkdir -p "$unpack"
+          unzip -q "$zip" -d "$unpack"
+          root="$(find "$unpack" -type f -name SHA256SUMS -printf '%h\n' | head -n1)"
+          test -n "$root"
+          candidate_file="$(find "$root" -type f -name candidate-sha.txt -print -quit)"
+          test -n "$candidate_file"
+          test "$(tr -d '\r\n' < "$candidate_file")" = "$CANDIDATE_SHA"
+          (cd "$root" && sha256sum -c SHA256SUMS) | tee "$RUNNER_TEMP/artifact-sha256-verification.log"
+
+          if find "$root" -type f \( \
+            -iname '*.key' -o -iname '*.crt' -o -iname '*.pem' -o -iname '*.csr' \
+            -o -iname '*.p12' -o -iname '*.pfx' -o -iname '*.der' \
+          \) | grep -q .; then
+            echo 'qualification artifact contains secret-bearing paths' >&2
+            exit 1
+          fi
+          if grep -R -I -E -- \
+            '-----BEGIN (CERTIFICATE|PRIVATE KEY|RSA PRIVATE KEY|EC PRIVATE KEY|CERTIFICATE REQUEST)-----|pkcs11:|providerPin|privateKeyBytes|rawHardwareKeyReference|rawKeyHandle' \
+            "$root"; then
+            echo 'qualification artifact contains forbidden credential material' >&2
+            exit 1
+          fi
+
+          ROOT="$root" GITHUB_OUTPUT="$GITHUB_OUTPUT" python3 <<'PY'
+          import json
+          import os
+          import re
+          from pathlib import Path
+
+          root = Path(os.environ['ROOT'])
+          ansi = re.compile(r'\x1b\[[0-9;]*m')
+          def read(name):
+              values = list(root.rglob(name))
+              return ansi.sub('', values[0].read_text(errors='replace')) if values else ''
+          def counts(value):
+              files = re.findall(r'Test Files\s+(\d+) passed', value)
+              tests = re.findall(r'Tests\s+(\d+) passed', value)
+              return (int(files[-1]) if files else None, int(tests[-1]) if tests else None)
+
+          focused_files, focused_tests = counts(read('focused-tests.log'))
+          regression_files, regression_tests = counts(read('full-tests.log'))
+          modules = re.findall(r'(\d+) modules transformed', read('build.log'))
+          transformed = int(modules[-1]) if modules else None
+          observed = {
+              'focusedFiles': focused_files,
+              'focusedTests': focused_tests,
+              'regressionFiles': regression_files,
+              'regressionTests': regression_tests,
+              'modulesTransformed': transformed,
+          }
+          if focused_files is None or focused_files < 12 or focused_tests is None or focused_tests < 96:
+              raise SystemExit(f'focused qualification totals refused: {observed}')
+          if regression_files is None or regression_files < 132 or regression_tests is None or regression_tests < 1073:
+              raise SystemExit(f'regression totals refused: {observed}')
+          if transformed != 189:
+              raise SystemExit(f'build total refused: {observed}')
+          (root / 'independent-observed-totals.json').write_text(json.dumps(observed, indent=2) + '\n')
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output:
+              for key, value in observed.items():
+                  snake = re.sub(r'(?<!^)(?=[A-Z])', '_', key).lower()
+                  output.write(f'{snake}={value}\n')
+          PY
+
+          file_count="$(find "$root" -type f | wc -l | tr -d ' ')"
+          echo "artifact_id=$artifact_id" >> "$GITHUB_OUTPUT"
+          echo "artifact_name=$artifact_name" >> "$GITHUB_OUTPUT"
+          echo "artifact_digest=$artifact_digest" >> "$GITHUB_OUTPUT"
+          echo "artifact_size=$artifact_size" >> "$GITHUB_OUTPUT"
+          echo "artifact_file_count=$file_count" >> "$GITHUB_OUTPUT"
+
+      - name: Retain independent terminalization ledger
+        id: terminal_artifact
+        env:
+          CANDIDATE_SHA: ${{ steps.candidate.outputs.candidate_sha }}
+          RUN_ID: ${{ steps.runs.outputs.run_id }}
+          ARTIFACT_ID: ${{ steps.artifact.outputs.artifact_id }}
+          ARTIFACT_NAME: ${{ steps.artifact.outputs.artifact_name }}
+          ARTIFACT_DIGEST: ${{ steps.artifact.outputs.artifact_digest }}
+          ARTIFACT_SIZE: ${{ steps.artifact.outputs.artifact_size }}
+          ARTIFACT_FILE_COUNT: ${{ steps.artifact.outputs.artifact_file_count }}
+          FOCUSED_FILES: ${{ steps.artifact.outputs.focused_files }}
+          FOCUSED_TESTS: ${{ steps.artifact.outputs.focused_tests }}
+          REGRESSION_FILES: ${{ steps.artifact.outputs.regression_files }}
+          REGRESSION_TESTS: ${{ steps.artifact.outputs.regression_tests }}
+          MODULES_TRANSFORMED: ${{ steps.artifact.outputs.modules_transformed }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/pr258-supervised-delivery-terminalization-v2"
+          mkdir -p "$root"
+          cp "$RUNNER_TEMP/pr.json" "$root/pr.json"
+          cp "$RUNNER_TEMP/commit.json" "$root/commit.json"
+          cp "$RUNNER_TEMP/expected-paths.txt" "$root/permanent-paths.txt"
+          cp "$RUNNER_TEMP/expected-blobs.tsv" "$root/permanent-blobs.tsv"
+          cp "$RUNNER_TEMP/final-diff.txt" "$root/final-diff.txt"
+          cp "$RUNNER_TEMP/exact-head-runs.json" "$root/exact-head-runs.json"
+          cp "$RUNNER_TEMP/artifact.json" "$root/artifact.json"
+          cp "$RUNNER_TEMP/zip-integrity.log" "$root/zip-integrity.log"
+          cp "$RUNNER_TEMP/artifact-sha256-verification.log" "$root/artifact-sha256-verification.log"
+          cat > "$root/terminalization.json" <<EOF
+          {
+            "format": "axm-pr258-supervised-delivery-recovery-terminalization/2",
+            "repository": "$GITHUB_REPOSITORY",
+            "pullRequest": $PR_NUMBER,
+            "baseSha": "$BASE_SHA",
+            "deletedHistoricalHead": "$DELETED_HEAD",
+            "candidateSha": "$CANDIDATE_SHA",
+            "workflowRunId": $RUN_ID,
+            "artifactId": $ARTIFACT_ID,
+            "artifactName": "$ARTIFACT_NAME",
+            "artifactDigest": "$ARTIFACT_DIGEST",
+            "artifactSize": $ARTIFACT_SIZE,
+            "artifactFileCount": $ARTIFACT_FILE_COUNT,
+            "focusedFiles": $FOCUSED_FILES,
+            "focusedTests": $FOCUSED_TESTS,
+            "regressionFiles": $REGRESSION_FILES,
+            "regressionTests": $REGRESSION_TESTS,
+            "modulesTransformed": $MODULES_TRANSFORMED,
+            "permanentSurfaceCount": 7,
+            "carrierFree": true,
+            "historicalIdentityResurrected": false,
+            "secretMaterialFound": false,
+            "authority": "none",
+            "graphEffect": "none",
+            "canonEffect": "none",
+            "answerEffect": "none"
+          }
+          EOF
+          sed -i 's/^          //' "$root/terminalization.json"
+          find "$root" -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum \
+            | sed "s#  $root/#  #" > "$root/SHA256SUMS"
+
+      - name: Upload independent terminalization ledger
+        id: terminal_upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr258-supervised-delivery-recovery-terminalization-v2
+          path: ${{ runner.temp }}/pr258-supervised-delivery-terminalization-v2
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 6
+
+      - name: Publish authoritative recovery body and terminal receipt
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_SHA: ${{ steps.candidate.outputs.candidate_sha }}
+          RUN_ID: ${{ steps.runs.outputs.run_id }}
+          ARTIFACT_ID: ${{ steps.artifact.outputs.artifact_id }}
+          ARTIFACT_NAME: ${{ steps.artifact.outputs.artifact_name }}
+          ARTIFACT_DIGEST: ${{ steps.artifact.outputs.artifact_digest }}
+          ARTIFACT_SIZE: ${{ steps.artifact.outputs.artifact_size }}
+          ARTIFACT_FILE_COUNT: ${{ steps.artifact.outputs.artifact_file_count }}
+          FOCUSED_FILES: ${{ steps.artifact.outputs.focused_files }}
+          FOCUSED_TESTS: ${{ steps.artifact.outputs.focused_tests }}
+          REGRESSION_FILES: ${{ steps.artifact.outputs.regression_files }}
+          REGRESSION_TESTS: ${{ steps.artifact.outputs.regression_tests }}
+          MODULES_TRANSFORMED: ${{ steps.artifact.outputs.modules_transformed }}
+          TERMINAL_ARTIFACT_ID: ${{ steps.terminal_upload.outputs.artifact-id }}
+          TERMINAL_ARTIFACT_DIGEST: ${{ steps.terminal_upload.outputs.artifact-digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          body="$RUNNER_TEMP/pr-body.md"
+          cat > "$body" <<EOF
+          This stacked draft implements certificate-authenticated supervised delivery above terminally qualified integration PR #257. The historical head \`$DELETED_HEAD\` is no longer reachable and has not been resurrected. The recovered implementation is independently qualified on new exact head \`$CANDIDATE_SHA\`, based directly on \`$BASE_SHA\`. Its final diff contains exactly seven permanent surfaces and no bootstrap, materialization, payload, diagnostic, certificate, private key, generated estate, or workflow-receipt carrier.
+
+          The qualified supervisor prepares one exact external item, actor, role, lease duration, work-order head, operation, canonical request-body digest, idempotency digest, active certificate admission, and fresh client-specific rendezvous before remote delivery. Mutual TLS authenticates the requesting actor, but certificate admission creates no lease or assignment. Only the local delivery desk can execute the prepared supervisor intent through the pinned transport and permanent exchange validator.
+
+          Result return preserves the same authority division. The remote actor authenticates the exact typed return for its retained assignment delivery, but that authentication creates no settlement. Only the local desk can submit the result through the lower transport and exchange validators, adopt the refreshed qualified work-order head, and retain the permanent settlement. Exact retries reuse the same request, response, intent, supervisor run, assignment delivery, lower transport request and response, typed result, refreshed head, settlement, and return receipt without another mutation.
+
+          The automatic \`render-reviewed-answer\` transition remains local to \`asoiaf-answer-worker:reviewed-renderer-v1\`. It receives no certificate admission or rendezvous and never crosses the remote-delivery plane.
+
+          Permanent exact-head workflow run \`$RUN_ID\` passed operator registration, strict TypeScript, $FOCUSED_TESTS focused tests across $FOCUSED_FILES files, the complete mutual-TLS pull, return, restart replay, retirement, and local-render lifecycle, all $REGRESSION_TESTS repository tests across $REGRESSION_FILES files, and the production build with $MODULES_TRANSFORMED modules transformed. Qualification artifact \`$ARTIFACT_ID\` (\`$ARTIFACT_NAME\`) is $ARTIFACT_SIZE bytes, contains $ARTIFACT_FILE_COUNT files after extraction, and has ZIP digest \`$ARTIFACT_DIGEST\`. Independent outer-digest, ZIP, internal-checksum, exact-head, qualification-total, and secret-material verification passed. Independent terminalization artifact \`$TERMINAL_ARTIFACT_ID\` has digest \`$TERMINAL_ARTIFACT_DIGEST\`.
+
+          The evidence tier is recovered exact source custody, new sole-parent Git identity, typed supervised-delivery implementation, real mutual TLS, restart and exact replay, certificate retirement refusal, complete exact-head workflow success, independent artifact verification, complete regression, and production build. The venue is this open, draft, mergeable, unmerged PR above PR #257. The target is certificate-authenticated release of one prepared supervisor intent and local validation of one returned result, rather than remote task authority. The upside is exact linkage from scheduling decision through certificate, rendezvous, delivery, result, refreshed head, and settlement. The downside is explicit certificate and endpoint operations, append-only delivery custody, and a still-separate remote actor runtime. The failure mode is allowing a remote body to choose work, a scheduler to possess an actor key, a certificate to create a lease or settlement, or a delivery response to substitute for the permanent lower validator.
+
+          The control question is whether every remote transition can identify the exact prepared supervisor intent, actor-capacity decision, certificate admission, fresh pinned rendezvous, request and response, supervisor run, assignment delivery, typed result return, refreshed work-order head, and permanent settlement while no scheduler, certificate, endpoint, envelope, or remote response acquires task, research, review, graph, canon, answer, private-text, or automatic-renderer authority.
+          EOF
+          sed -i 's/^          //' "$body"
+          gh pr edit "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file "$body"
+
+          gh api "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments?per_page=100" > "$RUNNER_TEMP/comments.json"
+          if ! jq -e --arg marker "$RECEIPT_MARKER" '[.[] | select((.body // "") | contains($marker))] | length > 0' "$RUNNER_TEMP/comments.json" >/dev/null; then
+            gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body \
+              "${RECEIPT_MARKER}\n\nRecovered supervised delivery is terminally qualified on new exact carrier-free head \`$CANDIDATE_SHA\`, based directly on \`$BASE_SHA\`. Historical head \`$DELETED_HEAD\` was not resurrected. Permanent workflow run \`$RUN_ID\` passed strict TypeScript, $FOCUSED_TESTS focused tests across $FOCUSED_FILES files, the complete lifecycle and exact replay, all $REGRESSION_TESTS repository tests across $REGRESSION_FILES files, and the $MODULES_TRANSFORMED-module production build. Qualification artifact \`$ARTIFACT_ID\` is $ARTIFACT_SIZE bytes with ZIP digest \`$ARTIFACT_DIGEST\`; independent verification passed. Terminalization artifact \`$TERMINAL_ARTIFACT_ID\` has digest \`$TERMINAL_ARTIFACT_DIGEST\`. PR #258 remains open, draft, mergeable, unmerged, and limited to exactly seven permanent surfaces."
+          fi
+
+      - name: Delete disposable observer branch
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh api --method DELETE \
+            "repos/$GITHUB_REPOSITORY/git/refs/heads/observer/asoiaf-supervised-delivery-terminal-v2"

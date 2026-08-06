@@ -40,14 +40,14 @@ export type AsoiafAnswerCredentialProviderHostKind =
   | "synthetic-fixture"
   | "windows-cng";
 
-interface NoTaskAuthority {
+interface NoAuthority {
   authority: "none";
   graphEffect: "none";
   canonEffect: "none";
   answerEffect: "none";
 }
 
-const NO_TASK_AUTHORITY: NoTaskAuthority = {
+const NO_AUTHORITY: NoAuthority = {
   authority: "none",
   graphEffect: "none",
   canonEffect: "none",
@@ -63,7 +63,7 @@ export interface AsoiafAnswerCredentialProviderHostPaths {
   state: string;
 }
 
-export interface AsoiafAnswerCredentialProviderProfile extends NoTaskAuthority {
+export interface AsoiafAnswerCredentialProviderProfile extends NoAuthority {
   format: typeof ASOIAF_ANSWER_CREDENTIAL_PROVIDER_PROFILE_FORMAT;
   profileId: string;
   profileFingerprint: `sha256:${string}`;
@@ -94,7 +94,7 @@ export interface AsoiafAnswerCredentialProviderProfile extends NoTaskAuthority {
   profileAuthority: "provider-routing-only";
 }
 
-export interface AsoiafAnswerCredentialProviderInvocation extends NoTaskAuthority {
+export interface AsoiafAnswerCredentialProviderInvocation extends NoAuthority {
   format: typeof ASOIAF_ANSWER_CREDENTIAL_PROVIDER_INVOCATION_FORMAT;
   providerInvocationId: string;
   providerInvocationFingerprint: `sha256:${string}`;
@@ -120,7 +120,7 @@ export interface AsoiafAnswerCredentialProviderInvocation extends NoTaskAuthorit
   invocationAuthority: "provider-execution-request-only";
 }
 
-export interface AsoiafAnswerCredentialProviderPossessionResult {
+export interface AsoiafAnswerCredentialProviderPossessionOutput {
   kind: "possession-proof";
   signatureAlgorithm: AsoiafAnswerTransportProofAlgorithm;
   signatureBase64: string;
@@ -135,7 +135,7 @@ export interface AsoiafAnswerCredentialProviderPossessionResult {
   };
 }
 
-export interface AsoiafAnswerCredentialProviderTransportResult {
+export interface AsoiafAnswerCredentialProviderTransportOutput {
   kind: "transport-result";
   statement: AsoiafAnswerCredentialTransportResultStatement;
   deviceAgentSignatureAlgorithm: AsoiafAnswerTransportProofAlgorithm;
@@ -161,7 +161,7 @@ export interface AsoiafAnswerCredentialProviderTransportResult {
   };
 }
 
-export interface AsoiafAnswerCredentialProviderResult extends NoTaskAuthority {
+export interface AsoiafAnswerCredentialProviderResult extends NoAuthority {
   format: typeof ASOIAF_ANSWER_CREDENTIAL_PROVIDER_RESULT_FORMAT;
   resultId: string;
   resultFingerprint: `sha256:${string}`;
@@ -178,8 +178,8 @@ export interface AsoiafAnswerCredentialProviderResult extends NoTaskAuthority {
   completedAt: string;
   providerReceiptDigest: `sha256:${string}`;
   output:
-    | AsoiafAnswerCredentialProviderPossessionResult
-    | AsoiafAnswerCredentialProviderTransportResult;
+    | AsoiafAnswerCredentialProviderPossessionOutput
+    | AsoiafAnswerCredentialProviderTransportOutput;
   certificateRetained: false;
   privateKeyRetained: false;
   privateKeyPathRetained: false;
@@ -201,7 +201,7 @@ export interface AsoiafAnswerCredentialProviderStateEntry {
   updatedAt: string;
 }
 
-export interface AsoiafAnswerCredentialProviderState extends NoTaskAuthority {
+export interface AsoiafAnswerCredentialProviderState extends NoAuthority {
   format: typeof ASOIAF_ANSWER_CREDENTIAL_PROVIDER_STATE_FORMAT;
   stateId: string;
   stateFingerprint: `sha256:${string}`;
@@ -296,31 +296,23 @@ export interface AsoiafAnswerCredentialWindowsTransportInput {
 }
 
 const MAX_RESPONSE_BYTES = 16 * 1024 * 1024;
-const MAX_INVOCATION_LIFETIME = 60 * 60 * 1000;
+const MAX_PROVIDER_LIFETIME = 60 * 60 * 1000;
 
 function stableJson(value: unknown): string {
-  if (Array.isArray(value)) {
-    return `[${value.map((entry) => stableJson(entry)).join(",")}]`;
-  }
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
   if (value && typeof value === "object") {
     const record = value as Record<string, unknown>;
-    return `{${Object.keys(record)
-      .sort()
-      .map((key) => `${JSON.stringify(key)}:${stableJson(record[key])}`)
-      .join(",")}}`;
+    return `{${Object.keys(record).sort().map((key) =>
+      `${JSON.stringify(key)}:${stableJson(record[key])}`).join(",")}}`;
   }
   return JSON.stringify(value);
-}
-
-function stableBytes(value: unknown): Buffer {
-  return Buffer.from(stableJson(value), "utf8");
 }
 
 function bytesDigest(value: Buffer): `sha256:${string}` {
   return `sha256:${crypto.createHash("sha256").update(value).digest("hex")}`;
 }
 
-function requireSha256(value: string, label: string): `sha256:${string}` {
+function requireDigest(value: string, label: string): `sha256:${string}` {
   const normalized = value.trim().toLowerCase();
   if (!/^sha256:[a-f0-9]{64}$/.test(normalized)) {
     throw new Error(`${label} must be a lowercase SHA-256 digest`);
@@ -335,29 +327,7 @@ function requireTime(value: string, label: string): string {
   return new Date(value).toISOString();
 }
 
-function requireIdentity(value: string, label: string): string {
-  const normalized = value.trim();
-  if (normalized.length < 3 || normalized.length > 512) {
-    throw new Error(`${label} must contain 3 through 512 characters`);
-  }
-  return normalized;
-}
-
-function requirePositiveInteger(value: number, label: string, maximum: number): number {
-  if (!Number.isSafeInteger(value) || value < 1 || value > maximum) {
-    throw new Error(`${label} must be an integer from 1 through ${maximum}`);
-  }
-  return value;
-}
-
-function requireHostKind(value: string): AsoiafAnswerCredentialProviderHostKind {
-  if (value !== "synthetic-fixture" && value !== "windows-cng") {
-    throw new Error(`credential provider host kind ${value} is invalid`);
-  }
-  return value;
-}
-
-function requireSelector(value: string, label: string): string {
+function requireId(value: string, label: string): string {
   const normalized = value.trim();
   if (normalized.length < 3 || normalized.length > 1024 || /[\r\n\0]/.test(normalized)) {
     throw new Error(`${label} is invalid`);
@@ -365,10 +335,24 @@ function requireSelector(value: string, label: string): string {
   return normalized;
 }
 
-function requireAllowedOrigins(values: readonly string[]): string[] {
-  const origins = [...new Set(values.map((value) => {
-    const url = new URL(value);
-    if (url.protocol !== "https:" || url.username || url.password || url.pathname !== "/" || url.search || url.hash) {
+function requireInteger(value: number, label: string, maximum: number): number {
+  if (!Number.isSafeInteger(value) || value < 1 || value > maximum) {
+    throw new Error(`${label} must be an integer from 1 through ${maximum}`);
+  }
+  return value;
+}
+
+function requireOrigins(values: readonly string[]): string[] {
+  const origins = [...new Set(values.map((entry) => {
+    const url = new URL(entry);
+    if (
+      url.protocol !== "https:"
+      || url.username
+      || url.password
+      || url.pathname !== "/"
+      || url.search
+      || url.hash
+    ) {
       throw new Error("credential provider allowed targets must be credential-free HTTPS origins");
     }
     return url.origin;
@@ -385,39 +369,42 @@ function expectedHostKind(providerClass: AsoiafAnswerCredentialProviderClass): A
   throw new Error(`provider class ${providerClass} requires a separately qualified native host`);
 }
 
-function signatureAlgorithm(key: crypto.KeyObject): AsoiafAnswerTransportProofAlgorithm {
+function keyAlgorithm(key: crypto.KeyObject): AsoiafAnswerTransportProofAlgorithm {
   if (key.asymmetricKeyType === "ed25519") return "ed25519";
   if (key.asymmetricKeyType === "ec") return "ecdsa-sha256";
-  if (key.asymmetricKeyType === "rsa" || key.asymmetricKeyType === "rsa-pss") return "rsa-sha256";
+  if (key.asymmetricKeyType === "rsa" || key.asymmetricKeyType === "rsa-pss") {
+    return "rsa-sha256";
+  }
   throw new Error(`unsupported provider key type ${key.asymmetricKeyType ?? "unknown"}`);
 }
 
-function signBytes(key: crypto.KeyObject, message: Buffer): {
+function sign(key: crypto.KeyObject, message: Buffer): {
   algorithm: AsoiafAnswerTransportProofAlgorithm;
   signature: Buffer;
 } {
-  const algorithm = signatureAlgorithm(key);
-  const signature = crypto.sign(algorithm === "ed25519" ? null : "sha256", message, key);
-  return { algorithm, signature };
+  const algorithm = keyAlgorithm(key);
+  return {
+    algorithm,
+    signature: crypto.sign(algorithm === "ed25519" ? null : "sha256", message, key),
+  };
 }
 
 function publicKeyDigest(key: crypto.KeyObject): `sha256:${string}` {
-  const publicKey = crypto.createPublicKey(key);
-  return bytesDigest(publicKey.export({ type: "spki", format: "der" }) as Buffer);
+  return bytesDigest(crypto.createPublicKey(key).export({ type: "spki", format: "der" }) as Buffer);
 }
 
 function verifySignature(input: {
-  publicKeySpkiBase64: string;
+  spkiBase64: string;
   algorithm: AsoiafAnswerTransportProofAlgorithm;
   message: Buffer;
   signatureBase64: string;
 }): boolean {
   const key = crypto.createPublicKey({
-    key: Buffer.from(input.publicKeySpkiBase64, "base64"),
+    key: Buffer.from(input.spkiBase64, "base64"),
     format: "der",
     type: "spki",
   });
-  if (signatureAlgorithm(key) !== input.algorithm) return false;
+  if (keyAlgorithm(key) !== input.algorithm) return false;
   return crypto.verify(
     input.algorithm === "ed25519" ? null : "sha256",
     input.message,
@@ -435,7 +422,7 @@ function finding(
   return { code, severity, subjectId, detail };
 }
 
-function sortedFindings(values: readonly AsoiafAnswerCredentialProviderFinding[]): AsoiafAnswerCredentialProviderFinding[] {
+function sortFindings(values: readonly AsoiafAnswerCredentialProviderFinding[]): AsoiafAnswerCredentialProviderFinding[] {
   const rank = { error: 0, warning: 1, notice: 2 } as const;
   return [...values].sort((left, right) =>
     rank[left.severity] - rank[right.severity]
@@ -444,26 +431,24 @@ function sortedFindings(values: readonly AsoiafAnswerCredentialProviderFinding[]
     || left.detail.localeCompare(right.detail));
 }
 
-function ensureParent(target: string): void {
-  fs.mkdirSync(path.dirname(target), { recursive: true });
-}
-
 function writeExact<T>(target: string, value: T): { value: T; replayed: boolean } {
   const serialized = `${JSON.stringify(value, null, 2)}\n`;
-  ensureParent(target);
+  fs.mkdirSync(path.dirname(target), { recursive: true });
   try {
     fs.writeFileSync(target, serialized, { encoding: "utf8", flag: "wx" });
     return { value, replayed: false };
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
     const existing = fs.readFileSync(target, "utf8");
-    if (existing !== serialized) throw new Error(`credential provider immutable file collision at ${target}`);
+    if (existing !== serialized) {
+      throw new Error(`credential provider immutable file collision at ${target}`);
+    }
     return { value: JSON.parse(existing) as T, replayed: true };
   }
 }
 
-function writeJsonAtomic(target: string, value: unknown): void {
-  ensureParent(target);
+function writeAtomic(target: string, value: unknown): void {
+  fs.mkdirSync(path.dirname(target), { recursive: true });
   const temporary = `${target}.${process.pid}.${crypto.randomUUID()}.tmp`;
   fs.writeFileSync(temporary, `${JSON.stringify(value, null, 2)}\n`, "utf8");
   fs.renameSync(temporary, target);
@@ -485,27 +470,26 @@ function digestPath(directory: string, digest: `sha256:${string}`): string {
   return path.join(directory, `${digest.slice("sha256:".length)}.json`);
 }
 
-function profileCore(profile: AsoiafAnswerCredentialProviderProfile): Omit<AsoiafAnswerCredentialProviderProfile, "profileId" | "profileFingerprint"> {
-  const { profileId: _id, profileFingerprint: _fingerprint, ...core } = profile;
+function profileCore(value: AsoiafAnswerCredentialProviderProfile) {
+  const { profileId: _id, profileFingerprint: _fingerprint, ...core } = value;
+  return core;
+}
+function invocationCore(value: AsoiafAnswerCredentialProviderInvocation) {
+  const { providerInvocationId: _id, providerInvocationFingerprint: _fingerprint, ...core } = value;
+  return core;
+}
+function resultCore(value: AsoiafAnswerCredentialProviderResult) {
+  const { resultId: _id, resultFingerprint: _fingerprint, ...core } = value;
+  return core;
+}
+function stateCore(value: AsoiafAnswerCredentialProviderState) {
+  const { stateId: _id, stateFingerprint: _fingerprint, ...core } = value;
   return core;
 }
 
-function invocationCore(invocation: AsoiafAnswerCredentialProviderInvocation): Omit<AsoiafAnswerCredentialProviderInvocation, "providerInvocationId" | "providerInvocationFingerprint"> {
-  const { providerInvocationId: _id, providerInvocationFingerprint: _fingerprint, ...core } = invocation;
-  return core;
-}
-
-function resultCore(result: AsoiafAnswerCredentialProviderResult): Omit<AsoiafAnswerCredentialProviderResult, "resultId" | "resultFingerprint"> {
-  const { resultId: _id, resultFingerprint: _fingerprint, ...core } = result;
-  return core;
-}
-
-function stateCore(state: AsoiafAnswerCredentialProviderState): Omit<AsoiafAnswerCredentialProviderState, "stateId" | "stateFingerprint"> {
-  const { stateId: _id, stateFingerprint: _fingerprint, ...core } = state;
-  return core;
-}
-
-export function asoiafAnswerCredentialProviderHostPaths(root: string): AsoiafAnswerCredentialProviderHostPaths {
+export function asoiafAnswerCredentialProviderHostPaths(
+  root: string,
+): AsoiafAnswerCredentialProviderHostPaths {
   const absolute = path.resolve(root);
   const providerRoot = path.join(absolute, "answer-credential-provider-host");
   return {
@@ -518,7 +502,7 @@ export function asoiafAnswerCredentialProviderHostPaths(root: string): AsoiafAns
   };
 }
 
-function brokerObjects(root: string): {
+function parentObjects(root: string): {
   policies: AsoiafAnswerCredentialBrokerPolicy[];
   bindings: AsoiafAnswerCredentialBrokerBinding[];
   invocations: AsoiafAnswerCredentialBrokerInvocation[];
@@ -538,64 +522,136 @@ function brokerObjects(root: string): {
   };
 }
 
-function findProfile(root: string, profileId: string): AsoiafAnswerCredentialProviderProfile {
+export function readAsoiafAnswerCredentialProviderStatus(
+  root: string,
+): AsoiafAnswerCredentialProviderStatus {
+  const paths = asoiafAnswerCredentialProviderHostPaths(root);
+  return {
+    format: "axm-asoiaf-answer-credential-provider-status/1",
+    paths,
+    profiles: listJson<AsoiafAnswerCredentialProviderProfile>(paths.profiles),
+    invocations: listJson<AsoiafAnswerCredentialProviderInvocation>(paths.invocations),
+    results: listJson<AsoiafAnswerCredentialProviderResult>(paths.results),
+    state: fs.existsSync(paths.state)
+      ? readJson<AsoiafAnswerCredentialProviderState>(paths.state)
+      : null,
+  };
+}
+
+function profileById(root: string, profileId: string): AsoiafAnswerCredentialProviderProfile {
   const matches = readAsoiafAnswerCredentialProviderStatus(root).profiles
     .filter((entry) => entry.profileId === profileId);
-  if (matches.length !== 1) throw new Error(`credential provider profile ${profileId} is absent or duplicated`);
+  if (matches.length !== 1) {
+    throw new Error(`credential provider profile ${profileId} is absent or duplicated`);
+  }
   return matches[0]!;
 }
 
-function findProviderInvocation(root: string, invocationId: string): AsoiafAnswerCredentialProviderInvocation {
+function providerInvocationById(
+  root: string,
+  invocationId: string,
+): AsoiafAnswerCredentialProviderInvocation {
   const matches = readAsoiafAnswerCredentialProviderStatus(root).invocations
     .filter((entry) => entry.providerInvocationId === invocationId);
-  if (matches.length !== 1) throw new Error(`credential provider invocation ${invocationId} is absent or duplicated`);
+  if (matches.length !== 1) {
+    throw new Error(`credential provider invocation ${invocationId} is absent or duplicated`);
+  }
   return matches[0]!;
 }
 
-function findBrokerInvocation(root: string, invocationId: string): AsoiafAnswerCredentialBrokerInvocation {
-  const matches = brokerObjects(root).invocations.filter((entry) => entry.invocationId === invocationId);
-  if (matches.length !== 1) throw new Error(`credential broker invocation ${invocationId} is absent or duplicated`);
+function brokerInvocationById(
+  root: string,
+  invocationId: string,
+): AsoiafAnswerCredentialBrokerInvocation {
+  const matches = parentObjects(root).invocations
+    .filter((entry) => entry.invocationId === invocationId);
+  if (matches.length !== 1) {
+    throw new Error(`credential broker invocation ${invocationId} is absent or duplicated`);
+  }
   return matches[0]!;
 }
 
-function brokerBinding(root: string, bindingId: string): AsoiafAnswerCredentialBrokerBinding {
-  const matches = brokerObjects(root).bindings.filter((entry) => entry.bindingId === bindingId);
-  if (matches.length !== 1) throw new Error(`credential broker binding ${bindingId} is absent or duplicated`);
+function bindingById(root: string, bindingId: string): AsoiafAnswerCredentialBrokerBinding {
+  const matches = parentObjects(root).bindings.filter((entry) => entry.bindingId === bindingId);
+  if (matches.length !== 1) {
+    throw new Error(`credential broker binding ${bindingId} is absent or duplicated`);
+  }
   return matches[0]!;
 }
 
-function deploymentPublicKeys(root: string, binding: AsoiafAnswerCredentialBrokerBinding): {
-  credentialPublicKeySpkiBase64: string;
-  deviceAgentPublicKeySpkiBase64: string;
-} {
-  const status = readAsoiafAnswerCredentialDeploymentStatus(root);
-  const key = status.keys.find((entry) => entry.keyReferenceId === binding.keyReferenceId);
-  const device = status.devices.find((entry) => entry.deviceId === binding.deviceId);
-  if (!key || !device) throw new Error("credential provider binding references an absent deployment key or device");
-  return {
-    credentialPublicKeySpkiBase64: key.publicKeySpkiBase64,
-    deviceAgentPublicKeySpkiBase64: device.deviceAgentPublicKeySpkiBase64,
+function buildState(root: string): AsoiafAnswerCredentialProviderState {
+  const status = readAsoiafAnswerCredentialProviderStatus(root);
+  const entries = status.profiles.map((profile) => {
+    const invocations = status.invocations
+      .filter((entry) => entry.profileId === profile.profileId)
+      .sort((left, right) => left.preparedAt.localeCompare(right.preparedAt));
+    const results = status.results
+      .filter((entry) => entry.profileId === profile.profileId)
+      .sort((left, right) => left.completedAt.localeCompare(right.completedAt));
+    const invocation = invocations.at(-1) ?? null;
+    const result = results.at(-1) ?? null;
+    return {
+      profileId: profile.profileId,
+      profileFingerprint: profile.profileFingerprint,
+      deviceId: profile.deviceId,
+      serviceId: profile.serviceId,
+      latestProviderInvocationId: invocation?.providerInvocationId ?? null,
+      latestProviderInvocationFingerprint: invocation?.providerInvocationFingerprint ?? null,
+      latestResultId: result?.resultId ?? null,
+      latestResultFingerprint: result?.resultFingerprint ?? null,
+      updatedAt: result?.completedAt ?? invocation?.preparedAt ?? profile.createdAt,
+    };
+  }).sort((left, right) => left.profileId.localeCompare(right.profileId));
+  const asOf = entries.map((entry) => entry.updatedAt).sort().at(-1)
+    ?? "1970-01-01T00:00:00.000Z";
+  const core = {
+    format: ASOIAF_ANSWER_CREDENTIAL_PROVIDER_STATE_FORMAT,
+    asOf,
+    entries,
+    stateAuthority: "projection-only" as const,
+    ...NO_AUTHORITY,
   };
+  const stateFingerprint = sha256(core);
+  return {
+    ...core,
+    stateId: collectorContentId("asoiaf-answer-credential-provider-state", {
+      asOf,
+      stateFingerprint,
+    }),
+    stateFingerprint,
+  };
+}
+
+function refreshState(root: string): AsoiafAnswerCredentialProviderState | null {
+  const paths = asoiafAnswerCredentialProviderHostPaths(root);
+  if (listJson<AsoiafAnswerCredentialProviderProfile>(paths.profiles).length === 0) {
+    return null;
+  }
+  const state = buildState(root);
+  writeAtomic(paths.state, state);
+  return state;
 }
 
 export function retainAsoiafAnswerCredentialProviderProfile(
   input: AsoiafAnswerCredentialProviderProfileInput,
 ): { profile: AsoiafAnswerCredentialProviderProfile; replayed: boolean } {
-  const objects = brokerObjects(input.root);
-  const policy = objects.policies.find((entry) => entry.policyId === input.brokerPolicyId);
-  const binding = objects.bindings.find((entry) => entry.bindingId === input.brokerBindingId);
-  if (!policy || !binding) throw new Error("credential provider profile requires exact broker policy and binding custody");
+  const parent = parentObjects(input.root);
+  const policy = parent.policies.find((entry) => entry.policyId === input.brokerPolicyId);
+  const binding = parent.bindings.find((entry) => entry.bindingId === input.brokerBindingId);
+  if (!policy || !binding) {
+    throw new Error("credential provider profile requires exact broker policy and binding custody");
+  }
   if (binding.policyId !== policy.policyId || binding.policyFingerprint !== policy.policyFingerprint) {
     throw new Error("credential provider binding differs from broker policy custody");
   }
-  const hostKind = requireHostKind(input.hostKind);
-  if (expectedHostKind(binding.providerClass) !== hostKind) {
-    throw new Error(`credential provider ${hostKind} cannot execute deployment class ${binding.providerClass}`);
+  if (expectedHostKind(binding.providerClass) !== input.hostKind) {
+    throw new Error(`credential provider ${input.hostKind} cannot execute deployment class ${binding.providerClass}`);
   }
-  const credentialSelector = requireSelector(input.credentialSelector, "credential selector");
-  const deviceAgentSelector = requireSelector(input.deviceAgentSelector, "device-agent selector");
-  const allowedTargetOrigins = requireAllowedOrigins(input.allowedTargetOrigins);
-  const maxResponseBytes = requirePositiveInteger(input.maxResponseBytes, "provider response ceiling", MAX_RESPONSE_BYTES);
+  const maxResponseBytes = requireInteger(
+    input.maxResponseBytes,
+    "provider response ceiling",
+    MAX_RESPONSE_BYTES,
+  );
   if (maxResponseBytes > policy.maxResponseBytes) {
     throw new Error("credential provider response ceiling exceeds broker policy");
   }
@@ -611,13 +667,13 @@ export function retainAsoiafAnswerCredentialProviderProfile(
     serviceId: binding.serviceId,
     keyReferenceId: binding.keyReferenceId,
     providerClass: binding.providerClass,
-    hostKind,
-    credentialSelectorDigest: sha256(credentialSelector),
-    deviceAgentSelectorDigest: sha256(deviceAgentSelector),
-    allowedTargetOrigins,
+    hostKind: input.hostKind,
+    credentialSelectorDigest: sha256(requireId(input.credentialSelector, "credential selector")),
+    deviceAgentSelectorDigest: sha256(requireId(input.deviceAgentSelector, "device-agent selector")),
+    allowedTargetOrigins: requireOrigins(input.allowedTargetOrigins),
     maxResponseBytes,
     createdAt: requireTime(input.createdAt, "provider profile creation time"),
-    operatorId: requireIdentity(input.operatorId, "provider profile operator"),
+    operatorId: requireId(input.operatorId, "provider profile operator"),
     localExecutionOnly: true as const,
     certificateRetained: false as const,
     privateKeyRetained: false as const,
@@ -626,29 +682,29 @@ export function retainAsoiafAnswerCredentialProviderProfile(
     providerSecretRetained: false as const,
     rawResponseRetained: false as const,
     profileAuthority: "provider-routing-only" as const,
-    ...NO_TASK_AUTHORITY,
+    ...NO_AUTHORITY,
   };
   const profileFingerprint = sha256(core);
   const profile: AsoiafAnswerCredentialProviderProfile = {
     ...core,
     profileId: collectorContentId("asoiaf-answer-credential-provider-profile", {
       brokerBindingId: binding.bindingId,
-      hostKind,
+      hostKind: input.hostKind,
       profileFingerprint,
     }),
     profileFingerprint,
   };
   const paths = asoiafAnswerCredentialProviderHostPaths(input.root);
   const persisted = writeExact(digestPath(paths.profiles, profileFingerprint), profile);
-  writeProviderState(input.root);
+  refreshState(input.root);
   return { profile: persisted.value, replayed: persisted.replayed };
 }
 
 export function prepareAsoiafAnswerCredentialProviderInvocation(
   input: AsoiafAnswerCredentialProviderPrepareInput,
 ): { invocation: AsoiafAnswerCredentialProviderInvocation; replayed: boolean } {
-  const profile = findProfile(input.root, input.profileId);
-  const brokerInvocation = findBrokerInvocation(input.root, input.brokerInvocationId);
+  const profile = profileById(input.root, input.profileId);
+  const brokerInvocation = brokerInvocationById(input.root, input.brokerInvocationId);
   if (
     brokerInvocation.policyId !== profile.brokerPolicyId
     || brokerInvocation.policyFingerprint !== profile.brokerPolicyFingerprint
@@ -658,6 +714,9 @@ export function prepareAsoiafAnswerCredentialProviderInvocation(
     throw new Error("credential provider invocation differs from profile broker custody");
   }
   if (brokerInvocation.operation === "mutual-tls-request") {
+    if (brokerInvocation.request.kind !== "mutual-tls") {
+      throw new Error("credential provider mutual-TLS operation lacks a mutual-TLS request");
+    }
     const origin = new URL(brokerInvocation.request.targetUrl).origin;
     if (!profile.allowedTargetOrigins.includes(origin)) {
       throw new Error(`credential provider target origin ${origin} is outside profile policy`);
@@ -671,28 +730,26 @@ export function prepareAsoiafAnswerCredentialProviderInvocation(
   if (
     Date.parse(expiresAt) <= Date.parse(preparedAt)
     || Date.parse(expiresAt) > Date.parse(brokerInvocation.expiresAt)
-    || Date.parse(expiresAt) - Date.parse(preparedAt) > MAX_INVOCATION_LIFETIME
+    || Date.parse(expiresAt) - Date.parse(preparedAt) > MAX_PROVIDER_LIFETIME
   ) {
     throw new Error("credential provider invocation lifetime is outside broker custody");
   }
-  const idempotencyKey = requireSelector(input.idempotencyKey, "provider idempotency key");
-  const idempotencyKeyDigest = sha256(idempotencyKey);
-  const existingByKey = readAsoiafAnswerCredentialProviderStatus(input.root).invocations
-    .filter((entry) => entry.idempotencyKeyDigest === idempotencyKeyDigest);
   const core = {
     format: ASOIAF_ANSWER_CREDENTIAL_PROVIDER_INVOCATION_FORMAT,
     profileId: profile.profileId,
     profileFingerprint: profile.profileFingerprint,
     brokerInvocationId: brokerInvocation.invocationId,
     brokerInvocationFingerprint: brokerInvocation.invocationFingerprint,
-    brokerInvocationBytesDigest: bytesDigest(serializeAsoiafAnswerCredentialBrokerInvocation(brokerInvocation)),
+    brokerInvocationBytesDigest: bytesDigest(
+      serializeAsoiafAnswerCredentialBrokerInvocation(brokerInvocation),
+    ),
     brokerBindingId: profile.brokerBindingId,
     brokerBindingFingerprint: profile.brokerBindingFingerprint,
     operation: brokerInvocation.operation,
-    idempotencyKeyDigest,
+    idempotencyKeyDigest: sha256(requireId(input.idempotencyKey, "provider idempotency key")),
     preparedAt,
     expiresAt,
-    operatorId: requireIdentity(input.operatorId, "provider invocation operator"),
+    operatorId: requireId(input.operatorId, "provider invocation operator"),
     networkAuthorized: brokerInvocation.operation === "mutual-tls-request",
     certificateRetained: false as const,
     privateKeyRetained: false as const,
@@ -701,7 +758,7 @@ export function prepareAsoiafAnswerCredentialProviderInvocation(
     providerSecretRetained: false as const,
     rawResponseRetained: false as const,
     invocationAuthority: "provider-execution-request-only" as const,
-    ...NO_TASK_AUTHORITY,
+    ...NO_AUTHORITY,
   };
   const providerInvocationFingerprint = sha256(core);
   const invocation: AsoiafAnswerCredentialProviderInvocation = {
@@ -713,26 +770,29 @@ export function prepareAsoiafAnswerCredentialProviderInvocation(
     }),
     providerInvocationFingerprint,
   };
-  if (existingByKey.length > 0) {
-    if (existingByKey.length !== 1 || stableJson(existingByKey[0]) !== stableJson(invocation)) {
+  const existing = readAsoiafAnswerCredentialProviderStatus(input.root).invocations
+    .filter((entry) => entry.idempotencyKeyDigest === invocation.idempotencyKeyDigest);
+  if (existing.length > 0) {
+    if (existing.length !== 1 || stableJson(existing[0]) !== stableJson(invocation)) {
       throw new Error("credential provider idempotency key conflicts with retained invocation");
     }
-    return { invocation: existingByKey[0]!, replayed: true };
+    return { invocation: existing[0]!, replayed: true };
   }
   const paths = asoiafAnswerCredentialProviderHostPaths(input.root);
-  const persisted = writeExact(digestPath(paths.invocations, providerInvocationFingerprint), invocation);
-  writeProviderState(input.root);
+  const persisted = writeExact(
+    digestPath(paths.invocations, providerInvocationFingerprint),
+    invocation,
+  );
+  refreshState(input.root);
   return { invocation: persisted.value, replayed: persisted.replayed };
 }
 
-function retainResult(root: string, result: AsoiafAnswerCredentialProviderResult): {
-  result: AsoiafAnswerCredentialProviderResult;
-  replayed: boolean;
-} {
-  const status = readAsoiafAnswerCredentialProviderStatus(root);
-  const existing = status.results.filter(
-    (entry) => entry.providerInvocationId === result.providerInvocationId,
-  );
+function retainResult(
+  root: string,
+  result: AsoiafAnswerCredentialProviderResult,
+): { result: AsoiafAnswerCredentialProviderResult; replayed: boolean } {
+  const existing = readAsoiafAnswerCredentialProviderStatus(root).results
+    .filter((entry) => entry.providerInvocationId === result.providerInvocationId);
   if (existing.length > 0) {
     if (existing.length !== 1 || stableJson(existing[0]) !== stableJson(result)) {
       throw new Error("credential provider invocation already has a different terminal result");
@@ -741,50 +801,55 @@ function retainResult(root: string, result: AsoiafAnswerCredentialProviderResult
   }
   const paths = asoiafAnswerCredentialProviderHostPaths(root);
   const persisted = writeExact(digestPath(paths.results, result.resultFingerprint), result);
-  writeProviderState(root);
+  refreshState(root);
   return { result: persisted.value, replayed: persisted.replayed };
 }
 
-function possessionResult(input: {
+function buildPossessionResult(input: {
   root: string;
-  invocation: AsoiafAnswerCredentialProviderInvocation;
+  providerInvocation: AsoiafAnswerCredentialProviderInvocation;
   profile: AsoiafAnswerCredentialProviderProfile;
-  signatureAlgorithm: AsoiafAnswerTransportProofAlgorithm;
+  algorithm: AsoiafAnswerTransportProofAlgorithm;
   signature: Buffer;
   completedAt: string;
   operatorId: string;
-  startedAt: string;
 }): AsoiafAnswerCredentialProviderResult {
-  const brokerInvocation = findBrokerInvocation(input.root, input.invocation.brokerInvocationId);
-  if (brokerInvocation.operation !== "prove-possession") {
+  const brokerInvocation = brokerInvocationById(
+    input.root,
+    input.providerInvocation.brokerInvocationId,
+  );
+  if (
+    brokerInvocation.operation !== "prove-possession"
+    || brokerInvocation.request.kind !== "possession"
+  ) {
     throw new Error("credential provider possession execution requires a possession invocation");
   }
+  const provedAt = requireTime(input.completedAt, "provider possession completion time");
   const signatureBase64 = input.signature.toString("base64");
   const signatureDigest = bytesDigest(input.signature);
-  const provedAt = requireTime(input.completedAt, "provider possession completion time");
-  const output: AsoiafAnswerCredentialProviderPossessionResult = {
+  const output: AsoiafAnswerCredentialProviderPossessionOutput = {
     kind: "possession-proof",
-    signatureAlgorithm: input.signatureAlgorithm,
+    signatureAlgorithm: input.algorithm,
     signatureBase64,
     signatureDigest,
     provedAt,
     brokerAdmissionInput: {
       invocationId: brokerInvocation.invocationId,
-      signatureAlgorithm: input.signatureAlgorithm,
+      signatureAlgorithm: input.algorithm,
       signatureBase64,
       provedAt,
-      operatorId: requireIdentity(input.operatorId, "provider possession operator"),
+      operatorId: requireId(input.operatorId, "provider possession operator"),
     },
   };
   const providerReceiptDigest = sha256({
-    providerInvocationFingerprint: input.invocation.providerInvocationFingerprint,
+    providerInvocationFingerprint: input.providerInvocation.providerInvocationFingerprint,
     signatureDigest,
     provedAt,
   });
   const core = {
     format: ASOIAF_ANSWER_CREDENTIAL_PROVIDER_RESULT_FORMAT,
-    providerInvocationId: input.invocation.providerInvocationId,
-    providerInvocationFingerprint: input.invocation.providerInvocationFingerprint,
+    providerInvocationId: input.providerInvocation.providerInvocationId,
+    providerInvocationFingerprint: input.providerInvocation.providerInvocationFingerprint,
     profileId: input.profile.profileId,
     profileFingerprint: input.profile.profileFingerprint,
     brokerInvocationId: brokerInvocation.invocationId,
@@ -792,7 +857,7 @@ function possessionResult(input: {
     hostKind: input.profile.hostKind,
     providerClass: input.profile.providerClass,
     operation: "prove-possession" as const,
-    startedAt: requireTime(input.startedAt, "provider possession start time"),
+    startedAt: input.providerInvocation.preparedAt,
     completedAt: provedAt,
     providerReceiptDigest,
     output,
@@ -803,13 +868,13 @@ function possessionResult(input: {
     providerSecretRetained: false as const,
     rawResponseRetained: false as const,
     resultAuthority: "public-provider-proof-only" as const,
-    ...NO_TASK_AUTHORITY,
+    ...NO_AUTHORITY,
   };
   const resultFingerprint = sha256(core);
   return {
     ...core,
     resultId: collectorContentId("asoiaf-answer-credential-provider-result", {
-      providerInvocationId: input.invocation.providerInvocationId,
+      providerInvocationId: input.providerInvocation.providerInvocationId,
       operation: core.operation,
       resultFingerprint,
     }),
@@ -817,76 +882,57 @@ function possessionResult(input: {
   };
 }
 
-export function executeAsoiafAnswerSyntheticPossession(
-  input: AsoiafAnswerCredentialSyntheticPossessionInput,
-): { result: AsoiafAnswerCredentialProviderResult; replayed: boolean } {
-  const invocation = findProviderInvocation(input.root, input.providerInvocationId);
-  const profile = findProfile(input.root, invocation.profileId);
-  if (profile.hostKind !== "synthetic-fixture") throw new Error("synthetic execution requires a synthetic provider profile");
-  const existing = readAsoiafAnswerCredentialProviderStatus(input.root).results
-    .find((entry) => entry.providerInvocationId === invocation.providerInvocationId);
-  if (existing) return { result: existing, replayed: true };
-  const brokerInvocation = findBrokerInvocation(input.root, invocation.brokerInvocationId);
-  const key = crypto.createPrivateKey(input.credentialPrivateKeyPem);
-  const binding = brokerBinding(input.root, profile.brokerBindingId);
-  if (publicKeyDigest(key) !== binding.publicKeyFingerprint) {
-    throw new Error("synthetic credential key differs from active deployment binding");
-  }
-  const signed = signBytes(key, serializeAsoiafAnswerCredentialBrokerInvocation(brokerInvocation));
-  const result = possessionResult({
-    root: input.root,
-    invocation,
-    profile,
-    signatureAlgorithm: signed.algorithm,
-    signature: signed.signature,
-    startedAt: invocation.preparedAt,
-    completedAt: input.completedAt,
-    operatorId: input.operatorId,
-  });
-  return retainResult(input.root, result);
-}
-
-function transportResult(input: {
+function buildTransportResult(input: {
   root: string;
-  invocation: AsoiafAnswerCredentialProviderInvocation;
+  providerInvocation: AsoiafAnswerCredentialProviderInvocation;
   profile: AsoiafAnswerCredentialProviderProfile;
   statement: AsoiafAnswerCredentialTransportResultStatement;
-  signatureAlgorithm: AsoiafAnswerTransportProofAlgorithm;
+  algorithm: AsoiafAnswerTransportProofAlgorithm;
   signature: Buffer;
   operatorId: string;
 }): AsoiafAnswerCredentialProviderResult {
-  const brokerInvocation = findBrokerInvocation(input.root, input.invocation.brokerInvocationId);
+  const brokerInvocation = brokerInvocationById(
+    input.root,
+    input.providerInvocation.brokerInvocationId,
+  );
+  if (
+    brokerInvocation.operation !== "mutual-tls-request"
+    || brokerInvocation.request.kind !== "mutual-tls"
+  ) {
+    throw new Error("credential provider transport execution requires a mutual-TLS invocation");
+  }
   const signatureBase64 = input.signature.toString("base64");
-  const signatureDigest = bytesDigest(input.signature);
-  const output: AsoiafAnswerCredentialProviderTransportResult = {
+  const output: AsoiafAnswerCredentialProviderTransportOutput = {
     kind: "transport-result",
     statement: input.statement,
-    deviceAgentSignatureAlgorithm: input.signatureAlgorithm,
+    deviceAgentSignatureAlgorithm: input.algorithm,
     deviceAgentSignatureBase64: signatureBase64,
-    deviceAgentSignatureDigest: signatureDigest,
+    deviceAgentSignatureDigest: bytesDigest(input.signature),
     brokerAdmissionInput: {
       invocationId: brokerInvocation.invocationId,
       lowerRequestId: input.statement.lowerRequestId,
       lowerRequestFingerprint: input.statement.lowerRequestFingerprint,
       lowerResponseId: input.statement.lowerResponseId,
       lowerResponseFingerprint: input.statement.lowerResponseFingerprint,
-      observedServerCertificateFingerprint: input.statement.observedServerCertificateFingerprint,
-      observedServerIssuerFingerprint: input.statement.observedServerIssuerFingerprint,
+      observedServerCertificateFingerprint:
+        input.statement.observedServerCertificateFingerprint,
+      observedServerIssuerFingerprint:
+        input.statement.observedServerIssuerFingerprint,
       httpStatus: input.statement.httpStatus,
       responseBytes: input.statement.responseBytes,
       responseDigest: input.statement.responseDigest,
       providerReceiptDigest: input.statement.providerReceiptDigest,
       startedAt: input.statement.startedAt,
       completedAt: input.statement.completedAt,
-      deviceAgentSignatureAlgorithm: input.signatureAlgorithm,
+      deviceAgentSignatureAlgorithm: input.algorithm,
       deviceAgentSignatureBase64: signatureBase64,
-      operatorId: requireIdentity(input.operatorId, "provider transport operator"),
+      operatorId: requireId(input.operatorId, "provider transport operator"),
     },
   };
   const core = {
     format: ASOIAF_ANSWER_CREDENTIAL_PROVIDER_RESULT_FORMAT,
-    providerInvocationId: input.invocation.providerInvocationId,
-    providerInvocationFingerprint: input.invocation.providerInvocationFingerprint,
+    providerInvocationId: input.providerInvocation.providerInvocationId,
+    providerInvocationFingerprint: input.providerInvocation.providerInvocationFingerprint,
     profileId: input.profile.profileId,
     profileFingerprint: input.profile.profileFingerprint,
     brokerInvocationId: brokerInvocation.invocationId,
@@ -905,13 +951,13 @@ function transportResult(input: {
     providerSecretRetained: false as const,
     rawResponseRetained: false as const,
     resultAuthority: "public-provider-proof-only" as const,
-    ...NO_TASK_AUTHORITY,
+    ...NO_AUTHORITY,
   };
   const resultFingerprint = sha256(core);
   return {
     ...core,
     resultId: collectorContentId("asoiaf-answer-credential-provider-result", {
-      providerInvocationId: input.invocation.providerInvocationId,
+      providerInvocationId: input.providerInvocation.providerInvocationId,
       operation: core.operation,
       resultFingerprint,
     }),
@@ -919,68 +965,112 @@ function transportResult(input: {
   };
 }
 
+export function executeAsoiafAnswerSyntheticPossession(
+  input: AsoiafAnswerCredentialSyntheticPossessionInput,
+): { result: AsoiafAnswerCredentialProviderResult; replayed: boolean } {
+  const providerInvocation = providerInvocationById(input.root, input.providerInvocationId);
+  const profile = profileById(input.root, providerInvocation.profileId);
+  if (profile.hostKind !== "synthetic-fixture") {
+    throw new Error("synthetic execution requires a synthetic provider profile");
+  }
+  const existing = readAsoiafAnswerCredentialProviderStatus(input.root).results
+    .find((entry) => entry.providerInvocationId === providerInvocation.providerInvocationId);
+  if (existing) return { result: existing, replayed: true };
+  const brokerInvocation = brokerInvocationById(input.root, providerInvocation.brokerInvocationId);
+  const binding = bindingById(input.root, profile.brokerBindingId);
+  const key = crypto.createPrivateKey(input.credentialPrivateKeyPem);
+  if (publicKeyDigest(key) !== binding.publicKeyFingerprint) {
+    throw new Error("synthetic credential key differs from active deployment binding");
+  }
+  const signed = sign(key, serializeAsoiafAnswerCredentialBrokerInvocation(brokerInvocation));
+  return retainResult(input.root, buildPossessionResult({
+    root: input.root,
+    providerInvocation,
+    profile,
+    algorithm: signed.algorithm,
+    signature: signed.signature,
+    completedAt: input.completedAt,
+    operatorId: input.operatorId,
+  }));
+}
+
 export function executeAsoiafAnswerSyntheticTransport(
   input: AsoiafAnswerCredentialSyntheticTransportInput,
 ): { result: AsoiafAnswerCredentialProviderResult; replayed: boolean } {
-  const invocation = findProviderInvocation(input.root, input.providerInvocationId);
-  const profile = findProfile(input.root, invocation.profileId);
-  if (profile.hostKind !== "synthetic-fixture") throw new Error("synthetic execution requires a synthetic provider profile");
+  const providerInvocation = providerInvocationById(input.root, input.providerInvocationId);
+  const profile = profileById(input.root, providerInvocation.profileId);
+  if (profile.hostKind !== "synthetic-fixture") {
+    throw new Error("synthetic execution requires a synthetic provider profile");
+  }
   const existing = readAsoiafAnswerCredentialProviderStatus(input.root).results
-    .find((entry) => entry.providerInvocationId === invocation.providerInvocationId);
+    .find((entry) => entry.providerInvocationId === providerInvocation.providerInvocationId);
   if (existing) return { result: existing, replayed: true };
-  const brokerInvocation = findBrokerInvocation(input.root, invocation.brokerInvocationId);
-  if (brokerInvocation.operation !== "mutual-tls-request" || brokerInvocation.request.kind !== "mutual-tls") {
+  const brokerInvocation = brokerInvocationById(input.root, providerInvocation.brokerInvocationId);
+  if (
+    brokerInvocation.operation !== "mutual-tls-request"
+    || brokerInvocation.request.kind !== "mutual-tls"
+  ) {
     throw new Error("synthetic transport execution requires a mutual-TLS broker invocation");
   }
-  const proof = brokerObjects(input.root).proofs.find(
+  const proof = parentObjects(input.root).proofs.find(
     (entry) => entry.proofId === brokerInvocation.request.possessionProofId,
   );
   if (!proof || proof.proofFingerprint !== brokerInvocation.request.possessionProofFingerprint) {
     throw new Error("credential provider transport invocation lacks its exact possession proof");
   }
-  const responseBody = Buffer.from(input.responseBodyBase64, "base64");
-  if (responseBody.length > brokerInvocation.request.maxResponseBytes || responseBody.length > profile.maxResponseBytes) {
+  const response = Buffer.from(input.responseBodyBase64, "base64");
+  if (
+    response.length > profile.maxResponseBytes
+    || response.length > brokerInvocation.request.maxResponseBytes
+  ) {
     throw new Error("synthetic provider response exceeds retained response ceiling");
   }
-  const startedAt = requireTime(input.startedAt, "provider transport start time");
-  const completedAt = requireTime(input.completedAt, "provider transport completion time");
   const statement = buildAsoiafAnswerCredentialTransportResultStatement({
     root: input.root,
     invocationId: brokerInvocation.invocationId,
-    lowerRequestId: requireIdentity(input.lowerRequestId, "lower request identity"),
-    lowerRequestFingerprint: requireSha256(input.lowerRequestFingerprint, "lower request fingerprint"),
-    lowerResponseId: requireIdentity(input.lowerResponseId, "lower response identity"),
-    lowerResponseFingerprint: requireSha256(input.lowerResponseFingerprint, "lower response fingerprint"),
-    observedServerCertificateFingerprint: requireSha256(input.observedServerCertificateFingerprint, "server certificate fingerprint"),
-    observedServerIssuerFingerprint: requireSha256(input.observedServerIssuerFingerprint, "server issuer fingerprint"),
-    httpStatus: requirePositiveInteger(input.httpStatus, "HTTP status", 599),
-    responseBytes: responseBody.length,
-    responseDigest: bytesDigest(responseBody),
-    providerReceiptDigest: requireSha256(input.providerReceiptDigest, "provider receipt digest"),
-    startedAt,
-    completedAt,
+    lowerRequestId: requireId(input.lowerRequestId, "lower request identity"),
+    lowerRequestFingerprint: requireDigest(
+      input.lowerRequestFingerprint,
+      "lower request fingerprint",
+    ),
+    lowerResponseId: requireId(input.lowerResponseId, "lower response identity"),
+    lowerResponseFingerprint: requireDigest(
+      input.lowerResponseFingerprint,
+      "lower response fingerprint",
+    ),
+    observedServerCertificateFingerprint: requireDigest(
+      input.observedServerCertificateFingerprint,
+      "observed server certificate fingerprint",
+    ),
+    observedServerIssuerFingerprint: requireDigest(
+      input.observedServerIssuerFingerprint,
+      "observed server issuer fingerprint",
+    ),
+    httpStatus: requireInteger(input.httpStatus, "HTTP status", 599),
+    responseBytes: response.length,
+    responseDigest: bytesDigest(response),
+    providerReceiptDigest: requireDigest(
+      input.providerReceiptDigest,
+      "provider receipt digest",
+    ),
+    startedAt: requireTime(input.startedAt, "provider transport start time"),
+    completedAt: requireTime(input.completedAt, "provider transport completion time"),
   });
+  const binding = bindingById(input.root, profile.brokerBindingId);
   const key = crypto.createPrivateKey(input.deviceAgentPrivateKeyPem);
-  const binding = brokerBinding(input.root, profile.brokerBindingId);
-  const keys = deploymentPublicKeys(input.root, binding);
   if (publicKeyDigest(key) !== binding.deviceAgentPublicKeyFingerprint) {
     throw new Error("synthetic device-agent key differs from active deployment binding");
   }
-  const signed = signBytes(key, serializeAsoiafAnswerCredentialTransportResultStatement(statement));
-  if (!verifySignature({
-    publicKeySpkiBase64: keys.deviceAgentPublicKeySpkiBase64,
-    algorithm: signed.algorithm,
-    message: serializeAsoiafAnswerCredentialTransportResultStatement(statement),
-    signatureBase64: signed.signature.toString("base64"),
-  })) {
-    throw new Error("synthetic device-agent signature did not verify against deployment custody");
-  }
-  return retainResult(input.root, transportResult({
+  const signed = sign(
+    key,
+    serializeAsoiafAnswerCredentialTransportResultStatement(statement),
+  );
+  return retainResult(input.root, buildTransportResult({
     root: input.root,
-    invocation,
+    providerInvocation,
     profile,
     statement,
-    signatureAlgorithm: signed.algorithm,
+    algorithm: signed.algorithm,
     signature: signed.signature,
     operatorId: input.operatorId,
   }));
@@ -992,8 +1082,7 @@ $ErrorActionPreference = 'Stop'
 $inputObject = Get-Content -Raw -LiteralPath $InputPath | ConvertFrom-Json
 function Normalize-Thumbprint([string]$value) { return ($value -replace '[^A-Fa-f0-9]', '').ToUpperInvariant() }
 function Resolve-Certificate([string]$thumbprint) {
-  $normalized = Normalize-Thumbprint $thumbprint
-  $certificate = Get-Item -LiteralPath ("Cert:\CurrentUser\My\" + $normalized) -ErrorAction Stop
+  $certificate = Get-Item -LiteralPath ("Cert:\CurrentUser\My\" + (Normalize-Thumbprint $thumbprint)) -ErrorAction Stop
   if (-not $certificate.HasPrivateKey) { throw 'certificate does not expose a non-exported private key to CurrentUser' }
   return $certificate
 }
@@ -1015,13 +1104,11 @@ function Sign-Bytes($certificate, [byte[]]$message) {
   throw 'Windows CNG certificate key type is unsupported'
 }
 function Fingerprint([System.Security.Cryptography.X509Certificates.X509Certificate2]$certificate) {
-  $hash = [System.Security.Cryptography.SHA256]::HashData($certificate.RawData)
-  return 'sha256:' + [Convert]::ToHexString($hash).ToLowerInvariant()
+  return 'sha256:' + [Convert]::ToHexString([System.Security.Cryptography.SHA256]::HashData($certificate.RawData)).ToLowerInvariant()
 }
 if ($inputObject.command -eq 'sign') {
   $certificate = Resolve-Certificate $inputObject.thumbprint
-  $message = [Convert]::FromBase64String([string]$inputObject.messageBase64)
-  $signed = Sign-Bytes $certificate $message
+  $signed = Sign-Bytes $certificate ([Convert]::FromBase64String([string]$inputObject.messageBase64))
   [pscustomobject]@{
     algorithm = $signed.algorithm
     signatureBase64 = $signed.signatureBase64
@@ -1038,11 +1125,9 @@ $observedIssuer = $null
 $handler.ServerCertificateCustomValidationCallback = {
   param($request, $certificate, $chain, $errors)
   $script:observedLeaf = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($certificate)
-  if ($null -ne $chain -and $chain.ChainElements.Count -gt 1) {
-    $script:observedIssuer = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($chain.ChainElements[1].Certificate)
-  } else {
-    $script:observedIssuer = $script:observedLeaf
-  }
+  $script:observedIssuer = if ($null -ne $chain -and $chain.ChainElements.Count -gt 1) {
+    [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($chain.ChainElements[1].Certificate)
+  } else { $script:observedLeaf }
   return $errors -eq [System.Net.Security.SslPolicyErrors]::None
 }
 $http = [System.Net.Http.HttpClient]::new($handler)
@@ -1054,7 +1139,7 @@ try {
     $request.Content.Headers.ContentType = [System.Net.Http.Headers.MediaTypeHeaderValue]::new('application/json')
   }
   $started = [DateTimeOffset]::UtcNow
-  $response = $http.Send($request, [System.Net.Http.HttpCompletionOption]::ResponseHeadersRead)
+  $response = $http.SendAsync($request, [System.Net.Http.HttpCompletionOption]::ResponseHeadersRead).GetAwaiter().GetResult()
   $bytes = $response.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult()
   $completed = [DateTimeOffset]::UtcNow
   if ($bytes.Length -gt [int]$inputObject.maxResponseBytes) { throw 'response exceeded provider ceiling' }
@@ -1062,11 +1147,10 @@ try {
   $issuerFingerprint = Fingerprint $script:observedIssuer
   if ($leafFingerprint -ne [string]$inputObject.expectedServerCertificateFingerprint) { throw 'server certificate fingerprint mismatch' }
   if ($issuerFingerprint -ne [string]$inputObject.expectedServerIssuerFingerprint) { throw 'server issuer fingerprint mismatch' }
-  $responseDigest = 'sha256:' + [Convert]::ToHexString([System.Security.Cryptography.SHA256]::HashData($bytes)).ToLowerInvariant()
   [pscustomobject]@{
     httpStatus = [int]$response.StatusCode
     responseBytes = $bytes.Length
-    responseDigest = $responseDigest
+    responseDigest = 'sha256:' + [Convert]::ToHexString([System.Security.Cryptography.SHA256]::HashData($bytes)).ToLowerInvariant()
     observedServerCertificateFingerprint = $leafFingerprint
     observedServerIssuerFingerprint = $issuerFingerprint
     startedAt = $started.ToString('o')
@@ -1078,101 +1162,115 @@ try {
 }`;
 }
 
-function runWindowsProvider(input: Record<string, unknown>, executable?: string): Record<string, unknown> {
-  if (process.platform !== "win32") throw new Error("Windows CNG provider execution requires Windows");
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "asoiaf-cng-provider-"));
+function selector(value: string, expected: `sha256:${string}`, label: string): string {
+  const normalized = requireId(value, label);
+  if (sha256(normalized) !== expected) {
+    throw new Error(`${label} differs from retained profile selector digest`);
+  }
+  return normalized;
+}
+
+function runWindows(input: Record<string, unknown>, executable?: string): Record<string, unknown> {
+  if (process.platform !== "win32") {
+    throw new Error("Windows CNG provider execution requires Windows");
+  }
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "asoiaf-provider-host-"));
   const scriptPath = path.join(directory, "provider.ps1");
   const inputPath = path.join(directory, "input.json");
   try {
     fs.writeFileSync(scriptPath, asoiafAnswerCredentialWindowsCngPowerShell(), "utf8");
     fs.writeFileSync(inputPath, `${JSON.stringify(input)}\n`, "utf8");
-    const output = execFileSync(executable ?? "powershell.exe", [
+    return JSON.parse(execFileSync(executable ?? "powershell.exe", [
       "-NoProfile",
       "-NonInteractive",
       "-ExecutionPolicy", "Bypass",
       "-File", scriptPath,
       "-InputPath", inputPath,
-    ], { encoding: "utf8", windowsHide: true });
-    return JSON.parse(output.trim()) as Record<string, unknown>;
+    ], { encoding: "utf8", windowsHide: true }).trim()) as Record<string, unknown>;
   } finally {
     fs.rmSync(directory, { recursive: true, force: true });
   }
 }
 
-function selectorMatches(selector: string, digest: `sha256:${string}`, label: string): string {
-  const normalized = requireSelector(selector, label);
-  if (sha256(normalized) !== digest) throw new Error(`${label} differs from retained profile selector digest`);
-  return normalized;
-}
-
 export function executeAsoiafAnswerWindowsCngPossession(
   input: AsoiafAnswerCredentialWindowsPossessionInput,
 ): { result: AsoiafAnswerCredentialProviderResult; replayed: boolean } {
-  const invocation = findProviderInvocation(input.root, input.providerInvocationId);
-  const profile = findProfile(input.root, invocation.profileId);
-  if (profile.hostKind !== "windows-cng") throw new Error("Windows CNG execution requires a Windows CNG profile");
+  const providerInvocation = providerInvocationById(input.root, input.providerInvocationId);
+  const profile = profileById(input.root, providerInvocation.profileId);
+  if (profile.hostKind !== "windows-cng") {
+    throw new Error("Windows CNG execution requires a Windows CNG profile");
+  }
   const existing = readAsoiafAnswerCredentialProviderStatus(input.root).results
-    .find((entry) => entry.providerInvocationId === invocation.providerInvocationId);
+    .find((entry) => entry.providerInvocationId === providerInvocation.providerInvocationId);
   if (existing) return { result: existing, replayed: true };
-  const brokerInvocation = findBrokerInvocation(input.root, invocation.brokerInvocationId);
-  const thumbprint = selectorMatches(input.credentialCertificateThumbprint, profile.credentialSelectorDigest, "credential certificate selector");
-  const output = runWindowsProvider({
+  const brokerInvocation = brokerInvocationById(input.root, providerInvocation.brokerInvocationId);
+  const output = runWindows({
     command: "sign",
-    thumbprint,
-    messageBase64: serializeAsoiafAnswerCredentialBrokerInvocation(brokerInvocation).toString("base64"),
+    thumbprint: selector(
+      input.credentialCertificateThumbprint,
+      profile.credentialSelectorDigest,
+      "credential certificate selector",
+    ),
+    messageBase64: serializeAsoiafAnswerCredentialBrokerInvocation(brokerInvocation)
+      .toString("base64"),
   }, input.powershellExecutable);
-  const signature = Buffer.from(String(output.signatureBase64), "base64");
-  const binding = brokerBinding(input.root, profile.brokerBindingId);
+  const binding = bindingById(input.root, profile.brokerBindingId);
   if (String(output.certificateFingerprint).toLowerCase() !== binding.certificateFingerprint) {
     throw new Error("Windows CNG certificate differs from active deployment binding");
   }
-  const result = possessionResult({
+  return retainResult(input.root, buildPossessionResult({
     root: input.root,
-    invocation,
+    providerInvocation,
     profile,
-    signatureAlgorithm: String(output.algorithm) as AsoiafAnswerTransportProofAlgorithm,
-    signature,
-    startedAt: invocation.preparedAt,
+    algorithm: String(output.algorithm) as AsoiafAnswerTransportProofAlgorithm,
+    signature: Buffer.from(String(output.signatureBase64), "base64"),
     completedAt: input.completedAt,
     operatorId: input.operatorId,
-  });
-  return retainResult(input.root, result);
+  }));
 }
 
 export function executeAsoiafAnswerWindowsCngTransport(
   input: AsoiafAnswerCredentialWindowsTransportInput,
 ): { result: AsoiafAnswerCredentialProviderResult; replayed: boolean } {
-  const invocation = findProviderInvocation(input.root, input.providerInvocationId);
-  const profile = findProfile(input.root, invocation.profileId);
-  if (profile.hostKind !== "windows-cng") throw new Error("Windows CNG execution requires a Windows CNG profile");
+  const providerInvocation = providerInvocationById(input.root, input.providerInvocationId);
+  const profile = profileById(input.root, providerInvocation.profileId);
+  if (profile.hostKind !== "windows-cng") {
+    throw new Error("Windows CNG execution requires a Windows CNG profile");
+  }
   const existing = readAsoiafAnswerCredentialProviderStatus(input.root).results
-    .find((entry) => entry.providerInvocationId === invocation.providerInvocationId);
+    .find((entry) => entry.providerInvocationId === providerInvocation.providerInvocationId);
   if (existing) return { result: existing, replayed: true };
-  const brokerInvocation = findBrokerInvocation(input.root, invocation.brokerInvocationId);
-  if (brokerInvocation.operation !== "mutual-tls-request" || brokerInvocation.request.kind !== "mutual-tls") {
+  const brokerInvocation = brokerInvocationById(input.root, providerInvocation.brokerInvocationId);
+  if (
+    brokerInvocation.operation !== "mutual-tls-request"
+    || brokerInvocation.request.kind !== "mutual-tls"
+  ) {
     throw new Error("Windows CNG transport requires a mutual-TLS broker invocation");
   }
-  const credentialThumbprint = selectorMatches(input.credentialCertificateThumbprint, profile.credentialSelectorDigest, "credential certificate selector");
-  const agentThumbprint = selectorMatches(input.deviceAgentCertificateThumbprint, profile.deviceAgentSelectorDigest, "device-agent certificate selector");
   const requestBody = Buffer.from(input.requestBodyBase64, "base64");
-  if (requestBody.length !== brokerInvocation.request.requestBodyBytes || bytesDigest(requestBody) !== brokerInvocation.request.requestBodyDigest) {
+  if (
+    requestBody.length !== brokerInvocation.request.requestBodyBytes
+    || bytesDigest(requestBody) !== brokerInvocation.request.requestBodyDigest
+  ) {
     throw new Error("Windows CNG request body differs from broker invocation custody");
   }
-  const network = runWindowsProvider({
+  const network = runWindows({
     command: "mutual-tls",
-    credentialThumbprint,
+    credentialThumbprint: selector(
+      input.credentialCertificateThumbprint,
+      profile.credentialSelectorDigest,
+      "credential certificate selector",
+    ),
     method: brokerInvocation.request.method,
     targetUrl: brokerInvocation.request.targetUrl,
     requestBodyBase64: input.requestBodyBase64,
     maxResponseBytes: Math.min(profile.maxResponseBytes, brokerInvocation.request.maxResponseBytes),
-    expectedServerCertificateFingerprint: brokerInvocation.request.expectedServerCertificateFingerprint,
-    expectedServerIssuerFingerprint: brokerInvocation.request.expectedServerIssuerFingerprint,
+    expectedServerCertificateFingerprint:
+      brokerInvocation.request.expectedServerCertificateFingerprint,
+    expectedServerIssuerFingerprint:
+      brokerInvocation.request.expectedServerIssuerFingerprint,
   }, input.powershellExecutable);
-  const responseDigest = requireSha256(String(network.responseDigest), "Windows CNG response digest");
-  const providerReceiptDigest = sha256({
-    providerInvocationFingerprint: invocation.providerInvocationFingerprint,
-    network,
-  });
+  const responseDigest = requireDigest(String(network.responseDigest), "Windows response digest");
   const lowerRequestFingerprint = sha256({
     brokerInvocationFingerprint: brokerInvocation.invocationFingerprint,
     requestBodyDigest: brokerInvocation.request.requestBodyDigest,
@@ -1182,125 +1280,92 @@ export function executeAsoiafAnswerWindowsCngTransport(
     httpStatus: Number(network.httpStatus),
     responseDigest,
   });
+  const providerReceiptDigest = sha256({
+    providerInvocationFingerprint: providerInvocation.providerInvocationFingerprint,
+    network,
+  });
   const statement = buildAsoiafAnswerCredentialTransportResultStatement({
     root: input.root,
     invocationId: brokerInvocation.invocationId,
-    lowerRequestId: collectorContentId("asoiaf-answer-provider-lower-request", lowerRequestFingerprint),
+    lowerRequestId: collectorContentId(
+      "asoiaf-answer-provider-lower-request",
+      lowerRequestFingerprint,
+    ),
     lowerRequestFingerprint,
-    lowerResponseId: collectorContentId("asoiaf-answer-provider-lower-response", lowerResponseFingerprint),
+    lowerResponseId: collectorContentId(
+      "asoiaf-answer-provider-lower-response",
+      lowerResponseFingerprint,
+    ),
     lowerResponseFingerprint,
-    observedServerCertificateFingerprint: requireSha256(String(network.observedServerCertificateFingerprint), "observed server certificate fingerprint"),
-    observedServerIssuerFingerprint: requireSha256(String(network.observedServerIssuerFingerprint), "observed server issuer fingerprint"),
-    httpStatus: requirePositiveInteger(Number(network.httpStatus), "HTTP status", 599),
-    responseBytes: requirePositiveInteger(Number(network.responseBytes), "response byte count", profile.maxResponseBytes),
+    observedServerCertificateFingerprint: requireDigest(
+      String(network.observedServerCertificateFingerprint),
+      "observed server certificate fingerprint",
+    ),
+    observedServerIssuerFingerprint: requireDigest(
+      String(network.observedServerIssuerFingerprint),
+      "observed server issuer fingerprint",
+    ),
+    httpStatus: requireInteger(Number(network.httpStatus), "HTTP status", 599),
+    responseBytes: requireInteger(
+      Number(network.responseBytes),
+      "response byte count",
+      profile.maxResponseBytes,
+    ),
     responseDigest,
     providerReceiptDigest,
-    startedAt: requireTime(String(network.startedAt), "Windows CNG transport start time"),
-    completedAt: requireTime(String(network.completedAt), "Windows CNG transport completion time"),
+    startedAt: requireTime(String(network.startedAt), "Windows transport start time"),
+    completedAt: requireTime(String(network.completedAt), "Windows transport completion time"),
   });
-  const signed = runWindowsProvider({
+  const signed = runWindows({
     command: "sign",
-    thumbprint: agentThumbprint,
-    messageBase64: serializeAsoiafAnswerCredentialTransportResultStatement(statement).toString("base64"),
+    thumbprint: selector(
+      input.deviceAgentCertificateThumbprint,
+      profile.deviceAgentSelectorDigest,
+      "device-agent certificate selector",
+    ),
+    messageBase64: serializeAsoiafAnswerCredentialTransportResultStatement(statement)
+      .toString("base64"),
   }, input.powershellExecutable);
-  const signature = Buffer.from(String(signed.signatureBase64), "base64");
-  return retainResult(input.root, transportResult({
+  return retainResult(input.root, buildTransportResult({
     root: input.root,
-    invocation,
+    providerInvocation,
     profile,
     statement,
-    signatureAlgorithm: String(signed.algorithm) as AsoiafAnswerTransportProofAlgorithm,
-    signature,
+    algorithm: String(signed.algorithm) as AsoiafAnswerTransportProofAlgorithm,
+    signature: Buffer.from(String(signed.signatureBase64), "base64"),
     operatorId: input.operatorId,
   }));
-}
-
-function buildProviderState(root: string): AsoiafAnswerCredentialProviderState {
-  const status = readAsoiafAnswerCredentialProviderStatus(root);
-  const entries = status.profiles.map((profile) => {
-    const invocations = status.invocations
-      .filter((entry) => entry.profileId === profile.profileId)
-      .sort((left, right) => left.preparedAt.localeCompare(right.preparedAt));
-    const results = status.results
-      .filter((entry) => entry.profileId === profile.profileId)
-      .sort((left, right) => left.completedAt.localeCompare(right.completedAt));
-    const latestInvocation = invocations.at(-1) ?? null;
-    const latestResult = results.at(-1) ?? null;
-    return {
-      profileId: profile.profileId,
-      profileFingerprint: profile.profileFingerprint,
-      deviceId: profile.deviceId,
-      serviceId: profile.serviceId,
-      latestProviderInvocationId: latestInvocation?.providerInvocationId ?? null,
-      latestProviderInvocationFingerprint: latestInvocation?.providerInvocationFingerprint ?? null,
-      latestResultId: latestResult?.resultId ?? null,
-      latestResultFingerprint: latestResult?.resultFingerprint ?? null,
-      updatedAt: latestResult?.completedAt ?? latestInvocation?.preparedAt ?? profile.createdAt,
-    };
-  }).sort((left, right) => left.profileId.localeCompare(right.profileId));
-  const asOf = entries.map((entry) => entry.updatedAt).sort().at(-1)
-    ?? "1970-01-01T00:00:00.000Z";
-  const core = {
-    format: ASOIAF_ANSWER_CREDENTIAL_PROVIDER_STATE_FORMAT,
-    asOf,
-    entries,
-    stateAuthority: "projection-only" as const,
-    ...NO_TASK_AUTHORITY,
-  };
-  const stateFingerprint = sha256(core);
-  return {
-    ...core,
-    stateId: collectorContentId("asoiaf-answer-credential-provider-state", {
-      asOf,
-      stateFingerprint,
-    }),
-    stateFingerprint,
-  };
-}
-
-function writeProviderState(root: string): AsoiafAnswerCredentialProviderState | null {
-  const paths = asoiafAnswerCredentialProviderHostPaths(root);
-  const profiles = listJson<AsoiafAnswerCredentialProviderProfile>(paths.profiles);
-  if (profiles.length === 0) return null;
-  const state = buildProviderState(root);
-  writeJsonAtomic(paths.state, state);
-  return state;
-}
-
-export function readAsoiafAnswerCredentialProviderStatus(root: string): AsoiafAnswerCredentialProviderStatus {
-  const paths = asoiafAnswerCredentialProviderHostPaths(root);
-  return {
-    format: "axm-asoiaf-answer-credential-provider-status/1",
-    paths,
-    profiles: listJson<AsoiafAnswerCredentialProviderProfile>(paths.profiles),
-    invocations: listJson<AsoiafAnswerCredentialProviderInvocation>(paths.invocations),
-    results: listJson<AsoiafAnswerCredentialProviderResult>(paths.results),
-    state: fs.existsSync(paths.state)
-      ? readJson<AsoiafAnswerCredentialProviderState>(paths.state)
-      : null,
-  };
 }
 
 function secretFindings(root: string): AsoiafAnswerCredentialProviderFinding[] {
   const findings: AsoiafAnswerCredentialProviderFinding[] = [];
   const providerRoot = asoiafAnswerCredentialProviderHostPaths(root).providerRoot;
   if (!fs.existsSync(providerRoot)) return findings;
-  const stack = [providerRoot];
-  const contentPattern = /BEGIN (?:RSA |EC |ENCRYPTED )?PRIVATE KEY|BEGIN CERTIFICATE(?: REQUEST)?|provider(?:Pin|Password|Token|Secret|Session)\s*[":=]|pkcs11:[^\s"']+/i;
-  while (stack.length > 0) {
-    const current = stack.pop()!;
-    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
-      const target = path.join(current, entry.name);
+  const directories = [providerRoot];
+  const pattern = /BEGIN (?:RSA |EC |ENCRYPTED )?PRIVATE KEY|BEGIN CERTIFICATE(?: REQUEST)?|provider(?:Pin|Password|Token|Secret|Session)\s*[":=]|pkcs11:[^\s"']+/i;
+  while (directories.length > 0) {
+    const directory = directories.pop()!;
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      const target = path.join(directory, entry.name);
       if (entry.isDirectory()) {
-        stack.push(target);
+        directories.push(target);
         continue;
       }
       if (/\.(?:key|crt|pem|csr|p12|pfx)$/i.test(entry.name)) {
-        findings.push(finding("provider-secret-path", "error", target, "credential provider retained a forbidden credential path"));
+        findings.push(finding(
+          "provider-secret-path",
+          "error",
+          target,
+          "credential provider retained a forbidden credential path",
+        ));
       }
-      const text = fs.readFileSync(target, "utf8");
-      if (contentPattern.test(text)) {
-        findings.push(finding("provider-secret-content", "error", target, "credential provider retained forbidden key, certificate, or provider-secret content"));
+      if (pattern.test(fs.readFileSync(target, "utf8"))) {
+        findings.push(finding(
+          "provider-secret-content",
+          "error",
+          target,
+          "credential provider retained forbidden key, certificate, or provider-secret content",
+        ));
       }
     }
   }
@@ -1312,25 +1377,40 @@ export function verifyAsoiafAnswerCredentialProviderHostEstate(
 ): AsoiafAnswerCredentialProviderFinding[] {
   const findings: AsoiafAnswerCredentialProviderFinding[] = [];
   for (const entry of verifyAsoiafAnswerCredentialBrokerEstate(root)) {
-    findings.push(finding(`broker:${entry.code}`, entry.severity, entry.subjectId, entry.detail));
+    findings.push(finding(
+      `broker:${entry.code}`,
+      entry.severity,
+      entry.subjectId,
+      entry.detail,
+    ));
   }
   let status: AsoiafAnswerCredentialProviderStatus;
   try {
     status = readAsoiafAnswerCredentialProviderStatus(root);
   } catch (error) {
-    return [finding("provider-estate-read", "error", path.resolve(root), error instanceof Error ? error.message : String(error))];
+    return [finding(
+      "provider-estate-read",
+      "error",
+      path.resolve(root),
+      error instanceof Error ? error.message : String(error),
+    )];
   }
   const broker = readAsoiafAnswerCredentialBrokerStatus(root);
   const deployment = readAsoiafAnswerCredentialDeploymentStatus(root);
 
   for (const profile of status.profiles) {
     try {
-      if (profile.format !== ASOIAF_ANSWER_CREDENTIAL_PROVIDER_PROFILE_FORMAT) throw new Error("provider profile format is invalid");
-      const expectedFingerprint = sha256(profileCore(profile));
-      if (profile.profileFingerprint !== expectedFingerprint) throw new Error("provider profile fingerprint is stale");
+      if (profile.format !== ASOIAF_ANSWER_CREDENTIAL_PROVIDER_PROFILE_FORMAT) {
+        throw new Error("provider profile format is invalid");
+      }
+      if (profile.profileFingerprint !== sha256(profileCore(profile))) {
+        throw new Error("provider profile fingerprint is stale");
+      }
       const policy = broker.policies.find((entry) => entry.policyId === profile.brokerPolicyId);
       const binding = broker.bindings.find((entry) => entry.bindingId === profile.brokerBindingId);
-      if (!policy || !binding) throw new Error("provider profile references absent broker policy or binding");
+      if (!policy || !binding) {
+        throw new Error("provider profile references absent broker policy or binding");
+      }
       if (
         policy.policyFingerprint !== profile.brokerPolicyFingerprint
         || binding.bindingFingerprint !== profile.brokerBindingFingerprint
@@ -1341,89 +1421,175 @@ export function verifyAsoiafAnswerCredentialProviderHostEstate(
         || binding.keyReferenceId !== profile.keyReferenceId
         || binding.providerClass !== profile.providerClass
         || expectedHostKind(binding.providerClass) !== profile.hostKind
-      ) throw new Error("provider profile differs from broker binding custody");
-      if (profile.certificateRetained || profile.privateKeyRetained || profile.privateKeyPathRetained || profile.rawProviderSelectorRetained || profile.providerSecretRetained || profile.rawResponseRetained) {
-        throw new Error("provider profile crossed secret-retention boundary");
+      ) {
+        throw new Error("provider profile differs from broker binding custody");
       }
-      if (profile.authority !== "none" || profile.graphEffect !== "none" || profile.canonEffect !== "none" || profile.answerEffect !== "none") {
-        throw new Error("provider profile acquired task authority");
+      if (
+        profile.certificateRetained
+        || profile.privateKeyRetained
+        || profile.privateKeyPathRetained
+        || profile.rawProviderSelectorRetained
+        || profile.providerSecretRetained
+        || profile.rawResponseRetained
+        || profile.authority !== "none"
+        || profile.graphEffect !== "none"
+        || profile.canonEffect !== "none"
+        || profile.answerEffect !== "none"
+      ) {
+        throw new Error("provider profile crossed retention or authority boundary");
       }
     } catch (error) {
-      findings.push(finding("provider-profile-invalid", "error", profile.profileId, error instanceof Error ? error.message : String(error)));
+      findings.push(finding(
+        "provider-profile-invalid",
+        "error",
+        profile.profileId,
+        error instanceof Error ? error.message : String(error),
+      ));
     }
   }
 
   for (const invocation of status.invocations) {
     try {
-      if (invocation.format !== ASOIAF_ANSWER_CREDENTIAL_PROVIDER_INVOCATION_FORMAT) throw new Error("provider invocation format is invalid");
-      if (invocation.providerInvocationFingerprint !== sha256(invocationCore(invocation))) throw new Error("provider invocation fingerprint is stale");
+      if (invocation.format !== ASOIAF_ANSWER_CREDENTIAL_PROVIDER_INVOCATION_FORMAT) {
+        throw new Error("provider invocation format is invalid");
+      }
+      if (invocation.providerInvocationFingerprint !== sha256(invocationCore(invocation))) {
+        throw new Error("provider invocation fingerprint is stale");
+      }
       const profile = status.profiles.find((entry) => entry.profileId === invocation.profileId);
-      const brokerInvocation = broker.invocations.find((entry) => entry.invocationId === invocation.brokerInvocationId);
-      if (!profile || !brokerInvocation) throw new Error("provider invocation references absent profile or broker invocation");
+      const brokerInvocation = broker.invocations.find(
+        (entry) => entry.invocationId === invocation.brokerInvocationId,
+      );
+      if (!profile || !brokerInvocation) {
+        throw new Error("provider invocation references absent profile or broker invocation");
+      }
       if (
         profile.profileFingerprint !== invocation.profileFingerprint
         || brokerInvocation.invocationFingerprint !== invocation.brokerInvocationFingerprint
-        || invocation.brokerInvocationBytesDigest !== bytesDigest(serializeAsoiafAnswerCredentialBrokerInvocation(brokerInvocation))
+        || invocation.brokerInvocationBytesDigest !== bytesDigest(
+          serializeAsoiafAnswerCredentialBrokerInvocation(brokerInvocation),
+        )
         || brokerInvocation.bindingId !== invocation.brokerBindingId
         || brokerInvocation.bindingFingerprint !== invocation.brokerBindingFingerprint
         || brokerInvocation.operation !== invocation.operation
-      ) throw new Error("provider invocation differs from broker custody");
+      ) {
+        throw new Error("provider invocation differs from broker custody");
+      }
     } catch (error) {
-      findings.push(finding("provider-invocation-invalid", "error", invocation.providerInvocationId, error instanceof Error ? error.message : String(error)));
+      findings.push(finding(
+        "provider-invocation-invalid",
+        "error",
+        invocation.providerInvocationId,
+        error instanceof Error ? error.message : String(error),
+      ));
     }
   }
 
   for (const result of status.results) {
     try {
-      if (result.format !== ASOIAF_ANSWER_CREDENTIAL_PROVIDER_RESULT_FORMAT) throw new Error("provider result format is invalid");
-      if (result.resultFingerprint !== sha256(resultCore(result))) throw new Error("provider result fingerprint is stale");
-      const invocation = status.invocations.find((entry) => entry.providerInvocationId === result.providerInvocationId);
+      if (result.format !== ASOIAF_ANSWER_CREDENTIAL_PROVIDER_RESULT_FORMAT) {
+        throw new Error("provider result format is invalid");
+      }
+      if (result.resultFingerprint !== sha256(resultCore(result))) {
+        throw new Error("provider result fingerprint is stale");
+      }
+      const invocation = status.invocations.find(
+        (entry) => entry.providerInvocationId === result.providerInvocationId,
+      );
       const profile = status.profiles.find((entry) => entry.profileId === result.profileId);
-      const binding = broker.bindings.find((entry) => entry.bindingId === invocation?.brokerBindingId);
-      const keyReference = deployment.keys.find((entry) => entry.keyReferenceId === binding?.keyReferenceId);
-      const device = deployment.devices.find((entry) => entry.deviceId === binding?.deviceId);
-      if (!invocation || !profile || !binding || !keyReference || !device) throw new Error("provider result references absent invocation, profile, binding, key, or device");
+      const binding = broker.bindings.find(
+        (entry) => entry.bindingId === invocation?.brokerBindingId,
+      );
+      const key = deployment.keys.find(
+        (entry) => entry.keyReferenceId === binding?.keyReferenceId,
+      );
+      const device = deployment.devices.find(
+        (entry) => entry.deviceId === binding?.deviceId,
+      );
+      const brokerInvocation = broker.invocations.find(
+        (entry) => entry.invocationId === result.brokerInvocationId,
+      );
+      if (!invocation || !profile || !binding || !key || !device || !brokerInvocation) {
+        throw new Error("provider result references absent parent custody");
+      }
       if (result.output.kind === "possession-proof") {
-        const brokerInvocation = broker.invocations.find((entry) => entry.invocationId === result.brokerInvocationId)!;
         if (!verifySignature({
-          publicKeySpkiBase64: keyReference.publicKeySpkiBase64,
+          spkiBase64: key.publicKeySpkiBase64,
           algorithm: result.output.signatureAlgorithm,
           message: serializeAsoiafAnswerCredentialBrokerInvocation(brokerInvocation),
           signatureBase64: result.output.signatureBase64,
-        })) throw new Error("provider possession signature is invalid");
-      } else {
-        if (!verifySignature({
-          publicKeySpkiBase64: device.deviceAgentPublicKeySpkiBase64,
-          algorithm: result.output.deviceAgentSignatureAlgorithm,
-          message: serializeAsoiafAnswerCredentialTransportResultStatement(result.output.statement),
-          signatureBase64: result.output.deviceAgentSignatureBase64,
-        })) throw new Error("provider transport device-agent signature is invalid");
+        })) {
+          throw new Error("provider possession signature is invalid");
+        }
+      } else if (!verifySignature({
+        spkiBase64: device.deviceAgentPublicKeySpkiBase64,
+        algorithm: result.output.deviceAgentSignatureAlgorithm,
+        message: serializeAsoiafAnswerCredentialTransportResultStatement(
+          result.output.statement,
+        ),
+        signatureBase64: result.output.deviceAgentSignatureBase64,
+      })) {
+        throw new Error("provider transport device-agent signature is invalid");
       }
-      if (result.certificateRetained || result.privateKeyRetained || result.privateKeyPathRetained || result.rawProviderSelectorRetained || result.providerSecretRetained || result.rawResponseRetained) {
-        throw new Error("provider result crossed secret-retention boundary");
+      if (
+        result.certificateRetained
+        || result.privateKeyRetained
+        || result.privateKeyPathRetained
+        || result.rawProviderSelectorRetained
+        || result.providerSecretRetained
+        || result.rawResponseRetained
+        || result.authority !== "none"
+        || result.graphEffect !== "none"
+        || result.canonEffect !== "none"
+        || result.answerEffect !== "none"
+      ) {
+        throw new Error("provider result crossed retention or authority boundary");
       }
     } catch (error) {
-      findings.push(finding("provider-result-invalid", "error", result.resultId, error instanceof Error ? error.message : String(error)));
+      findings.push(finding(
+        "provider-result-invalid",
+        "error",
+        result.resultId,
+        error instanceof Error ? error.message : String(error),
+      ));
     }
   }
 
   if (status.profiles.length > 0) {
-    const expected = buildProviderState(root);
+    const expected = buildState(root);
     if (!status.state) {
-      findings.push(finding("provider-state-missing", "error", status.paths.state, "provider state is absent"));
+      findings.push(finding(
+        "provider-state-missing",
+        "error",
+        status.paths.state,
+        "provider state is absent",
+      ));
     } else if (
       status.state.stateFingerprint !== sha256(stateCore(status.state))
       || stableJson(status.state) !== stableJson(expected)
     ) {
-      findings.push(finding("provider-state-invalid", "error", status.state.stateId, "provider state differs from append-only records"));
+      findings.push(finding(
+        "provider-state-invalid",
+        "error",
+        status.state.stateId,
+        "provider state differs from append-only records",
+      ));
     }
   }
 
   for (const invocation of status.invocations) {
-    if (!status.results.some((entry) => entry.providerInvocationId === invocation.providerInvocationId)) {
-      findings.push(finding("provider-invocation-pending", "notice", invocation.providerInvocationId, "provider invocation has no public terminal result"));
+    if (!status.results.some(
+      (entry) => entry.providerInvocationId === invocation.providerInvocationId,
+    )) {
+      findings.push(finding(
+        "provider-invocation-pending",
+        "notice",
+        invocation.providerInvocationId,
+        "provider invocation has no public terminal result",
+      ));
     }
   }
+
   for (const [directory, code] of [
     [status.paths.profiles, "provider-profile-filename"],
     [status.paths.invocations, "provider-invocation-filename"],
@@ -1431,9 +1597,16 @@ export function verifyAsoiafAnswerCredentialProviderHostEstate(
   ] as const) {
     if (!fs.existsSync(directory)) continue;
     for (const name of fs.readdirSync(directory).sort()) {
-      if (!/^[a-f0-9]{64}\.json$/.test(name)) findings.push(finding(code, "error", name, "provider filename is not a SHA-256 digest"));
+      if (!/^[a-f0-9]{64}\.json$/.test(name)) {
+        findings.push(finding(
+          code,
+          "error",
+          name,
+          "provider filename is not a SHA-256 digest",
+        ));
+      }
     }
   }
   findings.push(...secretFindings(root));
-  return sortedFindings(findings);
+  return sortFindings(findings);
 }

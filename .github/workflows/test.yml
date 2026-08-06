@@ -3,15 +3,21 @@
 # bar — headless drills stay receipts-not-CI per this repo's own doctrine
 # (docs/drills/README.md), run by whoever ships.
 #
-# No stale-emit purge needed here: the purge exists because local `tsc -b`
-# emits .js beside sources that shadow .ts under vitest; a fresh CI checkout
-# has no emits to purge.
+# Temporary observer v12 adds a separately receipted publisher job. The
+# publisher checks out PR #258's exact staging head, reconstructs the verified
+# seven-surface candidate, and replaces that branch only under an exact ref
+# lease. This observer branch is never mergeable programme source.
 name: test
 
 on:
   push:
     branches: [main]
   pull_request:
+
+permissions:
+  actions: read
+  contents: write
+  pull-requests: write
 
 jobs:
   test:
@@ -29,3 +35,80 @@ jobs:
       - run: npm ci
       - run: npx tsc --noEmit
       - run: npx vitest run
+
+  publish-supervised-delivery:
+    if: >-
+      github.repository == 'BigBirdReturns/axm-arc' &&
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.ref == 'observer/asoiaf-supervised-delivery-pr-event-v12'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      PR_NUMBER: '258'
+      BASE_BRANCH: integration/asoiaf-answer-desk-supervised-transport-v1
+      BASE_SHA: 52287c5406594ad6e1d1add7d0aef36274179a3e
+      TARGET_BRANCH: feature/asoiaf-answer-desk-supervised-delivery-v1
+      ARCHIVE_BYTES: '45733'
+      ARCHIVE_SHA256: ec29c3d2c1f5040c673afa76be720e4fa1ac3674164e200d6da9fa53771376b8
+      ARCHIVE_GIT_BLOB: 5b8936e97f503da9b2ea536fd02f650548cd3999
+      RECEIPT_ROOT: ${{ runner.temp }}/asoiaf-supervised-delivery-recovery-publication-v10
+      SOURCE_ROOT: ${{ runner.temp }}/asoiaf-supervised-delivery-recovered-source-v10
+      UNPACK_ROOT: ${{ runner.temp }}/asoiaf-supervised-delivery-recovery-unpack-v10
+      ARCHIVE_PATH: ${{ runner.temp }}/PR258_carrier_free_recovery_candidate.zip
+    steps:
+      - name: Check out exact PR #258 staging branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/asoiaf-answer-desk-supervised-delivery-v1
+          fetch-depth: 0
+          show-progress: false
+
+      - name: Execute deterministic v10 publisher under staging identity
+        id: publisher
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          staging_sha="$(git rev-parse HEAD)"
+          gzip -dc .github/recovery-v10/publish-pr258-v10.sh.gz > "$RUNNER_TEMP/publish-pr258-v10.sh"
+          chmod +x "$RUNNER_TEMP/publish-pr258-v10.sh"
+          GITHUB_SHA="$staging_sha" \
+          GITHUB_REF="refs/heads/$TARGET_BRANCH" \
+          GITHUB_EVENT_NAME=push \
+            "$RUNNER_TEMP/publish-pr258-v10.sh"
+
+      - name: Upload publication receipt
+        if: always()
+        id: artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: asoiaf-supervised-delivery-recovery-publication-v12
+          path: ${{ runner.temp }}/asoiaf-supervised-delivery-recovery-publication-v10
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 6
+
+      - name: Report bounded publication result
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARTIFACT_ID: ${{ steps.artifact.outputs.artifact-id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          stage=unknown
+          published=false
+          candidate='not-issued'
+          test -f "$RECEIPT_ROOT/stage.txt" && stage="$(cat "$RECEIPT_ROOT/stage.txt")"
+          test -f "$RECEIPT_ROOT/published.txt" && published="$(cat "$RECEIPT_ROOT/published.txt")"
+          test -f "$RECEIPT_ROOT/candidate-sha.txt" && candidate="$(cat "$RECEIPT_ROOT/candidate-sha.txt")"
+          if test "$published" = true; then
+            gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body \
+              "Carrier-free supervised delivery was published on exact sole-parent head \`$candidate\`, directly above \`$BASE_SHA\`, with exactly seven permanent surfaces. Publication run \`$GITHUB_RUN_ID\`; receipt artifact \`${ARTIFACT_ID:-not-issued}\`. This is a publication receipt only. Exact-head permanent workflow qualification and independent artifact verification remain required."
+          else
+            gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body \
+              "Carrier-free supervised-delivery recovery observer v12 refused staging head at stage \`$stage\`. Run \`$GITHUB_RUN_ID\`; receipt artifact \`${ARTIFACT_ID:-not-issued}\`. No recovered candidate or terminal qualification is asserted."
+          fi
+          test "$published" = true

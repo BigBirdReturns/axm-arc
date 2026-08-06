@@ -39,7 +39,7 @@ jobs:
           root="$RUNNER_TEMP/asoiaf-supervised-delivery-base"
           mkdir -p "$root"
           git rev-parse HEAD > "$root/candidate-sha.txt"
-          git rev-parse 'integration/asoiaf-answer-desk-supervised-transport-v1^{commit}' \
+          git rev-parse 'origin/integration/asoiaf-answer-desk-supervised-transport-v1^{commit}' \
             > "$root/base-sha.txt"
           git log --all --reverse --date=iso-strict \
             --format='%H%x09%P%x09%aI%x09%s' \

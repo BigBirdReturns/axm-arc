@@ -23,7 +23,7 @@ jobs:
   export:
     if: github.repository == 'BigBirdReturns/axm-arc'
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - name: Check out exact construction head
         uses: actions/checkout@v4
@@ -32,7 +32,16 @@ jobs:
           fetch-depth: 0
           show-progress: false
 
-      - name: Retain source floor and history
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install exact locked dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Retain source floor, history, and dependency tree
         shell: bash
         run: |
           set -euo pipefail
@@ -53,12 +62,15 @@ jobs:
             --exclude=.github/workflows/_materialize-asoiaf-answer-desk-supervised-delivery.yml \
             --exclude=.github/workflows/_export-asoiaf-supervised-delivery-base.yml \
             -czf "$root/source.tar.gz" .
-          sha256sum "$root/source.tar.gz" > "$root/source.tar.gz.sha256"
+          tar -czf "$root/node_modules.tar.gz" node_modules
+          sha256sum "$root/source.tar.gz" "$root/node_modules.tar.gz" \
+            > "$root/SHA256SUMS"
 
-      - name: Upload exact source floor
+      - name: Upload exact source floor and dependency tree
         uses: actions/upload-artifact@v4
         with:
-          name: asoiaf-supervised-delivery-base-source
+          name: asoiaf-supervised-delivery-development-floor
           path: ${{ runner.temp }}/asoiaf-supervised-delivery-base
           if-no-files-found: error
           retention-days: 2
+          compression-level: 1

@@ -1,0 +1,99 @@
+name: Publish carrier-free ASOIAF supervised delivery recovery v8
+
+on:
+  push:
+    branches:
+      - observer/asoiaf-supervised-delivery-recovery-carrier-v2
+    paths:
+      - '.github/workflows/.publish-carrier-free-supervised-delivery-v8.trigger'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: publish-carrier-free-asoiaf-supervised-delivery-recovery-v8
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.repository == 'BigBirdReturns/axm-arc'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      PR_NUMBER: '258'
+      BASE_BRANCH: integration/asoiaf-answer-desk-supervised-transport-v1
+      BASE_SHA: 52287c5406594ad6e1d1add7d0aef36274179a3e
+      TARGET_BRANCH: feature/asoiaf-answer-desk-supervised-delivery-v1
+      CARRIER_BRANCH: observer/asoiaf-supervised-delivery-recovery-carrier-v2
+      ARCHIVE_BYTES: '45733'
+      ARCHIVE_SHA256: ec29c3d2c1f5040c673afa76be720e4fa1ac3674164e200d6da9fa53771376b8
+      ARCHIVE_GIT_BLOB: c2048bbb66ddf7343844f4df74c5fa2cdc32de40
+      RECEIPT_ROOT: ${{ runner.temp }}/asoiaf-supervised-delivery-recovery-publication-v8
+      SOURCE_ROOT: ${{ runner.temp }}/asoiaf-supervised-delivery-recovered-source-v8
+      UNPACK_ROOT: ${{ runner.temp }}/asoiaf-supervised-delivery-recovery-unpack-v8
+      ARCHIVE_PATH: ${{ runner.temp }}/PR258_carrier_free_recovery_candidate.zip
+    steps:
+      - name: Check out exact carrier transaction
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          show-progress: false
+
+      - name: Execute deterministic carrier-free publisher
+        id: publisher
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gzip -dc .github/recovery/publish-pr258-v8.sh.gz > "$RUNNER_TEMP/publish-pr258-v8.sh"
+          chmod +x "$RUNNER_TEMP/publish-pr258-v8.sh"
+          "$RUNNER_TEMP/publish-pr258-v8.sh"
+
+      - name: Upload publication receipt
+        if: always()
+        id: artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: asoiaf-supervised-delivery-recovery-publication-v8
+          path: ${{ runner.temp }}/asoiaf-supervised-delivery-recovery-publication-v8
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 6
+
+      - name: Report bounded publication result
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARTIFACT_ID: ${{ steps.artifact.outputs.artifact-id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          stage=unknown
+          published=false
+          candidate='not-issued'
+          test -f "$RECEIPT_ROOT/stage.txt" && stage="$(cat "$RECEIPT_ROOT/stage.txt")"
+          test -f "$RECEIPT_ROOT/published.txt" && published="$(cat "$RECEIPT_ROOT/published.txt")"
+          test -f "$RECEIPT_ROOT/candidate-sha.txt" && candidate="$(cat "$RECEIPT_ROOT/candidate-sha.txt")"
+          if test "$published" = true; then
+            gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body \
+              "Carrier-free supervised delivery was published on exact sole-parent head \`$candidate\`, directly above \`$BASE_SHA\`, with exactly seven permanent surfaces. Publication run \`$GITHUB_RUN_ID\`; receipt artifact \`${ARTIFACT_ID:-not-issued}\`. This is a publication receipt only. Exact-head permanent workflow qualification and independent artifact verification remain required."
+          else
+            gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body \
+              "Carrier-free supervised-delivery recovery publisher v8 refused carrier head \`$GITHUB_SHA\` at stage \`$stage\`. Run \`$GITHUB_RUN_ID\`; receipt artifact \`${ARTIFACT_ID:-not-issued}\`. No recovered candidate or terminal qualification is asserted."
+          fi
+          test "$published" = true
+
+      - name: Retire temporary carrier branch
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh api --method DELETE \
+            "repos/$GITHUB_REPOSITORY/git/refs/heads/$CARRIER_BRANCH" || true

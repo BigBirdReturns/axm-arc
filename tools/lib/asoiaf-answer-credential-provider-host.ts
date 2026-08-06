@@ -1006,22 +1006,23 @@ export function executeAsoiafAnswerSyntheticTransport(
     .find((entry) => entry.providerInvocationId === providerInvocation.providerInvocationId);
   if (existing) return { result: existing, replayed: true };
   const brokerInvocation = brokerInvocationById(input.root, providerInvocation.brokerInvocationId);
+  const request = brokerInvocation.request;
   if (
     brokerInvocation.operation !== "mutual-tls-request"
-    || brokerInvocation.request.kind !== "mutual-tls"
+    || request.kind !== "mutual-tls"
   ) {
     throw new Error("synthetic transport execution requires a mutual-TLS broker invocation");
   }
   const proof = parentObjects(input.root).proofs.find(
-    (entry) => entry.proofId === brokerInvocation.request.possessionProofId,
+    (entry) => entry.proofId === request.possessionProofId,
   );
-  if (!proof || proof.proofFingerprint !== brokerInvocation.request.possessionProofFingerprint) {
+  if (!proof || proof.proofFingerprint !== request.possessionProofFingerprint) {
     throw new Error("credential provider transport invocation lacks its exact possession proof");
   }
   const response = Buffer.from(input.responseBodyBase64, "base64");
   if (
     response.length > profile.maxResponseBytes
-    || response.length > brokerInvocation.request.maxResponseBytes
+    || response.length > request.maxResponseBytes
   ) {
     throw new Error("synthetic provider response exceeds retained response ceiling");
   }

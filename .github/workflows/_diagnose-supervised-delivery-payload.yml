@@ -1,4 +1,4 @@
-name: Recover ASOIAF supervised delivery source objects
+name: Publish carrier-free ASOIAF supervised delivery recovery
 
 on:
   push:
@@ -6,149 +6,198 @@ on:
       - feature/asoiaf-answer-desk-supervised-delivery-v1
     paths:
       - '.github/workflows/_diagnose-supervised-delivery-payload.yml'
-  pull_request:
-    branches:
-      - integration/asoiaf-answer-desk-supervised-transport-v1
-    types:
-      - opened
-      - synchronize
-      - reopened
-    paths:
-      - '.github/workflows/_diagnose-supervised-delivery-payload.yml'
+  workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
+  pull-requests: write
 
 concurrency:
-  group: recover-asoiaf-supervised-delivery-source-objects
+  group: publish-carrier-free-asoiaf-supervised-delivery-recovery
   cancel-in-progress: false
 
 jobs:
-  recover:
-    if: github.repository == 'BigBirdReturns/axm-arc'
+  publish:
+    if: github.repository == 'BigBirdReturns/axm-arc' && github.event_name == 'push'
     runs-on: ubuntu-24.04
     timeout-minutes: 25
+    env:
+      BASE_SHA: 52287c5406594ad6e1d1add7d0aef36274179a3e
+      TARGET_BRANCH: recovery/asoiaf-answer-desk-supervised-delivery-v1
+      ARCHIVE_SHA256: ec29c3d2c1f5040c673afa76be720e4fa1ac3674164e200d6da9fa53771376b8
+      ARCHIVE_BYTES: '45733'
+      ARCHIVE_GIT_BLOB: c2048bbb66ddf7343844f4df74c5fa2cdc32de40
+      BASE64_BYTES: '60980'
     steps:
-      - name: Check out exact diagnostic head
+      - name: Check out exact construction head
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.sha }}
           fetch-depth: 0
           show-progress: false
 
-      - name: Fetch every repository ref visible to the runner
+      - name: Reconstruct the exact recovery archive from content-addressed Git blobs
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          git fetch --force --tags origin \
-            '+refs/heads/*:refs/remotes/origin/*' \
-            '+refs/pull/*/head:refs/remotes/pull/*'
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain)"
+          git cat-file -e "$BASE_SHA^{commit}"
 
-      - name: Scan every fetched Git blob for exact and semantic source identities
+          work="$RUNNER_TEMP/pr258-carrier-free-recovery"
+          mkdir -p "$work/chunks" "$work/unpack"
+          ledger="$work/chunk-ledger.tsv"
+          cat > "$ledger" <<'EOF'
+          a89c51dc56df37763bae6754b3eb2a1a76967a19	8192
+          144367c39c2cbdb0504958defc211cce6f2d45ca	8192
+          874ce72cb2e975b2f34a5fdc00111f6e5b7ad9e7	8192
+          445b50e0c68e65164310058a1ee29e82cc71b6e0	8192
+          233464c8e026e7cbc7edf43ea5c13523dab0ff59	4096
+          8b31f9c101f4cf9d23fc7940203d5de2940a3ac6	4096
+          00b458c41a8270f7830971cbb4da4fb6475b995c	4096
+          5bb2af9ee5b3a5014a8bc5a8e7529a48d44f6b0b	4096
+          13d1e176c216b944342bd7d0e0980e3aae7098ef	1024
+          24158b4345ca2ed4de2f00a0c5051dce1e5bf0c1	1024
+          468b9415f33b701905b0623a04a21ff4b1a7acca	1024
+          745041299f3c4138deba6c7dd8d1cadc4b8c13b4	1024
+          0d67c1eed687473008cbd27ab3aab6454a19e74f	1024
+          5be28b05ccc47e9704db1fb541ea8071eb1dabfe	1024
+          a3b4ca74f0e3f751121e12efa945bbbeaae05677	1024
+          6df96c6163bf2b89d4c733ef10dbafd4e91e39be	1024
+          05c0a4e8cc297086ef45be773b815a17a2295e76	1024
+          c8909d9f3a0178c191371433347d6445deef983a	1024
+          82b91d927916641e24b7a8aefb09a954dbedf4cd	1024
+          777da2a1288fb06fcfda90d694372ab9927981cf	564
+          EOF
+
+          : > "$work/candidate.b64"
+          index=0
+          while IFS=$'\t' read -r sha expected_bytes; do
+            test -n "$sha"
+            response="$work/chunks/$(printf '%02d' "$index").json"
+            chunk="$work/chunks/$(printf '%02d' "$index").txt"
+            curl --fail --silent --show-error --location \
+              --retry 4 --retry-all-errors --connect-timeout 15 \
+              -H 'Accept: application/vnd.github+json' \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H 'X-GitHub-Api-Version: 2022-11-28' \
+              "https://api.github.com/repos/$GITHUB_REPOSITORY/git/blobs/$sha" \
+              -o "$response"
+            test "$(jq -r .sha "$response")" = "$sha"
+            test "$(jq -r .encoding "$response")" = 'base64'
+            jq -r .content "$response" | base64 --decode > "$chunk"
+            test "$(wc -c < "$chunk" | tr -d ' ')" = "$expected_bytes"
+            test "$(git hash-object "$chunk")" = "$sha"
+            cat "$chunk" >> "$work/candidate.b64"
+            index=$((index + 1))
+          done < "$ledger"
+          test "$index" = '20'
+          test "$(wc -c < "$work/candidate.b64" | tr -d ' ')" = "$BASE64_BYTES"
+
+          base64 --decode "$work/candidate.b64" > "$work/candidate.zip"
+          test "$(wc -c < "$work/candidate.zip" | tr -d ' ')" = "$ARCHIVE_BYTES"
+          test "$(sha256sum "$work/candidate.zip" | awk '{print $1}')" = "$ARCHIVE_SHA256"
+          test "$(git hash-object "$work/candidate.zip")" = "$ARCHIVE_GIT_BLOB"
+          unzip -t "$work/candidate.zip"
+          unzip -q "$work/candidate.zip" -d "$work/unpack"
+
+          candidate="$work/unpack/PR258_carrier_free_recovery_candidate"
+          test -d "$candidate/source"
+          (cd "$candidate" && sha256sum --check --strict SHA256SUMS)
+
+          manifest="$candidate/MANIFEST.json"
+          test "$(jq -r .format "$manifest")" = 'axm-asoiaf-answer-supervised-delivery-recovery-candidate/1'
+          test "$(jq -r .repository "$manifest")" = "$GITHUB_REPOSITORY"
+          test "$(jq -r .baseHead "$manifest")" = "$BASE_SHA"
+          test "$(jq -r .intendedBranch "$manifest")" = "$TARGET_BRANCH"
+          test "$(jq -r .permanentSurfaceCount "$manifest")" = '7'
+          test "$(jq '.permanentSurfaces | length' "$manifest")" = '7'
+          printf '%s\n' "$candidate" > "$RUNNER_TEMP/candidate-root.txt"
+
+      - name: Create one carrier-free branch directly from the exact qualified integration base
         shell: bash
         run: |
           set -euo pipefail
-          out="$RUNNER_TEMP/asoiaf-supervised-delivery-object-recovery"
-          mkdir -p "$out/exact" "$out/candidates"
-          git rev-parse HEAD > "$out/candidate-sha.txt"
-          git for-each-ref --format='%(refname)%09%(objectname)' \
-            refs/heads refs/remotes refs/tags > "$out/fetched-refs.tsv"
-          git rev-list --objects --all > "$out/reachable-objects.txt"
-          git cat-file --batch-all-objects --batch-check='%(objectname) %(objecttype) %(objectsize)' \
-            > "$out/all-local-objects.txt"
+          candidate="$(cat "$RUNNER_TEMP/candidate-root.txt")"
+          manifest="$candidate/MANIFEST.json"
 
-          OUT="$out" python3 <<'PY'
-          import hashlib
-          import json
-          import os
-          import pathlib
-          import subprocess
+          if git ls-remote --exit-code --heads origin "$TARGET_BRANCH" >/dev/null 2>&1; then
+            echo "target recovery branch already exists: $TARGET_BRANCH" >&2
+            exit 1
+          fi
 
-          out = pathlib.Path(os.environ['OUT'])
-          expected = {
-              'workflow': ('f3a0006ac78ee22f2eaacff0015c771c896e30439ee8afb639e3b0b81ccc2c47', '.yml'),
-              'documentation': ('bfed202e169ad657b79d355b9b041ab87f36c4bda9ac679321ffe6ff40d6edbf', '.md'),
-              'package': ('47d35b8410b0b5f96db9df88fcdb1e5d8168cbbbe3ccdf8720fbcba847ee6c85', '.json'),
-              'fixture': ('194a19cc7afa35621e9f55c64d418693d1170cf4d3c752934b5f30c970d44ac9', '.ts'),
-              'test': ('68e0836d636c969e5e4ff690d0d65d066fcec7d8722d73af22698cd42610c626', '.test.ts'),
-              'cli': ('4175416ade8c20eddce586864aa3073f7e906cb1d454a29f381bf520aa763a36', '.ts'),
-              'library': ('4996a9cd978825ef03570ae5161e552321ecc5727cc2dbe290b5243cdd88ee11', '.ts'),
-          }
-          by_digest = {digest: (name, suffix) for name, (digest, suffix) in expected.items()}
-          path_map = {}
-          for line in (out / 'reachable-objects.txt').read_text(errors='replace').splitlines():
-              sha, _, path = line.partition(' ')
-              if path:
-                  path_map.setdefault(sha, set()).add(path)
+          git switch --detach "$BASE_SHA"
+          git switch -c "$TARGET_BRANCH"
+          test "$(git rev-parse HEAD)" = "$BASE_SHA"
+          test -z "$(git status --porcelain)"
 
-          exact = []
-          candidates = []
-          scanned = 0
-          candidate_terms = (
-              b'asoiaf-answer-supervised-delivery',
-              b'AsoiafAnswerSupervisedDelivery',
-              b'ASOIAF_ANSWER_SUPERVISED_DELIVERY',
-              b'ASOIAF supervised answer delivery',
-              b'ASOIAF supervised answer-desk delivery',
-              b'/v1/supervisor/assignments/pull',
-              b'/v1/supervisor/results/return',
-          )
-          for line in (out / 'all-local-objects.txt').read_text().splitlines():
-              parts = line.split()
-              if len(parts) != 3 or parts[1] != 'blob':
-                  continue
-              sha, _, size_text = parts
-              size = int(size_text)
-              scanned += 1
-              data = subprocess.check_output(['git', 'cat-file', 'blob', sha])
-              digest = hashlib.sha256(data).hexdigest()
-              paths = sorted(path_map.get(sha, set()))
-              if digest in by_digest:
-                  name, suffix = by_digest[digest]
-                  target = out / 'exact' / f'{name}-{sha}{suffix}'
-                  target.write_bytes(data)
-                  exact.append({
-                      'kind': name,
-                      'gitBlobSha': sha,
-                      'sha256': digest,
-                      'bytes': len(data),
-                      'paths': paths,
-                      'artifactPath': target.relative_to(out).as_posix(),
-                  })
-              if size <= 1_500_000 and any(term in data for term in candidate_terms):
-                  suffix = pathlib.Path(paths[0]).suffix if paths else '.bin'
-                  if suffix not in {'.ts', '.md', '.yml', '.yaml', '.json', '.txt'}:
-                      suffix = '.bin'
-                  target = out / 'candidates' / f'{sha}{suffix}'
-                  target.write_bytes(data)
-                  candidates.append({
-                      'gitBlobSha': sha,
-                      'sha256': digest,
-                      'bytes': len(data),
-                      'paths': paths,
-                      'artifactPath': target.relative_to(out).as_posix(),
-                  })
+          while IFS=$'\t' read -r file expected_sha expected_blob expected_bytes; do
+            source_file="$candidate/source/$file"
+            test -f "$source_file"
+            test "sha256:$(sha256sum "$source_file" | awk '{print $1}')" = "$expected_sha"
+            test "$(git hash-object "$source_file")" = "$expected_blob"
+            test "$(wc -c < "$source_file" | tr -d ' ')" = "$expected_bytes"
+            mkdir -p "$(dirname "$file")"
+            cp "$source_file" "$file"
+          done < <(jq -r '.permanentSurfaces[] | [.path,.sha256,.gitBlobSha1,(.bytes|tostring)] | @tsv' "$manifest")
 
-          report = {
-              'format': 'axm-asoiaf-supervised-delivery-object-recovery/1',
-              'scannedBlobCount': scanned,
-              'expected': {name: digest for name, (digest, _) in expected.items()},
-              'exactMatches': sorted(exact, key=lambda item: item['kind']),
-              'semanticCandidates': sorted(candidates, key=lambda item: (item['sha256'], item['gitBlobSha'])),
-          }
-          (out / 'report.json').write_text(json.dumps(report, indent=2) + '\n')
-          print(json.dumps(report, indent=2))
-          PY
+          jq -r '.permanentSurfaces[].path' "$manifest" | sort > "$RUNNER_TEMP/expected-paths.txt"
+          git add -A
+          git diff --cached --check
+          git diff --cached --name-only | sort > "$RUNNER_TEMP/actual-paths.txt"
+          diff -u "$RUNNER_TEMP/expected-paths.txt" "$RUNNER_TEMP/actual-paths.txt"
+          git diff --cached --name-only "$BASE_SHA" -- | sort > "$RUNNER_TEMP/base-diff-paths.txt"
+          diff -u "$RUNNER_TEMP/expected-paths.txt" "$RUNNER_TEMP/base-diff-paths.txt"
 
-          find "$out" -type f ! -name SHA256SUMS -print0 \
-            | sort -z \
-            | xargs -0 sha256sum \
-            | sed "s#  $out/#  #" > "$out/SHA256SUMS"
+          while IFS=$'\t' read -r file expected_sha expected_blob expected_bytes; do
+            test "sha256:$(sha256sum "$file" | awk '{print $1}')" = "$expected_sha"
+            test "$(git hash-object "$file")" = "$expected_blob"
+            test "$(wc -c < "$file" | tr -d ' ')" = "$expected_bytes"
+          done < <(jq -r '.permanentSurfaces[] | [.path,.sha256,.gitBlobSha1,(.bytes|tostring)] | @tsv' "$manifest")
 
-      - name: Upload exact object recovery
-        uses: actions/upload-artifact@v4
-        with:
-          name: asoiaf-supervised-delivery-object-recovery
-          path: ${{ runner.temp }}/asoiaf-supervised-delivery-object-recovery
-          if-no-files-found: error
-          retention-days: 2
+          if grep -IlE --binary-files=without-match \
+            -- '-----BEGIN (PRIVATE KEY|RSA PRIVATE KEY|EC PRIVATE KEY|OPENSSH PRIVATE KEY|CERTIFICATE REQUEST|CERTIFICATE)-----' \
+            $(cat "$RUNNER_TEMP/expected-paths.txt") | grep -q .; then
+            echo 'permanent surfaces contain forbidden PEM material' >&2
+            exit 1
+          fi
+          if grep -Ei -- '(^|/)[^/]*\.(key|pem|p12|pfx|csr|crt)$' "$RUNNER_TEMP/expected-paths.txt"; then
+            echo 'permanent surface path is secret-bearing' >&2
+            exit 1
+          fi
+
+          git config user.name 'BigBirdReturns supervised-delivery recovery'
+          git config user.email 'actions@users.noreply.github.com'
+          git commit -m 'Restore certificate-authenticated ASOIAF supervised delivery'
+          final_sha="$(git rev-parse HEAD)"
+          test "$(git show -s --format=%P HEAD)" = "$BASE_SHA"
+          test -z "$(git status --porcelain)"
+          git push origin HEAD:"$TARGET_BRANCH"
+          printf '%s\n' "$final_sha" | tee "$RUNNER_TEMP/recovery-head.txt"
+
+          {
+            echo '## Carrier-free recovery branch published'
+            echo
+            echo "- Base: \`$BASE_SHA\`"
+            echo "- Branch: \`$TARGET_BRANCH\`"
+            echo "- Head: \`$final_sha\`"
+            echo '- Permanent surfaces: 7'
+            echo '- Construction carriers on the recovery branch: 0'
+            echo '- Qualification claim: none pending exact-head GitHub workflows'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Report bounded publication result
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if test -f "$RUNNER_TEMP/recovery-head.txt"; then
+            head="$(cat "$RUNNER_TEMP/recovery-head.txt")"
+            gh pr comment 258 --repo "$GITHUB_REPOSITORY" --body "Carrier-free supervised-delivery recovery branch \`$TARGET_BRANCH\` was published directly from exact base \`$BASE_SHA\` at head \`$head\`. The branch contains exactly seven permanent surfaces and no construction carrier. This publication makes no terminal qualification claim; exact-head GitHub qualification and independent artifact inspection remain pending."
+          else
+            gh pr comment 258 --repo "$GITHUB_REPOSITORY" --body "Carrier-free supervised-delivery recovery publication failed on construction head \`$GITHUB_SHA\`. No recovery branch or terminal qualification claim is asserted from this transaction."
+          fi

@@ -1,0 +1,476 @@
+name: Publish ASOIAF enrollment and supervised-delivery integration v1
+
+on:
+  push:
+    branches:
+      - observer/asoiaf-enrollment-supervised-delivery-integration-publisher-v1
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: read
+  pull-requests: write
+
+concurrency:
+  group: publish-asoiaf-enrollment-supervised-delivery-integration-v1
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.repository == 'BigBirdReturns/axm-arc'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      SUPERVISED_PR: '258'
+      ENROLLMENT_PR: '260'
+      SUPERVISED_BRANCH: feature/asoiaf-answer-desk-supervised-delivery-v1
+      ENROLLMENT_BRANCH: feature/asoiaf-answer-desk-transport-enrollment-v1
+      INTEGRATION_BRANCH: integration/asoiaf-answer-desk-enrollment-supervised-delivery-v1
+      SUPERVISED_MARKER: ASOIAF_SUPERVISED_DELIVERY_RECOVERY_TERMINAL_V2
+      ENROLLMENT_MARKER: ASOIAF_ENROLLMENT_TERMINAL_RECEIPT_V3
+      FIXED_COMMIT_DATE: '2026-08-06T05:00:00Z'
+    steps:
+      - name: Check out exact publisher custody
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          show-progress: false
+
+      - name: Wait for both exact terminal parents
+        id: parents
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ready=false
+          for attempt in $(seq 1 540); do
+            gh api "repos/$GITHUB_REPOSITORY/pulls/$SUPERVISED_PR" > "$RUNNER_TEMP/supervised-pr.json"
+            gh api "repos/$GITHUB_REPOSITORY/issues/$SUPERVISED_PR/comments?per_page=100" > "$RUNNER_TEMP/supervised-comments.json"
+            gh api "repos/$GITHUB_REPOSITORY/pulls/$ENROLLMENT_PR" > "$RUNNER_TEMP/enrollment-pr.json"
+            gh api "repos/$GITHUB_REPOSITORY/issues/$ENROLLMENT_PR/comments?per_page=100" > "$RUNNER_TEMP/enrollment-comments.json"
+
+            supervised_sha="$(jq -r .head.sha "$RUNNER_TEMP/supervised-pr.json")"
+            enrollment_sha="$(jq -r .head.sha "$RUNNER_TEMP/enrollment-pr.json")"
+            supervised_receipt="$(jq --arg marker "$SUPERVISED_MARKER" --arg sha "$supervised_sha" '[.[] | select((.body // "") | contains($marker) and contains($sha))] | length' "$RUNNER_TEMP/supervised-comments.json")"
+            enrollment_receipt="$(jq --arg marker "$ENROLLMENT_MARKER" --arg sha "$enrollment_sha" '[.[] | select((.body // "") | contains($marker) and contains($sha))] | length' "$RUNNER_TEMP/enrollment-comments.json")"
+
+            if \
+              test "$(jq -r .state "$RUNNER_TEMP/supervised-pr.json")" = open \
+              && test "$(jq -r .draft "$RUNNER_TEMP/supervised-pr.json")" = true \
+              && test "$(jq -r .merged "$RUNNER_TEMP/supervised-pr.json")" = false \
+              && test "$(jq -r .head.ref "$RUNNER_TEMP/supervised-pr.json")" = "$SUPERVISED_BRANCH" \
+              && test "$(jq -r .state "$RUNNER_TEMP/enrollment-pr.json")" = open \
+              && test "$(jq -r .draft "$RUNNER_TEMP/enrollment-pr.json")" = true \
+              && test "$(jq -r .merged "$RUNNER_TEMP/enrollment-pr.json")" = false \
+              && test "$(jq -r .head.ref "$RUNNER_TEMP/enrollment-pr.json")" = "$ENROLLMENT_BRANCH" \
+              && test "$supervised_receipt" -gt 0 \
+              && test "$enrollment_receipt" -gt 0; then
+              ready=true
+              break
+            fi
+            sleep 10
+          done
+          if test "$ready" != true; then
+            gh pr comment "$ENROLLMENT_PR" --repo "$GITHUB_REPOSITORY" --body \
+              'The enrollment and supervised-delivery integration publisher timed out before both exact terminal parent receipts were present. No integration branch or authority claim was issued.'
+            exit 1
+          fi
+
+          test "$supervised_sha" != '01483599237bf6436e80c1fc0476ed7da545e07b'
+          printf '%s\n' "$supervised_sha" > "$RUNNER_TEMP/supervised-parent-sha.txt"
+          printf '%s\n' "$enrollment_sha" > "$RUNNER_TEMP/enrollment-parent-sha.txt"
+          echo "supervised_sha=$supervised_sha" >> "$GITHUB_OUTPUT"
+          echo "enrollment_sha=$enrollment_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Construct exact ordered two-parent integration
+        id: integrate
+        env:
+          SUPERVISED_SHA: ${{ steps.parents.outputs.supervised_sha }}
+          ENROLLMENT_SHA: ${{ steps.parents.outputs.enrollment_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --force origin \
+            "+refs/heads/$SUPERVISED_BRANCH:refs/remotes/origin/$SUPERVISED_BRANCH" \
+            "+refs/heads/$ENROLLMENT_BRANCH:refs/remotes/origin/$ENROLLMENT_BRANCH"
+          test "$(git rev-parse refs/remotes/origin/$SUPERVISED_BRANCH)" = "$SUPERVISED_SHA"
+          test "$(git rev-parse refs/remotes/origin/$ENROLLMENT_BRANCH)" = "$ENROLLMENT_SHA"
+
+          git checkout --detach "$SUPERVISED_SHA"
+          set +e
+          git merge --no-commit --no-ff "$ENROLLMENT_SHA"
+          merge_rc=$?
+          set -e
+          if test "$merge_rc" -ne 0; then
+            git diff --name-only --diff-filter=U | sort > "$RUNNER_TEMP/unmerged.txt"
+            printf '%s\n' package.json > "$RUNNER_TEMP/expected-unmerged.txt"
+            diff -u "$RUNNER_TEMP/expected-unmerged.txt" "$RUNNER_TEMP/unmerged.txt"
+          fi
+
+          for path in \
+            docs/ASOIAF_ANSWER_DESK_TRANSPORT_ENROLLMENT.md \
+            tests/fixtures/emit-asoiaf-answer-desk-transport-enrollment-input.ts \
+            tests/narrative/canon/asoiaf-answer-desk-transport-enrollment.test.ts \
+            tools/asoiaf-answer-desk-transport-enrollment.ts \
+            tools/lib/asoiaf-answer-desk-transport-enrollment.ts; do
+            mkdir -p "$(dirname "$path")"
+            git show "$ENROLLMENT_SHA:$path" > "$path"
+          done
+          rm -f .github/workflows/asoiaf-answer-desk-transport-enrollment.yml
+
+          SUPERVISED_SHA="$SUPERVISED_SHA" ENROLLMENT_SHA="$ENROLLMENT_SHA" python3 <<'PY'
+          import json
+          import os
+          import subprocess
+          from pathlib import Path
+
+          supervised_sha = os.environ['SUPERVISED_SHA']
+          enrollment_sha = os.environ['ENROLLMENT_SHA']
+          supervised = json.loads(subprocess.check_output(['git', 'show', f'{supervised_sha}:package.json'], text=True))
+          enrollment = json.loads(subprocess.check_output(['git', 'show', f'{enrollment_sha}:package.json'], text=True))
+          supervised_scripts = dict(supervised.get('scripts') or {})
+          enrollment_scripts = dict(enrollment.get('scripts') or {})
+          additions = {
+              key: value
+              for key, value in enrollment_scripts.items()
+              if key not in supervised_scripts
+          }
+          expected = {
+              'asoiaf:answer-transport-enrollment': 'vite-node tools/asoiaf-answer-desk-transport-enrollment.ts --'
+          }
+          if additions != expected:
+              raise SystemExit(f'unexpected enrollment script delta: {additions}')
+          resolved = dict(supervised)
+          resolved_scripts = dict(supervised_scripts)
+          resolved_scripts.update(expected)
+          resolved['scripts'] = resolved_scripts
+          Path('package.json').write_text(json.dumps(resolved, indent=2) + '\n')
+          PY
+
+          mkdir -p .github/workflows
+          SUPERVISED_SHA="$SUPERVISED_SHA" ENROLLMENT_SHA="$ENROLLMENT_SHA" \
+          SUPERVISED_BRANCH="$SUPERVISED_BRANCH" INTEGRATION_BRANCH="$INTEGRATION_BRANCH" \
+          python3 <<'PY'
+          import os
+          from pathlib import Path
+
+          supervised = os.environ['SUPERVISED_SHA']
+          enrollment = os.environ['ENROLLMENT_SHA']
+          supervised_branch = os.environ['SUPERVISED_BRANCH']
+          integration_branch = os.environ['INTEGRATION_BRANCH']
+          template = r'''name: ASOIAF enrollment and supervised-delivery integration
+
+on:
+  push:
+    branches:
+      - __INTEGRATION_BRANCH__
+    paths:
+      - '.github/workflows/asoiaf-answer-desk-enrollment-supervised-delivery-integration.yml'
+      - 'docs/ASOIAF_ANSWER_DESK_TRANSPORT_ENROLLMENT.md'
+      - 'package.json'
+      - 'tests/fixtures/emit-asoiaf-answer-desk-transport-enrollment-input.ts'
+      - 'tests/narrative/canon/asoiaf-answer-desk-transport-enrollment.test.ts'
+      - 'tools/asoiaf-answer-desk-transport-enrollment.ts'
+      - 'tools/lib/asoiaf-answer-desk-transport-enrollment.ts'
+  pull_request:
+    branches:
+      - __SUPERVISED_BRANCH__
+    paths:
+      - '.github/workflows/asoiaf-answer-desk-enrollment-supervised-delivery-integration.yml'
+      - 'docs/ASOIAF_ANSWER_DESK_TRANSPORT_ENROLLMENT.md'
+      - 'package.json'
+      - 'tests/fixtures/emit-asoiaf-answer-desk-transport-enrollment-input.ts'
+      - 'tests/narrative/canon/asoiaf-answer-desk-transport-enrollment.test.ts'
+      - 'tools/asoiaf-answer-desk-transport-enrollment.ts'
+      - 'tools/lib/asoiaf-answer-desk-transport-enrollment.ts'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: asoiaf-enrollment-supervised-delivery-integration-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qualify:
+    if: github.repository == 'BigBirdReturns/axm-arc'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Check out exact integration candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          show-progress: false
+
+      - name: Verify exact ordered parents and seven-surface diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          candidate_sha="$(git rev-parse HEAD)"
+          parent_line="$(git show -s --format=%P HEAD)"
+          test "$parent_line" = '__SUPERVISED_SHA__ __ENROLLMENT_SHA__'
+          git merge-base --is-ancestor __SUPERVISED_SHA__ HEAD
+          git merge-base --is-ancestor __ENROLLMENT_SHA__ HEAD
+          test -z "$(git status --porcelain)"
+          printf '%s\n' "$candidate_sha" > "$RUNNER_TEMP/candidate-sha.txt"
+          printf '%s\n' "$parent_line" > "$RUNNER_TEMP/parent-shas.txt"
+          echo "CANDIDATE_SHA=$candidate_sha" >> "$GITHUB_ENV"
+          cat > "$RUNNER_TEMP/expected-paths.txt" <<'EOF'
+          .github/workflows/asoiaf-answer-desk-enrollment-supervised-delivery-integration.yml
+          docs/ASOIAF_ANSWER_DESK_TRANSPORT_ENROLLMENT.md
+          package.json
+          tests/fixtures/emit-asoiaf-answer-desk-transport-enrollment-input.ts
+          tests/narrative/canon/asoiaf-answer-desk-transport-enrollment.test.ts
+          tools/asoiaf-answer-desk-transport-enrollment.ts
+          tools/lib/asoiaf-answer-desk-transport-enrollment.ts
+          EOF
+          sed -i 's/^          //' "$RUNNER_TEMP/expected-paths.txt"
+          sort -o "$RUNNER_TEMP/expected-paths.txt" "$RUNNER_TEMP/expected-paths.txt"
+          git diff --name-only __SUPERVISED_SHA__ HEAD | sort > "$RUNNER_TEMP/actual-paths.txt"
+          diff -u "$RUNNER_TEMP/expected-paths.txt" "$RUNNER_TEMP/actual-paths.txt"
+          git diff --check __SUPERVISED_SHA__ HEAD
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Verify imported parent implementations and operator registrations
+        shell: bash
+        run: |
+          set -euo pipefail
+          for path in \
+            docs/ASOIAF_ANSWER_DESK_TRANSPORT_ENROLLMENT.md \
+            tests/fixtures/emit-asoiaf-answer-desk-transport-enrollment-input.ts \
+            tests/narrative/canon/asoiaf-answer-desk-transport-enrollment.test.ts \
+            tools/asoiaf-answer-desk-transport-enrollment.ts \
+            tools/lib/asoiaf-answer-desk-transport-enrollment.ts; do
+            test "$(git rev-parse "HEAD:$path")" = "$(git rev-parse "__ENROLLMENT_SHA__:$path")"
+          done
+          for path in \
+            .github/workflows/asoiaf-answer-desk-supervised-delivery.yml \
+            docs/ASOIAF_ANSWER_DESK_SUPERVISED_DELIVERY.md \
+            tests/fixtures/emit-asoiaf-answer-desk-supervised-delivery-input.ts \
+            tests/narrative/canon/asoiaf-answer-desk-supervised-delivery.test.ts \
+            tools/asoiaf-answer-desk-supervised-delivery.ts \
+            tools/lib/asoiaf-answer-desk-supervised-delivery.ts; do
+            test "$(git rev-parse "HEAD:$path")" = "$(git rev-parse "__SUPERVISED_SHA__:$path")"
+          done
+          npm run --silent asoiaf:answer-supervised-delivery -- help > "$RUNNER_TEMP/supervised-help.txt"
+          npm run --silent asoiaf:answer-transport-enrollment -- help > "$RUNNER_TEMP/enrollment-help.txt"
+
+      - name: Strict TypeScript
+        id: typecheck
+        shell: bash
+        run: |
+          set -euo pipefail
+          find src tests tools \( -name '*.js' -o -name '*.js.map' -o -name '*.d.ts' \) -delete
+          rm -f tsconfig.tsbuildinfo
+          npm run typecheck | tee "$RUNNER_TEMP/typecheck.log"
+
+      - name: Focused joint qualification
+        id: focused
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm test -- \
+            tests/narrative/canon/asoiaf-answer-desk-transport-enrollment.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-supervised-delivery.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-supervisor.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-transport-operations.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-transport.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-exchange.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-worker.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-estate.test.ts \
+            tests/narrative/canon/asoiaf-answer-work-lease.test.ts \
+            tests/narrative/canon/asoiaf-answer-work-order.test.ts \
+            tests/narrative/canon/asoiaf-reviewed-answer-packet.test.ts \
+            tests/narrative/canon/asoiaf-research-question-dossier.test.ts \
+            tests/narrative/canon/asoiaf-external-reconciliation-packets.test.ts \
+            | tee "$RUNNER_TEMP/focused-tests.log"
+
+      - name: Complete Arc regression
+        id: regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          find src tests tools \( -name '*.js' -o -name '*.js.map' -o -name '*.d.ts' \) -delete
+          rm -f tsconfig.tsbuildinfo
+          npm test | tee "$RUNNER_TEMP/full-tests.log"
+
+      - name: Production build
+        id: build
+        shell: bash
+        run: npm run build | tee "$RUNNER_TEMP/build.log"
+
+      - name: Retain integration qualification
+        if: always()
+        env:
+          TYPECHECK_OUTCOME: ${{ steps.typecheck.outcome }}
+          FOCUSED_OUTCOME: ${{ steps.focused.outcome }}
+          REGRESSION_OUTCOME: ${{ steps.regression.outcome }}
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          root='asoiaf-enrollment-supervised-delivery-integration-qualification'
+          mkdir -p "$root/logs"
+          for file in candidate-sha.txt parent-shas.txt actual-paths.txt supervised-help.txt enrollment-help.txt typecheck.log focused-tests.log full-tests.log build.log; do
+            if test -f "$RUNNER_TEMP/$file"; then cp "$RUNNER_TEMP/$file" "$root/logs/"; fi
+          done
+          printf '%s\n' \
+            'integrationBehavior=new-authority-none' \
+            'enrollmentImplementation=byte-identical' \
+            'supervisedDeliveryImplementation=byte-identical' \
+            'privateKeyCustodyMoved=false' \
+            'networkDispatchByEnrollment=false' \
+            'certificateIssuanceByDelivery=false' \
+            'taskAuthority=none' \
+            'graphEffect=none' \
+            'canonEffect=none' \
+            'answerEffect=none' \
+            > "$root/integration-boundary.txt"
+          cat > "$root/outcomes.json" <<EOF
+          {"typecheck":"$TYPECHECK_OUTCOME","focused":"$FOCUSED_OUTCOME","regression":"$REGRESSION_OUTCOME","build":"$BUILD_OUTCOME"}
+          EOF
+          if find "$root" -type f \( -iname '*.key' -o -iname '*.pem' -o -iname '*.p12' -o -iname '*.pfx' -o -iname '*.csr' -o -iname '*.crt' \) | grep -q .; then
+            exit 1
+          fi
+          find "$root" -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum \
+            | sed "s#  $root/#  #" > "$root/SHA256SUMS"
+
+      - name: Upload integration qualification
+        if: always()
+        id: artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: asoiaf-enrollment-supervised-delivery-integration-qualification
+          path: asoiaf-enrollment-supervised-delivery-integration-qualification
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish qualification summary
+        if: always()
+        shell: bash
+        run: |
+          echo "Candidate: $CANDIDATE_SHA" >> "$GITHUB_STEP_SUMMARY"
+          echo "Ordered parents: __SUPERVISED_SHA__ __ENROLLMENT_SHA__" >> "$GITHUB_STEP_SUMMARY"
+          echo 'Integration behavior: source coexistence, new authority none.' >> "$GITHUB_STEP_SUMMARY"
+'''
+          text = (template
+              .replace('__SUPERVISED_SHA__', supervised)
+              .replace('__ENROLLMENT_SHA__', enrollment)
+              .replace('__SUPERVISED_BRANCH__', supervised_branch)
+              .replace('__INTEGRATION_BRANCH__', integration_branch))
+          Path('.github/workflows/asoiaf-answer-desk-enrollment-supervised-delivery-integration.yml').write_text(text)
+          PY
+
+          git add -A
+          test -z "$(git diff --name-only --diff-filter=U)"
+          cat > "$RUNNER_TEMP/expected-paths.txt" <<'EOF'
+          .github/workflows/asoiaf-answer-desk-enrollment-supervised-delivery-integration.yml
+          docs/ASOIAF_ANSWER_DESK_TRANSPORT_ENROLLMENT.md
+          package.json
+          tests/fixtures/emit-asoiaf-answer-desk-transport-enrollment-input.ts
+          tests/narrative/canon/asoiaf-answer-desk-transport-enrollment.test.ts
+          tools/asoiaf-answer-desk-transport-enrollment.ts
+          tools/lib/asoiaf-answer-desk-transport-enrollment.ts
+          EOF
+          sed -i 's/^          //' "$RUNNER_TEMP/expected-paths.txt"
+          sort -o "$RUNNER_TEMP/expected-paths.txt" "$RUNNER_TEMP/expected-paths.txt"
+          git diff --cached --name-only "$SUPERVISED_SHA" -- | sort > "$RUNNER_TEMP/actual-paths.txt"
+          diff -u "$RUNNER_TEMP/expected-paths.txt" "$RUNNER_TEMP/actual-paths.txt"
+          git diff --cached --check
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          GIT_AUTHOR_DATE="$FIXED_COMMIT_DATE" GIT_COMMITTER_DATE="$FIXED_COMMIT_DATE" \
+            git commit -m 'Integrate governed enrollment with supervised remote delivery'
+          integration_sha="$(git rev-parse HEAD)"
+          test "$(git show -s --format=%P HEAD)" = "$SUPERVISED_SHA $ENROLLMENT_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
+          printf '%s\n' "$integration_sha" > "$RUNNER_TEMP/integration-sha.txt"
+          echo "integration_sha=$integration_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Publish integration branch and draft PR
+        id: publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INTEGRATION_SHA: ${{ steps.integrate.outputs.integration_sha }}
+          SUPERVISED_SHA: ${{ steps.parents.outputs.supervised_sha }}
+          ENROLLMENT_SHA: ${{ steps.parents.outputs.enrollment_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          existing="$(git ls-remote --heads origin "$INTEGRATION_BRANCH" | awk '{print $1}')"
+          if test -n "$existing" && test "$existing" != "$INTEGRATION_SHA"; then
+            echo "integration branch already exists at unexpected head $existing" >&2
+            exit 1
+          fi
+          if test -z "$existing"; then
+            git push origin "$INTEGRATION_SHA:refs/heads/$INTEGRATION_BRANCH"
+          fi
+          pr_number="$(gh pr list --repo "$GITHUB_REPOSITORY" --state all --head "$INTEGRATION_BRANCH" --json number --jq '.[0].number // empty')"
+          if test -z "$pr_number"; then
+            gh pr create --repo "$GITHUB_REPOSITORY" --draft \
+              --base "$SUPERVISED_BRANCH" --head "$INTEGRATION_BRANCH" \
+              --title 'Integrate governed enrollment with supervised remote delivery' \
+              --body "This exact two-parent integration joins recovered supervised-delivery head \`$SUPERVISED_SHA\` and terminal governed-enrollment head \`$ENROLLMENT_SHA\`. It imports both implementations, resolves only operator registration, and introduces no issuer, key-custody, scheduling, transport, task, graph, canon, review, or answer authority. Exact-head qualification is in progress." >/dev/null
+            pr_number="$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --head "$INTEGRATION_BRANCH" --json number --jq '.[0].number')"
+          fi
+          gh api "repos/$GITHUB_REPOSITORY/pulls/$pr_number" > "$RUNNER_TEMP/integration-pr.json"
+          test "$(jq -r .state "$RUNNER_TEMP/integration-pr.json")" = open
+          test "$(jq -r .draft "$RUNNER_TEMP/integration-pr.json")" = true
+          test "$(jq -r .merged "$RUNNER_TEMP/integration-pr.json")" = false
+          test "$(jq -r .base.ref "$RUNNER_TEMP/integration-pr.json")" = "$SUPERVISED_BRANCH"
+          test "$(jq -r .head.sha "$RUNNER_TEMP/integration-pr.json")" = "$INTEGRATION_SHA"
+          echo "pr_number=$pr_number" >> "$GITHUB_OUTPUT"
+
+      - name: Retain publication receipt
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/asoiaf-enrollment-supervised-delivery-integration-publication"
+          mkdir -p "$root"
+          for file in supervised-parent-sha.txt enrollment-parent-sha.txt integration-sha.txt expected-paths.txt actual-paths.txt supervised-pr.json enrollment-pr.json integration-pr.json; do
+            if test -f "$RUNNER_TEMP/$file"; then cp "$RUNNER_TEMP/$file" "$root/"; fi
+          done
+          printf '%s\n' \
+            "publisherSha=$GITHUB_SHA" \
+            "integrationBranch=$INTEGRATION_BRANCH" \
+            "integrationPr=${{ steps.publish.outputs.pr_number || '' }}" \
+            > "$root/publication-boundary.txt"
+          find "$root" -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum \
+            | sed "s#  $root/#  #" > "$root/SHA256SUMS"
+
+      - name: Upload publication receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: asoiaf-enrollment-supervised-delivery-integration-publication
+          path: ${{ runner.temp }}/asoiaf-enrollment-supervised-delivery-integration-publication
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Report integration publication
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ steps.publish.outputs.pr_number }}
+          SHA: ${{ steps.integrate.outputs.integration_sha }}
+        shell: bash
+        run: |
+          gh pr comment "$SUPERVISED_PR" --repo "$GITHUB_REPOSITORY" --body \
+            "Exact two-parent enrollment and supervised-delivery integration is published as PR #$PR on head \`$SHA\`. This is a publication receipt only; exact-head qualification remains required."
+          gh pr comment "$ENROLLMENT_PR" --repo "$GITHUB_REPOSITORY" --body \
+            "Exact two-parent enrollment and supervised-delivery integration is published as PR #$PR on head \`$SHA\`. This is a publication receipt only; exact-head qualification remains required."

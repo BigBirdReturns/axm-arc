@@ -6,6 +6,15 @@ on:
       - feature/asoiaf-answer-desk-supervised-delivery-v1
     paths:
       - '.github/workflows/_export-asoiaf-supervised-delivery-base.yml'
+  pull_request:
+    branches:
+      - integration/asoiaf-answer-desk-supervised-transport-v1
+    types:
+      - opened
+      - synchronize
+      - reopened
+    paths:
+      - '.github/workflows/_export-asoiaf-supervised-delivery-base.yml'
 
 permissions:
   contents: read
@@ -19,7 +28,7 @@ jobs:
       - name: Check out exact construction head
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
           show-progress: false
 

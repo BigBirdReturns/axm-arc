@@ -1,3 +1,4 @@
+# Registered probe retrigger.
 name: Probe ASOIAF supervised delivery recovery blob v1
 
 on:

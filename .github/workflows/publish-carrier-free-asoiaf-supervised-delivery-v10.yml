@@ -6,6 +6,9 @@ on:
       - feature/asoiaf-answer-desk-supervised-delivery-v1
     paths:
       - '.github/workflows/.publish-carrier-free-supervised-delivery-v10.trigger'
+  pull_request:
+    branches:
+      - integration/asoiaf-answer-desk-supervised-transport-v1
   workflow_dispatch:
 
 permissions:

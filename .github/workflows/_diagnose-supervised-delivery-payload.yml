@@ -1,4 +1,4 @@
-name: Publish carrier-free ASOIAF supervised delivery recovery
+name: Inspect retained PR258 supervised delivery payload v10
 
 on:
   push:
@@ -9,245 +9,117 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
   pull-requests: write
 
-concurrency:
-  group: publish-carrier-free-asoiaf-supervised-delivery-recovery
-  cancel-in-progress: false
-
 jobs:
-  publish:
-    if: github.repository == 'BigBirdReturns/axm-arc' && github.event_name == 'push'
+  inspect:
+    if: github.repository == 'BigBirdReturns/axm-arc'
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
-    env:
-      BASE_SHA: 52287c5406594ad6e1d1add7d0aef36274179a3e
-      TARGET_BRANCH: recovery/asoiaf-answer-desk-supervised-delivery-v1
-      ARCHIVE_SHA256: ec29c3d2c1f5040c673afa76be720e4fa1ac3674164e200d6da9fa53771376b8
-      ARCHIVE_BYTES: '45733'
-      ARCHIVE_GIT_BLOB: c2048bbb66ddf7343844f4df74c5fa2cdc32de40
-      BASE64_BYTES: '60980'
+    timeout-minutes: 10
     steps:
-      - name: Check out exact construction head
+      - name: Check out exact retained payload head
         uses: actions/checkout@v4
         with:
           ref: ${{ github.sha }}
           fetch-depth: 0
           show-progress: false
 
-      - name: Initialize bounded publication diagnostics
-        shell: bash
-        run: |
-          set -euo pipefail
-          work="$RUNNER_TEMP/pr258-carrier-free-recovery"
-          mkdir -p "$work"
-          printf '%s\n' 'initialized' > "$work/failure-stage.txt"
-          printf '%s\n' "$GITHUB_RUN_ID" > "$work/run-id.txt"
-          printf '%s\n' "$GITHUB_SHA" > "$work/construction-sha.txt"
-
-      - name: Reconstruct the exact recovery archive from content-addressed Git blobs
-        id: reconstruct
+      - name: Measure, decode, and classify retained payload
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-          test -z "$(git status --porcelain)"
-          git cat-file -e "$BASE_SHA^{commit}"
+          root="$RUNNER_TEMP/pr258-retained-payload-v10"
+          mkdir -p "$root"
+          printf '%s\n' "$GITHUB_SHA" > "$root/candidate-sha.txt"
 
-          work="$RUNNER_TEMP/pr258-carrier-free-recovery"
-          printf '%s\n' 'reconstruct-start' > "$work/failure-stage.txt"
-          mkdir -p "$work/chunks" "$work/unpack"
-          ledger="$work/chunk-ledger.tsv"
-          cat > "$ledger" <<'EOF'
-          a89c51dc56df37763bae6754b3eb2a1a76967a19	8192
-          144367c39c2cbdb0504958defc211cce6f2d45ca	8192
-          874ce72cb2e975b2f34a5fdc00111f6e5b7ad9e7	8192
-          445b50e0c68e65164310058a1ee29e82cc71b6e0	8192
-          233464c8e026e7cbc7edf43ea5c13523dab0ff59	4096
-          8b31f9c101f4cf9d23fc7940203d5de2940a3ac6	4096
-          00b458c41a8270f7830971cbb4da4fb6475b995c	4096
-          5bb2af9ee5b3a5014a8bc5a8e7529a48d44f6b0b	4096
-          13d1e176c216b944342bd7d0e0980e3aae7098ef	1024
-          24158b4345ca2ed4de2f00a0c5051dce1e5bf0c1	1024
-          468b9415f33b701905b0623a04a21ff4b1a7acca	1024
-          745041299f3c4138deba6c7dd8d1cadc4b8c13b4	1024
-          0d67c1eed687473008cbd27ab3aab6454a19e74f	1024
-          5be28b05ccc47e9704db1fb541ea8071eb1dabfe	1024
-          a3b4ca74f0e3f751121e12efa945bbbeaae05677	1024
-          6df96c6163bf2b89d4c733ef10dbafd4e91e39be	1024
-          05c0a4e8cc297086ef45be773b815a17a2295e76	1024
-          c8909d9f3a0178c191371433347d6445deef983a	1024
-          82b91d927916641e24b7a8aefb09a954dbedf4cd	1024
-          777da2a1288fb06fcfda90d694372ab9927981cf	564
-          EOF
+          ROOT="$root" python3 <<'PY'
+          import base64
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
 
-          : > "$work/candidate.b64"
-          index=0
-          while IFS=$'\t' read -r sha expected_bytes; do
-            test -n "$sha"
-            printf 'chunk-%02d-fetch\n' "$index" > "$work/failure-stage.txt"
-            response="$work/chunks/$(printf '%02d' "$index").json"
-            chunk="$work/chunks/$(printf '%02d' "$index").txt"
-            curl --fail --silent --show-error --location \
-              --retry 4 --retry-all-errors --connect-timeout 15 \
-              -H 'Accept: application/vnd.github+json' \
-              -H "Authorization: Bearer $GH_TOKEN" \
-              -H 'X-GitHub-Api-Version: 2022-11-28' \
-              "https://api.github.com/repos/$GITHUB_REPOSITORY/git/blobs/$sha" \
-              -o "$response"
-            printf 'chunk-%02d-verify\n' "$index" > "$work/failure-stage.txt"
-            test "$(jq -r .sha "$response")" = "$sha"
-            test "$(jq -r .encoding "$response")" = 'base64'
-            jq -r .content "$response" | base64 --decode > "$chunk"
-            test "$(wc -c < "$chunk" | tr -d ' ')" = "$expected_bytes"
-            test "$(git hash-object "$chunk")" = "$sha"
-            cat "$chunk" >> "$work/candidate.b64"
-            index=$((index + 1))
-          done < "$ledger"
-          test "$index" = '20'
-          test "$(wc -c < "$work/candidate.b64" | tr -d ' ')" = "$BASE64_BYTES"
+          root = Path(os.environ['ROOT'])
+          source = Path('.github/materialize/asoiaf-answer-supervised-delivery')
+          parts = []
+          encoded_parts = []
+          for index in range(5):
+              path = source / f'part-{index:02d}.b64'
+              if not path.is_file():
+                  raise SystemExit(f'missing retained payload part: {path}')
+              raw = path.read_text().replace('\r', '').replace('\n', '')
+              parts.append({
+                  'index': index,
+                  'path': str(path),
+                  'characters': len(raw),
+                  'sha256': hashlib.sha256(raw.encode()).hexdigest(),
+                  'gitBlobSha1': os.popen(f"git hash-object '{path}'").read().strip(),
+              })
+              encoded_parts.append(raw)
 
-          printf '%s\n' 'archive-decode' > "$work/failure-stage.txt"
-          base64 --decode "$work/candidate.b64" > "$work/candidate.zip"
-          test "$(wc -c < "$work/candidate.zip" | tr -d ' ')" = "$ARCHIVE_BYTES"
-          test "$(sha256sum "$work/candidate.zip" | awk '{print $1}')" = "$ARCHIVE_SHA256"
-          test "$(git hash-object "$work/candidate.zip")" = "$ARCHIVE_GIT_BLOB"
-          printf '%s\n' 'archive-integrity' > "$work/failure-stage.txt"
-          unzip -t "$work/candidate.zip"
-          unzip -q "$work/candidate.zip" -d "$work/unpack"
+          encoded = ''.join(encoded_parts)
+          decoded = base64.b64decode(encoded, validate=True)
+          payload = root / 'payload.bin'
+          payload.write_bytes(decoded)
+          report = {
+              'format': 'axm-pr258-retained-payload-inspection/1',
+              'candidateSha': os.environ.get('GITHUB_SHA'),
+              'parts': parts,
+              'base64Characters': len(encoded),
+              'base64Sha256': hashlib.sha256(encoded.encode()).hexdigest(),
+              'decodedBytes': len(decoded),
+              'decodedSha256': hashlib.sha256(decoded).hexdigest(),
+              'decodedGitBlobSha1': os.popen(f"git hash-object '{payload}'").read().strip(),
+              'prefixHex': decoded[:16].hex(),
+          }
+          (root / 'inspection.json').write_text(json.dumps(report, indent=2) + '\n')
+          print(json.dumps(report, indent=2))
+          PY
 
-          candidate="$work/unpack/PR258_carrier_free_recovery_candidate"
-          test -d "$candidate/source"
-          (cd "$candidate" && sha256sum --check --strict SHA256SUMS)
-
-          printf '%s\n' 'manifest-verify' > "$work/failure-stage.txt"
-          manifest="$candidate/MANIFEST.json"
-          test "$(jq -r .format "$manifest")" = 'axm-asoiaf-answer-supervised-delivery-recovery-candidate/1'
-          test "$(jq -r .repository "$manifest")" = "$GITHUB_REPOSITORY"
-          test "$(jq -r .baseHead "$manifest")" = "$BASE_SHA"
-          test "$(jq -r .intendedBranch "$manifest")" = "$TARGET_BRANCH"
-          test "$(jq -r .permanentSurfaceCount "$manifest")" = '7'
-          test "$(jq '.permanentSurfaces | length' "$manifest")" = '7'
-          printf '%s\n' "$candidate" > "$RUNNER_TEMP/candidate-root.txt"
-          printf '%s\n' 'reconstruct-complete' > "$work/failure-stage.txt"
-
-      - name: Create one carrier-free branch directly from the exact qualified integration base
-        id: publish_branch
-        shell: bash
-        run: |
-          set -euo pipefail
-          work="$RUNNER_TEMP/pr258-carrier-free-recovery"
-          printf '%s\n' 'branch-start' > "$work/failure-stage.txt"
-          candidate="$(cat "$RUNNER_TEMP/candidate-root.txt")"
-          manifest="$candidate/MANIFEST.json"
-
-          printf '%s\n' 'branch-existence-check' > "$work/failure-stage.txt"
-          if git ls-remote --exit-code --heads origin "$TARGET_BRANCH" >/dev/null 2>&1; then
-            echo "target recovery branch already exists: $TARGET_BRANCH" >&2
-            exit 1
+          file "$root/payload.bin" | tee "$root/file.txt"
+          if gzip -t "$root/payload.bin" 2>"$root/gzip-error.txt"; then
+            printf '%s\n' true > "$root/gzip-valid.txt"
+            tar -tzf "$root/payload.bin" > "$root/archive-paths.txt" 2>"$root/tar-error.txt" || true
+          else
+            printf '%s\n' false > "$root/gzip-valid.txt"
+          fi
+          if unzip -t "$root/payload.bin" > "$root/unzip.txt" 2>&1; then
+            printf '%s\n' true > "$root/zip-valid.txt"
+          else
+            printf '%s\n' false > "$root/zip-valid.txt"
           fi
 
-          printf '%s\n' 'branch-create' > "$work/failure-stage.txt"
-          git switch --detach "$BASE_SHA"
-          git switch -c "$TARGET_BRANCH"
-          test "$(git rev-parse HEAD)" = "$BASE_SHA"
-          test -z "$(git status --porcelain)"
+          find "$root" -type f ! -name SHA256SUMS -print0 \
+            | sort -z | xargs -0 sha256sum \
+            | sed "s#  $root/#  #" > "$root/SHA256SUMS"
 
-          printf '%s\n' 'surface-copy' > "$work/failure-stage.txt"
-          while IFS=$'\t' read -r file expected_sha expected_blob expected_bytes; do
-            printf 'surface-copy:%s\n' "$file" > "$work/failure-stage.txt"
-            source_file="$candidate/source/$file"
-            test -f "$source_file"
-            actual_sha="$(sha256sum "$source_file" | awk '{print $1}')"
-            printf '%s\t%s\t%s\n' "$file" "$actual_sha" "${expected_sha#sha256:}" >> "$work/surface-hashes.tsv"
-            test "$actual_sha" = "${expected_sha#sha256:}"
-            test "$(git hash-object "$source_file")" = "$expected_blob"
-            test "$(wc -c < "$source_file" | tr -d ' ')" = "$expected_bytes"
-            mkdir -p "$(dirname "$file")"
-            cp "$source_file" "$file"
-          done < <(jq -r '.permanentSurfaces[] | [.path,.sha256,.gitBlobSha1,(.bytes|tostring)] | @tsv' "$manifest")
-
-          printf '%s\n' 'diff-verify' > "$work/failure-stage.txt"
-          jq -r '.permanentSurfaces[].path' "$manifest" | sort > "$RUNNER_TEMP/expected-paths.txt"
-          git add -A
-          git diff --cached --check
-          git diff --cached --name-only | sort > "$RUNNER_TEMP/actual-paths.txt"
-          diff -u "$RUNNER_TEMP/expected-paths.txt" "$RUNNER_TEMP/actual-paths.txt"
-          git diff --cached --name-only "$BASE_SHA" -- | sort > "$RUNNER_TEMP/base-diff-paths.txt"
-          diff -u "$RUNNER_TEMP/expected-paths.txt" "$RUNNER_TEMP/base-diff-paths.txt"
-
-          while IFS=$'\t' read -r file expected_sha expected_blob expected_bytes; do
-            actual_sha="$(sha256sum "$file" | awk '{print $1}')"
-            printf '%s\t%s\t%s\n' "$file" "$actual_sha" "${expected_sha#sha256:}" >> "$work/staged-surface-hashes.tsv"
-            test "$actual_sha" = "${expected_sha#sha256:}"
-            test "$(git hash-object "$file")" = "$expected_blob"
-            test "$(wc -c < "$file" | tr -d ' ')" = "$expected_bytes"
-          done < <(jq -r '.permanentSurfaces[] | [.path,.sha256,.gitBlobSha1,(.bytes|tostring)] | @tsv' "$manifest")
-
-          printf '%s\n' 'secret-scan' > "$work/failure-stage.txt"
-          if grep -IlE --binary-files=without-match \
-            -- '-----BEGIN (PRIVATE KEY|RSA PRIVATE KEY|EC PRIVATE KEY|OPENSSH PRIVATE KEY|CERTIFICATE REQUEST|CERTIFICATE)-----' \
-            $(cat "$RUNNER_TEMP/expected-paths.txt") | grep -q .; then
-            echo 'permanent surfaces contain forbidden PEM material' >&2
-            exit 1
-          fi
-          if grep -Ei -- '(^|/)[^/]*\.(key|pem|p12|pfx|csr|crt)$' "$RUNNER_TEMP/expected-paths.txt"; then
-            echo 'permanent surface path is secret-bearing' >&2
-            exit 1
-          fi
-
-          printf '%s\n' 'commit' > "$work/failure-stage.txt"
-          git config user.name 'BigBirdReturns supervised-delivery recovery'
-          git config user.email 'actions@users.noreply.github.com'
-          git commit -m 'Restore certificate-authenticated ASOIAF supervised delivery'
-          final_sha="$(git rev-parse HEAD)"
-          test "$(git show -s --format=%P HEAD)" = "$BASE_SHA"
-          test -z "$(git status --porcelain)"
-          printf '%s\n' 'push' > "$work/failure-stage.txt"
-          git push origin HEAD:"$TARGET_BRANCH"
-          printf '%s\n' "$final_sha" | tee "$RUNNER_TEMP/recovery-head.txt"
-          printf '%s\n' 'complete' > "$work/failure-stage.txt"
-
-          {
-            echo '## Carrier-free recovery branch published'
-            echo
-            echo "- Base: \`$BASE_SHA\`"
-            echo "- Branch: \`$TARGET_BRANCH\`"
-            echo "- Head: \`$final_sha\`"
-            echo '- Permanent surfaces: 7'
-            echo '- Construction carriers on the recovery branch: 0'
-            echo '- Qualification claim: none pending exact-head GitHub workflows'
-          } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Upload bounded publication diagnostics
-        if: always()
-        id: diagnostics
+      - name: Upload retained payload inspection
+        id: artifact
         uses: actions/upload-artifact@v4
         with:
-          name: asoiaf-supervised-delivery-recovery-publication-${{ github.run_id }}
-          path: ${{ runner.temp }}/pr258-carrier-free-recovery
+          name: pr258-retained-payload-inspection-v10
+          path: ${{ runner.temp }}/pr258-retained-payload-v10
           if-no-files-found: error
-          retention-days: 2
+          retention-days: 3
           compression-level: 6
-          overwrite: false
 
-      - name: Report bounded publication result
-        if: always()
+      - name: Publish exact retained payload report
         env:
           GH_TOKEN: ${{ github.token }}
+          ARTIFACT_ID: ${{ steps.artifact.outputs.artifact-id }}
         shell: bash
         run: |
           set -euo pipefail
-          stage_file="$RUNNER_TEMP/pr258-carrier-free-recovery/failure-stage.txt"
-          stage="unknown"
-          if test -f "$stage_file"; then stage="$(cat "$stage_file")"; fi
-          artifact_id='${{ steps.diagnostics.outputs.artifact-id }}'
-          if test -f "$RUNNER_TEMP/recovery-head.txt"; then
-            head="$(cat "$RUNNER_TEMP/recovery-head.txt")"
-            gh pr comment 258 --repo "$GITHUB_REPOSITORY" --body "Carrier-free supervised-delivery recovery branch \`$TARGET_BRANCH\` was published directly from exact base \`$BASE_SHA\` at head \`$head\`. The branch contains exactly seven permanent surfaces and no construction carrier. This publication makes no terminal qualification claim; exact-head GitHub qualification and independent artifact inspection remain pending. Publication run: \`$GITHUB_RUN_ID\`; diagnostic artifact: \`${artifact_id:-not-issued}\`."
-          else
-            gh pr comment 258 --repo "$GITHUB_REPOSITORY" --body "Carrier-free supervised-delivery recovery publication failed on construction head \`$GITHUB_SHA\` at stage \`$stage\`. Run: \`$GITHUB_RUN_ID\`; diagnostic artifact: \`${artifact_id:-not-issued}\`. No recovery branch or terminal qualification claim is asserted from this transaction."
+          root="$RUNNER_TEMP/pr258-retained-payload-v10"
+          report="$(jq -c . "$root/inspection.json")"
+          gzip_valid="$(cat "$root/gzip-valid.txt")"
+          zip_valid="$(cat "$root/zip-valid.txt")"
+          paths='none'
+          if test -s "$root/archive-paths.txt"; then
+            paths="$(paste -sd ',' "$root/archive-paths.txt")"
           fi
+          gh pr comment 258 --repo "$GITHUB_REPOSITORY" --body \
+            "PR258_RETAINED_PAYLOAD_INSPECTION_V10\n\nExact head: \`$GITHUB_SHA\`\n\nInspection: \`$report\`\n\nGzip valid: \`$gzip_valid\`\nZip valid: \`$zip_valid\`\nArchive paths: \`$paths\`\nArtifact: \`${ARTIFACT_ID:-not-issued}\`.\n\nThis inspection changes no implementation or qualification authority."

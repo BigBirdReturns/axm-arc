@@ -35,13 +35,6 @@ function run(command: string, args: string[], output?: string): unknown {
   return stdout.trim() ? JSON.parse(stdout) : null;
 }
 
-function npm(operator: string, command: string, input?: string, output?: string): unknown {
-  const args = ["run", "--silent", operator, "--", command];
-  if (input) args.push("--input", input);
-  if (output) args.push("--out", output);
-  return run("npm", args, output ? undefined : undefined);
-}
-
 function read<T>(target: string): T {
   return JSON.parse(fs.readFileSync(target, "utf8")) as T;
 }
@@ -162,7 +155,7 @@ const possessionInvocation = read<{ invocation: AsoiafAnswerCredentialBrokerInvo
   path.join(outputDirectory, "possession-invocation-first.json"),
 ).invocation;
 const credentialPrivateKey = crypto.createPrivateKey(
-  fs.readFileSync(path.join(materialDirectory, "initial-client-key.pem")),
+  fs.readFileSync(path.join(materialDirectory, "deployment-initial.key")),
 );
 const possessionSignature = crypto.sign(
   "sha256",
@@ -248,7 +241,7 @@ const statement = buildAsoiafAnswerCredentialTransportResultStatement(
 );
 write(path.join(outputDirectory, "transport-result-statement.json"), statement);
 const agentPrivateKey = crypto.createPrivateKey(
-  fs.readFileSync(path.join(materialDirectory, "device-agent-key.pem")),
+  fs.readFileSync(path.join(materialDirectory, "device-agent.key")),
 );
 const transportSignature = crypto.sign(
   null,

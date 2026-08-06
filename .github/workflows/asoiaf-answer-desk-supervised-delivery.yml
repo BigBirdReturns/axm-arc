@@ -1,0 +1,323 @@
+name: ASOIAF supervised answer delivery
+
+on:
+  push:
+    branches:
+      - feature/asoiaf-answer-desk-supervised-delivery-v1
+    paths:
+      - '.github/workflows/asoiaf-answer-desk-supervised-delivery.yml'
+      - 'docs/ASOIAF_ANSWER_DESK_SUPERVISED_DELIVERY.md'
+      - 'package.json'
+      - 'tests/fixtures/emit-asoiaf-answer-desk-supervised-delivery-input.ts'
+      - 'tests/narrative/canon/asoiaf-answer-desk-supervised-delivery.test.ts'
+      - 'tools/asoiaf-answer-desk-supervised-delivery.ts'
+      - 'tools/lib/asoiaf-answer-desk-supervised-delivery.ts'
+      - 'tools/asoiaf-answer-desk-supervisor.ts'
+      - 'tools/lib/asoiaf-answer-desk-supervisor.ts'
+      - 'tools/asoiaf-answer-desk-transport-operations.ts'
+      - 'tools/lib/asoiaf-answer-desk-transport-operations.ts'
+      - 'tools/asoiaf-answer-desk-transport.ts'
+      - 'tools/lib/asoiaf-answer-desk-transport.ts'
+      - 'tools/asoiaf-answer-desk-exchange.ts'
+      - 'tools/lib/asoiaf-answer-desk-exchange.ts'
+      - 'tools/asoiaf-answer-desk-worker.ts'
+      - 'tools/lib/asoiaf-answer-desk-worker.ts'
+      - 'tools/asoiaf-answer-desk-estate.ts'
+      - 'tools/lib/asoiaf-answer-desk-estate.ts'
+      - 'tools/lib/asoiaf-answer-work-lease.ts'
+      - 'tools/lib/asoiaf-answer-work-order.ts'
+  pull_request:
+    branches:
+      - integration/asoiaf-answer-desk-supervised-transport-v1
+    paths:
+      - '.github/workflows/asoiaf-answer-desk-supervised-delivery.yml'
+      - 'docs/ASOIAF_ANSWER_DESK_SUPERVISED_DELIVERY.md'
+      - 'package.json'
+      - 'tests/fixtures/emit-asoiaf-answer-desk-supervised-delivery-input.ts'
+      - 'tests/narrative/canon/asoiaf-answer-desk-supervised-delivery.test.ts'
+      - 'tools/asoiaf-answer-desk-supervised-delivery.ts'
+      - 'tools/lib/asoiaf-answer-desk-supervised-delivery.ts'
+      - 'tools/asoiaf-answer-desk-supervisor.ts'
+      - 'tools/lib/asoiaf-answer-desk-supervisor.ts'
+      - 'tools/asoiaf-answer-desk-transport-operations.ts'
+      - 'tools/lib/asoiaf-answer-desk-transport-operations.ts'
+      - 'tools/asoiaf-answer-desk-transport.ts'
+      - 'tools/lib/asoiaf-answer-desk-transport.ts'
+      - 'tools/asoiaf-answer-desk-exchange.ts'
+      - 'tools/lib/asoiaf-answer-desk-exchange.ts'
+      - 'tools/asoiaf-answer-desk-worker.ts'
+      - 'tools/lib/asoiaf-answer-desk-worker.ts'
+      - 'tools/asoiaf-answer-desk-estate.ts'
+      - 'tools/lib/asoiaf-answer-desk-estate.ts'
+      - 'tools/lib/asoiaf-answer-work-lease.ts'
+      - 'tools/lib/asoiaf-answer-work-order.ts'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: asoiaf-answer-desk-supervised-delivery-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qualify:
+    if: github.repository == 'BigBirdReturns/axm-arc'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Check out exact supervised-delivery candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          show-progress: false
+
+      - name: Verify exact base and seven-surface diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          candidate_sha="$(git rev-parse HEAD)"
+          base_sha='52287c5406594ad6e1d1add7d0aef36274179a3e'
+          git merge-base --is-ancestor "$base_sha" "$candidate_sha"
+          test -z "$(git status --porcelain)"
+          printf '%s\n' "$candidate_sha" | tee "$RUNNER_TEMP/candidate-sha.txt"
+          printf '%s\n' "$base_sha" | tee "$RUNNER_TEMP/base-sha.txt"
+          echo "CANDIDATE_SHA=$candidate_sha" >> "$GITHUB_ENV"
+          echo "BASE_SHA=$base_sha" >> "$GITHUB_ENV"
+
+          cat > "$RUNNER_TEMP/expected-paths.txt" <<'EOF'
+          .github/workflows/asoiaf-answer-desk-supervised-delivery.yml
+          docs/ASOIAF_ANSWER_DESK_SUPERVISED_DELIVERY.md
+          package.json
+          tests/fixtures/emit-asoiaf-answer-desk-supervised-delivery-input.ts
+          tests/narrative/canon/asoiaf-answer-desk-supervised-delivery.test.ts
+          tools/asoiaf-answer-desk-supervised-delivery.ts
+          tools/lib/asoiaf-answer-desk-supervised-delivery.ts
+          EOF
+          git diff --name-only "$base_sha" "$candidate_sha" | sort \
+            > "$RUNNER_TEMP/actual-paths.txt"
+          sort "$RUNNER_TEMP/expected-paths.txt" -o "$RUNNER_TEMP/expected-paths.txt"
+          diff -u "$RUNNER_TEMP/expected-paths.txt" "$RUNNER_TEMP/actual-paths.txt"
+          git diff --check "$base_sha" "$candidate_sha"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install exact locked dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Verify permanent supervised-delivery operator registration
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run --silent asoiaf:answer-supervised-delivery -- help \
+            | tee "$RUNNER_TEMP/supervised-delivery-help.txt"
+          grep -q 'ASOIAF supervised answer-desk delivery' \
+            "$RUNNER_TEMP/supervised-delivery-help.txt"
+          for command in serve pull return status verify paths; do
+            grep -q "$command" "$RUNNER_TEMP/supervised-delivery-help.txt"
+          done
+          grep -q 'loaded ephemerally and never retained' \
+            "$RUNNER_TEMP/supervised-delivery-help.txt"
+
+      - name: Strict TypeScript
+        id: typecheck
+        shell: bash
+        run: |
+          set -euo pipefail
+          find src tests tools \( -name '*.js' -o -name '*.js.map' -o -name '*.d.ts' \) -delete
+          rm -f tsconfig.tsbuildinfo
+          npm run typecheck | tee "$RUNNER_TEMP/typecheck.log"
+
+      - name: Focused supervised-delivery and complete answer-desk stack qualification
+        id: focused
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm test -- \
+            tests/narrative/canon/asoiaf-answer-desk-supervised-delivery.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-supervisor.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-transport-operations.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-transport.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-exchange.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-worker.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-estate.test.ts \
+            tests/narrative/canon/asoiaf-answer-work-lease.test.ts \
+            tests/narrative/canon/asoiaf-answer-work-order.test.ts \
+            tests/narrative/canon/asoiaf-reviewed-answer-packet.test.ts \
+            tests/narrative/canon/asoiaf-research-question-dossier.test.ts \
+            tests/narrative/canon/asoiaf-external-reconciliation-packets.test.ts \
+            | tee "$RUNNER_TEMP/focused-tests.log"
+
+      - name: Exercise real mutual-TLS pull, return, restart replay, retirement, and local render
+        id: lifecycle
+        shell: bash
+        run: |
+          set -euo pipefail
+          node node_modules/vite-node/vite-node.mjs \
+            tests/fixtures/emit-asoiaf-answer-desk-supervised-delivery-input.ts \
+            --emit-qualification-shell \
+            "$RUNNER_TEMP/asoiaf-answer-desk-supervised-delivery-qualification.sh"
+          bash "$RUNNER_TEMP/asoiaf-answer-desk-supervised-delivery-qualification.sh" \
+            | tee "$RUNNER_TEMP/supervised-delivery-lifecycle.log"
+
+      - name: Complete Arc regression
+        id: regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          find src tests tools \( -name '*.js' -o -name '*.js.map' -o -name '*.d.ts' \) -delete
+          rm -f tsconfig.tsbuildinfo
+          npm test | tee "$RUNNER_TEMP/full-tests.log"
+
+      - name: Production build
+        id: build
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run build | tee "$RUNNER_TEMP/build.log"
+
+      - name: Retain exact supervised-delivery qualification
+        if: always()
+        id: retain
+        env:
+          TYPECHECK_OUTCOME: ${{ steps.typecheck.outcome }}
+          FOCUSED_OUTCOME: ${{ steps.focused.outcome }}
+          LIFECYCLE_OUTCOME: ${{ steps.lifecycle.outcome }}
+          REGRESSION_OUTCOME: ${{ steps.regression.outcome }}
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          root='asoiaf-answer-desk-supervised-delivery-qualification'
+          mkdir -p "$root/logs"
+
+          for file in \
+            supervised-delivery-help.txt typecheck.log focused-tests.log \
+            supervised-delivery-lifecycle.log full-tests.log build.log; do
+            if test -f "$RUNNER_TEMP/$file"; then
+              cp "$RUNNER_TEMP/$file" "$root/logs/"
+            fi
+          done
+
+          cp "$RUNNER_TEMP/candidate-sha.txt" "$root/candidate-sha.txt"
+          cp "$RUNNER_TEMP/base-sha.txt" "$root/base-sha.txt"
+          cp "$RUNNER_TEMP/actual-paths.txt" "$root/permanent-paths.txt"
+          sha256sum \
+            .github/workflows/asoiaf-answer-desk-supervised-delivery.yml \
+            docs/ASOIAF_ANSWER_DESK_SUPERVISED_DELIVERY.md \
+            package.json \
+            tests/fixtures/emit-asoiaf-answer-desk-supervised-delivery-input.ts \
+            tests/narrative/canon/asoiaf-answer-desk-supervised-delivery.test.ts \
+            tools/asoiaf-answer-desk-supervised-delivery.ts \
+            tools/lib/asoiaf-answer-desk-supervised-delivery.ts \
+            > "$root/permanent-surface-sha256s.txt"
+
+          printf '%s\n' \
+            'plane=certificate-authenticated-supervised-delivery' \
+            'remoteActorInitiatesMutualTls=true' \
+            'schedulerPossessesActorPrivateKey=false' \
+            'certificateAdmissionCreatesLease=false' \
+            'certificateAdmissionCreatesAssignment=false' \
+            'localDispatchRequired=true' \
+            'pullLowerTransportReplay=true' \
+            'certificateAdmissionCreatesSettlement=false' \
+            'localFinalizationRequired=true' \
+            'exactRestartReplay=true' \
+            'retiredCertificateRefused=true' \
+            'automaticRendererRemainsLocal=true' \
+            'credentialMaterialRetained=false' \
+            'certificateBytesRetained=false' \
+            'privateKeyBytesRetained=false' \
+            'sourceTextIncluded=false' \
+            'privateTextIncluded=false' \
+            'authority=none' \
+            'graphEffect=none' \
+            'canonEffect=none' \
+            'answerEffect=none' \
+            > "$root/qualification-boundary.txt"
+
+          ROOT="$root" node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const root = process.env.ROOT;
+          if (!root) throw new Error('qualification root is required');
+          const summary = {
+            format: 'axm-asoiaf-answer-supervised-delivery-qualification-summary/1',
+            candidateSha: fs.readFileSync(path.join(root, 'candidate-sha.txt'), 'utf8').trim(),
+            baseSha: fs.readFileSync(path.join(root, 'base-sha.txt'), 'utf8').trim(),
+            permanentPaths: fs.readFileSync(path.join(root, 'permanent-paths.txt'), 'utf8')
+              .trim().split('\n').filter(Boolean),
+            outcomes: {
+              typecheck: process.env.TYPECHECK_OUTCOME,
+              focused: process.env.FOCUSED_OUTCOME,
+              lifecycle: process.env.LIFECYCLE_OUTCOME,
+              regression: process.env.REGRESSION_OUTCOME,
+              build: process.env.BUILD_OUTCOME,
+            },
+            authority: 'none',
+            graphEffect: 'none',
+            canonEffect: 'none',
+            answerEffect: 'none',
+          };
+          fs.writeFileSync(
+            path.join(root, 'qualification-summary.json'),
+            `${JSON.stringify(summary, null, 2)}\n`,
+          );
+          NODE
+
+          if find "$root" -type f \( \
+            -iname '*.key' -o -iname '*.pem' -o -iname '*.p12' \
+            -o -iname '*.pfx' -o -iname '*.csr' -o -iname '*.crt' \
+          \) | grep -q .; then
+            echo 'qualification artifact contains forbidden certificate or key paths' >&2
+            exit 1
+          fi
+          if grep -RIlE --binary-files=without-match \
+            -e '-----BEGIN (PRIVATE KEY|RSA PRIVATE KEY|EC PRIVATE KEY|CERTIFICATE REQUEST|CERTIFICATE)-----' \
+            "$root" | grep -q .; then
+            echo 'qualification artifact contains forbidden PEM material' >&2
+            exit 1
+          fi
+
+          find "$root" -type f ! -name SHA256SUMS -print0 \
+            | sort -z \
+            | xargs -0 sha256sum \
+            | sed "s#  $root/#  #" \
+            > "$root/SHA256SUMS"
+
+      - name: Upload supervised-delivery qualification
+        if: always()
+        id: artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: asoiaf-answer-desk-supervised-delivery-qualification
+          path: asoiaf-answer-desk-supervised-delivery-qualification
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 6
+          overwrite: false
+
+      - name: Publish exact qualification summary
+        if: always()
+        env:
+          ARTIFACT_ID: ${{ steps.artifact.outputs.artifact-id }}
+          ARTIFACT_DIGEST: ${{ steps.artifact.outputs.artifact-digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo '## ASOIAF supervised answer delivery qualification'
+            echo
+            echo "- Candidate: \`$CANDIDATE_SHA\`"
+            echo "- Base: \`$BASE_SHA\`"
+            echo "- Artifact: \`${ARTIFACT_ID:-not-issued}\`"
+            echo "- Artifact digest: \`${ARTIFACT_DIGEST:-not-issued}\`"
+            echo '- Certificate authentication admits the request but creates no lease, assignment, or settlement by itself.'
+            echo '- The local desk executes the prepared supervisor intent, replays the exact assignment through the lower transport processor, and alone finalizes a returned result.'
+            echo '- The supervisor never receives the remote actor private key, and automatic rendering remains local.'
+          } >> "$GITHUB_STEP_SUMMARY"

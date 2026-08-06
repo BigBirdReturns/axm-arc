@@ -1,0 +1,286 @@
+name: Diagnose rebuilt ASOIAF supervised delivery v1
+
+on:
+  push:
+    branches:
+      - diagnostic/asoiaf-supervised-delivery-rebuild-v1
+    paths:
+      - '.github/workflows/diagnose-asoiaf-supervised-delivery-rebuild-v1.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: write
+
+concurrency:
+  group: diagnose-asoiaf-supervised-delivery-rebuild-v1
+  cancel-in-progress: false
+
+jobs:
+  diagnose:
+    if: github.repository == 'BigBirdReturns/axm-arc'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 70
+    env:
+      GH_TOKEN: ${{ github.token }}
+      BASE_SHA: 52287c5406594ad6e1d1add7d0aef36274179a3e
+      PAYLOAD_ISSUE: '263'
+      ARCHIVE_BYTES: '17620'
+      ARCHIVE_BASE64_CHARACTERS: '23496'
+      ARCHIVE_SHA256: e808c4d0d2097669509b084fbace88ff187a545dccd73e5f786fdd100cc9e9e7
+    steps:
+      - name: Check out exact integration parent
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.BASE_SHA }}
+          fetch-depth: 1
+          show-progress: false
+
+      - name: Reconstruct and verify diagnostic source
+        id: reconstruct
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          test "$(git rev-parse HEAD)" = "$BASE_SHA"
+          gh api --paginate \
+            "repos/$GITHUB_REPOSITORY/issues/$PAYLOAD_ISSUE/comments?per_page=100" \
+            --slurp > "$RUNNER_TEMP/payload-pages.json"
+
+          PAGES="$RUNNER_TEMP/payload-pages.json" \
+          ARCHIVE="$RUNNER_TEMP/pr258-diagnostic-payload.zip" \
+          REPORT="$RUNNER_TEMP/reconstruction.json" \
+          python3 <<'PY' 2>&1 | tee "$RUNNER_TEMP/reconstruct.log"
+          import base64
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+
+          expected = {
+              0: (8000, '3474c910238c8bf3bd6c3280113c6c37b88181b618448697b494907caa9e59ab'),
+              1: (8000, '8fd37cabd7cd4d0cde394edca69a298bfaf48e1fee6e5966afeee038448e8d92'),
+              2: (7496, '16745cdda29ab3e64a2c88b773afb3f780bfedfbcb7cc62b2681066e33a5272d'),
+          }
+          pages = json.loads(Path(os.environ['PAGES']).read_text(encoding='utf-8'))
+          comments = [comment for page in pages for comment in page]
+          selected = {}
+          observations = []
+          for comment in comments:
+              body = str(comment.get('body') or '').replace('\r\n', '\n').strip()
+              lines = body.split('\n')
+              if not lines or lines[0] != 'AXM_SUPERVISED_DELIVERY_REBUILD_PAYLOAD_V1':
+                  continue
+              headers = {}
+              payload_lines = []
+              in_payload = False
+              for line in lines[1:]:
+                  if not in_payload and line == '':
+                      in_payload = True
+                      continue
+                  if in_payload:
+                      payload_lines.append(line)
+                  elif '=' in line:
+                      key, value = line.split('=', 1)
+                      headers[key] = value
+              payload = ''.join(payload_lines).strip()
+              digest = hashlib.sha256(payload.encode('ascii')).hexdigest() if payload else None
+              try:
+                  sequence = int(headers.get('sequence', '-1'))
+                  total = int(headers.get('total', '-1'))
+                  declared_length = int(headers.get('length', '-1'))
+              except ValueError:
+                  continue
+              observations.append({
+                  'commentId': comment.get('id'),
+                  'sequence': sequence,
+                  'declaredLength': declared_length,
+                  'declaredSha256': headers.get('sha256'),
+                  'computedLength': len(payload),
+                  'computedSha256': digest,
+              })
+              if sequence not in expected or total != 3:
+                  continue
+              expected_length, expected_digest = expected[sequence]
+              if (
+                  declared_length == expected_length
+                  and len(payload) == expected_length
+                  and headers.get('sha256') == expected_digest
+                  and digest == expected_digest
+              ):
+                  prior = selected.get(sequence)
+                  if prior is not None and prior != payload:
+                      raise SystemExit(f'conflicting exact segment {sequence:02d}')
+                  selected[sequence] = payload
+
+          missing = [sequence for sequence in range(3) if sequence not in selected]
+          if missing:
+              raise SystemExit(json.dumps({
+                  'error': 'missing exact payload segments',
+                  'missing': missing,
+                  'observations': observations,
+              }, indent=2))
+          encoded = ''.join(selected[sequence] for sequence in range(3))
+          if len(encoded) != int(os.environ['ARCHIVE_BASE64_CHARACTERS']):
+              raise SystemExit(
+                  f'base64 characters {len(encoded)} != '
+                  f'{os.environ["ARCHIVE_BASE64_CHARACTERS"]}'
+              )
+          decoded = base64.b64decode(encoded, validate=True)
+          if len(decoded) != int(os.environ['ARCHIVE_BYTES']):
+              raise SystemExit(
+                  f'archive bytes {len(decoded)} != {os.environ["ARCHIVE_BYTES"]}'
+              )
+          digest = hashlib.sha256(decoded).hexdigest()
+          if digest != os.environ['ARCHIVE_SHA256']:
+              raise SystemExit(
+                  f'archive digest {digest} != {os.environ["ARCHIVE_SHA256"]}'
+              )
+          Path(os.environ['ARCHIVE']).write_bytes(decoded)
+          report = {
+              'format': 'axm-asoiaf-supervised-delivery-rebuild-diagnostic/1',
+              'selectedSequences': sorted(selected),
+              'base64Characters': len(encoded),
+              'archiveBytes': len(decoded),
+              'archiveSha256': f'sha256:{digest}',
+              'observations': observations,
+          }
+          Path(os.environ['REPORT']).write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
+          print(json.dumps(report, indent=2))
+          PY
+
+          archive="$RUNNER_TEMP/pr258-diagnostic-payload.zip"
+          unzip -t "$archive"
+          unpack="$RUNNER_TEMP/pr258-diagnostic"
+          mkdir -p "$unpack"
+          unzip -q "$archive" -d "$unpack"
+          (cd "$unpack" && sha256sum --check --strict SHA256SUMS)
+          test -f "$unpack/source/package.json"
+          test -f "$unpack/source/tools/lib/asoiaf-answer-desk-supervised-delivery.ts"
+          test -f "$unpack/source/tools/asoiaf-answer-desk-supervised-delivery.ts"
+          test -f "$unpack/source/tests/narrative/canon/asoiaf-answer-desk-supervised-delivery.test.ts"
+          cp "$unpack/source/package.json" package.json
+          cp "$unpack/source/tools/lib/asoiaf-answer-desk-supervised-delivery.ts" \
+            tools/lib/asoiaf-answer-desk-supervised-delivery.ts
+          cp "$unpack/source/tools/asoiaf-answer-desk-supervised-delivery.ts" \
+            tools/asoiaf-answer-desk-supervised-delivery.ts
+          cp "$unpack/source/tests/narrative/canon/asoiaf-answer-desk-supervised-delivery.test.ts" \
+            tests/narrative/canon/asoiaf-answer-desk-supervised-delivery.test.ts
+          git diff --check
+
+      - name: Set up Node
+        if: steps.reconstruct.outcome == 'success'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        if: steps.reconstruct.outcome == 'success'
+        id: install
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npm ci --no-audit --no-fund 2>&1 | tee "$RUNNER_TEMP/npm-ci.log"
+
+      - name: Strict TypeScript
+        if: steps.install.outcome == 'success'
+        id: typecheck
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          find src tests tools \( -name '*.js' -o -name '*.js.map' -o -name '*.d.ts' \) -delete
+          rm -f tsconfig.tsbuildinfo
+          npm run typecheck 2>&1 | tee "$RUNNER_TEMP/typecheck.log"
+
+      - name: Focused supervised-delivery stack
+        if: steps.install.outcome == 'success'
+        id: focused
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npm test -- \
+            tests/narrative/canon/asoiaf-answer-desk-supervised-delivery.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-supervisor.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-transport-operations.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-transport.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-exchange.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-worker.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-estate.test.ts \
+            tests/narrative/canon/asoiaf-answer-work-lease.test.ts \
+            tests/narrative/canon/asoiaf-answer-work-order.test.ts \
+            tests/narrative/canon/asoiaf-reviewed-answer-packet.test.ts \
+            tests/narrative/canon/asoiaf-research-question-dossier.test.ts \
+            tests/narrative/canon/asoiaf-external-reconciliation-packets.test.ts \
+            2>&1 | tee "$RUNNER_TEMP/focused-tests.log"
+
+      - name: Production build
+        if: steps.install.outcome == 'success'
+        id: build
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee "$RUNNER_TEMP/build.log"
+
+      - name: Retain diagnostic evidence
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          root='asoiaf-supervised-delivery-rebuild-diagnostic'
+          mkdir -p "$root"
+          for file in \
+            reconstruction.json reconstruct.log npm-ci.log typecheck.log \
+            focused-tests.log build.log; do
+            test -f "$RUNNER_TEMP/$file" && cp "$RUNNER_TEMP/$file" "$root/"
+          done
+          printf '%s\n' \
+            "baseSha=$BASE_SHA" \
+            "reconstruct=${{ steps.reconstruct.outcome }}" \
+            "install=${{ steps.install.outcome }}" \
+            "typecheck=${{ steps.typecheck.outcome }}" \
+            "focused=${{ steps.focused.outcome }}" \
+            "build=${{ steps.build.outcome }}" \
+            > "$root/outcomes.txt"
+          git diff --stat > "$root/candidate-diff-stat.txt"
+          find "$root" -type f ! -name SHA256SUMS -print0 \
+            | sort -z \
+            | xargs -0 sha256sum \
+            | sed "s#  $root/#  #" \
+            > "$root/SHA256SUMS"
+
+      - name: Upload diagnostic evidence
+        if: always()
+        id: artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: asoiaf-supervised-delivery-rebuild-diagnostic
+          path: asoiaf-supervised-delivery-rebuild-diagnostic
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Publish exact diagnostic result
+        if: always()
+        env:
+          ARTIFACT_ID: ${{ steps.artifact.outputs.artifact-id }}
+          ARTIFACT_DIGEST: ${{ steps.artifact.outputs.artifact-digest }}
+          RECONSTRUCT: ${{ steps.reconstruct.outcome }}
+          INSTALL: ${{ steps.install.outcome }}
+          TYPECHECK: ${{ steps.typecheck.outcome }}
+          FOCUSED: ${{ steps.focused.outcome }}
+          BUILD: ${{ steps.build.outcome }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh pr comment 258 --repo "$GITHUB_REPOSITORY" --body \
+            "ASOIAF_SUPERVISED_DELIVERY_REBUILD_DIAGNOSTIC_V1 base=\`$BASE_SHA\` reconstruct=\`${RECONSTRUCT:-skipped}\` install=\`${INSTALL:-skipped}\` typecheck=\`${TYPECHECK:-skipped}\` focused=\`${FOCUSED:-skipped}\` build=\`${BUILD:-skipped}\` artifact=\`${ARTIFACT_ID:-none}\` digest=\`${ARTIFACT_DIGEST:-none}\`."
+          test "$RECONSTRUCT" = success
+          test "$INSTALL" = success
+          test "$TYPECHECK" = success
+          test "$FOCUSED" = success
+          test "$BUILD" = success

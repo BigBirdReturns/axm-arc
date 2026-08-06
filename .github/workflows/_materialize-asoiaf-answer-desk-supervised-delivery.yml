@@ -1,3 +1,4 @@
+# Retriggered to restore the carrier-free supervised-delivery candidate from its verified publication blobs.
 name: Publish carrier-free ASOIAF supervised delivery
 
 on:

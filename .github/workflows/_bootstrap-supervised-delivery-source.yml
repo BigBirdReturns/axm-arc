@@ -1,4 +1,4 @@
-name: Materialize permanent supervised delivery surfaces
+name: Inspect failed PR258 recovery publication
 
 on:
   push:
@@ -6,87 +6,87 @@ on:
       - feature/asoiaf-answer-desk-supervised-delivery-v1
     paths:
       - '.github/workflows/_bootstrap-supervised-delivery-source.yml'
-  pull_request:
-    branches:
-      - integration/asoiaf-answer-desk-supervised-transport-v1
-    types:
-      - opened
-      - synchronize
-      - reopened
-    paths:
-      - '.github/workflows/_bootstrap-supervised-delivery-source.yml'
+  workflow_dispatch:
 
 permissions:
-  contents: write
+  actions: read
+  contents: read
+  pull-requests: write
 
 concurrency:
-  group: materialize-permanent-supervised-delivery-surfaces
-  cancel-in-progress: true
+  group: inspect-failed-pr258-recovery-publication
+  cancel-in-progress: false
 
 jobs:
-  materialize:
-    if: >-
-      github.repository == 'BigBirdReturns/axm-arc'
-      && github.event.pull_request.head.ref == 'feature/asoiaf-answer-desk-supervised-delivery-v1'
-      || github.event_name == 'push'
+  inspect:
+    if: github.repository == 'BigBirdReturns/axm-arc' && github.event_name == 'push'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    env:
+      TARGET_SHA: 58476b1809bebf4c403046349c41b3b433946b8f
+      TARGET_PATH: .github/workflows/_diagnose-supervised-delivery-payload.yml
     steps:
-      - name: Check out exact carrier head
-        uses: actions/checkout@v4
+      - name: Resolve the exact push-triggered publication run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/pr258-recovery-publication-inspection"
+          mkdir -p "$out/logs"
+          gh api \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$TARGET_SHA&event=push&per_page=100" \
+            > "$out/runs.json"
+          jq -r --arg path "$TARGET_PATH" \
+            '.workflow_runs[] | select(.path == $path) | [.id,.name,.status,.conclusion,.event,.head_sha,.html_url] | @tsv' \
+            "$out/runs.json" > "$out/matching-runs.tsv"
+          test "$(wc -l < "$out/matching-runs.tsv" | tr -d ' ')" = '1'
+          run_id="$(cut -f1 "$out/matching-runs.tsv")"
+          printf '%s\n' "$run_id" > "$out/observed-run-id.txt"
+          printf '%s\n' "$run_id" > "$RUNNER_TEMP/observed-run-id.txt"
+
+          gh api \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/jobs?filter=latest&per_page=100" \
+            > "$out/jobs.json"
+          jq -r '.jobs[] | [.id,.name,.status,.conclusion] | @tsv' "$out/jobs.json" \
+            > "$out/jobs.tsv"
+
+          gh run view "$run_id" --repo "$GITHUB_REPOSITORY" --log-failed \
+            > "$out/failed.log" 2>&1 || true
+          while IFS=$'\t' read -r job_id _; do
+            gh api \
+              -H 'Accept: application/vnd.github+json' \
+              -H 'X-GitHub-Api-Version: 2022-11-28' \
+              "repos/$GITHUB_REPOSITORY/actions/jobs/$job_id/logs" \
+              > "$out/logs/$job_id.log" 2>&1 || true
+          done < "$out/jobs.tsv"
+
+          find "$out" -type f ! -name SHA256SUMS -print0 \
+            | sort -z \
+            | xargs -0 sha256sum \
+            | sed "s#  $out/#  #" > "$out/SHA256SUMS"
+
+      - name: Upload bounded publication inspection
+        id: artifact
+        uses: actions/upload-artifact@v4
         with:
-          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-          fetch-depth: 0
-          show-progress: false
+          name: pr258-recovery-publication-inspection-${{ github.run_id }}
+          path: ${{ runner.temp }}/pr258-recovery-publication-inspection
+          if-no-files-found: error
+          retention-days: 2
+          compression-level: 6
+          overwrite: false
 
-      - name: Materialize exact ordinary surfaces and remove temporary carriers
+      - name: Report exact inspection custody
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARTIFACT_ID: ${{ steps.artifact.outputs.artifact-id }}
         shell: bash
         run: |
           set -euo pipefail
-          test -z "$(git status --porcelain)"
-          carrier='.github/materialize/asoiaf-answer-supervised-delivery/part-00.b64'
-          test -f "$carrier"
-          printf '%s  %s\n' \
-            '6fccc952899c22081590a8d96e3f9941a7b91c10d189eb0903c90d0cdbae56f0' \
-            "$carrier" \
-            | sha256sum --check --strict
-          base64 --decode "$carrier" > "$RUNNER_TEMP/supervised-delivery-surfaces.tgz"
-          printf '%s  %s\n' \
-            '41e96026361b7e9acc73318fdc2290a61a5e20c02d3a7f1e78d49dac9de56a60' \
-            "$RUNNER_TEMP/supervised-delivery-surfaces.tgz" \
-            | sha256sum --check --strict
-          tar -xzf "$RUNNER_TEMP/supervised-delivery-surfaces.tgz"
-
-          rm -rf .github/materialize/asoiaf-answer-supervised-delivery
-          rm .github/workflows/_bootstrap-supervised-delivery-source.yml
-
-          grep -q '"asoiaf:answer-supervised-delivery"' package.json
-          grep -q '^# ASOIAF supervised answer-desk delivery$' docs/ASOIAF_ANSWER_DESK_SUPERVISED_DELIVERY.md
-          grep -q 'ASOIAF supervised answer-desk delivery' tools/asoiaf-answer-desk-supervised-delivery.ts
-          test -z "$(grep -R 'STEP ' tests/fixtures/emit-asoiaf-answer-desk-supervised-delivery-input.ts || true)"
-
-          cat > "$RUNNER_TEMP/expected-paths" <<'EOF'
-          .github/materialize/asoiaf-answer-supervised-delivery/part-00.b64
-          .github/workflows/_bootstrap-supervised-delivery-source.yml
-          docs/ASOIAF_ANSWER_DESK_SUPERVISED_DELIVERY.md
-          package.json
-          tests/fixtures/emit-asoiaf-answer-desk-supervised-delivery-input.ts
-          tests/narrative/canon/asoiaf-answer-desk-supervised-delivery.test.ts
-          tools/asoiaf-answer-desk-supervised-delivery.ts
-          tools/lib/asoiaf-answer-desk-supervised-delivery.ts
-          EOF
-
-          git diff --check
-          git add -A
-          git diff --cached --name-only | sort > "$RUNNER_TEMP/actual-paths"
-          sort "$RUNNER_TEMP/expected-paths" -o "$RUNNER_TEMP/expected-paths"
-          diff -u "$RUNNER_TEMP/expected-paths" "$RUNNER_TEMP/actual-paths"
-
-      - name: Commit exact ordinary surfaces
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name 'BigBirdReturns supervised delivery qualification'
-          git config user.email 'actions@users.noreply.github.com'
-          git commit -m 'Bind supervised intents to authenticated remote delivery'
-          git push origin HEAD:feature/asoiaf-answer-desk-supervised-delivery-v1
+          run_id="$(cat "$RUNNER_TEMP/observed-run-id.txt")"
+          gh pr comment 258 --repo "$GITHUB_REPOSITORY" --body "Observed the failed push-triggered recovery publication as workflow run \`$run_id\` for exact construction head \`$TARGET_SHA\`. Job metadata and failed logs are retained in diagnostic artifact \`$ARTIFACT_ID\`. This observer issued no source, branch, implementation, or qualification mutation."

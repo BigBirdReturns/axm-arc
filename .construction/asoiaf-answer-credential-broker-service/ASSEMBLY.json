@@ -1,0 +1,7 @@
+{
+  "format": "axm-bounded-source-assembly/1",
+  "target": "tools/lib/asoiaf-answer-credential-broker-service.ts",
+  "chunks": 6,
+  "bytes": 88411,
+  "sha256": "95e1a3d8acabcfb0637596a3044e48ddd84362db441a62c2e8a5d3609bc995ce"
+}

@@ -1,4 +1,4 @@
-name: Pulse loopback TLS nested Windows fixture repair
+name: Pulse complete loopback TLS Windows fixture repair
 
 on:
   push:
@@ -22,7 +22,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       TARGET_WORKFLOW: _temp-repair-loopback-tls-windows-npx.yml
       TARGET_BRANCH: feature/asoiaf-answer-credential-broker-loopback-tls-v1
-      TARGET_SHA: 30575db58a8071774e0d617fc0ee26018fa48a88
+      TARGET_SHA: 7449ff70477ac5d3e090c0d23d40530f7d8d1f2f
     steps:
       - name: Publish exact repair status
         shell: bash
@@ -30,29 +30,36 @@ jobs:
           set -euo pipefail
           root="$RUNNER_TEMP/pulse"
           mkdir -p "$root"
-          gh api --method GET \
-            "repos/$GITHUB_REPOSITORY/actions/workflows/$TARGET_WORKFLOW/runs" \
-            -f branch="$TARGET_BRANCH" \
-            -f event=push \
-            -f per_page=100 > "$root/runs.json"
-          jq -c --arg sha "$TARGET_SHA" '
-            .workflow_runs
-            | map(select(.head_sha == $sha and .event == "push"))
-            | sort_by(.run_number)
-            | last // empty
-          ' "$root/runs.json" > "$root/run.json"
-          test -s "$root/run.json"
-          run_id="$(jq -r '.id' "$root/run.json")"
+          run_id=''
+          for _ in $(seq 1 60); do
+            gh api --method GET \
+              "repos/$GITHUB_REPOSITORY/actions/workflows/$TARGET_WORKFLOW/runs" \
+              -f branch="$TARGET_BRANCH" \
+              -f event=push \
+              -f per_page=100 > "$root/runs.json"
+            jq -c --arg sha "$TARGET_SHA" '
+              .workflow_runs
+              | map(select(.head_sha == $sha and .event == "push"))
+              | sort_by(.run_number)
+              | last // empty
+            ' "$root/runs.json" > "$root/run.json"
+            if [ -s "$root/run.json" ]; then
+              run_id="$(jq -r '.id' "$root/run.json")"
+              [ "$(jq -r '.status' "$root/run.json")" = completed ] && break
+            fi
+            sleep 10
+          done
+          test -n "$run_id"
           gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/jobs?per_page=100" \
             > "$root/jobs.json"
           {
-            echo 'TEMP_LOOPBACK_TLS_WINDOWS_FIXTURE_PULSE_V3'
+            echo 'TEMP_LOOPBACK_TLS_WINDOWS_FIXTURE_REPAIR_V4_PULSE'
             echo
             echo "Repair run \`$run_id\` on \`$TARGET_SHA\`: status \`$(jq -r '.status' "$root/run.json")\`, conclusion \`$(jq -r '.conclusion' "$root/run.json")\`."
             echo
             echo 'Jobs:'
             echo '```text'
-            jq -r '.jobs[] | [.name, .status, (.conclusion // "pending")] | @tsv' "$root/jobs.json"
+            jq -r '.jobs[] | [.name, .status, (.conclusion // "pending"), (.id|tostring)] | @tsv' "$root/jobs.json"
             echo '```'
           } > "$root/comment.md"
           gh pr comment 282 --repo "$GITHUB_REPOSITORY" --body-file "$root/comment.md"

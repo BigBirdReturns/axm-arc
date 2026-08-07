@@ -1,4 +1,4 @@
-name: TEMP repair loopback TLS Windows npx
+name: TEMP repair loopback TLS Windows fixture runner
 
 on:
   push:
@@ -28,7 +28,7 @@ jobs:
           ref: feature/asoiaf-answer-credential-broker-loopback-tls-v1
           fetch-depth: 0
 
-      - name: Make fixture spawning platform aware
+      - name: Invoke the installed Vite Node entrypoint directly
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -37,20 +37,36 @@ jobs:
 
           target = Path('tests/narrative/canon/asoiaf-answer-credential-broker-loopback-tls.test.ts')
           text = target.read_text(encoding='utf-8')
-          declaration = 'const npx = process.platform === "win32" ? "npx.cmd" : "npx";\n'
+          npx_declaration = 'const npx = process.platform === "win32" ? "npx.cmd" : "npx";\n'
+          text = text.replace(npx_declaration, '')
+          declaration = (
+              'const viteNode = path.join(\n'
+              '  process.cwd(),\n'
+              '  "node_modules",\n'
+              '  "vite-node",\n'
+              '  "vite-node.mjs",\n'
+              ');\n'
+          )
           anchor = 'const roots: string[] = [];\n'
           if declaration not in text:
               if text.count(anchor) != 1:
-                  raise SystemExit('cannot locate npx declaration anchor')
+                  raise SystemExit('cannot locate Vite Node declaration anchor')
               text = text.replace(anchor, anchor + declaration, 1)
-          old = '  execFileSync("npx", ['
-          new = '  execFileSync(npx, ['
-          if old in text:
-              if text.count(old) != 1:
-                  raise SystemExit('unexpected npx invocation multiplicity')
-              text = text.replace(old, new, 1)
-          elif new not in text:
-              raise SystemExit('platform-aware npx invocation is absent')
+          old_candidates = [
+              '  execFileSync("npx", [\n    "vite-node",',
+              '  execFileSync(npx, [\n    "vite-node",',
+          ]
+          replacement = '  execFileSync(process.execPath, [\n    viteNode,'
+          replaced = False
+          for old in old_candidates:
+              if old in text:
+                  if text.count(old) != 1:
+                      raise SystemExit('unexpected fixture runner multiplicity')
+                  text = text.replace(old, replacement, 1)
+                  replaced = True
+                  break
+          if not replaced and replacement not in text:
+              raise SystemExit('direct Vite Node fixture invocation is absent')
           target.write_text(text, encoding='utf-8')
           '@ | python -
           git diff --check
@@ -80,5 +96,5 @@ jobs:
           git add tests/narrative/canon/asoiaf-answer-credential-broker-loopback-tls.test.ts
           git rm .github/workflows/_temp-repair-loopback-tls-windows-npx.yml
           git diff --cached --check
-          git commit -m 'Resolve loopback TLS fixture runner on Windows'
+          git commit -m 'Invoke loopback TLS fixture through Node on Windows'
           git push origin HEAD:feature/asoiaf-answer-credential-broker-loopback-tls-v1

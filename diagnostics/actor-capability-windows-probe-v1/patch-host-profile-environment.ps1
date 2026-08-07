@@ -35,28 +35,28 @@ function Replace-ExactlyOnce {
 
 $text = (Get-Content $Original -Raw).Replace("`r`n", "`n")
 
-$text = Replace-ExactlyOnce \
-  -Value $text \
-  -Old '#include <userenv.h>' \
-  -New "#include <userenv.h>`n#include <objbase.h>" \
+$text = Replace-ExactlyOnce `
+  -Value $text `
+  -Old '#include <userenv.h>' `
+  -New "#include <userenv.h>`n#include <objbase.h>" `
   -Label 'objbase include'
 
-$text = Replace-ExactlyOnce \
-  -Value $text \
-  -Old '#pragma comment(lib, "Userenv.lib")' \
-  -New "#pragma comment(lib, `"Userenv.lib`")`n#pragma comment(lib, `"Ole32.lib`")" \
+$text = Replace-ExactlyOnce `
+  -Value $text `
+  -Old '#pragma comment(lib, "Userenv.lib")' `
+  -New "#pragma comment(lib, `"Userenv.lib`")`n#pragma comment(lib, `"Ole32.lib`")" `
   -Label 'ole32 library'
 
-$text = Replace-ExactlyOnce \
-  -Value $text \
-  -Old 'std::vector<wchar_t> build_environment(const std::wstring& work_directory, uint16_t port) {' \
-  -New 'std::vector<wchar_t> build_environment(const std::wstring& app_container_folder, uint16_t port) {' \
+$text = Replace-ExactlyOnce `
+  -Value $text `
+  -Old 'std::vector<wchar_t> build_environment(const std::wstring& work_directory, uint16_t port) {' `
+  -New 'std::vector<wchar_t> build_environment(const std::wstring& app_container_folder, uint16_t port) {' `
   -Label 'environment signature'
 
-$text = Replace-ExactlyOnce \
-  -Value $text \
-  -Old "      L`"TEMP=`" + work_directory,`n      L`"TMP=`" + work_directory," \
-  -New "      L`"LOCALAPPDATA=`" + app_container_folder,`n      L`"TEMP=`" + app_container_folder + L`"\\Temp`",`n      L`"TMP=`" + app_container_folder + L`"\\Temp`," \
+$text = Replace-ExactlyOnce `
+  -Value $text `
+  -Old "      L`"TEMP=`" + work_directory,`n      L`"TMP=`" + work_directory," `
+  -New "      L`"LOCALAPPDATA=`" + app_container_folder,`n      L`"TEMP=`" + app_container_folder + L`"\\Temp`",`n      L`"TMP=`" + app_container_folder + L`"\\Temp`," `
   -Label 'profile environment entries'
 
 $profileInsertion = @'
@@ -75,16 +75,16 @@ $profileInsertion = @'
     std::filesystem::create_directories(app_container_folder + L"\\Temp");
 '@
 
-$text = Replace-ExactlyOnce \
-  -Value $text \
-  -Old "    const std::wstring sid_text(sid_text_raw);`n    LocalFree(sid_text_raw);" \
-  -New $profileInsertion \
+$text = Replace-ExactlyOnce `
+  -Value $text `
+  -Old "    const std::wstring sid_text(sid_text_raw);`n    LocalFree(sid_text_raw);" `
+  -New $profileInsertion `
   -Label 'profile path derivation'
 
-$text = Replace-ExactlyOnce \
-  -Value $text \
-  -Old '    auto environment = build_environment(work_directory, loopback_port);' \
-  -New '    auto environment = build_environment(app_container_folder, loopback_port);' \
+$text = Replace-ExactlyOnce `
+  -Value $text `
+  -Old '    auto environment = build_environment(work_directory, loopback_port);' `
+  -New '    auto environment = build_environment(app_container_folder, loopback_port);' `
   -Label 'profile environment call'
 
 [IO.File]::WriteAllText($Output, $text, [Text.UTF8Encoding]::new($false))

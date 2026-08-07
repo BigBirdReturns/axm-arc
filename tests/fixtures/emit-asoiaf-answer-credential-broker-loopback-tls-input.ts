@@ -419,7 +419,7 @@ write(output("service-policy-input.json"), {
     "execute-possession",
     "execute-transport",
   ],
-  maxRequestLifetimeMilliseconds: 1_200_000,
+  maxRequestLifetimeMilliseconds: 900_000,
   maxRequestBytes: 1_048_576,
   maxResponseBytes: 4_194_304,
   createdAt: iso(base + 180_000),
@@ -593,7 +593,7 @@ const prepareRequest = signRequest({
   idempotencyKey: "qualification-loopback-tls-request-prepare-v1",
   payload: preparePayload,
   issuedAt: base + 380_000,
-  expiresAt: base + 1_500_000,
+  expiresAt: base + 1_200_000,
 });
 
 const runtimeBase = base + 420_000;
@@ -677,7 +677,7 @@ const executeRequest = signRequest({
   idempotencyKey: "qualification-loopback-tls-request-execute-v1",
   payload: executePayload,
   issuedAt: base + 400_000,
-  expiresAt: base + 1_500_000,
+  expiresAt: base + 1_250_000,
 });
 const executeResponse = await invokeAsoiafAnswerCredentialBrokerLoopbackTls({
   baseUrl,

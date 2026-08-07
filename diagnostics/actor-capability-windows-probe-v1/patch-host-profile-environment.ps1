@@ -101,3 +101,5 @@ foreach ($marker in @(
     throw "patched source lacks marker: $marker"
   }
 }
+
+# Triggered after registering the v4 profile-environment workflow.

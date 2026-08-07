@@ -1,0 +1,211 @@
+Base64: invalidSignature.toString("base64"),
+      signatureDigest: sha256Bytes(invalidSignature),
+    };
+
+    expect(() => dispatchAsoiafAnswerCredentialBrokerServiceRequest({
+      root,
+      request: changedSignature,
+      payload,
+      receivedAt: new Date(Date.parse(request.issuedAt) + 1_000).toISOString(),
+    })).toThrow(/request signature is invalid/);
+    expect(() => dispatchAsoiafAnswerCredentialBrokerServiceRequest({
+      root,
+      request,
+      payload: {
+        ...payload,
+        providerIdempotencyKey: "qualification-local-service-possession-provider-tampered",
+      },
+      receivedAt: new Date(Date.parse(request.issuedAt) + 1_000).toISOString(),
+    })).toThrow(/payload differs from signed request custody/);
+    expect(fs.existsSync(asoiafAnswerCredentialBrokerServicePaths(root).lock)).toBe(false);
+  });
+
+  it("retains an explicit pending request after execution failure and refuses idempotency drift", () => {
+    const root = cloneEstate();
+    const expected = read<ExpectedFixture>(path.join(templateOutput, "expected.json"));
+    const existingPolicy = readAsoiafAnswerCredentialBrokerServiceStatus(root).policies[0]!;
+    const pair = crypto.generateKeyPairSync("ed25519");
+    const privateKeyPem = pair.privateKey.export({ type: "pkcs8", format: "pem" }).toString();
+    const createdAt = new Date(Date.parse(existingPolicy.createdAt) + 1_000).toISOString();
+    const policy = retainAsoiafAnswerCredentialBrokerServicePolicy({
+      root,
+      brokerPolicyId: expected.brokerPolicyId,
+      providerProfileId: expected.providerProfileId,
+      clientId: "client:test:pending-local-service",
+      clientPublicKeySpkiBase64: publicSpkiBase64(pair.publicKey),
+      allowedOperations: ["prepare-provider-invocation"],
+      maxRequestLifetimeMilliseconds: 60_000,
+      maxRequestBytes: 65_536,
+      maxResponseBytes: 65_536,
+      createdAt,
+      operatorId: "operator:test:pending-local-service-policy",
+    }).policy;
+    const issuedAt = new Date(Date.parse(createdAt) + 1_000).toISOString();
+    const payload: AsoiafAnswerCredentialBrokerServicePayload = {
+      kind: "prepare-provider-invocation",
+      brokerInvocationId: "asoiaf-answer-credential-broker-invocation:missing-pending-test",
+      providerIdempotencyKey: "provider-idempotency:missing-pending-test",
+      preparedAt: new Date(Date.parse(issuedAt) + 1_000).toISOString(),
+      expiresAt: new Date(Date.parse(issuedAt) + 40_000).toISOString(),
+    };
+    const request = createAsoiafAnswerCredentialBrokerServiceRequest({
+      root,
+      servicePolicyId: policy.servicePolicyId,
+      operation: "prepare-provider-invocation",
+      idempotencyKey: "service-idempotency:pending-conflict-test",
+      payload,
+      issuedAt,
+      expiresAt: new Date(Date.parse(issuedAt) + 50_000).toISOString(),
+      clientPrivateKeyPem: privateKeyPem,
+    }).request;
+
+    expect(() => dispatchAsoiafAnswerCredentialBrokerServiceRequest({
+      root,
+      request,
+      payload,
+      receivedAt: new Date(Date.parse(issuedAt) + 2_000).toISOString(),
+    })).toThrow(/absent or duplicated/);
+    const pendingStatus = readAsoiafAnswerCredentialBrokerServiceStatus(root);
+    const pendingEntry = pendingStatus.state?.entries.find(
+      (entry) => entry.servicePolicyId === policy.servicePolicyId,
+    );
+    expect(pendingEntry?.pendingRequestIds).toEqual([request.requestId]);
+    expect(verifyAsoiafAnswerCredentialBrokerServiceEstate(root)).toEqual([
+      expect.objectContaining({
+        code: "service-request-pending",
+        severity: "notice",
+        subjectId: request.requestId,
+      }),
+    ]);
+
+    const changedPayload: AsoiafAnswerCredentialBrokerServicePayload = {
+      ...payload,
+      brokerInvocationId: "asoiaf-answer-credential-broker-invocation:changed-pending-test",
+    };
+    const changedRequest = createAsoiafAnswerCredentialBrokerServiceRequest({
+      root,
+      servicePolicyId: policy.servicePolicyId,
+      operation: "prepare-provider-invocation",
+      idempotencyKey: "service-idempotency:pending-conflict-test",
+      payload: changedPayload,
+      issuedAt,
+      expiresAt: new Date(Date.parse(issuedAt) + 50_000).toISOString(),
+      clientPrivateKeyPem: privateKeyPem,
+    }).request;
+    expect(() => dispatchAsoiafAnswerCredentialBrokerServiceRequest({
+      root,
+      request: changedRequest,
+      payload: changedPayload,
+      receivedAt: new Date(Date.parse(issuedAt) + 3_000).toISOString(),
+    })).toThrow(/idempotency key conflicts/);
+    expect(fs.existsSync(asoiafAnswerCredentialBrokerServicePaths(root).lock)).toBe(false);
+  });
+
+  it("refuses requests that predate policy custody or use another client private key", () => {
+    const root = cloneEstate();
+    const expected = read<ExpectedFixture>(path.join(templateOutput, "expected.json"));
+    const existingPolicy = readAsoiafAnswerCredentialBrokerServiceStatus(root).policies[0]!;
+    const pair = crypto.generateKeyPairSync("ed25519");
+    const wrong = crypto.generateKeyPairSync("ed25519");
+    const createdAt = new Date(Date.parse(existingPolicy.createdAt) + 2_000).toISOString();
+    const policy = retainAsoiafAnswerCredentialBrokerServicePolicy({
+      root,
+      brokerPolicyId: expected.brokerPolicyId,
+      providerProfileId: expected.providerProfileId,
+      clientId: "client:test:chronology-local-service",
+      clientPublicKeySpkiBase64: publicSpkiBase64(pair.publicKey),
+      allowedOperations: ["prepare-provider-invocation"],
+      maxRequestLifetimeMilliseconds: 60_000,
+      maxRequestBytes: 65_536,
+      maxResponseBytes: 65_536,
+      createdAt,
+      operatorId: "operator:test:chronology-local-service-policy",
+    }).policy;
+    const payload: AsoiafAnswerCredentialBrokerServicePayload = {
+      kind: "prepare-provider-invocation",
+      brokerInvocationId: expected.possessionBrokerInvocationId,
+      providerIdempotencyKey: "provider-idempotency:chronology-test",
+      preparedAt: new Date(Date.parse(createdAt) + 1_000).toISOString(),
+      expiresAt: new Date(Date.parse(createdAt) + 40_000).toISOString(),
+    };
+    const correctPrivate = pair.privateKey.export({ type: "pkcs8", format: "pem" }).toString();
+    const wrongPrivate = wrong.privateKey.export({ type: "pkcs8", format: "pem" }).toString();
+
+    expect(() => createAsoiafAnswerCredentialBrokerServiceRequest({
+      root,
+      servicePolicyId: policy.servicePolicyId,
+      operation: "prepare-provider-invocation",
+      idempotencyKey: "service-idempotency:predates-policy",
+      payload,
+      issuedAt: new Date(Date.parse(createdAt) - 1).toISOString(),
+      expiresAt: new Date(Date.parse(createdAt) + 30_000).toISOString(),
+      clientPrivateKeyPem: correctPrivate,
+    })).toThrow(/request predates retained policy/);
+    expect(() => createAsoiafAnswerCredentialBrokerServiceRequest({
+      root,
+      servicePolicyId: policy.servicePolicyId,
+      operation: "prepare-provider-invocation",
+      idempotencyKey: "service-idempotency:wrong-client-key",
+      payload,
+      issuedAt: new Date(Date.parse(createdAt) + 1_000).toISOString(),
+      expiresAt: new Date(Date.parse(createdAt) + 30_000).toISOString(),
+      clientPrivateKeyPem: wrongPrivate,
+    })).toThrow(/signing key differs from retained client identity/);
+  });
+
+  it("detects changed request bytes and forbidden secret-bearing service files", () => {
+    const root = cloneEstate();
+    const paths = asoiafAnswerCredentialBrokerServicePaths(root);
+    const status = readAsoiafAnswerCredentialBrokerServiceStatus(root);
+    const request = status.requests[0]!;
+    const requestPath = path.join(
+      paths.requests,
+      `${request.requestFingerprint.slice("sha256:".length)}.json`,
+    );
+    fs.writeFileSync(requestPath, `${JSON.stringify({
+      ...request,
+      payloadDigest: sha256Bytes(Buffer.from("changed-service-payload", "utf8")),
+    }, null, 2)}\n`, "utf8");
+    fs.writeFileSync(path.join(paths.serviceRoot, "forbidden.key"), "BEGIN PRIVATE KEY", "utf8");
+    fs.writeFileSync(path.join(paths.serviceRoot, "unsafe.json"), JSON.stringify({
+      credentialPrivateKeyPem: "BEGIN PRIVATE KEY",
+    }), "utf8");
+
+    expect(
+      verifyAsoiafAnswerCredentialBrokerServiceEstate(root).map((entry) => entry.code),
+    ).toEqual(expect.arrayContaining([
+      "service-request-invalid",
+      "service-receipt-invalid",
+      "service-state-invalid",
+      "service-secret-path",
+      "service-secret-content",
+    ]));
+  });
+
+  it("proves bounded local framing over the platform IPC transport", async () => {
+    const temp = fs.mkdtempSync(path.join(os.tmpdir(), "asoiaf-service-probe-"));
+    roots.push(temp);
+    const endpoint = process.platform === "win32"
+      ? `npipe://axm-asoiaf-service-probe-${process.pid}`
+      : `unix://${path.join(temp, "probe.sock")}`;
+    const probe = await probeAsoiafAnswerCredentialBrokerServiceEndpoint({
+      endpoint,
+      challenge: "qualification-local-service-endpoint-probe",
+      timeoutMilliseconds: 30_000,
+    });
+
+    expect(probe.endpoint).toBe(endpoint);
+    expect(probe.endpointKind).toBe(process.platform === "win32" ? "npipe" : "unix");
+    expect(probe.addressDigest).toMatch(/^sha256:[a-f0-9]{64}$/);
+    expect(probe.challengeDigest).toMatch(/^sha256:[a-f0-9]{64}$/);
+    expect(probe.responseDigest).toMatch(/^sha256:[a-f0-9]{64}$/);
+    expect(probe.localEndpointOnly).toBe(true);
+    expect(probe.requestBodyRetained).toBe(false);
+    expect(probe.responseBodyRetained).toBe(false);
+    expect(probe.probeAuthority).toBe("transport-health-only");
+    expect(probe.authority).toBe("none");
+    if (process.platform !== "win32") {
+      expect(fs.existsSync(path.join(temp, "probe.sock"))).toBe(false);
+    }
+  });
+});

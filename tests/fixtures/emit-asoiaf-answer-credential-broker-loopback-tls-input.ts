@@ -61,7 +61,12 @@ const serviceSocket = path.join(
 const serviceEndpoint = process.platform === "win32"
   ? `npipe://axm-asoiaf-loopback-tls-parent-${process.pid}`
   : `unix://${serviceSocket}`;
-const npm = process.platform === "win32" ? "npm.cmd" : "npm";
+const viteNode = path.join(
+  process.cwd(),
+  "node_modules",
+  "vite-node",
+  "vite-node.mjs",
+);
 
 fs.mkdirSync(outputDirectory, { recursive: true });
 fs.mkdirSync(materialDirectory, { recursive: true });
@@ -83,12 +88,25 @@ function run(
   return stdout;
 }
 
+const packageScripts = (JSON.parse(
+  fs.readFileSync(path.join(process.cwd(), "package.json"), "utf8"),
+) as { scripts?: Record<string, string> }).scripts ?? {};
+
 function runNpm(
   script: string,
   args: string[],
   receipt?: string,
 ): string {
-  return run(npm, ["run", "--silent", script, "--", ...args], receipt);
+  const definition = packageScripts[script] ?? "";
+  const match = /^vite-node\s+(.+?)\s+--$/.exec(definition);
+  if (!match) {
+    throw new Error(`operator ${script} is not a registered Vite Node command`);
+  }
+  return run(process.execPath, [
+    viteNode,
+    match[1]!,
+    ...args,
+  ], receipt);
 }
 
 function runOpenSsl(args: string[]): void {
@@ -210,8 +228,8 @@ async function freePort(): Promise<number> {
   return port;
 }
 
-run("npx", [
-  "vite-node",
+run(process.execPath, [
+  viteNode,
   "tests/fixtures/emit-asoiaf-answer-desk-transport-operations-input.ts",
   deskFixture,
   estateRoot,
@@ -222,8 +240,8 @@ runNpm("asoiaf:answer-desk", [
   "--out", output("answer-desk-adoption.json"),
 ]);
 
-run("npx", [
-  "vite-node",
+run(process.execPath, [
+  viteNode,
   "tests/fixtures/emit-asoiaf-answer-credential-deployment-input.ts",
   deploymentFixture,
   estateRoot,

@@ -26,6 +26,12 @@ let templateRoot = "";
 let templateOutput = "";
 let templateMaterial = "";
 const roots: string[] = [];
+const viteNode = path.join(
+  process.cwd(),
+  "node_modules",
+  "vite-node",
+  "vite-node.mjs",
+);
 
 function read<T>(target: string): T {
   return JSON.parse(fs.readFileSync(target, "utf8")) as T;
@@ -50,8 +56,8 @@ beforeAll(() => {
   templateMaterial = path.join(base, "material");
   fs.mkdirSync(templateOutput, { recursive: true });
   fs.mkdirSync(templateMaterial, { recursive: true });
-  execFileSync("npx", [
-    "vite-node",
+  execFileSync(process.execPath, [
+    viteNode,
     "tests/fixtures/emit-asoiaf-answer-credential-broker-loopback-tls-input.ts",
     templateOutput,
     templateRoot,

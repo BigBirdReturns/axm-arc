@@ -1,0 +1,233 @@
+name: Reconcile ASOIAF actor capability broker terminal state v3
+
+on:
+  push:
+    branches:
+      - diagnostic/actor-capability-runtime-failure-v1
+    paths:
+      - '.github/workflows/reconcile-asoiaf-answer-actor-capability-broker-v3.yml'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: reconcile-asoiaf-answer-actor-capability-broker-v3
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    if: github.repository == 'BigBirdReturns/axm-arc'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PARENT: 0fd578b39a04bde517c53769609cb83a6677aa20
+      OLD_HEAD: da40833790023d2e6e3605588eb806fb3abac1f6
+      PRODUCT_BRANCH: feature/asoiaf-answer-actor-capability-broker-v1
+      PRODUCT_WORKFLOW: asoiaf-answer-actor-capability-broker.yml
+      REPAIR_WORKFLOW: repair-asoiaf-actor-capability-broker-v1.yml
+      DIAGNOSTIC_BRANCH: diagnostic/actor-capability-runtime-failure-v1
+      PR_NUMBER: '294'
+      MARKER: ASOIAF_ACTOR_CAPABILITY_BROKER_TERMINAL_RECEIPT_V3
+    steps:
+      - name: Stop when a terminal receipt already exists
+        id: existing
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments?per_page=100" --jq '.[].body' \
+            | grep -Eq '^ASOIAF_ACTOR_CAPABILITY_BROKER_TERMINAL_RECEIPT_V[12]$|^ASOIAF_ACTOR_CAPABILITY_BROKER_TERMINAL_RECEIPT_V3$'; then
+            echo 'terminal=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'terminal=false' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish retained repair as a fast-forward when required
+        if: steps.existing.outputs.terminal != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/capability-v3"
+          mkdir -p "$root"
+          current="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$PRODUCT_BRANCH" --jq '.object.sha')"
+          if [ "$current" != "$OLD_HEAD" ]; then exit 0; fi
+
+          run_id=''
+          for _ in $(seq 1 360); do
+            gh api --method GET "repos/$GITHUB_REPOSITORY/actions/workflows/$REPAIR_WORKFLOW/runs" \
+              -f branch="$DIAGNOSTIC_BRANCH" -f event=push -f per_page=20 > "$root/repair-runs.json"
+            jq -c '.workflow_runs | map(select(.status == "completed" and .conclusion == "success")) | sort_by(.run_number) | last // empty' \
+              "$root/repair-runs.json" > "$root/repair-run.json"
+            if [ -s "$root/repair-run.json" ]; then run_id="$(jq -r '.id' "$root/repair-run.json")"; break; fi
+            sleep 15
+          done
+          test -n "$run_id"
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/artifacts?per_page=100" > "$root/repair-artifacts.json"
+          artifact_id="$(jq -r '.artifacts[] | select(.name == "asoiaf-answer-actor-capability-broker-repair-v1" and .expired == false) | .id' "$root/repair-artifacts.json" | head -1)"
+          artifact_digest="$(jq -r '.artifacts[] | select(.id == '"$artifact_id"') | .digest' "$root/repair-artifacts.json")"
+          test -n "$artifact_id"
+          curl --fail --location --silent --show-error -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id/zip" -o "$root/repair.zip"
+          test "sha256:$(sha256sum "$root/repair.zip" | awk '{print $1}')" = "$artifact_digest"
+          unzip -q "$root/repair.zip" -d "$root/repair"
+          receipt_root="$(dirname "$(find "$root/repair" -type f -name selected-core.ts -print -quit)")"
+          test -n "$receipt_root"
+          (cd "$receipt_root" && sha256sum -c SHA256SUMS) > "$root/repair-sha256.log"
+
+          git init -q "$root/repo"
+          git -C "$root/repo" remote add origin "https://github.com/$GITHUB_REPOSITORY"
+          git -C "$root/repo" fetch -q --no-tags origin "$OLD_HEAD"
+          git -C "$root/repo" checkout -q --detach "$OLD_HEAD"
+          cp "$receipt_root/selected-core.ts" "$root/repo/tools/lib/asoiaf-answer-actor-capability-broker.ts"
+          test "$(git -C "$root/repo" diff --name-only)" = 'tools/lib/asoiaf-answer-actor-capability-broker.ts'
+          git -C "$root/repo" diff --check
+          git -C "$root/repo" config user.name 'AXM Qualification Bot'
+          git -C "$root/repo" config user.email 'qualification@axm.local'
+          GIT_AUTHOR_DATE='2026-08-07T19:45:00Z' GIT_COMMITTER_DATE='2026-08-07T19:45:00Z' \
+            git -C "$root/repo" -c commit.gpgsign=false commit -am 'Repair actor capability kernel custody'
+          candidate="$(git -C "$root/repo" rev-parse HEAD)"
+          git -C "$root/repo" push --force-with-lease="refs/heads/$PRODUCT_BRANCH:$OLD_HEAD" origin "HEAD:refs/heads/$PRODUCT_BRANCH"
+          test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$PRODUCT_BRANCH" --jq '.object.sha')" = "$candidate"
+          gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body "TEMP_ACTOR_CAPABILITY_FAST_FORWARD_V3
+
+          Published repaired exact core as head \`$candidate\` from checksum-verified repair artifact \`$artifact_id\` (\`$artifact_digest\`). This is publication custody only; terminal qualification remains pending."
+
+      - name: Wait for exact stable product head and successful permanent run
+        if: steps.existing.outputs.terminal != 'true'
+        id: target
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/capability-v3"
+          mkdir -p "$root"
+          cat > "$root/expected-paths.txt" <<'PATHS'
+          .github/workflows/asoiaf-answer-actor-capability-broker.yml
+          docs/ASOIAF_ANSWER_ACTOR_CAPABILITY_BROKER.md
+          package.json
+          tests/fixtures/emit-asoiaf-answer-actor-capability-broker-input.ts
+          tests/narrative/canon/asoiaf-answer-actor-capability-broker.test.ts
+          tools/asoiaf-answer-actor-capability-broker.ts
+          tools/lib/asoiaf-answer-actor-capability-broker.ts
+          PATHS
+          sed -i 's/^          //' "$root/expected-paths.txt"; sort -o "$root/expected-paths.txt" "$root/expected-paths.txt"
+          candidate=''; stable=0
+          for _ in $(seq 1 900); do
+            gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" > "$root/pr.json"
+            head="$(jq -r '.head.sha' "$root/pr.json")"
+            gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/files?per_page=100" --jq '.[].filename' | sort > "$root/paths.txt"
+            if jq -e --arg branch "$PRODUCT_BRANCH" '.state == "open" and .draft == true and .merged == false and .head.ref == $branch' "$root/pr.json" >/dev/null \
+              && [ "$head" != "$OLD_HEAD" ] && diff -q "$root/expected-paths.txt" "$root/paths.txt" >/dev/null; then
+              if [ "$candidate" = "$head" ]; then stable=$((stable+1)); else candidate="$head"; stable=1; fi
+              [ "$stable" -ge 4 ] && break
+            else candidate=''; stable=0; fi
+            sleep 20
+          done
+          test -n "$candidate"; test "$stable" -ge 4
+          git init -q "$root/repo-check"; git -C "$root/repo-check" remote add origin "https://github.com/$GITHUB_REPOSITORY"
+          git -C "$root/repo-check" fetch -q --no-tags origin "$PARENT" "$candidate"
+          test "$(git -C "$root/repo-check" merge-base "$PARENT" "$candidate")" = "$PARENT"
+          commits="$(git -C "$root/repo-check" rev-list --count "$PARENT..$candidate")"; test "$commits" -ge 1; test "$commits" -le 2
+          git -C "$root/repo-check" diff --name-only "$PARENT" "$candidate" | sort > "$root/tree-paths.txt"; diff -u "$root/expected-paths.txt" "$root/tree-paths.txt"
+
+          run_id=''
+          for _ in $(seq 1 900); do
+            gh api --method GET "repos/$GITHUB_REPOSITORY/actions/workflows/$PRODUCT_WORKFLOW/runs" -f branch="$PRODUCT_BRANCH" -f per_page=100 > "$root/runs.json"
+            jq -c --arg sha "$candidate" '.workflow_runs | map(select(.head_sha == $sha)) | sort_by(.run_number) | last // empty' "$root/runs.json" > "$root/run.json"
+            if [ -s "$root/run.json" ]; then run_id="$(jq -r '.id' "$root/run.json")"; [ "$(jq -r '.status' "$root/run.json")" = completed ] && break; fi
+            sleep 20
+          done
+          test -n "$run_id"; test "$(jq -r '.status' "$root/run.json")" = completed
+          if [ "$(jq -r '.conclusion' "$root/run.json")" != success ]; then
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/jobs?per_page=100" > "$root/jobs.json"
+            gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body "ASOIAF_ACTOR_CAPABILITY_EXACT_HEAD_FAILURE_V3
+
+          Candidate \`$candidate\`, run \`$run_id\`, conclusion \`$(jq -r '.conclusion' "$root/run.json")\`.
+
+          \`\`\`text
+          $(jq -r '.jobs[] | [.name,.status,.conclusion,(.id|tostring)] | @tsv' "$root/jobs.json")
+          \`\`\`"
+            exit 1
+          fi
+          echo "sha=$candidate" >> "$GITHUB_OUTPUT"; echo "run_id=$run_id" >> "$GITHUB_OUTPUT"; echo "commits=$commits" >> "$GITHUB_OUTPUT"
+
+      - name: Verify artifact and publish terminal receipt
+        if: steps.existing.outputs.terminal != 'true'
+        env:
+          CANDIDATE: ${{ steps.target.outputs.sha }}
+          RUN_ID: ${{ steps.target.outputs.run_id }}
+          COMMITS: ${{ steps.target.outputs.commits }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/capability-v3"
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/artifacts?per_page=100" > "$root/artifacts.json"
+          id="$(jq -r '.artifacts[] | select(.name == "asoiaf-answer-actor-capability-broker-qualification" and .expired == false) | .id' "$root/artifacts.json" | head -1)"
+          digest="$(jq -r '.artifacts[] | select(.id == '"$id"') | .digest' "$root/artifacts.json")"
+          size="$(jq -r '.artifacts[] | select(.id == '"$id"') | .size_in_bytes' "$root/artifacts.json")"
+          expires="$(jq -r '.artifacts[] | select(.id == '"$id"') | .expires_at' "$root/artifacts.json")"
+          test -n "$id"
+          curl --fail --location --silent --show-error -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/artifacts/$id/zip" -o "$root/artifact.zip"
+          test "sha256:$(sha256sum "$root/artifact.zip" | awk '{print $1}')" = "$digest"
+          unzip -t "$root/artifact.zip" >/dev/null; mkdir -p "$root/artifact"; unzip -q "$root/artifact.zip" -d "$root/artifact"
+          artifact_root="$(dirname "$(find "$root/artifact" -type f -name candidate-sha.txt -print -quit)")"
+          test "$(tr -d '\r\n' < "$artifact_root/candidate-sha.txt")" = "$CANDIDATE"; test "$(tr -d '\r\n' < "$artifact_root/base-sha.txt")" = "$PARENT"
+          (cd "$artifact_root" && sha256sum -c SHA256SUMS) > "$root/internal-sha256.log"
+          jq -e '.typecheck == "success" and .focused == "success" and .lifecycle == "success" and .regression == "success" and .build == "success"' "$artifact_root/outcomes.json" >/dev/null
+          python - "$artifact_root" "$root/totals.json" <<'PY'
+          from pathlib import Path
+          import json,re,sys
+          root,out=map(Path,sys.argv[1:]); ansi=re.compile(r'\x1b\[[0-?]*[ -/]*[@-~]')
+          def read(n): return ansi.sub('',next(root.rglob(n)).read_text(errors='replace'))
+          def totals(n):
+              t=read(n); f=re.findall(r'Test Files\s+(\d+) passed',t); s=re.findall(r'Tests\s+(\d+) passed',t)
+              if not f or not s: raise SystemExit(n)
+              return int(f[-1]),int(s[-1])
+          ff,ft=totals('focused-tests.log'); rf,rt=totals('full-tests.log'); mods=re.findall(r'(\d+) modules transformed',read('build.log'))
+          if not mods: raise SystemExit('build')
+          v=json.loads(next(root.rglob('capability-verification.json')).read_text()); st=json.loads(next(root.rglob('capability-status.json')).read_text())
+          if v.get('ok') is not True or v.get('counts',{}).get('errors') != 0: raise SystemExit('verify')
+          states=sorted(x.get('status') for x in st.get('state',{}).get('entries',[]));
+          if states != ['succeeded','succeeded']: raise SystemExit(states)
+          out.write_text(json.dumps({'ff':ff,'ft':ft,'rf':rf,'rt':rt,'modules':int(mods[-1]),'policies':len(st.get('policies',[])),'starts':len(st.get('starts',[])),'terminals':len(st.get('terminals',[])),'entries':len(states)},indent=2)+'\n')
+          PY
+          if find "$artifact_root" -type f \( -iname '*.key' -o -iname '*.crt' -o -iname '*.cer' -o -iname '*.pem' -o -iname '*.csr' -o -iname '*.p12' -o -iname '*.pfx' \) | grep -q .; then exit 1; fi
+          ff="$(jq -r '.ff' "$root/totals.json")"; ft="$(jq -r '.ft' "$root/totals.json")"; rf="$(jq -r '.rf' "$root/totals.json")"; rt="$(jq -r '.rt' "$root/totals.json")"; modules="$(jq -r '.modules' "$root/totals.json")"
+          policies="$(jq -r '.policies' "$root/totals.json")"; starts="$(jq -r '.starts' "$root/totals.json")"; terminals="$(jq -r '.terminals' "$root/totals.json")"; entries="$(jq -r '.entries' "$root/totals.json")"
+          cat > "$root/body.md" <<EOF
+          ## Terminal qualification
+
+          PR #294, **Enforce brokered actor capabilities at the operating-system boundary**, is terminally qualified on exact carrier-free head \`$CANDIDATE\`, above terminal adapter-host head \`$PARENT\`. It remains open, draft, mergeable, unmerged, contains $COMMITS product commit(s), and changes exactly seven permanent surfaces:
+
+          \`\`\`text
+          .github/workflows/asoiaf-answer-actor-capability-broker.yml
+          docs/ASOIAF_ANSWER_ACTOR_CAPABILITY_BROKER.md
+          package.json
+          tests/fixtures/emit-asoiaf-answer-actor-capability-broker-input.ts
+          tests/narrative/canon/asoiaf-answer-actor-capability-broker.test.ts
+          tools/asoiaf-answer-actor-capability-broker.ts
+          tools/lib/asoiaf-answer-actor-capability-broker.ts
+          \`\`\`
+
+          The actor runtime retains certificate-bound assignment and digest-only intent custody. The adapter host retains catalogue and process custody. This layer compiles and digest-binds fixed Linux launcher source, installs resource ceilings, \`no_new_privs\`, Landlock filesystem policy, and seccomp process policy, emits a kernel receipt through a dedicated attestation channel, and releases the transient task envelope only after that receipt is validated. It admits the exact executable, bundles, runtime dependencies, bounded working-directory mutation, and Node worker threads, while refusing undeclared filesystem access, networking, process creation, namespace or mount change, executable-memory carriers, process signalling, cross-process memory, and System V IPC.
+
+          Permanent workflow run \`$RUN_ID\` passed exact scope, inherited-floor identity, strict TypeScript, $ft focused tests across $ff files, the executable attestation-before-input lifecycle and exact replay, explicit timeout, protocol-refusal, process-failure, resource-failure, and interrupted-recovery receipts, the complete $rt-test regression across $rf files, and the $modules-module production build. The retained estate contains $policies policies, $starts starts, $terminals terminals, and $entries deterministic state entries. Both principal entries are \`succeeded\`, and the verifier reports zero errors.
+
+          Qualification artifact \`$id\` is $size bytes with ZIP digest \`$digest\` and expires at \`$expires\`. Independent reconciliation reproduced its digest, passed ZIP integrity and internal checksums, confirmed the candidate and parent, parsed every test and lifecycle total, and found no credential-bearing path or retained private-key, certificate, certificate-request, PKCS#12, PKCS#11-selector, provider-secret, raw-input, or raw-output material.
+
+          Diagnostics, probes, source exports, materializers, repair workflows, observer workflows, generated estates, and receipts remain outside the product surfaces. Process completion is execution evidence rather than task success, and this layer acquires no credential, scheduling, settlement, research, review, graph, canon, or answer authority.
+
+          The evidence tier is exact product ancestry, seven-surface identity, real Ubuntu kernel enforcement, attestation-before-input, exact replay, explicit negative outcomes, complete regression, production build, companion success, and independently verified artifact custody. The venue is this open draft above terminal PR #288. The target is operating-system least authority around one catalogue-bound adapter invocation. The upside is a reconstructable chain from supervised assignment through runtime, provider, adapter, kernel policy, typed result, return, and settlement. The downside is Linux-specific launcher maintenance, explicit runtime-dependency admission, digest-only debugging, append-only receipts, and separate Windows isolation work. The failure mode is releasing input before attestation, admitting undeclared authority, relaunching after interruption, retaining secret material, or treating process exit as task success.
+
+          The control question is whether every adapter result can disclose the exact assignment, delivery certificate, runtime slot, provider result, adapter catalogue and invocation, capability policy, compiler and launcher digests, kernel receipt, process terminal, typed result, return, settlement, workflow head, and qualification artifact while no adapter, provider result, process exit, capability receipt, or successor credential acquires broader authority.
+          EOF
+          gh pr edit "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file "$root/body.md"
+          if ! gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments?per_page=100" --jq '.[].body' | grep -q "$MARKER"; then
+            gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body "$MARKER
+
+          Exact head: \`$CANDIDATE\`. Parent: \`$PARENT\`. Permanent run: \`$RUN_ID\`. Artifact: \`$id\`. Digest: \`$digest\`. Focused: $ft/$ff. Regression: $rt/$rf. Build modules: $modules. The PR remains open, draft, mergeable, and unmerged."
+          fi

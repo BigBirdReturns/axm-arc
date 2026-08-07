@@ -1,0 +1,312 @@
+name: ASOIAF actor adapter host and process custody
+
+on:
+  push:
+    branches:
+      - feature/asoiaf-answer-actor-adapter-host-v1
+    paths: &adapter_paths
+      - '.github/workflows/asoiaf-answer-actor-adapter-host.yml'
+      - 'docs/ASOIAF_ANSWER_ACTOR_ADAPTER_HOST.md'
+      - 'package.json'
+      - 'tests/fixtures/emit-asoiaf-answer-actor-adapter-host-input.ts'
+      - 'tests/narrative/canon/asoiaf-answer-actor-adapter-host.test.ts'
+      - 'tools/asoiaf-answer-actor-adapter-host.ts'
+      - 'tools/lib/asoiaf-answer-actor-adapter-host.ts'
+  pull_request:
+    branches:
+      - feature/asoiaf-answer-actor-runtime-v1
+    paths: *adapter_paths
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: asoiaf-answer-actor-adapter-host-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qualify:
+    if: github.repository == 'BigBirdReturns/axm-arc'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    env:
+      BASE_SHA: c15679fbc6de45c7552c0f7651fb46a38f4a642a
+    steps:
+      - name: Check out exact adapter-host candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          show-progress: false
+
+      - name: Bind exact parent, inherited floor, and seven permanent surfaces
+        shell: bash
+        run: |
+          set -euo pipefail
+          candidate="$(git rev-parse HEAD)"
+          test "$(git show -s --format=%P HEAD)" = "$BASE_SHA"
+          test -z "$(git status --porcelain)"
+          printf '%s\n' "$candidate" > "$RUNNER_TEMP/candidate-sha.txt"
+          printf '%s\n' "$BASE_SHA" > "$RUNNER_TEMP/base-sha.txt"
+          echo "CANDIDATE_SHA=$candidate" >> "$GITHUB_ENV"
+          cat > "$RUNNER_TEMP/expected-paths.txt" <<'PATHS'
+          .github/workflows/asoiaf-answer-actor-adapter-host.yml
+          docs/ASOIAF_ANSWER_ACTOR_ADAPTER_HOST.md
+          package.json
+          tests/fixtures/emit-asoiaf-answer-actor-adapter-host-input.ts
+          tests/narrative/canon/asoiaf-answer-actor-adapter-host.test.ts
+          tools/asoiaf-answer-actor-adapter-host.ts
+          tools/lib/asoiaf-answer-actor-adapter-host.ts
+          PATHS
+          sed -i 's/^          //' "$RUNNER_TEMP/expected-paths.txt"
+          sort -o "$RUNNER_TEMP/expected-paths.txt" "$RUNNER_TEMP/expected-paths.txt"
+          git diff --name-only "$BASE_SHA" "$candidate" | sort > "$RUNNER_TEMP/actual-paths.txt"
+          diff -u "$RUNNER_TEMP/expected-paths.txt" "$RUNNER_TEMP/actual-paths.txt"
+          git diff --check "$BASE_SHA" "$candidate"
+          for path in \
+            tools/lib/asoiaf-answer-actor-runtime.ts \
+            tools/lib/asoiaf-answer-credential-provider-host.ts \
+            tools/lib/asoiaf-answer-credential-broker.ts \
+            tools/lib/asoiaf-answer-credential-deployment.ts \
+            tools/lib/asoiaf-answer-desk-transport-enrollment.ts \
+            tools/lib/asoiaf-answer-desk-supervised-delivery.ts; do
+            test "$(git rev-parse "HEAD:$path")" = "$(git rev-parse "$BASE_SHA:$path")"
+          done
+          node <<'NODE'
+          const fs = require('node:fs');
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          for (const name of [
+            'asoiaf:answer-supervised-delivery',
+            'asoiaf:answer-transport-enrollment',
+            'asoiaf:answer-credential-deployment',
+            'asoiaf:answer-credential-broker',
+            'asoiaf:answer-credential-provider-host',
+            'asoiaf:answer-actor-runtime',
+            'asoiaf:answer-actor-adapter-host',
+          ]) {
+            if (typeof pkg.scripts?.[name] !== 'string') {
+              throw new Error(`missing operator ${name}`);
+            }
+          }
+          NODE
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install exact locked dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Verify permanent operator registration
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run --silent asoiaf:answer-actor-adapter-host -- help | tee "$RUNNER_TEMP/adapter-help.txt"
+          grep -q 'ASOIAF actor adapter host and process custody' "$RUNNER_TEMP/adapter-help.txt"
+          for command in manifest install prepare start execute recover status verify paths; do
+            grep -q "$command" "$RUNNER_TEMP/adapter-help.txt"
+          done
+          npm run --silent asoiaf:answer-actor-runtime -- help > "$RUNNER_TEMP/runtime-help.txt"
+          npm run --silent asoiaf:answer-credential-provider-host -- help > "$RUNNER_TEMP/provider-help.txt"
+
+      - name: Strict TypeScript
+        id: typecheck
+        shell: bash
+        run: |
+          set -euo pipefail
+          find src tests tools \( -name '*.js' -o -name '*.js.map' -o -name '*.d.ts' \) -delete
+          rm -f tsconfig.tsbuildinfo
+          npm run typecheck | tee "$RUNNER_TEMP/typecheck.log"
+
+      - name: Focused integrated adapter-host qualification
+        id: focused
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm test -- \
+            tests/narrative/canon/asoiaf-answer-actor-adapter-host.test.ts \
+            tests/narrative/canon/asoiaf-answer-actor-runtime.test.ts \
+            tests/narrative/canon/asoiaf-answer-credential-provider-host.test.ts \
+            tests/narrative/canon/asoiaf-answer-credential-broker.test.ts \
+            tests/narrative/canon/asoiaf-answer-credential-deployment.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-transport-enrollment.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-supervised-delivery.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-supervisor.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-transport-operations.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-transport.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-exchange.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-worker.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-estate.test.ts \
+            tests/narrative/canon/asoiaf-answer-work-lease.test.ts \
+            tests/narrative/canon/asoiaf-answer-work-order.test.ts \
+            tests/narrative/canon/asoiaf-reviewed-answer-packet.test.ts \
+            tests/narrative/canon/asoiaf-research-question-dossier.test.ts \
+            tests/narrative/canon/asoiaf-external-reconciliation-packets.test.ts \
+            | tee "$RUNNER_TEMP/focused-tests.log"
+
+      - name: Exercise process success, replay, timeout, refusal, failure, and restart recovery
+        id: lifecycle
+        shell: bash
+        run: |
+          set -euo pipefail
+          receipts="$RUNNER_TEMP/adapter-receipts"
+          estate="$RUNNER_TEMP/adapter-estate"
+          node node_modules/vite-node/vite-node.mjs \
+            tests/fixtures/emit-asoiaf-answer-actor-adapter-host-input.ts \
+            "$receipts" "$estate" | tee "$RUNNER_TEMP/adapter-lifecycle.log"
+          jq -e '.ok == true and .counts.errors == 0' \
+            "$receipts/adapter-verification.json" > /dev/null
+          jq -e '.adapterCounts == {manifests:2,installations:2,invocations:2,starts:2,terminals:2,stateEntries:2}' \
+            "$receipts/adapter-verification.json" > /dev/null
+          jq -e '.state.entries | map(.status) | sort == ["succeeded","succeeded"]' \
+            "$receipts/adapter-status.json" > /dev/null
+          jq -e '.processLaunched == true and .terminal.outcome == "succeeded"' \
+            "$receipts/review-success-execute-first.json" > /dev/null
+          jq -e '.processLaunched == false and .terminalReplayed == true' \
+            "$receipts/review-success-execute-replay.json" > /dev/null
+          jq -e '.terminal.outcome == "timed-out" and .terminal.timedOut == true' \
+            "$receipts/timeout-execute-first.json" > /dev/null
+          jq -e '.terminal.outcome == "protocol-refused" and .terminal.adapterEvidence == null' \
+            "$receipts/protocol-execute-first.json" > /dev/null
+          jq -e '.terminal.outcome == "failed" and .terminal.exitCode == 17' \
+            "$receipts/failure-execute-first.json" > /dev/null
+          jq -e '.terminal.outcome == "interrupted" and .terminal.processLaunched == false' \
+            "$receipts/interrupted-recover-first.json" > /dev/null
+          jq -e '.message | contains("transient adapter input differs")' \
+            "$receipts/wrong-input-refusal.json" > /dev/null
+          jq -e '.message | contains("transient adapter bundle differs")' \
+            "$receipts/wrong-bundle-refusal.json" > /dev/null
+          test -z "$(git status --porcelain)"
+
+      - name: Complete Arc regression
+        id: regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          find src tests tools \( -name '*.js' -o -name '*.js.map' -o -name '*.d.ts' \) -delete
+          rm -f tsconfig.tsbuildinfo
+          npm test | tee "$RUNNER_TEMP/full-tests.log"
+
+      - name: Production build
+        id: build
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run build | tee "$RUNNER_TEMP/build.log"
+          git ls-files --others --exclude-standard -z | while IFS= read -r -d '' generated; do
+            case "$generated" in *.js|*.js.map|*.d.ts) rm -f "$generated" ;; esac
+          done
+          test -z "$(git status --porcelain)"
+
+      - name: Retain exact adapter-host qualification
+        if: always()
+        id: retain
+        env:
+          TYPECHECK: ${{ steps.typecheck.outcome }}
+          FOCUSED: ${{ steps.focused.outcome }}
+          LIFECYCLE: ${{ steps.lifecycle.outcome }}
+          REGRESSION: ${{ steps.regression.outcome }}
+          BUILD: ${{ steps.build.outcome }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          root='asoiaf-answer-actor-adapter-host-qualification'
+          receipts="$RUNNER_TEMP/adapter-receipts"
+          estate="$RUNNER_TEMP/adapter-estate"
+          mkdir -p "$root/logs" "$root/receipts"
+          for file in adapter-help.txt runtime-help.txt provider-help.txt typecheck.log focused-tests.log adapter-lifecycle.log full-tests.log build.log; do
+            test -f "$RUNNER_TEMP/$file" && cp "$RUNNER_TEMP/$file" "$root/logs/" || true
+          done
+          if test -d "$receipts"; then
+            find "$receipts" -maxdepth 1 -type f \( \
+              -name '*-first.json' -o -name '*-replay.json' -o -name '*-refusal.json' -o \
+              -name 'adapter-status.json' -o -name 'adapter-verification.json' -o \
+              -name 'adapter-paths.json' -o -name '*-verification.json' -o -name 'expected.json' \) \
+              -exec cp {} "$root/receipts/" \;
+          fi
+          test -d "$estate/answer-actor-adapter-host" && cp -R "$estate/answer-actor-adapter-host" "$root/estate" || true
+          cp "$RUNNER_TEMP/candidate-sha.txt" "$root/candidate-sha.txt"
+          cp "$RUNNER_TEMP/base-sha.txt" "$root/base-sha.txt"
+          cp "$RUNNER_TEMP/actual-paths.txt" "$root/permanent-paths.txt"
+          sha256sum \
+            .github/workflows/asoiaf-answer-actor-adapter-host.yml \
+            docs/ASOIAF_ANSWER_ACTOR_ADAPTER_HOST.md package.json \
+            tests/fixtures/emit-asoiaf-answer-actor-adapter-host-input.ts \
+            tests/narrative/canon/asoiaf-answer-actor-adapter-host.test.ts \
+            tools/asoiaf-answer-actor-adapter-host.ts \
+            tools/lib/asoiaf-answer-actor-adapter-host.ts \
+            > "$root/permanent-surface-sha256s.txt"
+          printf '{"typecheck":"%s","focused":"%s","lifecycle":"%s","regression":"%s","build":"%s"}\n' \
+            "$TYPECHECK" "$FOCUSED" "$LIFECYCLE" "$REGRESSION" "$BUILD" > "$root/outcomes.json"
+          printf '%s\n' \
+            'evidenceTier=exact-head-actor-adapter-process-custody' \
+            'parent=c15679fbc6de45c7552c0f7651fb46a38f4a642a' \
+            'assignmentSource=certificate-authenticated-runtime-intent' \
+            'providerSource=public-provider-result' \
+            'shell=false' 'inheritEnvironment=false' 'workingDirectory=ephemeral-empty' \
+            'inputCustody=digest-only' 'outputCustody=digest-only' \
+            'stdoutCustody=digest-only' 'stderrCustody=digest-only' \
+            'timeoutEnforced=true' 'streamLimitsEnforced=true' \
+            'restartRequiresRecovery=true' 'duplicateLaunchOnReplay=false' \
+            'osIsolationEnforced=false' \
+            'certificateRetained=false' 'privateKeyRetained=false' \
+            'rawProviderSelectorRetained=false' 'providerSecretRetained=false' \
+            'schedulingAuthority=none' 'settlementAuthority=none' 'taskAuthority=none' \
+            'graphEffect=none' 'canonEffect=none' 'answerEffect=none' \
+            > "$root/qualification-boundary.txt"
+          if find "$root" -type f \( -iname '*.key' -o -iname '*.crt' -o -iname '*.cer' -o \
+            -iname '*.pem' -o -iname '*.csr' -o -iname '*.p12' -o -iname '*.pfx' \) \
+            -print -quit | grep -q .; then
+            echo 'adapter-host qualification retained a credential-bearing path' >&2
+            exit 1
+          fi
+          patterns="$RUNNER_TEMP/adapter-artifact-patterns.txt"
+          cat > "$patterns" <<'PATTERNS'
+          -----BEGIN (RSA |EC |ENCRYPTED )?PRIVATE KEY-----
+          -----BEGIN CERTIFICATE( REQUEST)?-----
+          provider(Pin|Password|Token|Secret|Session)[[:space:]]*["=:]
+          pkcs11:[^[:space:]"']+
+          PATTERNS
+          sed -i 's/^          //' "$patterns"
+          if grep -RIEq --exclude='full-tests.log' --exclude='focused-tests.log' \
+            --exclude='build.log' --exclude='typecheck.log' -f "$patterns" "$root"; then
+            echo 'adapter-host qualification retained credential or provider-secret content' >&2
+            exit 1
+          fi
+          find "$root" -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum \
+            | sed "s#  $root/#  #" > "$root/SHA256SUMS"
+          (cd "$root" && sha256sum -c SHA256SUMS)
+
+      - name: Upload adapter-host qualification
+        if: always()
+        id: artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: asoiaf-answer-actor-adapter-host-qualification
+          path: asoiaf-answer-actor-adapter-host-qualification
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+      - name: Publish exact qualification summary
+        if: always()
+        env:
+          ARTIFACT_ID: ${{ steps.artifact.outputs.artifact-id }}
+          ARTIFACT_DIGEST: ${{ steps.artifact.outputs.artifact-digest }}
+        shell: bash
+        run: |
+          {
+            echo '## ASOIAF actor adapter host qualification'
+            echo
+            echo "- Candidate: \`$CANDIDATE_SHA\`"
+            echo "- Parent: \`$BASE_SHA\`"
+            echo "- Artifact: \`${ARTIFACT_ID:-not-issued}\`"
+            echo "- Artifact digest: \`${ARTIFACT_DIGEST:-not-issued}\`"
+            echo '- Successful exact process transactions: two'
+            echo '- Timeout, protocol refusal, nonzero failure, and interrupted recovery: distinguished'
+            echo '- Duplicate process launch on exact replay: false'
+            echo '- Raw input, output, streams, paths, credentials, selectors, and provider secrets: not retained'
+            echo '- Kernel-enforced isolation: not yet claimed'
+          } >> "$GITHUB_STEP_SUMMARY"

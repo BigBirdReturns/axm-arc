@@ -1,0 +1,47 @@
+name: TEMP repair loopback TLS parser
+
+on:
+  push:
+    branches:
+      - feature/asoiaf-answer-credential-broker-loopback-tls-v1
+    paths:
+      - '.github/workflows/_temp-repair-loopback-tls-parser.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: github.repository == 'BigBirdReturns/axm-arc'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out exact feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/asoiaf-answer-credential-broker-loopback-tls-v1
+          fetch-depth: 1
+
+      - name: Collapse the multiline type assertion
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          target = Path('tools/lib/asoiaf-answer-credential-broker-loopback-tls.ts')
+          text = target.read_text(encoding='utf-8')
+          old = '''          resolve(
+            parsedResponse
+              as AsoiafAnswerCredentialBrokerServiceWireResponse,
+          );'''
+          new = '''          resolve(parsedResponse as AsoiafAnswerCredentialBrokerServiceWireResponse);'''
+          if text.count(old) != 1:
+              raise SystemExit('expected exactly one multiline listener response assertion')
+          target.write_text(text.replace(old, new), encoding='utf-8')
+          PY
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tools/lib/asoiaf-answer-credential-broker-loopback-tls.ts
+          git commit -m 'Repair loopback TLS response assertion syntax'
+          git push origin HEAD:feature/asoiaf-answer-credential-broker-loopback-tls-v1

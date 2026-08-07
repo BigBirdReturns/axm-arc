@@ -113,3 +113,5 @@ main().catch((error) => {
   process.stderr.write(`${error.stack || error.message}\n`);
   process.exitCode = 1;
 });
+
+// Triggered after registering the profile-derived environment workflow.

@@ -6,6 +6,7 @@ on:
       - feature/asoiaf-answer-credential-broker-service-v1
     paths:
       - '.construction/asoiaf-answer-credential-broker-service-surfaces/SURFACES.json'
+      - '.github/workflows/_temp-assemble-broker-service-surfaces.yml'
 
 permissions:
   contents: write

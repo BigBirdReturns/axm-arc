@@ -1,4 +1,4 @@
-name: Pulse complete loopback TLS Windows fixture repair
+name: Pulse structural loopback TLS Windows fixture repair
 
 on:
   push:
@@ -17,12 +17,12 @@ jobs:
   pulse:
     if: github.repository == 'BigBirdReturns/axm-arc'
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 15
     env:
       GH_TOKEN: ${{ github.token }}
       TARGET_WORKFLOW: _temp-repair-loopback-tls-windows-npx.yml
       TARGET_BRANCH: feature/asoiaf-answer-credential-broker-loopback-tls-v1
-      TARGET_SHA: 7449ff70477ac5d3e090c0d23d40530f7d8d1f2f
+      TARGET_SHA: 43b0547765b4e9aed77eef2b1171375f58dfe798
     steps:
       - name: Publish exact repair status
         shell: bash
@@ -31,7 +31,7 @@ jobs:
           root="$RUNNER_TEMP/pulse"
           mkdir -p "$root"
           run_id=''
-          for _ in $(seq 1 60); do
+          for _ in $(seq 1 90); do
             gh api --method GET \
               "repos/$GITHUB_REPOSITORY/actions/workflows/$TARGET_WORKFLOW/runs" \
               -f branch="$TARGET_BRANCH" \
@@ -53,7 +53,7 @@ jobs:
           gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/jobs?per_page=100" \
             > "$root/jobs.json"
           {
-            echo 'TEMP_LOOPBACK_TLS_WINDOWS_FIXTURE_REPAIR_V4_PULSE'
+            echo 'TEMP_LOOPBACK_TLS_WINDOWS_FIXTURE_REPAIR_V7_PULSE'
             echo
             echo "Repair run \`$run_id\` on \`$TARGET_SHA\`: status \`$(jq -r '.status' "$root/run.json")\`, conclusion \`$(jq -r '.conclusion' "$root/run.json")\`."
             echo

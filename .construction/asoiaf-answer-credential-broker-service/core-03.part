@@ -1,0 +1,360 @@
+ record.rawProviderSelectorRetained !== false
+    || record.providerSecretRetained !== false
+    || record.rawRequestBodyRetained !== false
+    || record.requestAuthority !== "caller-request-only"
+    || record.authority !== "none"
+    || record.graphEffect !== "none"
+    || record.canonEffect !== "none"
+    || record.answerEffect !== "none"
+    || record.signatureVerified !== true
+  ) {
+    throw new Error("credential broker service request authority or retention boundary is invalid");
+  }
+  if (
+    unsigned.servicePolicyId !== input.policy.servicePolicyId
+    || unsigned.servicePolicyFingerprint !== input.policy.servicePolicyFingerprint
+    || unsigned.brokerPolicyId !== input.policy.brokerPolicyId
+    || unsigned.brokerPolicyFingerprint !== input.policy.brokerPolicyFingerprint
+    || unsigned.providerProfileId !== input.policy.providerProfileId
+    || unsigned.providerProfileFingerprint !== input.policy.providerProfileFingerprint
+    || unsigned.localEndpoint !== input.policy.localEndpoint
+    || unsigned.endpointKind !== input.policy.endpointKind
+    || unsigned.clientId !== input.policy.clientId
+    || unsigned.clientPublicKeyFingerprint !== input.policy.clientPublicKeyFingerprint
+    || !input.policy.allowedOperations.includes(operation)
+  ) {
+    throw new Error("credential broker service request differs from retained policy custody");
+  }
+  const lifetime = Date.parse(unsigned.expiresAt) - Date.parse(unsigned.issuedAt);
+  if (lifetime < 1 || lifetime > input.policy.maxRequestLifetimeMilliseconds) {
+    throw new Error("credential broker service request lifetime exceeds policy");
+  }
+  if (Date.parse(unsigned.issuedAt) < Date.parse(input.policy.createdAt)) {
+    throw new Error("credential broker service request predates retained policy");
+  }
+  const requestFingerprint = sha256(requestCoreFromUnsigned(unsigned));
+  const requestId = collectorContentId("asoiaf-answer-credential-broker-service-request", {
+    servicePolicyId: unsigned.servicePolicyId,
+    idempotencyKeyDigest: unsigned.idempotencyKeyDigest,
+    requestFingerprint,
+  });
+  if (
+    String(record.requestFingerprint) !== requestFingerprint
+    || String(record.requestId) !== requestId
+  ) {
+    throw new Error("credential broker service request identity is invalid");
+  }
+  const signatureAlgorithm = normalizeSignatureAlgorithm(String(record.signatureAlgorithm));
+  if (signatureAlgorithm !== input.policy.clientSignatureAlgorithm) {
+    throw new Error("credential broker service request signature algorithm differs from policy");
+  }
+  const signatureBase64 = requireBase64(
+    String(record.signatureBase64),
+    "credential broker service request signature",
+  );
+  const signature = Buffer.from(signatureBase64, "base64");
+  const signatureDigest = bytesDigest(signature);
+  if (String(record.signatureDigest) !== signatureDigest) {
+    throw new Error("credential broker service request signature digest is invalid");
+  }
+  const normalized: AsoiafAnswerCredentialBrokerServiceRequest = {
+    ...unsigned,
+    requestId,
+    requestFingerprint,
+    signatureAlgorithm,
+    signatureBase64,
+    signatureDigest,
+    signatureVerified: true,
+  };
+  if (!verifyBytes({
+    key: publicKeyFromSpki(input.policy.clientPublicKeySpkiBase64),
+    algorithm: signatureAlgorithm,
+    message: serializeAsoiafAnswerCredentialBrokerServiceRequest(normalized),
+    signature,
+  })) {
+    throw new Error("credential broker service request signature is invalid");
+  }
+  return normalized;
+}
+
+export function createAsoiafAnswerCredentialBrokerServiceRequest(
+  input: AsoiafAnswerCredentialBrokerServiceRequestInput,
+): { request: AsoiafAnswerCredentialBrokerServiceRequest } {
+  const policy = servicePolicyById(input.root, input.servicePolicyId);
+  const operation = requireOperation(input.operation);
+  if (!policy.allowedOperations.includes(operation)) {
+    throw new Error(`credential broker service operation ${operation} is not allowed by policy`);
+  }
+  const payload = normalizePayload(input.payload);
+  if (payload.kind !== operation) {
+    throw new Error("credential broker service request operation differs from payload kind");
+  }
+  if (
+    "hostKind" in payload
+    && payload.hostKind !== policy.providerHostKind
+  ) {
+    throw new Error("credential broker service payload host differs from retained provider profile");
+  }
+  const payloadBytes = stableBytes(payload);
+  if (payloadBytes.length > policy.maxRequestBytes) {
+    throw new Error("credential broker service payload exceeds policy request ceiling");
+  }
+  const issuedAt = requireTime(input.issuedAt, "credential broker service request issue time");
+  const expiresAt = requireTime(input.expiresAt, "credential broker service request expiry");
+  const lifetime = Date.parse(expiresAt) - Date.parse(issuedAt);
+  if (lifetime < 1 || lifetime > policy.maxRequestLifetimeMilliseconds) {
+    throw new Error("credential broker service request lifetime exceeds policy");
+  }
+  const unsigned: ServiceRequestUnsigned = {
+    format: ASOIAF_ANSWER_CREDENTIAL_BROKER_SERVICE_REQUEST_FORMAT,
+    servicePolicyId: policy.servicePolicyId,
+    servicePolicyFingerprint: policy.servicePolicyFingerprint,
+    brokerPolicyId: policy.brokerPolicyId,
+    brokerPolicyFingerprint: policy.brokerPolicyFingerprint,
+    providerProfileId: policy.providerProfileId,
+    providerProfileFingerprint: policy.providerProfileFingerprint,
+    localEndpoint: policy.localEndpoint,
+    endpointKind: policy.endpointKind,
+    clientId: policy.clientId,
+    clientPublicKeyFingerprint: policy.clientPublicKeyFingerprint,
+    operation,
+    idempotencyKeyDigest: sha256(requireId(
+      input.idempotencyKey,
+      "credential broker service idempotency key",
+    )),
+    payloadDigest: bytesDigest(payloadBytes),
+    payloadBytes: payloadBytes.length,
+    issuedAt,
+    expiresAt,
+    privateKeyRetained: false,
+    privateKeyPathRetained: false,
+    rawProviderSelectorRetained: false,
+    providerSecretRetained: false,
+    rawRequestBodyRetained: false,
+    requestAuthority: "caller-request-only",
+    ...NO_AUTHORITY,
+  };
+  const requestFingerprint = sha256(requestCoreFromUnsigned(unsigned));
+  const requestId = collectorContentId("asoiaf-answer-credential-broker-service-request", {
+    servicePolicyId: policy.servicePolicyId,
+    idempotencyKeyDigest: unsigned.idempotencyKeyDigest,
+    requestFingerprint,
+  });
+  const privateKey = crypto.createPrivateKey(input.clientPrivateKeyPem);
+  if (
+    publicKeyFingerprint(privateKey) !== policy.clientPublicKeyFingerprint
+    || publicKeySpkiBase64(privateKey) !== policy.clientPublicKeySpkiBase64
+  ) {
+    throw new Error("credential broker service signing key differs from retained client identity");
+  }
+  const provisional: AsoiafAnswerCredentialBrokerServiceRequest = {
+    ...unsigned,
+    requestId,
+    requestFingerprint,
+    signatureAlgorithm: policy.clientSignatureAlgorithm,
+    signatureBase64: "",
+    signatureDigest: bytesDigest(Buffer.alloc(0)),
+    signatureVerified: true,
+  };
+  const signed = signBytes(
+    privateKey,
+    serializeAsoiafAnswerCredentialBrokerServiceRequest(provisional),
+  );
+  const signatureBase64 = signed.signature.toString("base64");
+  const request: AsoiafAnswerCredentialBrokerServiceRequest = {
+    ...provisional,
+    signatureAlgorithm: signed.algorithm,
+    signatureBase64,
+    signatureDigest: bytesDigest(signed.signature),
+  };
+  normalizeAndVerifyRequest({ policy, request });
+  return { request };
+}
+
+function executeServiceOperation(input: {
+  root: string;
+  policy: AsoiafAnswerCredentialBrokerServicePolicy;
+  request: AsoiafAnswerCredentialBrokerServiceRequest;
+  payload: AsoiafAnswerCredentialBrokerServicePayload;
+  powershellExecutable?: string;
+}): AsoiafAnswerCredentialBrokerServiceResponse {
+  const operatorId = `credential-broker-service:${input.policy.clientId}:${input.request.requestId}`;
+  if (input.payload.kind === "prepare-provider-invocation") {
+    const result = prepareAsoiafAnswerCredentialProviderInvocation({
+      root: input.root,
+      profileId: input.policy.providerProfileId,
+      brokerInvocationId: input.payload.brokerInvocationId,
+      idempotencyKey: input.payload.providerIdempotencyKey,
+      preparedAt: input.payload.preparedAt,
+      expiresAt: input.payload.expiresAt,
+      operatorId,
+    });
+    return {
+      kind: "provider-invocation",
+      providerReplayed: result.replayed,
+      invocation: result.invocation,
+    };
+  }
+  if (input.payload.kind === "execute-possession") {
+    if (input.payload.hostKind === "synthetic-fixture") {
+      const result = executeAsoiafAnswerSyntheticPossession({
+        root: input.root,
+        providerInvocationId: input.payload.providerInvocationId,
+        credentialPrivateKeyPem: input.payload.credentialPrivateKeyPem,
+        completedAt: input.payload.completedAt,
+        operatorId,
+      });
+      return {
+        kind: "provider-result",
+        providerReplayed: result.replayed,
+        result: result.result,
+      };
+    }
+    const result = executeAsoiafAnswerWindowsCngPossession({
+      root: input.root,
+      providerInvocationId: input.payload.providerInvocationId,
+      credentialCertificateThumbprint: input.payload.credentialCertificateThumbprint,
+      completedAt: input.payload.completedAt,
+      operatorId,
+      ...(input.powershellExecutable
+        ? { powershellExecutable: input.powershellExecutable }
+        : {}),
+    });
+    return {
+      kind: "provider-result",
+      providerReplayed: result.replayed,
+      result: result.result,
+    };
+  }
+  if (input.payload.hostKind === "synthetic-fixture") {
+    const result = executeAsoiafAnswerSyntheticTransport({
+      root: input.root,
+      providerInvocationId: input.payload.providerInvocationId,
+      deviceAgentPrivateKeyPem: input.payload.deviceAgentPrivateKeyPem,
+      lowerRequestId: input.payload.lowerRequestId,
+      lowerRequestFingerprint: input.payload.lowerRequestFingerprint,
+      lowerResponseId: input.payload.lowerResponseId,
+      lowerResponseFingerprint: input.payload.lowerResponseFingerprint,
+      observedServerCertificateFingerprint:
+        input.payload.observedServerCertificateFingerprint,
+      observedServerIssuerFingerprint:
+        input.payload.observedServerIssuerFingerprint,
+      httpStatus: input.payload.httpStatus,
+      responseBodyBase64: input.payload.responseBodyBase64,
+      providerReceiptDigest: input.payload.providerReceiptDigest,
+      startedAt: input.payload.startedAt,
+      completedAt: input.payload.completedAt,
+      operatorId,
+    });
+    return {
+      kind: "provider-result",
+      providerReplayed: result.replayed,
+      result: result.result,
+    };
+  }
+  const result = executeAsoiafAnswerWindowsCngTransport({
+    root: input.root,
+    providerInvocationId: input.payload.providerInvocationId,
+    credentialCertificateThumbprint: input.payload.credentialCertificateThumbprint,
+    deviceAgentCertificateThumbprint: input.payload.deviceAgentCertificateThumbprint,
+    requestBodyBase64: input.payload.requestBodyBase64,
+    completedAt: input.payload.completedAt,
+    operatorId,
+    ...(input.powershellExecutable
+      ? { powershellExecutable: input.powershellExecutable }
+      : {}),
+  });
+  return {
+    kind: "provider-result",
+    providerReplayed: result.replayed,
+    result: result.result,
+  };
+}
+
+export function dispatchAsoiafAnswerCredentialBrokerServiceRequest(
+  input: AsoiafAnswerCredentialBrokerServiceDispatchInput,
+): AsoiafAnswerCredentialBrokerServiceDispatchResult {
+  return withServiceLock(input.root, () => {
+    const policy = servicePolicyById(input.root, input.request.servicePolicyId);
+    const request = normalizeAndVerifyRequest({ policy, request: input.request });
+    const payload = normalizePayload(input.payload);
+    if (payload.kind !== request.operation) {
+      throw new Error("credential broker service payload differs from request operation");
+    }
+    if ("hostKind" in payload && payload.hostKind !== policy.providerHostKind) {
+      throw new Error("credential broker service payload host differs from retained provider profile");
+    }
+    const payloadBytes = stableBytes(payload);
+    if (
+      payloadBytes.length !== request.payloadBytes
+      || bytesDigest(payloadBytes) !== request.payloadDigest
+    ) {
+      throw new Error("credential broker service payload differs from signed request custody");
+    }
+    const receivedAt = requireTime(input.receivedAt, "credential broker service receipt time");
+    if (
+      Date.parse(receivedAt) < Date.parse(request.issuedAt)
+      || Date.parse(receivedAt) > Date.parse(request.expiresAt)
+    ) {
+      throw new Error("credential broker service request is not live at receipt time");
+    }
+    const status = readAsoiafAnswerCredentialBrokerServiceStatus(input.root);
+    const conflicts = status.requests.filter(
+      (entry) => entry.idempotencyKeyDigest === request.idempotencyKeyDigest,
+    );
+    if (
+      conflicts.length > 0
+      && (
+        conflicts.length !== 1
+        || stableJson(conflicts[0]) !== stableJson(request)
+      )
+    ) {
+      throw new Error("credential broker service idempotency key conflicts with retained request");
+    }
+    const paths = asoiafAnswerCredentialBrokerServicePaths(input.root);
+    const persistedRequest = writeExact(
+      digestPath(paths.requests, request.requestFingerprint),
+      request,
+    );
+    refreshState(input.root);
+    const existingReceipts = readAsoiafAnswerCredentialBrokerServiceStatus(input.root).receipts
+      .filter((entry) => entry.requestId === request.requestId);
+    if (existingReceipts.length > 0) {
+      if (existingReceipts.length !== 1) {
+        throw new Error("credential broker service request has duplicate receipts");
+      }
+      const receipt = existingReceipts[0]!;
+      return {
+        request: persistedRequest.value,
+        receipt,
+        response: receipt.response,
+        requestReplayed: true,
+        receiptReplayed: true,
+      };
+    }
+    const response = executeServiceOperation({
+      root: input.root,
+      policy,
+      request,
+      payload,
+      powershellExecutable: input.powershellExecutable,
+    });
+    const responseBytes = stableBytes(response);
+    if (responseBytes.length > policy.maxResponseBytes) {
+      throw new Error("credential broker service response exceeds policy ceiling");
+    }
+    const completedAt = requireTime(
+      input.completedAt ?? receivedAt,
+      "credential broker service completion time",
+    );
+    if (Date.parse(completedAt) < Date.parse(receivedAt)) {
+      throw new Error("credential broker service completion precedes receipt time");
+    }
+    const core = {
+      format: ASOIAF_ANSWER_CREDENTIAL_BROKER_SERVICE_RECEIPT_FORMAT,
+      requestId: request.requestId,
+      requestFingerprint: request.requestFingerprint,
+      servicePolicyId: policy.servicePolicyId,
+      servicePolicyFingerprint: policy.servicePolicyFingerprint,
+      brokerPolicyId: policy.brokerPolicyId,
+      providerProfileI

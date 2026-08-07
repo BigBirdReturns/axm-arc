@@ -82,14 +82,30 @@ jobs:
           $vcvars = Join-Path $installation 'VC/Auxiliary/Build/vcvars64.bat'
           $commands = @(
             "cl.exe /nologo /std:c++20 /EHsc /W4 /DWIN32_LEAN_AND_MEAN /Fe:`"$hostExecutable`" `"$patchedHost`"",
-            "cl.exe /nologo /std:c++20 /EHsc /W4 /MT /DWIN32_LEAN_AND_MEAN /Fe:`"$adapterExecutable`" `"$adapterSource`"",
+            "cl.exe /nologo /std:c++20 /EHsc /W4 /MT /DWIN32_LEAN_AND_MEAN /Fe:`"$adapterExecutable`" `"$adapterSource`" /link /APPCONTAINER",
             "dumpbin.exe /dependents `"$nodeExecutable`" > `"$env:RUNNER_TEMP/node-dependents.txt`"",
-            "dumpbin.exe /dependents `"$adapterExecutable`" > `"$env:RUNNER_TEMP/native-adapter-dependents.txt`""
+            "dumpbin.exe /dependents `"$adapterExecutable`" > `"$env:RUNNER_TEMP/native-adapter-dependents.txt`"",
+            "dumpbin.exe /headers `"$adapterExecutable`" > `"$env:RUNNER_TEMP/native-adapter-headers.txt`""
           ) -join ' && '
           & $env:ComSpec /d /s /c "call `"$vcvars`" && $commands" 2>&1 | Tee-Object "$env:RUNNER_TEMP/compile.log"
           if ($LASTEXITCODE -ne 0) { throw "native compilation or dependency inspection failed with $LASTEXITCODE" }
           if (-not (Test-Path $hostExecutable)) { throw 'compiled host missing' }
           if (-not (Test-Path $adapterExecutable)) { throw 'compiled native adapter missing' }
+
+          $binary = [IO.File]::ReadAllBytes($adapterExecutable)
+          if ($binary.Length -lt 512) { throw 'native adapter PE image is truncated' }
+          $peOffset = [BitConverter]::ToInt32($binary, 0x3c)
+          if ($peOffset -lt 0 -or $peOffset + 96 -gt $binary.Length) { throw 'native adapter PE offset is invalid' }
+          if ([Text.Encoding]::ASCII.GetString($binary, $peOffset, 4) -ne "PE`0`0") { throw 'native adapter PE signature is invalid' }
+          $optionalHeader = $peOffset + 24
+          $magic = [BitConverter]::ToUInt16($binary, $optionalHeader)
+          if ($magic -notin @(0x10b, 0x20b)) { throw 'native adapter optional-header magic is unsupported' }
+          $dllCharacteristics = [BitConverter]::ToUInt16($binary, $optionalHeader + 0x46)
+          ('0x{0:X4}' -f $dllCharacteristics) | Set-Content -NoNewline "$env:RUNNER_TEMP/native-adapter-dll-characteristics.txt"
+          if (($dllCharacteristics -band 0x1000) -eq 0) {
+            throw 'native adapter PE image lacks IMAGE_DLLCHARACTERISTICS_APPCONTAINER'
+          }
+
           (Get-FileHash -Algorithm SHA256 $originalHost).Hash.ToLowerInvariant() | Set-Content -NoNewline "$env:RUNNER_TEMP/original-host-source-sha256.txt"
           (Get-FileHash -Algorithm SHA256 $patchedHost).Hash.ToLowerInvariant() | Set-Content -NoNewline "$env:RUNNER_TEMP/patched-host-source-sha256.txt"
           (Get-FileHash -Algorithm SHA256 $adapterSource).Hash.ToLowerInvariant() | Set-Content -NoNewline "$env:RUNNER_TEMP/native-adapter-source-sha256.txt"
@@ -197,7 +213,8 @@ jobs:
             'candidate-sha.txt','product-parent.txt','compile.log','host.log','external-acl.log',
             'original-host-source-sha256.txt','patched-host-source-sha256.txt',
             'native-adapter-source-sha256.txt','host-binary-sha256.txt','native-adapter-binary-sha256.txt',
-            'node-dependents.txt','native-adapter-dependents.txt','patched-host-source.cpp',
+            'node-dependents.txt','native-adapter-dependents.txt','native-adapter-headers.txt',
+            'native-adapter-dll-characteristics.txt','patched-host-source.cpp',
             'host-receipt.json','child-result.json','child-stderr.txt'
           )) {
             $source = Join-Path $env:RUNNER_TEMP $name
@@ -209,6 +226,7 @@ jobs:
             'diagnosticAncestryAdmissible=false'
             'adapterKind=native-static-threaded'
             'nodeBootstrapQualified=false'
+            'peAppContainerRequired=true'
             'appContainerCapabilities=none'
             'appContainerProfileEnvironment=exact'
             'jobActiveProcessLimit=1'

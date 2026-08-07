@@ -5,7 +5,7 @@ on:
     branches:
       - feature/asoiaf-answer-credential-broker-service-v1
     paths:
-      - '.construction/asoiaf-answer-credential-broker-service/READY'
+      - '.construction/asoiaf-answer-credential-broker-service/ASSEMBLY.json'
 
 permissions:
   contents: write
@@ -28,7 +28,11 @@ jobs:
           set -euo pipefail
           construction='.construction/asoiaf-answer-credential-broker-service'
           target='tools/lib/asoiaf-answer-credential-broker-service.ts'
-          expected="$(tr -d '\r\n' < "$construction/READY")"
+          manifest="$construction/ASSEMBLY.json"
+          test "$(jq -r .format "$manifest")" = 'axm-bounded-source-assembly/1'
+          test "$(jq -r .target "$manifest")" = "$target"
+          expected="$(jq -r .sha256 "$manifest")"
+          test "$(jq -r .chunks "$manifest")" = '6'
           mkdir -p "$(dirname "$target")"
           cat "$construction"/core-*.part > "$target"
           actual="$(sha256sum "$target" | awk '{print $1}')"

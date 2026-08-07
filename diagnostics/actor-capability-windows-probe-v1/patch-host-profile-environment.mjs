@@ -155,6 +155,29 @@ replaceExactlyOnce(
         EqualSid(app_container_info->TokenAppContainer, app_container_sid);`,
   "variable-length AppContainer token query",
 );
+replaceExactlyOnce(
+  String.raw`    DWORD child_policy = PROCESS_CREATION_CHILD_PROCESS_RESTRICTED;
+    require(UpdateProcThreadAttribute(
+                startup.lpAttributeList, 0, PROC_THREAD_ATTRIBUTE_CHILD_PROCESS_POLICY,
+                &child_policy, sizeof(child_policy), nullptr, nullptr),
+            "child process policy attribute failed");
+
+`,
+  String.raw`    // Diagnostic isolation: omit the child-process mitigation attribute while
+    // retaining AppContainer identity, exact handle inheritance, and Job Object custody.
+
+`,
+  "child-process mitigation isolation",
+);
+replaceExactlyOnce(
+  String.raw`    const bool kernel_attested =
+        process_in_job == TRUE && is_app_container != 0 && app_container_sid_exact &&
+        active_process_limit_exact && kill_on_close && memory_limit_exact && child_process_restricted;`,
+  String.raw`    const bool kernel_attested =
+        process_in_job == TRUE && is_app_container != 0 && app_container_sid_exact &&
+        active_process_limit_exact && kill_on_close && memory_limit_exact;`,
+  "kernel attestation without child-process mitigation",
+);
 
 for (const marker of [
   "#include <objbase.h>",
@@ -165,12 +188,17 @@ for (const marker of [
   'L"LOCALAPPDATA=" + app_container_folder',
   "build_environment(app_container_folder, loopback_port)",
   "app_container_info_storage(app_container_info_bytes)",
+  "Diagnostic isolation: omit the child-process mitigation attribute",
+  "active_process_limit_exact && kill_on_close && memory_limit_exact;",
 ]) {
   if (!text.includes(marker)) {
     throw new Error(`patched source lacks marker: ${marker}`);
   }
 }
+if (text.includes("PROC_THREAD_ATTRIBUTE_CHILD_PROCESS_POLICY")) {
+  throw new Error("patched source still contains child-process policy attribute");
+}
 
 fs.writeFileSync(outputPath, text, "utf8");
 
-// Diagnostic v9 inherits the host environment except for explicit profile overrides and the secret sentinel.
+// Diagnostic v10 isolates child-process mitigation from AppContainer startup.

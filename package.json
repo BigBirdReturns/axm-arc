@@ -40,7 +40,8 @@
     "asoiaf:answer-credential-broker": "vite-node tools/asoiaf-answer-credential-broker.ts --",
     "asoiaf:answer-credential-provider-host": "vite-node tools/asoiaf-answer-credential-provider-host.ts --",
     "asoiaf:answer-actor-runtime": "vite-node tools/asoiaf-answer-actor-runtime.ts --",
-    "asoiaf:answer-actor-adapter-host": "vite-node tools/asoiaf-answer-actor-adapter-host.ts --"
+    "asoiaf:answer-actor-adapter-host": "vite-node tools/asoiaf-answer-actor-adapter-host.ts --",
+    "asoiaf:answer-actor-capability-broker": "vite-node tools/asoiaf-answer-actor-capability-broker.ts --"
   },
   "dependencies": {
     "react": "^18.3.1",

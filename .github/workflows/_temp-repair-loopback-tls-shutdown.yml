@@ -9,10 +9,12 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
+  issues: write
 
 concurrency:
   group: temp-repair-loopback-tls-shutdown
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   repair:
@@ -35,132 +37,51 @@ jobs:
 
           target = Path('tools/lib/asoiaf-answer-credential-broker-loopback-tls.ts')
           text = target.read_text(encoding='utf-8')
-
           replacements = [
             (
-              '''  let servedConnections = 0;
-          let servedRequests = 0;
-          let rejectedConnections = 0;
-          let stopReason =''',
-              '''  let servedConnections = 0;
-          let servedRequests = 0;
-          let rejectedConnections = 0;
-          const sockets = new Set<tls.TLSSocket>();
-          let stopReason =''',
+              '  let rejectedConnections = 0;\n  let stopReason =',
+              '  let rejectedConnections = 0;\n  const sockets = new Set<tls.TLSSocket>();\n  let stopReason =',
             ),
             (
-              '''  }, (socket) => {
-            servedConnections += 1;
-            if (!accepting || !socket.authorized) {''',
-              '''  }, (socket) => {
-            servedConnections += 1;
-            sockets.add(socket);
-            socket.once("close", () => sockets.delete(socket));
-            if (!accepting || !socket.authorized) {''',
+              '  }, (socket) => {\n    servedConnections += 1;\n    if (!accepting || !socket.authorized) {',
+              '  }, (socket) => {\n    servedConnections += 1;\n    sockets.add(socket);\n    socket.once("close", () => sockets.delete(socket));\n    if (!accepting || !socket.authorized) {',
             ),
             (
-              '''      socket.end(rejectionResponse(
-                accepting
-                  ? "loopback TLS peer is not authorized"
-                  : "loopback TLS listener is not ready",
-              ));
-              return;''',
-              '''      socket.end(rejectionResponse(
-                accepting
-                  ? "loopback TLS peer is not authorized"
-                  : "loopback TLS listener is not ready",
-              ), () => socket.destroy());
-              return;''',
+              '      socket.end(rejectionResponse(\n        accepting\n          ? "loopback TLS peer is not authorized"\n          : "loopback TLS listener is not ready",\n      ));',
+              '      socket.end(rejectionResponse(\n        accepting\n          ? "loopback TLS peer is not authorized"\n          : "loopback TLS listener is not ready",\n      ), () => socket.destroy());',
             ),
             (
-              '''      socket.end(rejectionResponse(
-                "loopback TLS peer certificate differs from retained client custody",
-              ));
-              return;''',
-              '''      socket.end(rejectionResponse(
-                "loopback TLS peer certificate differs from retained client custody",
-              ), () => socket.destroy());
-              return;''',
+              '      socket.end(rejectionResponse(\n        "loopback TLS peer certificate differs from retained client custody",\n      ));',
+              '      socket.end(rejectionResponse(\n        "loopback TLS peer certificate differs from retained client custody",\n      ), () => socket.destroy());',
             ),
             (
-              '''      socket.end(response, () => {
-                if (servedRequests >= maxRequests && server.listening) {
-                  server.close();
-                }
-              });''',
-              '''      socket.end(response, () => {
-                socket.destroy();
-                if (servedRequests >= maxRequests && server.listening) {
-                  server.close();
-                }
-              });''',
+              '      socket.end(response, () => {\n        if (servedRequests >= maxRequests && server.listening) {',
+              '      socket.end(response, () => {\n        socket.destroy();\n        if (servedRequests >= maxRequests && server.listening) {',
             ),
             (
-              '''    socket.on("end", () => {
-              if (!handled && buffer.length > 0) processFrame(buffer);
-              else if (!handled && buffer.length === 0) {
-                rejectedConnections += 1;
-              }
-            });''',
-              '''    socket.on("end", () => {
-              if (!handled && buffer.length > 0) processFrame(buffer);
-              else if (!handled && buffer.length === 0) {
-                rejectedConnections += 1;
-                socket.destroy();
-              }
-            });''',
+              '      else if (!handled && buffer.length === 0) {\n        rejectedConnections += 1;\n      }',
+              '      else if (!handled && buffer.length === 0) {\n        rejectedConnections += 1;\n        socket.destroy();\n      }',
             ),
             (
-              '''  } catch (error) {
-            await new Promise<void>((resolve) => server.close(() => resolve()));
-            throw error;
-          }''',
-              '''  } catch (error) {
-            if (fs.existsSync(paths.lock)) {
-              try {
-                removeOwnLock(paths, session.sessionId);
-              } catch {
-                fs.rmSync(paths.lock, { force: true });
-              }
-            }
-            await new Promise<void>((resolve) => {
-              server.once("close", resolve);
-              server.close();
-              for (const socket of sockets) socket.destroy();
-            });
-            throw error;
-          }''',
+              '  } catch (error) {\n    await new Promise<void>((resolve) => server.close(() => resolve()));\n    throw error;\n  }',
+              '  } catch (error) {\n    if (fs.existsSync(paths.lock)) {\n      try {\n        removeOwnLock(paths, session.sessionId);\n      } catch {\n        fs.rmSync(paths.lock, { force: true });\n      }\n    }\n    await new Promise<void>((resolve) => {\n      server.once("close", resolve);\n      server.close();\n      for (const socket of sockets) socket.destroy();\n    });\n    throw error;\n  }',
             ),
             (
-              '''  server.on("close", () => {
-            try {
-              accepting = false;''',
-              '''  server.on("close", () => {
-            try {
-              accepting = false;
-              for (const socket of sockets) socket.destroy();''',
+              '  server.on("close", () => {\n    try {\n      accepting = false;',
+              '  server.on("close", () => {\n    try {\n      accepting = false;\n      for (const socket of sockets) socket.destroy();',
             ),
             (
-              '''      await new Promise<void>((resolve, reject) => {
-                server.close((error) => error ? reject(error) : resolve());
-              });
-              await closed;''',
-              '''      server.close();
-              for (const socket of sockets) socket.destroy();
-              await closed;''',
+              '      await new Promise<void>((resolve, reject) => {\n        server.close((error) => error ? reject(error) : resolve());\n      });\n      await closed;',
+              '      server.close();\n      for (const socket of sockets) socket.destroy();\n      await closed;',
             ),
           ]
-
           for old, new in replacements:
               if new in text:
                   continue
               count = text.count(old)
               if count != 1:
-                  raise SystemExit(
-                      f'expected exactly one shutdown repair target, found {count}: {old[:100]!r}'
-                  )
+                  raise SystemExit(f'expected one repair target, found {count}: {old[:90]!r}')
               text = text.replace(old, new, 1)
-
           target.write_text(text, encoding='utf-8')
           PY
           git diff --check
@@ -174,14 +95,32 @@ jobs:
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
 
-      - name: Strict TypeScript
-        run: npm run typecheck
-
-      - name: Qualify complete listener lifecycle
+      - name: Qualify and publish repair result
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
-          set -euo pipefail
-          npm test -- tests/narrative/canon/asoiaf-answer-credential-broker-loopback-tls.test.ts
+          set +e
+          npm run typecheck > "$RUNNER_TEMP/typecheck.log" 2>&1
+          typecheck_status=$?
+          npm test -- tests/narrative/canon/asoiaf-answer-credential-broker-loopback-tls.test.ts \
+            > "$RUNNER_TEMP/focused.log" 2>&1
+          focused_status=$?
+          set -e
+          {
+            echo 'TEMP_LOOPBACK_TLS_SHUTDOWN_REPAIR_V1'
+            echo
+            echo "Exact checkout: \`$(git rev-parse HEAD)\`."
+            echo "TypeScript status: \`$typecheck_status\`; focused status: \`$focused_status\`."
+            echo
+            echo 'Focused tail:'
+            echo '```text'
+            tail -n 140 "$RUNNER_TEMP/focused.log"
+            echo '```'
+          } > "$RUNNER_TEMP/comment.md"
+          gh pr comment 282 --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/comment.md"
+          test "$typecheck_status" = 0
+          test "$focused_status" = 0
 
       - name: Commit carrier-free shutdown repair
         shell: bash

@@ -6,6 +6,11 @@ on:
       - feature/asoiaf-answer-credential-broker-loopback-tls-v1
     paths:
       - '.github/workflows/_temp-repair-loopback-tls-parser.yml'
+  pull_request:
+    branches:
+      - feature/asoiaf-answer-credential-broker-service-v1
+    paths:
+      - '.github/workflows/_temp-repair-loopback-tls-parser.yml'
 
 permissions:
   contents: write

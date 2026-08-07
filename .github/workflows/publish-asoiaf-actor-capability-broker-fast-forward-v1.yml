@@ -1,0 +1,123 @@
+name: Publish ASOIAF actor capability broker fast-forward fallback v1
+
+on:
+  push:
+    branches:
+      - diagnostic/actor-capability-runtime-failure-v1
+    paths:
+      - '.github/workflows/publish-asoiaf-actor-capability-broker-fast-forward-v1.yml'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: publish-asoiaf-actor-capability-broker-fast-forward-v1
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.repository == 'BigBirdReturns/axm-arc'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PRODUCT_BRANCH: feature/asoiaf-answer-actor-capability-broker-v1
+      EXCLUDED_HEAD: da40833790023d2e6e3605588eb806fb3abac1f6
+      REPAIR_WORKFLOW: repair-asoiaf-actor-capability-broker-v1.yml
+      DIAGNOSTIC_BRANCH: diagnostic/actor-capability-runtime-failure-v1
+      TARGET_PR: '294'
+    steps:
+      - name: Check out exact publication carrier
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          show-progress: false
+
+      - name: Publish only when the excluded product head remains live
+        id: publish
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/capability-fast-forward"
+          mkdir -p "$root"
+          current="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$PRODUCT_BRANCH" --jq '.object.sha')"
+          printf '%s\n' "$current" > "$root/observed-product-head.txt"
+          if [ "$current" != "$EXCLUDED_HEAD" ]; then
+            echo 'published=false' >> "$GITHUB_OUTPUT"
+            echo "head=$current" >> "$GITHUB_OUTPUT"
+            printf '%s\n' 'publication skipped because the product ref already advanced' > "$root/outcome.txt"
+            exit 0
+          fi
+
+          run_id=''
+          for _ in $(seq 1 360); do
+            gh api --method GET \
+              "repos/$GITHUB_REPOSITORY/actions/workflows/$REPAIR_WORKFLOW/runs" \
+              -f branch="$DIAGNOSTIC_BRANCH" -f event=push -f per_page=20 \
+              > "$root/repair-runs.json"
+            jq -c '.workflow_runs | map(select(.status == "completed" and .conclusion == "success")) | sort_by(.run_number) | last // empty' \
+              "$root/repair-runs.json" > "$root/repair-run.json"
+            if [ -s "$root/repair-run.json" ]; then
+              run_id="$(jq -r '.id' "$root/repair-run.json")"
+              break
+            fi
+            sleep 15
+          done
+          test -n "$run_id"
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/artifacts?per_page=100" > "$root/artifacts.json"
+          jq -e '[.artifacts[] | select(.name == "asoiaf-answer-actor-capability-broker-repair-v1" and .expired == false)] | length == 1' "$root/artifacts.json" >/dev/null
+          artifact_id="$(jq -r '.artifacts[] | select(.name == "asoiaf-answer-actor-capability-broker-repair-v1") | .id' "$root/artifacts.json")"
+          artifact_digest="$(jq -r '.artifacts[] | select(.name == "asoiaf-answer-actor-capability-broker-repair-v1") | .digest' "$root/artifacts.json")"
+          curl --fail --location --silent --show-error \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id/zip" \
+            -o "$root/repair.zip"
+          test "sha256:$(sha256sum "$root/repair.zip" | awk '{print $1}')" = "$artifact_digest"
+          unzip -t "$root/repair.zip" >/dev/null
+          mkdir -p "$root/repair"
+          unzip -q "$root/repair.zip" -d "$root/repair"
+          receipt_root="$(dirname "$(find "$root/repair" -type f -name selected-core.ts -print -quit)")"
+          test -n "$receipt_root"
+          (cd "$receipt_root" && sha256sum -c SHA256SUMS) > "$root/repair-sha256.log"
+          test "$(tr -d '\r\n' < "$receipt_root/parent-sha.txt")" = '0fd578b39a04bde517c53769609cb83a6677aa20'
+
+          git fetch --no-tags origin "$EXCLUDED_HEAD"
+          git checkout --detach "$EXCLUDED_HEAD"
+          test "$(git rev-parse HEAD)" = "$EXCLUDED_HEAD"
+          test -z "$(git status --porcelain)"
+          cp "$receipt_root/selected-core.ts" tools/lib/asoiaf-answer-actor-capability-broker.ts
+          test "$(git diff --name-only)" = 'tools/lib/asoiaf-answer-actor-capability-broker.ts'
+          git diff --check
+          git config user.name 'AXM Qualification Bot'
+          git config user.email 'qualification@axm.local'
+          GIT_AUTHOR_DATE='2026-08-07T19:30:00Z' GIT_COMMITTER_DATE='2026-08-07T19:30:00Z' \
+            git -c commit.gpgsign=false commit -am 'Repair actor capability kernel custody'
+          candidate="$(git rev-parse HEAD)"
+          test "$(git show -s --format=%P HEAD)" = "$EXCLUDED_HEAD"
+          git push --force-with-lease="refs/heads/$PRODUCT_BRANCH:$EXCLUDED_HEAD" \
+            origin "HEAD:refs/heads/$PRODUCT_BRANCH"
+          test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$PRODUCT_BRANCH" --jq '.object.sha')" = "$candidate"
+          printf '%s\n' "$candidate" > "$root/published-head.txt"
+          printf '%s\n' "$artifact_id" > "$root/repair-artifact-id.txt"
+          printf '%s\n' "$artifact_digest" > "$root/repair-artifact-digest.txt"
+          echo 'published=true' >> "$GITHUB_OUTPUT"
+          echo "head=$candidate" >> "$GITHUB_OUTPUT"
+
+      - name: Publish bounded fallback receipt
+        if: steps.publish.outputs.published == 'true'
+        env:
+          HEAD_SHA: ${{ steps.publish.outputs.head }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh pr comment "$TARGET_PR" --repo "$GITHUB_REPOSITORY" --body \
+            "TEMP_ACTOR_CAPABILITY_FAST_FORWARD_V1
+
+          Published repaired capability core as fast-forward head \`$HEAD_SHA\` because the sole-parent ref transaction was unavailable to the workflow token. The pull request still contains exactly seven changed paths. This is a publication receipt only; terminal qualification requires the permanent exact-head workflow and independent artifact inspection."

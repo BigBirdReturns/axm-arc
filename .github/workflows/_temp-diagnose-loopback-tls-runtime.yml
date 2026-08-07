@@ -1,0 +1,78 @@
+name: TEMP diagnose loopback TLS runtime
+
+on:
+  push:
+    branches:
+      - feature/asoiaf-answer-credential-broker-loopback-tls-v1
+    paths:
+      - '.github/workflows/_temp-diagnose-loopback-tls-runtime.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: temp-diagnose-loopback-tls-runtime
+  cancel-in-progress: true
+
+jobs:
+  diagnose:
+    if: github.repository == 'BigBirdReturns/axm-arc'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out exact feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/asoiaf-answer-credential-broker-loopback-tls-v1
+          fetch-depth: 1
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Run standalone fixture and retain diagnostic ledger
+        shell: bash
+        run: |
+          set -uo pipefail
+          fixture="$RUNNER_TEMP/fixture"
+          estate="$RUNNER_TEMP/estate"
+          material="$RUNNER_TEMP/material"
+          mkdir -p "$fixture" "$material"
+          started="$(date +%s)"
+          timeout 150s npx vite-node \
+            tests/fixtures/emit-asoiaf-answer-credential-broker-loopback-tls-input.ts \
+            "$fixture" "$estate" "$material" \
+            > "$RUNNER_TEMP/fixture.stdout" \
+            2> "$RUNNER_TEMP/fixture.stderr"
+          status=$?
+          completed="$(date +%s)"
+          printf 'fixture_exit=%s\nelapsed_seconds=%s\n' \
+            "$status" "$((completed-started))"
+          echo '--- fixture stdout ---'
+          cat "$RUNNER_TEMP/fixture.stdout" || true
+          echo '--- fixture stderr ---'
+          cat "$RUNNER_TEMP/fixture.stderr" || true
+          echo '--- output files ---'
+          find "$fixture" -maxdepth 2 -type f -printf '%P\n' | sort || true
+          echo '--- listener estate ---'
+          if [ -d "$estate/answer-credential-broker-loopback-tls" ]; then
+            find "$estate/answer-credential-broker-loopback-tls" \
+              -maxdepth 3 -type f -printf '%P\n' | sort
+            if [ -f "$estate/answer-credential-broker-loopback-tls/.listener-lock" ]; then
+              echo '--- retained listener lock ---'
+              cat "$estate/answer-credential-broker-loopback-tls/.listener-lock"
+            fi
+          fi
+          echo '--- lifecycle records ---'
+          if [ -d "$estate/answer-credential-broker-loopback-tls/lifecycle" ]; then
+            for file in "$estate"/answer-credential-broker-loopback-tls/lifecycle/*.json; do
+              [ -f "$file" ] || continue
+              cat "$file"
+            done
+          fi
+          exit 0

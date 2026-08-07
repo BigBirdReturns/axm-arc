@@ -113,14 +113,16 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Continue'
-          npm run typecheck *> (Join-Path $env:RUNNER_TEMP 'windows-typecheck.log')
+          $typecheckLog = Join-Path $env:RUNNER_TEMP 'windows-typecheck.log'
+          $focusedLog = Join-Path $env:RUNNER_TEMP 'windows-focused.log'
+          & npm run typecheck 2>&1 | Tee-Object -FilePath $typecheckLog
           $typecheck = $LASTEXITCODE
-          npm test -- tests/narrative/canon/asoiaf-answer-credential-broker-loopback-tls.test.ts *>
-            (Join-Path $env:RUNNER_TEMP 'windows-focused.log')
+          & npm test -- tests/narrative/canon/asoiaf-answer-credential-broker-loopback-tls.test.ts 2>&1 |
+            Tee-Object -FilePath $focusedLog
           $focused = $LASTEXITCODE
-          $tail = Get-Content (Join-Path $env:RUNNER_TEMP 'windows-focused.log') -Tail 120
+          $tail = Get-Content $focusedLog -Tail 120
           $body = @(
-            'TEMP_LOOPBACK_TLS_WINDOWS_FIXTURE_REPAIR_V4'
+            'TEMP_LOOPBACK_TLS_WINDOWS_FIXTURE_REPAIR_V5'
             ''
             "Exact checkout: ``$(git rev-parse HEAD)``."
             "TypeScript status: ``$typecheck``; focused status: ``$focused``."
@@ -130,8 +132,9 @@ jobs:
             $tail
             '```'
           ) -join "`n"
-          $body | Set-Content -LiteralPath (Join-Path $env:RUNNER_TEMP 'comment.md') -Encoding utf8
-          gh pr comment 282 --repo $env:GITHUB_REPOSITORY --body-file (Join-Path $env:RUNNER_TEMP 'comment.md')
+          $comment = Join-Path $env:RUNNER_TEMP 'comment.md'
+          $body | Set-Content -LiteralPath $comment -Encoding utf8
+          gh pr comment 282 --repo $env:GITHUB_REPOSITORY --body-file $comment
           if ($typecheck -ne 0 -or $focused -ne 0) { exit 1 }
 
       - name: Commit carrier-free Windows repair

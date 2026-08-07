@@ -1,0 +1,368 @@
+name: ASOIAF actor capability broker and kernel isolation custody
+
+on:
+  push:
+    branches:
+      - feature/asoiaf-answer-actor-capability-broker-v1
+    paths: &capability_paths
+      - '.github/workflows/asoiaf-answer-actor-capability-broker.yml'
+      - 'docs/ASOIAF_ANSWER_ACTOR_CAPABILITY_BROKER.md'
+      - 'package.json'
+      - 'tests/fixtures/emit-asoiaf-answer-actor-capability-broker-input.ts'
+      - 'tests/narrative/canon/asoiaf-answer-actor-capability-broker.test.ts'
+      - 'tools/asoiaf-answer-actor-capability-broker.ts'
+      - 'tools/lib/asoiaf-answer-actor-capability-broker.ts'
+  pull_request:
+    branches:
+      - feature/asoiaf-answer-actor-adapter-host-v1
+    paths: *capability_paths
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: asoiaf-answer-actor-capability-broker-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qualify:
+    if: github.repository == 'BigBirdReturns/axm-arc'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    env:
+      BASE_SHA: 0fd578b39a04bde517c53769609cb83a6677aa20
+    steps:
+      - name: Check out exact capability-broker candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          show-progress: false
+
+      - name: Bind exact parent, inherited floor, and seven permanent surfaces
+        shell: bash
+        run: |
+          set -euo pipefail
+          candidate="$(git rev-parse HEAD)"
+          test "$(git show -s --format=%P HEAD)" = "$BASE_SHA"
+          test -z "$(git status --porcelain)"
+          printf '%s\n' "$candidate" > "$RUNNER_TEMP/candidate-sha.txt"
+          printf '%s\n' "$BASE_SHA" > "$RUNNER_TEMP/base-sha.txt"
+          echo "CANDIDATE_SHA=$candidate" >> "$GITHUB_ENV"
+          cat > "$RUNNER_TEMP/expected-paths.txt" <<'PATHS'
+          .github/workflows/asoiaf-answer-actor-capability-broker.yml
+          docs/ASOIAF_ANSWER_ACTOR_CAPABILITY_BROKER.md
+          package.json
+          tests/fixtures/emit-asoiaf-answer-actor-capability-broker-input.ts
+          tests/narrative/canon/asoiaf-answer-actor-capability-broker.test.ts
+          tools/asoiaf-answer-actor-capability-broker.ts
+          tools/lib/asoiaf-answer-actor-capability-broker.ts
+          PATHS
+          sed -i 's/^          //' "$RUNNER_TEMP/expected-paths.txt"
+          sort -o "$RUNNER_TEMP/expected-paths.txt" "$RUNNER_TEMP/expected-paths.txt"
+          git diff --name-only "$BASE_SHA" "$candidate" | sort > "$RUNNER_TEMP/actual-paths.txt"
+          diff -u "$RUNNER_TEMP/expected-paths.txt" "$RUNNER_TEMP/actual-paths.txt"
+          git diff --check "$BASE_SHA" "$candidate"
+          for path in \
+            .github/workflows/asoiaf-answer-actor-adapter-host.yml \
+            docs/ASOIAF_ANSWER_ACTOR_ADAPTER_HOST.md \
+            tests/fixtures/emit-asoiaf-answer-actor-adapter-host-input.ts \
+            tests/narrative/canon/asoiaf-answer-actor-adapter-host.test.ts \
+            tools/asoiaf-answer-actor-adapter-host.ts \
+            tools/lib/asoiaf-answer-actor-adapter-host.ts \
+            tools/lib/asoiaf-answer-actor-runtime.ts \
+            tools/lib/asoiaf-answer-credential-provider-host.ts \
+            tools/lib/asoiaf-answer-credential-broker.ts \
+            tools/lib/asoiaf-answer-credential-deployment.ts \
+            tools/lib/asoiaf-answer-desk-transport-enrollment.ts \
+            tools/lib/asoiaf-answer-desk-supervised-delivery.ts; do
+            test "$(git rev-parse "HEAD:$path")" = "$(git rev-parse "$BASE_SHA:$path")"
+          done
+          if git diff --name-only "$BASE_SHA" "$candidate" | grep -E \
+            '(^|/)(diagnostic|probe|trigger|receipt|materialization|bootstrap)(/|[-_.])'; then
+            echo 'capability candidate contains a diagnostic or receipt carrier' >&2
+            exit 1
+          fi
+          node <<'NODE'
+          const fs = require('node:fs');
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          for (const name of [
+            'asoiaf:answer-supervised-delivery',
+            'asoiaf:answer-transport-enrollment',
+            'asoiaf:answer-credential-deployment',
+            'asoiaf:answer-credential-broker',
+            'asoiaf:answer-credential-provider-host',
+            'asoiaf:answer-actor-runtime',
+            'asoiaf:answer-actor-adapter-host',
+            'asoiaf:answer-actor-capability-broker',
+          ]) {
+            if (typeof pkg.scripts?.[name] !== 'string') {
+              throw new Error(`missing operator ${name}`);
+            }
+          }
+          NODE
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install exact locked dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Verify compiler and permanent operator registration
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v cc | tee "$RUNNER_TEMP/compiler-path.txt"
+          cc --version | tee "$RUNNER_TEMP/compiler-version.txt"
+          npm run --silent asoiaf:answer-actor-capability-broker -- help | tee "$RUNNER_TEMP/capability-help.txt"
+          grep -q 'ASOIAF actor capability broker and kernel isolation custody' "$RUNNER_TEMP/capability-help.txt"
+          for command in bind start execute recover status verify paths; do
+            grep -q "$command" "$RUNNER_TEMP/capability-help.txt"
+          done
+          npm run --silent asoiaf:answer-actor-adapter-host -- help > "$RUNNER_TEMP/adapter-help.txt"
+          npm run --silent asoiaf:answer-actor-runtime -- help > "$RUNNER_TEMP/runtime-help.txt"
+          npm run --silent asoiaf:answer-credential-provider-host -- help > "$RUNNER_TEMP/provider-help.txt"
+
+      - name: Strict TypeScript
+        id: typecheck
+        shell: bash
+        run: |
+          set -euo pipefail
+          find src tests tools \( -name '*.js' -o -name '*.js.map' -o -name '*.d.ts' \) -delete
+          rm -f tsconfig.tsbuildinfo
+          npm run typecheck | tee "$RUNNER_TEMP/typecheck.log"
+
+      - name: Focused integrated capability-broker qualification
+        id: focused
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm test -- \
+            tests/narrative/canon/asoiaf-answer-actor-capability-broker.test.ts \
+            tests/narrative/canon/asoiaf-answer-actor-adapter-host.test.ts \
+            tests/narrative/canon/asoiaf-answer-actor-runtime.test.ts \
+            tests/narrative/canon/asoiaf-answer-credential-provider-host.test.ts \
+            tests/narrative/canon/asoiaf-answer-credential-broker.test.ts \
+            tests/narrative/canon/asoiaf-answer-credential-deployment.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-transport-enrollment.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-supervised-delivery.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-supervisor.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-transport-operations.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-transport.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-exchange.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-worker.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-estate.test.ts \
+            tests/narrative/canon/asoiaf-answer-work-lease.test.ts \
+            tests/narrative/canon/asoiaf-answer-work-order.test.ts \
+            tests/narrative/canon/asoiaf-reviewed-answer-packet.test.ts \
+            tests/narrative/canon/asoiaf-research-question-dossier.test.ts \
+            tests/narrative/canon/asoiaf-external-reconciliation-packets.test.ts \
+            | tee "$RUNNER_TEMP/focused-tests.log"
+
+      - name: Exercise attested input release, kernel denials, replay, resource failure, and recovery
+        id: lifecycle
+        shell: bash
+        run: |
+          set -euo pipefail
+          receipts="$RUNNER_TEMP/capability-receipts"
+          estate="$RUNNER_TEMP/capability-estate"
+          rm -f /tmp/asoiaf-capability-forbidden-write
+          node node_modules/vite-node/vite-node.mjs \
+            tests/fixtures/emit-asoiaf-answer-actor-capability-broker-input.ts \
+            "$receipts" "$estate" | tee "$RUNNER_TEMP/capability-lifecycle.log"
+          jq -e '.ok == true and .counts.errors == 0' \
+            "$receipts/capability-verification.json" > /dev/null
+          jq -e '.capabilityCounts == {policies:2,starts:2,terminals:2,stateEntries:2,isolatedTerminals:2}' \
+            "$receipts/capability-verification.json" > /dev/null
+          jq -e '.state.entries | map(.status) | sort == ["succeeded","succeeded"]' \
+            "$receipts/capability-status.json" > /dev/null
+          jq -e '.processLaunched == true and .terminal.outcome == "succeeded" and
+            .terminal.osIsolationEnforced == true and .terminal.adapterInputReleased == true and
+            .terminal.isolationReceipt.inputReleased == false and
+            .terminal.isolationReceipt.landlockFilesystemEnforced == true and
+            .terminal.isolationReceipt.seccompNetworkEnforced == true and
+            .terminal.isolationReceipt.seccompChildProcessEnforced == true and
+            .terminal.isolationReceipt.seccompProcessSignalEnforced == true and
+            .terminal.isolationReceipt.seccompInterprocessMemoryEnforced == true and
+            .terminal.isolationReceipt.executableScope == "manifest-executable-plus-runtime-loader" and
+            .terminal.isolationReceipt.runtimeLoaderExact == true and
+            .terminal.isolationReceipt.cloneThreadAdmitted == true and
+            .terminal.isolationReceipt.clone3Compatibility == "enosys-fallback"' \
+            "$receipts/review-success-execute-first.json" > /dev/null
+          jq -e '.processLaunched == false and .terminalReplayed == true' \
+            "$receipts/review-success-execute-replay.json" > /dev/null
+          jq -e '.replayed == true' "$receipts/review-success-bind-replay.json" > /dev/null
+          jq -e '.terminal.outcome == "timed-out" and .terminal.timedOut == true and
+            .terminal.osIsolationEnforced == true' \
+            "$receipts/timeout-execute-first.json" > /dev/null
+          jq -e '.terminal.outcome == "protocol-refused" and .terminal.adapterEvidence == null and
+            .terminal.osIsolationEnforced == true' \
+            "$receipts/protocol-execute-first.json" > /dev/null
+          jq -e '.terminal.outcome == "failed" and .terminal.exitCode == 17 and
+            .terminal.osIsolationEnforced == true' \
+            "$receipts/failure-execute-first.json" > /dev/null
+          jq -e '.terminal.outcome == "failed" and .terminal.osIsolationEnforced == true' \
+            "$receipts/oversized-execute-first.json" > /dev/null
+          jq -e '.terminal.outcome == "interrupted" and .terminal.processLaunched == false and
+            .terminal.adapterInputReleased == false and .terminal.osIsolationEnforced == false' \
+            "$receipts/interrupted-recover-first.json" > /dev/null
+          jq -e '.message | contains("transient capability input differs")' \
+            "$receipts/wrong-input-refusal.json" > /dev/null
+          jq -e '.message | contains("transient adapter bundle differs")' \
+            "$receipts/wrong-bundle-refusal.json" > /dev/null
+          jq -e '.parentAdapterCounts.starts == 0 and .parentAdapterCounts.terminals == 0' \
+            "$receipts/expected.json" > /dev/null
+          test ! -e /tmp/asoiaf-capability-forbidden-write
+          test -z "$(grep -RIl 'inputBase64' "$estate/answer-actor-capability-broker" || true)"
+          test -z "$(find "$estate/answer-actor-capability-broker" -type f \( \
+            -iname '*.key' -o -iname '*.crt' -o -iname '*.cer' -o -iname '*.pem' -o \
+            -iname '*.csr' -o -iname '*.p12' -o -iname '*.pfx' \) -print -quit)"
+          test -z "$(git status --porcelain)"
+
+      - name: Complete Arc regression
+        id: regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          find src tests tools \( -name '*.js' -o -name '*.js.map' -o -name '*.d.ts' \) -delete
+          rm -f tsconfig.tsbuildinfo
+          npm test | tee "$RUNNER_TEMP/full-tests.log"
+
+      - name: Production build
+        id: build
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run build | tee "$RUNNER_TEMP/build.log"
+          git ls-files --others --exclude-standard -z | while IFS= read -r -d '' generated; do
+            case "$generated" in *.js|*.js.map|*.d.ts) rm -f "$generated" ;; esac
+          done
+          test -z "$(git status --porcelain)"
+
+      - name: Retain exact capability-broker qualification
+        if: always()
+        id: retain
+        env:
+          TYPECHECK: ${{ steps.typecheck.outcome }}
+          FOCUSED: ${{ steps.focused.outcome }}
+          LIFECYCLE: ${{ steps.lifecycle.outcome }}
+          REGRESSION: ${{ steps.regression.outcome }}
+          BUILD: ${{ steps.build.outcome }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          root='asoiaf-answer-actor-capability-broker-qualification'
+          receipts="$RUNNER_TEMP/capability-receipts"
+          estate="$RUNNER_TEMP/capability-estate"
+          mkdir -p "$root/logs" "$root/receipts"
+          for file in compiler-path.txt compiler-version.txt capability-help.txt adapter-help.txt runtime-help.txt \
+            provider-help.txt typecheck.log focused-tests.log capability-lifecycle.log full-tests.log build.log; do
+            test -f "$RUNNER_TEMP/$file" && cp "$RUNNER_TEMP/$file" "$root/logs/" || true
+          done
+          if test -d "$receipts"; then
+            find "$receipts" -maxdepth 1 -type f \( \
+              -name '*-first.json' -o -name '*-replay.json' -o -name '*-refusal.json' -o \
+              -name 'capability-status.json' -o -name 'capability-verification.json' -o \
+              -name 'capability-paths.json' -o -name 'expected.json' \) \
+              -exec cp {} "$root/receipts/" \;
+          fi
+          test -d "$estate/answer-actor-capability-broker" && \
+            cp -R "$estate/answer-actor-capability-broker" "$root/estate" || true
+          cp "$RUNNER_TEMP/candidate-sha.txt" "$root/candidate-sha.txt"
+          cp "$RUNNER_TEMP/base-sha.txt" "$root/base-sha.txt"
+          cp "$RUNNER_TEMP/actual-paths.txt" "$root/permanent-paths.txt"
+          sha256sum \
+            .github/workflows/asoiaf-answer-actor-capability-broker.yml \
+            docs/ASOIAF_ANSWER_ACTOR_CAPABILITY_BROKER.md package.json \
+            tests/fixtures/emit-asoiaf-answer-actor-capability-broker-input.ts \
+            tests/narrative/canon/asoiaf-answer-actor-capability-broker.test.ts \
+            tools/asoiaf-answer-actor-capability-broker.ts \
+            tools/lib/asoiaf-answer-actor-capability-broker.ts \
+            > "$root/permanent-surface-sha256s.txt"
+          printf '{"typecheck":"%s","focused":"%s","lifecycle":"%s","regression":"%s","build":"%s"}\n' \
+            "$TYPECHECK" "$FOCUSED" "$LIFECYCLE" "$REGRESSION" "$BUILD" > "$root/outcomes.json"
+          printf '%s\n' \
+            'evidenceTier=exact-head-live-kernel-capability-custody' \
+            'parent=0fd578b39a04bde517c53769609cb83a6677aa20' \
+            'platform=linux' 'architecture=x64' 'landlockAbiMinimum=3' \
+            'launcherSource=fixed-product-source' 'launcherBinary=transient-compiled-and-digest-bound' \
+            'compilerCustody=path-content-version-and-compilation-digest' \
+            'runtimeLoaderCustody=elf-interpreter-path-content-and-byte-digests' \
+            'filesystemEnforcement=landlock' 'executableScope=manifest-executable-plus-runtime-loader' \
+            'networkEnforcement=seccomp-errno' 'childProcessEnforcement=seccomp-errno' \
+            'processSignalEnforcement=seccomp-errno' 'interprocessMemoryEnforcement=seccomp-errno' \
+            'threadEnforcement=clone-thread-admitted' 'clone3Compatibility=enosys-fallback' \
+            'resourceEnforcement=rlimit' 'addressSpaceLimitBytes=4294967296' \
+            'environmentEnforcement=manifest-exact' \
+            'inputRelease=after-isolation-attestation' 'inputCustody=digest-only' \
+            'outputCustody=digest-only' 'stdoutCustody=digest-only' 'stderrCustody=digest-only' \
+            'timeoutEnforced=true' 'streamLimitsEnforced=true' \
+            'restartRequiresRecovery=true' 'duplicateLaunchOnReplay=false' \
+            'osIsolationEnforced=true' \
+            'certificateRetained=false' 'privateKeyRetained=false' \
+            'rawCompilerPathRetained=false' 'rawExecutablePathRetained=false' \
+            'rawRuntimeLoaderPathRetained=false' \
+            'rawAdapterBundlePathRetained=false' 'rawTaskInputRetained=false' \
+            'rawTaskOutputRetained=false' 'providerSecretRetained=false' \
+            'schedulingAuthority=none' 'settlementAuthority=none' 'taskAuthority=none' \
+            'graphEffect=none' 'canonEffect=none' 'answerEffect=none' \
+            > "$root/qualification-boundary.txt"
+          if find "$root" -type f \( -iname '*.key' -o -iname '*.crt' -o -iname '*.cer' -o \
+            -iname '*.pem' -o -iname '*.csr' -o -iname '*.p12' -o -iname '*.pfx' \) \
+            -print -quit | grep -q .; then
+            echo 'capability qualification retained a credential-bearing path' >&2
+            exit 1
+          fi
+          patterns="$RUNNER_TEMP/capability-artifact-patterns.txt"
+          cat > "$patterns" <<'PATTERNS'
+          -----BEGIN (RSA |EC |ENCRYPTED )?PRIVATE KEY-----
+          -----BEGIN CERTIFICATE( REQUEST)?-----
+          provider(Pin|Password|Token|Secret|Session)[[:space:]]*["=:]
+          pkcs11:[^[:space:]"']+
+          PATTERNS
+          sed -i 's/^          //' "$patterns"
+          if grep -RIEq --exclude='full-tests.log' --exclude='focused-tests.log' \
+            --exclude='build.log' --exclude='typecheck.log' -f "$patterns" "$root"; then
+            echo 'capability qualification retained credential or provider-secret content' >&2
+            exit 1
+          fi
+          find "$root" -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum \
+            | sed "s#  $root/#  #" > "$root/SHA256SUMS"
+          (cd "$root" && sha256sum -c SHA256SUMS)
+
+      - name: Upload capability-broker qualification
+        if: always()
+        id: artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: asoiaf-answer-actor-capability-broker-qualification
+          path: asoiaf-answer-actor-capability-broker-qualification
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+      - name: Publish exact qualification summary
+        if: always()
+        env:
+          ARTIFACT_ID: ${{ steps.artifact.outputs.artifact-id }}
+          ARTIFACT_DIGEST: ${{ steps.artifact.outputs.artifact-digest }}
+        shell: bash
+        run: |
+          {
+            echo '## ASOIAF actor capability broker qualification'
+            echo
+            echo "- Candidate: \`$CANDIDATE_SHA\`"
+            echo "- Parent: \`$BASE_SHA\`"
+            echo "- Artifact: \`${ARTIFACT_ID:-not-issued}\`"
+            echo "- Artifact digest: \`${ARTIFACT_DIGEST:-not-issued}\`"
+            echo '- Successful kernel-isolated process transactions: two'
+            echo '- Worker threads admitted; filesystem escape, networking, child processes, process signals, and interprocess memory refused'
+            echo '- Task input release before exact kernel attestation: false'
+            echo '- Timeout, protocol refusal, nonzero failure, resource failure, and interrupted recovery: distinguished'
+            echo '- Duplicate compilation and process launch on exact replay: false'
+            echo '- Raw input, output, streams, compiler paths, executable paths, bundle paths, credentials, and provider secrets: not retained'
+            echo '- Kernel-enforced isolation: exact and receipt-bound'
+          } >> "$GITHUB_STEP_SUMMARY"

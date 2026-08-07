@@ -9,6 +9,8 @@ on:
 
 permissions:
   contents: read
+  pull-requests: write
+  issues: write
 
 concurrency:
   group: temp-diagnose-loopback-tls-runtime
@@ -35,7 +37,9 @@ jobs:
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
 
-      - name: Run standalone fixture and retain diagnostic ledger
+      - name: Run standalone fixture and publish diagnostic ledger
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -uo pipefail
@@ -51,28 +55,36 @@ jobs:
             2> "$RUNNER_TEMP/fixture.stderr"
           status=$?
           completed="$(date +%s)"
-          printf 'fixture_exit=%s\nelapsed_seconds=%s\n' \
-            "$status" "$((completed-started))"
-          echo '--- fixture stdout ---'
-          cat "$RUNNER_TEMP/fixture.stdout" || true
-          echo '--- fixture stderr ---'
-          cat "$RUNNER_TEMP/fixture.stderr" || true
-          echo '--- output files ---'
-          find "$fixture" -maxdepth 2 -type f -printf '%P\n' | sort || true
-          echo '--- listener estate ---'
-          if [ -d "$estate/answer-credential-broker-loopback-tls" ]; then
-            find "$estate/answer-credential-broker-loopback-tls" \
-              -maxdepth 3 -type f -printf '%P\n' | sort
-            if [ -f "$estate/answer-credential-broker-loopback-tls/.listener-lock" ]; then
-              echo '--- retained listener lock ---'
-              cat "$estate/answer-credential-broker-loopback-tls/.listener-lock"
+          {
+            echo 'TEMP_LOOPBACK_TLS_RUNTIME_DIAGNOSTIC_V1'
+            echo
+            echo "Exact head: \`$(git rev-parse HEAD)\`"
+            echo "Fixture exit: \`$status\`; elapsed seconds: \`$((completed-started))\`."
+            echo
+            echo 'Last fixture stderr:'
+            echo '```text'
+            tail -n 120 "$RUNNER_TEMP/fixture.stderr" || true
+            echo '```'
+            echo
+            echo 'Retained public output files:'
+            echo '```text'
+            find "$fixture" -maxdepth 2 -type f -printf '%P\n' | sort | tail -n 160 || true
+            echo '```'
+            echo
+            echo 'Listener runtime files:'
+            echo '```text'
+            if [ -d "$estate/answer-credential-broker-loopback-tls" ]; then
+              find "$estate/answer-credential-broker-loopback-tls" \
+                -maxdepth 3 -type f -printf '%P\n' | sort
             fi
-          fi
-          echo '--- lifecycle records ---'
-          if [ -d "$estate/answer-credential-broker-loopback-tls/lifecycle" ]; then
-            for file in "$estate"/answer-credential-broker-loopback-tls/lifecycle/*.json; do
-              [ -f "$file" ] || continue
-              cat "$file"
-            done
-          fi
+            echo '```'
+            if [ -f "$estate/answer-credential-broker-loopback-tls/.listener-lock" ]; then
+              echo
+              echo 'Retained listener lock:'
+              echo '```json'
+              cat "$estate/answer-credential-broker-loopback-tls/.listener-lock"
+              echo '```'
+            fi
+          } > "$RUNNER_TEMP/comment.md"
+          gh pr comment 282 --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/comment.md"
           exit 0

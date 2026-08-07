@@ -34,7 +34,8 @@
     "asoiaf:answer-transport": "vite-node tools/asoiaf-answer-desk-transport.ts --",
     "asoiaf:answer-transport-operations": "vite-node tools/asoiaf-answer-desk-transport-operations.ts --",
     "asoiaf:answer-transport-enrollment": "vite-node tools/asoiaf-answer-desk-transport-enrollment.ts --",
-    "asoiaf:answer-credential-deployment": "vite-node tools/asoiaf-answer-credential-deployment.ts --"
+    "asoiaf:answer-credential-deployment": "vite-node tools/asoiaf-answer-credential-deployment.ts --",
+    "asoiaf:answer-credential-broker": "vite-node tools/asoiaf-answer-credential-broker.ts --"
   },
   "dependencies": {
     "react": "^18.3.1",

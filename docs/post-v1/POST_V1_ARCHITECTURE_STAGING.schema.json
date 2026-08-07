@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://axm.tools/schemas/axm-post-v1-architecture-staging-1.json",
+  "title": "AXM post-v1 architecture staging",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "releaseBoundary", "decisionKernel", "connectedOperations", "activation"],
+  "properties": {
+    "format": { "const": "axm-post-v1-architecture-staging/1" },
+    "releaseBoundary": {
+      "type": "object",
+      "required": ["requiresRodohV1", "changesV1Protocols"],
+      "properties": {
+        "requiresRodohV1": { "const": true },
+        "changesV1Protocols": { "const": false }
+      }
+    },
+    "decisionKernel": {
+      "type": "object",
+      "required": ["package", "version", "ownership", "invariants", "excludedPolicies", "conformance"],
+      "properties": {
+        "package": { "const": "@axm/decision-kernel" },
+        "version": { "const": "0.1.0-candidate" },
+        "ownership": { "type": "string", "minLength": 1 },
+        "invariants": { "type": "array", "minItems": 8, "uniqueItems": true, "items": { "type": "string" } },
+        "excludedPolicies": { "type": "array", "minItems": 8, "uniqueItems": true, "items": { "type": "string" } },
+        "conformance": { "type": "array", "minItems": 6, "uniqueItems": true, "items": { "type": "string" } }
+      }
+    },
+    "connectedOperations": {
+      "type": "object",
+      "required": ["format", "deliveryModel", "phases", "invariants", "failureStates"],
+      "properties": {
+        "format": { "const": "axm-connected-operation/v2-candidate" },
+        "deliveryModel": { "const": "at-least-once-transport-idempotent-application" },
+        "phases": { "type": "array", "items": { "enum": ["prepared", "accepted", "committed", "returned", "compensated", "aborted"] }, "uniqueItems": true },
+        "invariants": { "type": "array", "minItems": 8, "uniqueItems": true, "items": { "type": "string" } },
+        "failureStates": { "type": "array", "minItems": 5, "uniqueItems": true, "items": { "type": "string" } }
+      }
+    },
+    "activation": {
+      "type": "object",
+      "required": ["preconditions", "firstImplementationMilestones"],
+      "properties": {
+        "preconditions": { "type": "array", "minItems": 4, "uniqueItems": true, "items": { "type": "string" } },
+        "firstImplementationMilestones": { "type": "array", "minItems": 5, "uniqueItems": true, "items": { "type": "string" } }
+      }
+    }
+  }
+}

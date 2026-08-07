@@ -9,10 +9,12 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
+  issues: write
 
 concurrency:
   group: temp-repair-loopback-tls-windows-npx
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   repair:
@@ -105,12 +107,32 @@ jobs:
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
 
-      - name: Qualify exact Windows lifecycle
+      - name: Qualify exact Windows lifecycle and publish result
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: pwsh
         run: |
-          $ErrorActionPreference = 'Stop'
-          npm run typecheck
-          npm test -- tests/narrative/canon/asoiaf-answer-credential-broker-loopback-tls.test.ts
+          $ErrorActionPreference = 'Continue'
+          npm run typecheck *> (Join-Path $env:RUNNER_TEMP 'windows-typecheck.log')
+          $typecheck = $LASTEXITCODE
+          npm test -- tests/narrative/canon/asoiaf-answer-credential-broker-loopback-tls.test.ts *>
+            (Join-Path $env:RUNNER_TEMP 'windows-focused.log')
+          $focused = $LASTEXITCODE
+          $tail = Get-Content (Join-Path $env:RUNNER_TEMP 'windows-focused.log') -Tail 120
+          $body = @(
+            'TEMP_LOOPBACK_TLS_WINDOWS_FIXTURE_REPAIR_V4'
+            ''
+            "Exact checkout: ``$(git rev-parse HEAD)``."
+            "TypeScript status: ``$typecheck``; focused status: ``$focused``."
+            ''
+            'Focused tail:'
+            '```text'
+            $tail
+            '```'
+          ) -join "`n"
+          $body | Set-Content -LiteralPath (Join-Path $env:RUNNER_TEMP 'comment.md') -Encoding utf8
+          gh pr comment 282 --repo $env:GITHUB_REPOSITORY --body-file (Join-Path $env:RUNNER_TEMP 'comment.md')
+          if ($typecheck -ne 0 -or $focused -ne 0) { exit 1 }
 
       - name: Commit carrier-free Windows repair
         shell: pwsh

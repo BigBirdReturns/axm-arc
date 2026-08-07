@@ -1,0 +1,382 @@
+d: policy.providerProfileId,
+      providerProfileFingerprint: policy.providerProfileFingerprint,
+      clientId: policy.clientId,
+      operation: request.operation,
+      idempotencyKeyDigest: request.idempotencyKeyDigest,
+      payloadDigest: request.payloadDigest,
+      acceptedAt: receivedAt,
+      completedAt,
+      response,
+      responseDigest: bytesDigest(responseBytes),
+      responseBytes: responseBytes.length,
+      privateKeyRetained: false as const,
+      privateKeyPathRetained: false as const,
+      rawProviderSelectorRetained: false as const,
+      providerSecretRetained: false as const,
+      rawRequestBodyRetained: false as const,
+      rawResponseBodyRetained: false as const,
+      receiptAuthority: "provider-execution-reference-only" as const,
+      ...NO_AUTHORITY,
+    };
+    const receiptFingerprint = sha256(core);
+    const receipt: AsoiafAnswerCredentialBrokerServiceReceipt = {
+      ...core,
+      receiptId: collectorContentId("asoiaf-answer-credential-broker-service-receipt", {
+        requestId: request.requestId,
+        responseDigest: core.responseDigest,
+        receiptFingerprint,
+      }),
+      receiptFingerprint,
+    };
+    const persistedReceipt = writeExact(
+      digestPath(paths.receipts, receiptFingerprint),
+      receipt,
+    );
+    refreshState(input.root);
+    return {
+      request: persistedRequest.value,
+      receipt: persistedReceipt.value,
+      response: persistedReceipt.value.response,
+      requestReplayed: persistedRequest.replayed,
+      receiptReplayed: persistedReceipt.replayed,
+    };
+  });
+}
+
+function recursiveFiles(root: string): string[] {
+  if (!fs.existsSync(root)) return [];
+  const files: string[] = [];
+  const visit = (current: string): void => {
+    for (const name of fs.readdirSync(current).sort()) {
+      const target = path.join(current, name);
+      const stat = fs.lstatSync(target);
+      if (stat.isDirectory()) visit(target);
+      else if (stat.isFile()) files.push(target);
+    }
+  };
+  visit(root);
+  return files;
+}
+
+export function verifyAsoiafAnswerCredentialBrokerServiceEstate(
+  root: string,
+): AsoiafAnswerCredentialBrokerServiceFinding[] {
+  const findings: AsoiafAnswerCredentialBrokerServiceFinding[] = [];
+  const paths = asoiafAnswerCredentialBrokerServicePaths(root);
+  const status = readAsoiafAnswerCredentialBrokerServiceStatus(root);
+  const brokerErrors = verifyAsoiafAnswerCredentialBrokerEstate(root)
+    .filter((entry) => entry.severity === "error");
+  for (const entry of brokerErrors) {
+    findings.push(finding(
+      "service-parent-broker-invalid",
+      "error",
+      entry.subjectId,
+      entry.code,
+    ));
+  }
+  const providerErrors = verifyAsoiafAnswerCredentialProviderHostEstate(root)
+    .filter((entry) => entry.severity === "error");
+  for (const entry of providerErrors) {
+    findings.push(finding(
+      "service-parent-provider-invalid",
+      "error",
+      entry.subjectId,
+      entry.code,
+    ));
+  }
+  const broker = readAsoiafAnswerCredentialBrokerStatus(root);
+  const provider = readAsoiafAnswerCredentialProviderStatus(root);
+  const policyMap = new Map<string, AsoiafAnswerCredentialBrokerServicePolicy>();
+  for (const policy of status.policies) {
+    try {
+      if (policy.format !== ASOIAF_ANSWER_CREDENTIAL_BROKER_SERVICE_POLICY_FORMAT) {
+        throw new Error("format");
+      }
+      const fingerprint = sha256(policyCore(policy));
+      const id = collectorContentId("asoiaf-answer-credential-broker-service-policy", {
+        brokerPolicyId: policy.brokerPolicyId,
+        providerProfileId: policy.providerProfileId,
+        clientId: policy.clientId,
+        servicePolicyFingerprint: fingerprint,
+      });
+      if (
+        policy.servicePolicyFingerprint !== fingerprint
+        || policy.servicePolicyId !== id
+        || path.basename(digestPath(paths.policies, fingerprint))
+          !== `${fingerprint.slice("sha256:".length)}.json`
+      ) {
+        throw new Error("identity");
+      }
+      const brokerPolicy = exactlyOne(
+        broker.policies,
+        (entry) => entry.policyId === policy.brokerPolicyId,
+        `broker policy ${policy.brokerPolicyId}`,
+      );
+      const profile = exactlyOne(
+        provider.profiles,
+        (entry) => entry.profileId === policy.providerProfileId,
+        `provider profile ${policy.providerProfileId}`,
+      );
+      const endpoint = asoiafAnswerCredentialBrokerServiceEndpoint(policy.localEndpoint);
+      const clientKey = publicKeyFromSpki(policy.clientPublicKeySpkiBase64);
+      if (
+        policy.brokerPolicyFingerprint !== brokerPolicy.policyFingerprint
+        || policy.providerProfileFingerprint !== profile.profileFingerprint
+        || profile.brokerPolicyId !== brokerPolicy.policyId
+        || profile.brokerPolicyFingerprint !== brokerPolicy.policyFingerprint
+        || policy.deviceId !== profile.deviceId
+        || policy.serviceId !== profile.serviceId
+        || policy.providerHostKind !== profile.hostKind
+        || policy.localEndpoint !== brokerPolicy.localEndpoint
+        || policy.endpointKind !== endpoint.endpointKind
+        || policy.clientPublicKeyFingerprint !== publicKeyFingerprint(clientKey)
+        || policy.clientSignatureAlgorithm !== keyAlgorithm(clientKey)
+        || stableJson(policy.allowedOperations) !== stableJson(sortedOperations(policy.allowedOperations))
+        || policy.maxRequestLifetimeMilliseconds < 1
+        || policy.maxRequestLifetimeMilliseconds > MAX_REQUEST_LIFETIME
+        || policy.maxRequestBytes < 1
+        || policy.maxRequestBytes > MAX_REQUEST_BYTES
+        || policy.maxResponseBytes < 1
+        || policy.maxResponseBytes > MAX_RESPONSE_BYTES
+        || policy.localEndpointOnly !== true
+        || policy.privateKeyRetained !== false
+        || policy.privateKeyPathRetained !== false
+        || policy.rawProviderSelectorRetained !== false
+        || policy.providerSecretRetained !== false
+        || policy.rawRequestBodyRetained !== false
+        || policy.rawResponseBodyRetained !== false
+        || policy.serviceAuthority !== "local-request-admission-only"
+        || policy.authority !== "none"
+        || policy.graphEffect !== "none"
+        || policy.canonEffect !== "none"
+        || policy.answerEffect !== "none"
+      ) {
+        throw new Error("custody");
+      }
+      policyMap.set(policy.servicePolicyId, policy);
+    } catch (error) {
+      findings.push(finding(
+        "service-policy-invalid",
+        "error",
+        policy.servicePolicyId ?? "unknown-service-policy",
+        error instanceof Error ? error.message : String(error),
+      ));
+    }
+  }
+  if (policyMap.size !== status.policies.length) {
+    findings.push(finding(
+      "service-policy-duplicate",
+      "error",
+      "answer-credential-broker-service",
+      "service policy identities are absent, duplicated, or invalid",
+    ));
+  }
+
+  const requestMap = new Map<string, AsoiafAnswerCredentialBrokerServiceRequest>();
+  const idempotency = new Map<string, string>();
+  for (const request of status.requests) {
+    try {
+      const policy = policyMap.get(request.servicePolicyId);
+      if (!policy) throw new Error("policy");
+      const normalized = normalizeAndVerifyRequest({ policy, request });
+      const expectedPath = digestPath(paths.requests, normalized.requestFingerprint);
+      if (!fs.existsSync(expectedPath)) throw new Error("path");
+      if (Date.parse(normalized.issuedAt) < Date.parse(policy.createdAt)) {
+        throw new Error("request predates policy");
+      }
+      const existing = idempotency.get(normalized.idempotencyKeyDigest);
+      if (existing && existing !== normalized.requestId) {
+        throw new Error("idempotency collision");
+      }
+      idempotency.set(normalized.idempotencyKeyDigest, normalized.requestId);
+      if (requestMap.has(normalized.requestId)) throw new Error("duplicate request");
+      requestMap.set(normalized.requestId, normalized);
+    } catch (error) {
+      findings.push(finding(
+        "service-request-invalid",
+        "error",
+        request.requestId ?? "unknown-service-request",
+        error instanceof Error ? error.message : String(error),
+      ));
+    }
+  }
+
+  const receiptRequests = new Map<string, string>();
+  for (const receipt of status.receipts) {
+    try {
+      if (receipt.format !== ASOIAF_ANSWER_CREDENTIAL_BROKER_SERVICE_RECEIPT_FORMAT) {
+        throw new Error("format");
+      }
+      const request = requestMap.get(receipt.requestId);
+      const policy = policyMap.get(receipt.servicePolicyId);
+      if (!request || !policy) throw new Error("request or policy");
+      const responseBytes = stableBytes(receipt.response);
+      const fingerprint = sha256(receiptCore(receipt));
+      const id = collectorContentId("asoiaf-answer-credential-broker-service-receipt", {
+        requestId: receipt.requestId,
+        responseDigest: receipt.responseDigest,
+        receiptFingerprint: fingerprint,
+      });
+      if (
+        receipt.receiptFingerprint !== fingerprint
+        || receipt.receiptId !== id
+        || receipt.requestFingerprint !== request.requestFingerprint
+        || receipt.servicePolicyFingerprint !== policy.servicePolicyFingerprint
+        || receipt.brokerPolicyId !== policy.brokerPolicyId
+        || receipt.providerProfileId !== policy.providerProfileId
+        || receipt.providerProfileFingerprint !== policy.providerProfileFingerprint
+        || receipt.clientId !== policy.clientId
+        || receipt.operation !== request.operation
+        || receipt.idempotencyKeyDigest !== request.idempotencyKeyDigest
+        || receipt.payloadDigest !== request.payloadDigest
+        || receipt.responseDigest !== bytesDigest(responseBytes)
+        || receipt.responseBytes !== responseBytes.length
+        || receipt.responseBytes > policy.maxResponseBytes
+        || Date.parse(receipt.acceptedAt) < Date.parse(request.issuedAt)
+        || Date.parse(receipt.acceptedAt) > Date.parse(request.expiresAt)
+        || Date.parse(receipt.completedAt) < Date.parse(receipt.acceptedAt)
+        || receipt.privateKeyRetained !== false
+        || receipt.privateKeyPathRetained !== false
+        || receipt.rawProviderSelectorRetained !== false
+        || receipt.providerSecretRetained !== false
+        || receipt.rawRequestBodyRetained !== false
+        || receipt.rawResponseBodyRetained !== false
+        || receipt.receiptAuthority !== "provider-execution-reference-only"
+        || receipt.authority !== "none"
+        || receipt.graphEffect !== "none"
+        || receipt.canonEffect !== "none"
+        || receipt.answerEffect !== "none"
+      ) {
+        throw new Error("identity or custody");
+      }
+      const response = receipt.response;
+      if (response.kind === "provider-invocation") {
+        const invocationId = response.invocation.providerInvocationId;
+        const invocation = exactlyOne(
+          provider.invocations,
+          (entry) => entry.providerInvocationId === invocationId,
+          `provider invocation ${invocationId}`,
+        );
+        if (
+          stableJson(invocation) !== stableJson(response.invocation)
+          || receipt.operation !== "prepare-provider-invocation"
+        ) {
+          throw new Error("provider invocation response");
+        }
+      } else {
+        const resultId = response.result.resultId;
+        const result = exactlyOne(
+          provider.results,
+          (entry) => entry.resultId === resultId,
+          `provider result ${resultId}`,
+        );
+        if (
+          stableJson(result) !== stableJson(response.result)
+          || receipt.operation === "prepare-provider-invocation"
+        ) {
+          throw new Error("provider result response");
+        }
+      }
+      const existing = receiptRequests.get(receipt.requestId);
+      if (existing && existing !== receipt.receiptId) {
+        throw new Error("duplicate receipt");
+      }
+      receiptRequests.set(receipt.requestId, receipt.receiptId);
+      if (!fs.existsSync(digestPath(paths.receipts, receipt.receiptFingerprint))) {
+        throw new Error("path");
+      }
+    } catch (error) {
+      findings.push(finding(
+        "service-receipt-invalid",
+        "error",
+        receipt.receiptId ?? "unknown-service-receipt",
+        error instanceof Error ? error.message : String(error),
+      ));
+    }
+  }
+
+  for (const request of status.requests) {
+    if (!receiptRequests.has(request.requestId)) {
+      findings.push(finding(
+        "service-request-pending",
+        "notice",
+        request.requestId,
+        "signed local request has no retained terminal receipt",
+      ));
+    }
+  }
+
+  if (status.policies.length > 0) {
+    try {
+      if (!status.state) throw new Error("missing state");
+      const rebuilt = buildState(root);
+      if (stableJson(status.state) !== stableJson(rebuilt)) {
+        throw new Error("state differs from reconstructed projection");
+      }
+      if (
+        status.state.stateFingerprint !== sha256(stateCore(status.state))
+        || !fs.existsSync(paths.state)
+      ) {
+        throw new Error("state identity or path");
+      }
+    } catch (error) {
+      findings.push(finding(
+        "service-state-invalid",
+        "error",
+        status.state?.stateId ?? "answer-credential-broker-service-state",
+        error instanceof Error ? error.message : String(error),
+      ));
+    }
+  } else if (status.state) {
+    findings.push(finding(
+      "service-state-unexpected",
+      "error",
+      status.state.stateId,
+      "service state exists without a retained policy",
+    ));
+  }
+
+  if (fs.existsSync(paths.lock)) {
+    findings.push(finding(
+      "service-lock-retained",
+      "error",
+      paths.lock,
+      "service transaction lock remained after operation completion",
+    ));
+  }
+  const secretPath = /\.(?:key|pem|p12|pfx|csr|crt)$/i;
+  const secretContent = /BEGIN (?:RSA |EC |ENCRYPTED )?PRIVATE KEY|BEGIN CERTIFICATE(?: REQUEST)?|"(?:clientPrivateKeyPem|credentialPrivateKeyPem|deviceAgentPrivateKeyPem|credentialCertificateThumbprint|deviceAgentCertificateThumbprint|requestBodyBase64|responseBodyBase64|powershellExecutable|payload)"\s*:/;
+  for (const file of recursiveFiles(paths.serviceRoot)) {
+    if (secretPath.test(file)) {
+      findings.push(finding(
+        "service-secret-path",
+        "error",
+        file,
+        "service estate contains a forbidden secret-bearing path",
+      ));
+    }
+    const content = fs.readFileSync(file, "utf8");
+    if (secretContent.test(content)) {
+      findings.push(finding(
+        "service-secret-content",
+        "error",
+        file,
+        "service estate contains transient credential, selector, body, or executable input",
+      ));
+    }
+  }
+  return sortFindings(findings);
+}
+
+interface LocalJsonServerInput {
+  endpoint: string;
+  maxWireBytes: number;
+  maxResponseBytes: number;
+  maxRequests: number;
+  clock: () => string;
+  handle: (value: unknown) => unknown | Promise<unknown>;
+}
+
+interface LocalJsonServer {
+  endpoint: string;
+  endpointKind: AsoiafAnswerCredentialBrokerServic

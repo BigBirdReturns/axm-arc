@@ -20,7 +20,7 @@ jobs:
   repair:
     if: github.repository == 'BigBirdReturns/axm-arc'
     runs-on: windows-2025
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
       - name: Check out latest feature branch
         uses: actions/checkout@v4
@@ -28,7 +28,7 @@ jobs:
           ref: feature/asoiaf-answer-credential-broker-loopback-tls-v1
           fetch-depth: 0
 
-      - name: Invoke every Vite Node entrypoint through Node
+      - name: Invoke every registered operator through Node
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -76,7 +76,8 @@ jobs:
               '  "vite-node.mjs",\n'
               ');\n'
           )
-          fixture_anchor = 'const npm = process.platform === "win32" ? "npm.cmd" : "npm";\n'
+          npm_declaration = 'const npm = process.platform === "win32" ? "npm.cmd" : "npm";\n'
+          fixture_anchor = npm_declaration
           if fixture_declaration not in fixture:
               if fixture.count(fixture_anchor) != 1:
                   raise SystemExit('cannot locate nested Vite Node declaration anchor')
@@ -94,6 +95,48 @@ jobs:
               fixture = fixture.replace(nested_old, nested_new)
           if fixture.count(nested_new) != 2:
               raise SystemExit('direct nested fixture runners are not both present')
+
+          old_run_npm = '''function runNpm(
+            operator: string,
+            command: string,
+            args: string[],
+            receipt?: string,
+          ): string {
+            return run(npm, [
+              "run", "--silent", operator, "--", command, ...args,
+            ], receipt);
+          }
+          '''
+          new_run_npm = '''const packageScripts = (JSON.parse(
+            fs.readFileSync(path.join(process.cwd(), "package.json"), "utf8"),
+          ) as { scripts?: Record<string, string> }).scripts ?? {};
+
+          function runNpm(
+            operator: string,
+            command: string,
+            args: string[],
+            receipt?: string,
+          ): string {
+            const script = packageScripts[operator] ?? "";
+            const match = /^vite-node\\s+(.+?)\\s+--$/.exec(script);
+            if (!match) {
+              throw new Error(`operator ${operator} is not a registered Vite Node command`);
+            }
+            return run(process.execPath, [
+              viteNode,
+              match[1]!,
+              command,
+              ...args,
+            ], receipt);
+          }
+          '''
+          if new_run_npm not in fixture:
+              if fixture.count(old_run_npm) != 1:
+                  raise SystemExit('cannot locate exact npm-backed operator helper')
+              fixture = fixture.replace(old_run_npm, new_run_npm, 1)
+          fixture = fixture.replace(npm_declaration, '', 1)
+          if 'run(npm,' in fixture or 'npm.cmd' in fixture:
+              raise SystemExit('npm shell shim remains in loopback fixture')
           fixture_path.write_text(fixture, encoding='utf-8')
           '@ | python -
           git diff --check
@@ -122,7 +165,7 @@ jobs:
           $focused = $LASTEXITCODE
           $tail = Get-Content $focusedLog -Tail 120
           $body = @(
-            'TEMP_LOOPBACK_TLS_WINDOWS_FIXTURE_REPAIR_V5'
+            'TEMP_LOOPBACK_TLS_WINDOWS_FIXTURE_REPAIR_V6'
             ''
             "Exact checkout: ``$(git rev-parse HEAD)``."
             "TypeScript status: ``$typecheck``; focused status: ``$focused``."
@@ -148,5 +191,5 @@ jobs:
             tests/fixtures/emit-asoiaf-answer-credential-broker-loopback-tls-input.ts
           git rm .github/workflows/_temp-repair-loopback-tls-windows-npx.yml
           git diff --cached --check
-          git commit -m 'Invoke loopback TLS fixtures through Node on Windows'
+          git commit -m 'Invoke loopback TLS operators through Node on Windows'
           git push origin HEAD:feature/asoiaf-answer-credential-broker-loopback-tls-v1

@@ -13,13 +13,12 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <iterator>
 #include <sstream>
 #include <stdexcept>
 #include <string>
 #include <thread>
 #include <vector>
-
-#pragma comment(lib, "Ws2_32.lib")
 
 namespace {
 
@@ -84,8 +83,8 @@ size_t find_value_start(const std::string& json, const std::string& key) {
     throw std::runtime_error("missing JSON colon: " + key);
   }
   size_t cursor = colon + 1;
-  while (cursor < json.size() && std::isspace(
-      static_cast<unsigned char>(json[cursor]))) {
+  while (cursor < json.size() &&
+         std::isspace(static_cast<unsigned char>(json[cursor]))) {
     ++cursor;
   }
   if (cursor >= json.size()) {
@@ -131,8 +130,8 @@ uint16_t json_port(const std::string& json, const std::string& key) {
   size_t cursor = find_value_start(json, key);
   uint32_t value = 0;
   bool found_digit = false;
-  while (cursor < json.size() && std::isdigit(
-      static_cast<unsigned char>(json[cursor]))) {
+  while (cursor < json.size() &&
+         std::isdigit(static_cast<unsigned char>(json[cursor]))) {
     found_digit = true;
     value = value * 10 + static_cast<uint32_t>(json[cursor] - '0');
     if (value > 65535) throw std::runtime_error("port out of range");
@@ -152,9 +151,9 @@ std::wstring quote_argument(const std::wstring& value) {
       ++backslashes;
       continue;
     }
-    if (character == L'\"') {
+    if (character == L'"') {
       result.append(backslashes * 2 + 1, L'\\');
-      result.push_back(L'\"');
+      result.push_back(L'"');
       backslashes = 0;
       continue;
     }
@@ -163,7 +162,7 @@ std::wstring quote_argument(const std::wstring& value) {
     result.push_back(character);
   }
   result.append(backslashes * 2, L'\\');
-  result.push_back(L'\"');
+  result.push_back(L'"');
   return result;
 }
 
@@ -196,6 +195,92 @@ std::string read_stdin() {
   return stream.str();
 }
 
+struct NetworkProbe {
+  bool provider_loaded{false};
+  bool denied{true};
+  bool connected{false};
+  int error{0};
+  std::string denial_stage{"load-library"};
+};
+
+NetworkProbe probe_network(uint16_t loopback_port) {
+  NetworkProbe result;
+  SetLastError(ERROR_SUCCESS);
+  HMODULE module = LoadLibraryExW(
+      L"WS2_32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+  if (!module) {
+    result.error = static_cast<int>(GetLastError());
+    return result;
+  }
+  result.provider_loaded = true;
+
+  using WsaStartupFunction = int (WSAAPI*)(WORD, LPWSADATA);
+  using WsaCleanupFunction = int (WSAAPI*)();
+  using SocketFunction = SOCKET (WSAAPI*)(int, int, int);
+  using ConnectFunction = int (WSAAPI*)(SOCKET, const sockaddr*, int);
+  using CloseSocketFunction = int (WSAAPI*)(SOCKET);
+  using WsaGetLastErrorFunction = int (WSAAPI*)();
+
+  const auto wsa_startup = reinterpret_cast<WsaStartupFunction>(
+      GetProcAddress(module, "WSAStartup"));
+  const auto wsa_cleanup = reinterpret_cast<WsaCleanupFunction>(
+      GetProcAddress(module, "WSACleanup"));
+  const auto create_socket = reinterpret_cast<SocketFunction>(
+      GetProcAddress(module, "socket"));
+  const auto connect_socket = reinterpret_cast<ConnectFunction>(
+      GetProcAddress(module, "connect"));
+  const auto close_socket = reinterpret_cast<CloseSocketFunction>(
+      GetProcAddress(module, "closesocket"));
+  const auto wsa_last_error = reinterpret_cast<WsaGetLastErrorFunction>(
+      GetProcAddress(module, "WSAGetLastError"));
+
+  if (!wsa_startup || !wsa_cleanup || !create_socket || !connect_socket ||
+      !close_socket || !wsa_last_error) {
+    result.error = ERROR_PROC_NOT_FOUND;
+    result.denial_stage = "resolve-procedure";
+    FreeLibrary(module);
+    return result;
+  }
+
+  WSADATA winsock{};
+  const int startup_status = wsa_startup(MAKEWORD(2, 2), &winsock);
+  if (startup_status != 0) {
+    result.error = startup_status;
+    result.denial_stage = "wsa-startup";
+    FreeLibrary(module);
+    return result;
+  }
+
+  SOCKET socket_handle = create_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+  if (socket_handle == INVALID_SOCKET) {
+    result.error = wsa_last_error();
+    result.denial_stage = "socket";
+    wsa_cleanup();
+    FreeLibrary(module);
+    return result;
+  }
+
+  sockaddr_in address{};
+  address.sin_family = AF_INET;
+  address.sin_addr.s_addr = 0x0100007FU;
+  address.sin_port = static_cast<u_short>(
+      static_cast<u_short>(loopback_port << 8U) |
+      static_cast<u_short>(loopback_port >> 8U));
+
+  const int connect_status = connect_socket(
+      socket_handle, reinterpret_cast<const sockaddr*>(&address),
+      static_cast<int>(sizeof(address)));
+  result.connected = connect_status == 0;
+  result.denied = !result.connected;
+  result.error = result.connected ? 0 : wsa_last_error();
+  result.denial_stage = result.connected ? "none" : "connect";
+
+  close_socket(socket_handle);
+  wsa_cleanup();
+  FreeLibrary(module);
+  return result;
+}
+
 }  // namespace
 
 int wmain(int argc, wchar_t** argv) {
@@ -205,8 +290,10 @@ int wmain(int argc, wchar_t** argv) {
     const std::string input = read_stdin();
     const bool input_received =
         json_string(input, "message") == "release-after-kernel-attestation";
-    const std::wstring work_directory = widen(json_string(input, "workDirectory"));
-    const std::wstring external_file = widen(json_string(input, "externalFile"));
+    const std::wstring work_directory =
+        widen(json_string(input, "workDirectory"));
+    const std::wstring external_file =
+        widen(json_string(input, "externalFile"));
     const uint16_t loopback_port = json_port(input, "loopbackPort");
 
     bool allowed_write = false;
@@ -235,7 +322,8 @@ int wmain(int argc, wchar_t** argv) {
         FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
         nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
     const bool external_read_denied = external_read == INVALID_HANDLE_VALUE;
-    const DWORD external_read_error = external_read_denied ? GetLastError() : ERROR_SUCCESS;
+    const DWORD external_read_error =
+        external_read_denied ? GetLastError() : ERROR_SUCCESS;
     if (external_read != INVALID_HANDLE_VALUE) CloseHandle(external_read);
 
     SetLastError(ERROR_SUCCESS);
@@ -244,38 +332,17 @@ int wmain(int argc, wchar_t** argv) {
         FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
         nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
     const bool external_write_denied = external_write == INVALID_HANDLE_VALUE;
-    const DWORD external_write_error = external_write_denied ? GetLastError() : ERROR_SUCCESS;
+    const DWORD external_write_error =
+        external_write_denied ? GetLastError() : ERROR_SUCCESS;
     if (external_write != INVALID_HANDLE_VALUE) CloseHandle(external_write);
 
-    WSADATA winsock{};
-    const int startup_status = WSAStartup(MAKEWORD(2, 2), &winsock);
-    bool network_denied = startup_status != 0;
-    bool network_connected = false;
-    int network_error = startup_status;
-    if (startup_status == 0) {
-      SOCKET socket_handle = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-      if (socket_handle == INVALID_SOCKET) {
-        network_denied = true;
-        network_error = WSAGetLastError();
-      } else {
-        sockaddr_in address{};
-        address.sin_family = AF_INET;
-        address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-        address.sin_port = htons(loopback_port);
-        const int connect_status = connect(
-            socket_handle, reinterpret_cast<sockaddr*>(&address), sizeof(address));
-        network_connected = connect_status == 0;
-        network_denied = !network_connected;
-        network_error = network_connected ? 0 : WSAGetLastError();
-        closesocket(socket_handle);
-      }
-      WSACleanup();
-    }
+    const NetworkProbe network = probe_network(loopback_port);
 
     wchar_t module_path[MAX_PATH]{};
     const DWORD module_path_length = GetModuleFileNameW(
         nullptr, module_path, static_cast<DWORD>(std::size(module_path)));
-    if (module_path_length == 0 || module_path_length >= std::size(module_path)) {
+    if (module_path_length == 0 ||
+        module_path_length >= std::size(module_path)) {
       throw std::runtime_error("GetModuleFileNameW failed");
     }
     std::wstring child_command = quote_argument(module_path) + L" --child";
@@ -289,7 +356,8 @@ int wmain(int argc, wchar_t** argv) {
     const BOOL child_created = CreateProcessW(
         module_path, child_command_buffer.data(), nullptr, nullptr, FALSE,
         CREATE_NO_WINDOW, nullptr, nullptr, &child_startup, &child_process);
-    const DWORD child_process_error = child_created ? ERROR_SUCCESS : GetLastError();
+    const DWORD child_process_error =
+        child_created ? ERROR_SUCCESS : GetLastError();
     const bool child_process_denied = child_created == FALSE;
     if (child_created) {
       TerminateProcess(child_process.hProcess, 125);
@@ -303,7 +371,8 @@ int wmain(int argc, wchar_t** argv) {
     worker.join();
     const bool worker_thread_succeeded = worker_value.load() == 42;
 
-    const bool secret_present = environment_contains(L"AXM_WINDOWS_PROBE_SECRET");
+    const bool secret_present =
+        environment_contains(L"AXM_WINDOWS_PROBE_SECRET");
     const std::vector<std::string> keys = environment_keys();
 
     std::ostringstream output;
@@ -317,9 +386,11 @@ int wmain(int argc, wchar_t** argv) {
            << "\"externalReadError\":" << external_read_error << ','
            << "\"externalWriteDenied\":" << (external_write_denied ? "true" : "false") << ','
            << "\"externalWriteError\":" << external_write_error << ','
-           << "\"networkDenied\":" << (network_denied ? "true" : "false") << ','
-           << "\"networkConnected\":" << (network_connected ? "true" : "false") << ','
-           << "\"networkError\":" << network_error << ','
+           << "\"networkProviderLoaded\":" << (network.provider_loaded ? "true" : "false") << ','
+           << "\"networkDenialStage\":\"" << json_escape(network.denial_stage) << "\","
+           << "\"networkDenied\":" << (network.denied ? "true" : "false") << ','
+           << "\"networkConnected\":" << (network.connected ? "true" : "false") << ','
+           << "\"networkError\":" << network.error << ','
            << "\"childProcessDenied\":" << (child_process_denied ? "true" : "false") << ','
            << "\"childProcessError\":" << child_process_error << ','
            << "\"workerThreadSucceeded\":" << (worker_thread_succeeded ? "true" : "false") << ','

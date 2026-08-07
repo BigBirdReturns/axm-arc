@@ -91,7 +91,7 @@ jobs:
           $external = Join-Path $outside 'holder-only.txt'
           'holder-only' | Set-Content -NoNewline $external
           $userSid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value
-          & icacls.exe $external '/inheritance:r' "/grant:r" "*${userSid}:(R,W)" | Tee-Object "$env:RUNNER_TEMP/external-acl.log"
+          & icacls.exe $external '/inheritance:r' '/grant:r' "*${userSid}:(R,W)" | Tee-Object "$env:RUNNER_TEMP/external-acl.log"
           if ($LASTEXITCODE -ne 0) { throw 'failed to establish holder-only external file ACL' }
 
           $receipt = Join-Path $root 'host-receipt.json'
@@ -100,19 +100,20 @@ jobs:
           $profile = "AXM.Probe.$env:GITHUB_RUN_ID"
           $env:AXM_WINDOWS_PROBE_SECRET = 'must-not-cross-process-boundary'
           $host = Join-Path $root 'host.exe'
-          & $host \
-            --profile $profile \
-            --application $nodeCopy \
-            --script $adapter \
-            --app-directory $app \
-            --work-directory $work \
-            --external-file $external \
-            --receipt $receipt \
-            --stdout $stdout \
-            --stderr $stderr \
-            --memory-limit 536870912 \
-            --timeout-ms 30000 \
-            2>&1 | Tee-Object "$env:RUNNER_TEMP/host.log"
+          $hostArguments = @(
+            '--profile', $profile,
+            '--application', $nodeCopy,
+            '--script', $adapter,
+            '--app-directory', $app,
+            '--work-directory', $work,
+            '--external-file', $external,
+            '--receipt', $receipt,
+            '--stdout', $stdout,
+            '--stderr', $stderr,
+            '--memory-limit', '536870912',
+            '--timeout-ms', '30000'
+          )
+          & $host @hostArguments 2>&1 | Tee-Object "$env:RUNNER_TEMP/host.log"
           $hostExit = $LASTEXITCODE
           Remove-Item Env:AXM_WINDOWS_PROBE_SECRET
           if ($hostExit -ne 0) { throw "capability host failed with $hostExit" }

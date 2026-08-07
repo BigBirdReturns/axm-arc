@@ -382,6 +382,20 @@ describe("ASOIAF device-local credential broker", () => {
       }, null, 2)}\n`,
       "utf8",
     );
+    const statePath = path.join(
+      root,
+      "answer-credential-broker",
+      "BROKER-STATE.json",
+    );
+    const brokerState = read<Record<string, unknown>>(statePath);
+    fs.writeFileSync(
+      statePath,
+      `${JSON.stringify({
+        ...brokerState,
+        stateFingerprint: sha256("tampered-broker-state"),
+      }, null, 2)}\n`,
+      "utf8",
+    );
     const secretPath = path.join(
       root,
       "answer-credential-broker",

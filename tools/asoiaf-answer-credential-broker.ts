@@ -44,7 +44,12 @@ function signature(input: Record<string, unknown>): string | Buffer {
   const file = typeof input.signatureFile === "string" ? input.signatureFile : null;
   if (file) return fs.readFileSync(path.resolve(file));
   if (typeof input.signatureBase64 === "string") return input.signatureBase64;
-  throw new Error("signatureFile or signatureBase64 is required");
+  if (typeof input.deviceAgentSignatureBase64 === "string") {
+    return input.deviceAgentSignatureBase64;
+  }
+  throw new Error(
+    "signatureFile, signatureBase64, or deviceAgentSignatureBase64 is required",
+  );
 }
 
 function writeJson(output: unknown): void {

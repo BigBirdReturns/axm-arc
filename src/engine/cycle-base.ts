@@ -1,4 +1,7 @@
 import type { Organization, Arc, Agent, RunReport, DramaCard } from "./types.js";
+import type { ActionReceipt, VerifiedActionReceipt } from "./action/types.js";
+import { verifyActionReceipt } from "./action/receipt.js";
+import { actionReportFromReceipt } from "./action/report.js";
 import { partyClearsGates, resolveChallenge } from "./resolver.js";
 import {
   applyStressGains,
@@ -47,6 +50,10 @@ export interface ChallengeAssignment {
   /** Resolve against arc.difficultyModes entry with this id (see
    * applyDifficultyMode). Omitted = base difficulty. */
   difficultyModeId?: string;
+  /** Optional exact action-runtime evidence. When present, the engine verifies
+   * and replays this receipt before any token debit, then uses its result as the
+   * authoritative encounter outcome instead of invoking the statistical resolver. */
+  actionReceipt?: ActionReceipt;
 }
 
 export interface RewardDecision {
@@ -216,9 +223,31 @@ export function runCycle(opts: {
       continue;
     }
 
+    let verifiedAction: VerifiedActionReceipt | null = null;
+    if (assignment.actionReceipt !== undefined) {
+      if (assignment.tokensSpent !== 0) {
+        warnings.push(`Action receipt for ${assignment.challengeId} refuses resource spend; action law has no variance lever.`);
+        continue;
+      }
+      try {
+        verifiedAction = verifyActionReceipt({
+          arc,
+          challenge,
+          difficultyModeId: assignment.difficultyModeId ?? null,
+          cycle,
+          orgSeed: org.rngSeed,
+          partyAgentIds: canonicalAgentIds,
+          receipt: assignment.actionReceipt,
+        });
+      } catch (error) {
+        warnings.push(`Action receipt refused for ${assignment.challengeId}: ${error instanceof Error ? error.message : String(error)}`);
+        continue;
+      }
+    }
+
     // Capacity tokens are the authored per-attempt cost. Debit only after every
-    // access and party gate has passed, so a refused assignment cannot consume
-    // capacity it never used.
+    // access, party, and optional action-receipt gate has passed, so a refused
+    // assignment cannot consume capacity it never used.
     if (assignment.tokensSpent > 0) {
       try {
         org = spendTokens(org, assignment.tokensSpent);
@@ -228,16 +257,25 @@ export function runCycle(opts: {
       }
     }
 
-    const report = resolveChallenge({
-      challenge: effectiveChallenge,
-      assignedAgents: agentList,
-      org,
-      arc,
-      cycle,
-      // Already debited above by spendTokens; this only informs the roll of what
-      // was spent. A no-op unless the challenge authors a resource-spend lever.
-      tokensSpent: assignment.tokensSpent,
-    });
+    const report = verifiedAction
+      ? actionReportFromReceipt({
+          receipt: verifiedAction.receipt,
+          challenge: effectiveChallenge,
+          assignedAgents: agentList,
+          org,
+          arc,
+          cycle,
+        })
+      : resolveChallenge({
+          challenge: effectiveChallenge,
+          assignedAgents: agentList,
+          org,
+          arc,
+          cycle,
+          // Already debited above by spendTokens; this only informs the roll of what
+          // was spent. A no-op unless the challenge authors a resource-spend lever.
+          tokensSpent: assignment.tokensSpent,
+        });
     reports.push(report);
     assignmentsByChallenge.set(assignment.challengeId, canonicalAgentIds);
 

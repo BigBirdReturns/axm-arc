@@ -28,6 +28,7 @@ import {
 } from "../lib/workshop.js";
 import { t, useLocale } from "../../i18n/index.js";
 import { AuthoringAuditPanel } from "./AuthoringAuditPanel.js";
+import { ActionAuthoringPanel } from "./ActionAuthoringPanel.js";
 
 interface Props {
   onBack: () => void;
@@ -90,6 +91,20 @@ export function WorkshopScreen({ onBack, onOpenLibrary, seedArc = null }: Props)
     setText(next);
     saveWorkshopDraft(next);
     clearResults();
+  };
+
+  const setValidatedDraft = (arc: Arc): void => {
+    const next = JSON.stringify(arc, null, 2);
+    setText(next);
+    saveWorkshopDraft(next);
+    setValidateErrors([]);
+    setValidateResult({ digest: cartridgeDigest(arc), summary: summarizeArc(arc), arc });
+    setPlaytestReport(null);
+    setSaveErrors(null);
+    setSaveMsg(null);
+    setExportErrors(null);
+    setExportMsg(null);
+    setExportReceipt(null);
   };
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>): void => {
@@ -367,6 +382,7 @@ export function WorkshopScreen({ onBack, onOpenLibrary, seedArc = null }: Props)
             })()}
 
             <AuthoringAuditPanel arc={validateResult.arc} />
+            <ActionAuthoringPanel arc={validateResult.arc} onChange={setValidatedDraft} />
 
             <div style={{ marginTop: 8 }}>
               <button className="secondary" onClick={handlePlaytest}>

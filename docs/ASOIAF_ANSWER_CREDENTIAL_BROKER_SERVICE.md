@@ -186,4 +186,39 @@ paths           Print service-estate paths
 
 A `serve` input may include `maxRequests`, `powershellExecutable`, `readyFile`, and `summaryFile`. The server also closes on `SIGINT` or `SIGTERM`.
 
-## Refusa
+## Refusal matrix
+
+The implementation refuses:
+
+* A broker or provider estate with verification errors.
+* A provider profile bound to another broker policy.
+* A service policy that predates either parent.
+* A remote, malformed, relative, or unsupported endpoint.
+* Implicit unlinking of an existing Unix socket.
+* An unsupported client key type.
+* An empty operation allowlist or limits outside hard ceilings.
+* A request signed by another key or algorithm.
+* A request that predates policy, exceeds its lifetime, or is not live when received.
+* A request whose policy, parent, endpoint, client, operation, authority, or retention fields differ.
+* A transient payload with missing, unknown, or extra fields.
+* A payload whose canonical digest or size differs from the signed envelope.
+* A host kind that differs from the provider profile.
+* A changed request under one service idempotency digest.
+* More than one terminal receipt for a request.
+* A public provider response above the service response ceiling.
+* A retained service transaction lock.
+* Secret-bearing service files or fields.
+
+## Qualification boundary
+
+The permanent Linux qualification constructs governed enrollment and an active synthetic deployment through the parent operators, retains a broker policy and binding, retains a provider profile, creates one service policy, and then performs a real authenticated local IPC lifecycle. The fixture prepares and executes possession, admits the public proof to the broker, prepares and executes transport, admits the public transport result, and repeats the final signed request to prove exact replay without another provider execution.
+
+The Linux fixture proves a `0600` Unix socket, bounded framing, four unique signed requests, four terminal receipts, two provider invocations, two provider results, one broker possession proof, one broker transport result, no pending requests, no retained transaction lock, and no ephemeral secret directory.
+
+The Windows qualification performs a real named-pipe endpoint probe through the permanent operator and retains only a public no-authority probe receipt. The combined qualification requires the Linux and Windows candidate SHAs to match, scans the reconciled artifacts for secret material, and verifies a combined checksum ledger.
+
+The evidence proves authenticated local execution custody. It does not qualify a loopback TLS listener, operating-system service installation, startup recovery, endpoint discovery, remote access, multi-client policy, provider-class expansion, service availability objectives, task authorization, or ASOIAF truth.
+
+## Control question
+
+Can every local credential operation identify the exact governed enrollment, active deployment, broker policy, broker binding, broker invocation, provider profile, authenticated client, signed service request, transient payload digest, provider invocation or result, terminal service receipt, and downstream broker admission while no service object acquires credential issuance, deployment, transport registration, scheduling, research, review, graph, canon, or answer authority?

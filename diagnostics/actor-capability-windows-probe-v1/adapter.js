@@ -114,4 +114,4 @@ main().catch((error) => {
   process.exitCode = 1;
 });
 
-// Triggered after registering the deterministic v5 source transformer.
+// Triggered after registering the receipt-preserving v6 workflow.

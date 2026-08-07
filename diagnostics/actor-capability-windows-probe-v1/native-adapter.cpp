@@ -20,6 +20,8 @@
 #include <thread>
 #include <vector>
 
+#pragma comment(linker, "/APPCONTAINER")
+
 namespace {
 
 std::wstring widen(const std::string& value) {

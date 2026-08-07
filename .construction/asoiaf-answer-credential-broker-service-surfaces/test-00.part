@@ -1,0 +1,311 @@
+import crypto from "node:crypto";
+import { execFileSync } from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import {
+  afterAll,
+  beforeAll,
+  describe,
+  expect,
+  it,
+} from "vitest";
+import {
+  asoiafAnswerCredentialBrokerServiceEndpoint,
+  asoiafAnswerCredentialBrokerServicePaths,
+  createAsoiafAnswerCredentialBrokerServiceRequest,
+  dispatchAsoiafAnswerCredentialBrokerServiceRequest,
+  probeAsoiafAnswerCredentialBrokerServiceEndpoint,
+  readAsoiafAnswerCredentialBrokerServiceStatus,
+  retainAsoiafAnswerCredentialBrokerServicePolicy,
+  verifyAsoiafAnswerCredentialBrokerServiceEstate,
+  type AsoiafAnswerCredentialBrokerServicePayload,
+  type AsoiafAnswerCredentialBrokerServiceRequest,
+  type AsoiafAnswerCredentialBrokerServiceWireResponse,
+} from "../../../tools/lib/asoiaf-answer-credential-broker-service.js";
+
+let templateRoot = "";
+let templateOutput = "";
+const roots: string[] = [];
+
+interface ExpectedFixture {
+  estateRoot: string;
+  localEndpoint: string;
+  deviceId: string;
+  serviceId: string;
+  brokerPolicyId: string;
+  brokerBindingId: string;
+  providerProfileId: string;
+  servicePolicyId: string;
+  possessionBrokerInvocationId: string;
+  possessionPrepareRequestId: string;
+  possessionPrepareReceiptId: string;
+  possessionProviderInvocationId: string;
+  possessionExecuteRequestId: string;
+  possessionExecuteReceiptId: string;
+  possessionProviderResultId: string;
+  proofId: string;
+  transportBrokerInvocationId: string;
+  transportPrepareRequestId: string;
+  transportPrepareReceiptId: string;
+  transportProviderInvocationId: string;
+  transportExecuteRequestId: string;
+  transportExecuteReceiptId: string;
+  transportProviderResultId: string;
+  serviceCounts: {
+    policies: number;
+    requests: number;
+    receipts: number;
+    stateEntries: number;
+    pendingRequests: number;
+  };
+  providerCounts: {
+    profiles: number;
+    invocations: number;
+    results: number;
+    stateEntries: number;
+  };
+  brokerCounts: {
+    policies: number;
+    bindings: number;
+    invocations: number;
+    proofs: number;
+    transportResults: number;
+  };
+  listenerSummary: {
+    endpoint: string;
+    startedAt: string;
+    stoppedAt: string;
+    servedRequests: number;
+  };
+}
+
+function read<T>(target: string): T {
+  return JSON.parse(fs.readFileSync(target, "utf8")) as T;
+}
+
+function cloneEstate(): string {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "asoiaf-broker-service-clone-"));
+  roots.push(root);
+  fs.cpSync(templateRoot, root, { recursive: true });
+  return root;
+}
+
+function sha256Bytes(value: Buffer): `sha256:${string}` {
+  return `sha256:${crypto.createHash("sha256").update(value).digest("hex")}`;
+}
+
+function publicSpkiBase64(key: crypto.KeyObject): string {
+  return (key.export({ type: "spki", format: "der" }) as Buffer).toString("base64");
+}
+
+beforeAll(() => {
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), "asoiaf-broker-service-template-"));
+  roots.push(base);
+  templateRoot = path.join(base, "estate");
+  templateOutput = path.join(base, "output");
+  fs.mkdirSync(templateOutput, { recursive: true });
+  execFileSync(process.platform === "win32" ? "npx.cmd" : "npx", [
+    "vite-node",
+    "tests/fixtures/emit-asoiaf-answer-credential-broker-service-input.ts",
+    templateOutput,
+    templateRoot,
+  ], {
+    cwd: process.cwd(),
+    encoding: "utf8",
+    env: process.env,
+    stdio: "pipe",
+    timeout: 240_000,
+  });
+}, 260_000);
+
+afterAll(() => {
+  for (const root of roots.reverse()) {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+  if (process.platform !== "win32") {
+    fs.rmSync("/tmp/axm-asoiaf-answer-credential-broker-service-qualification.sock", {
+      force: true,
+    });
+  }
+});
+
+describe("ASOIAF authenticated local credential broker service", () => {
+  it("executes the complete signed Unix or named-pipe lifecycle through permanent operators", () => {
+    const expected = read<ExpectedFixture>(path.join(templateOutput, "expected.json"));
+    const listenerReady = read<{
+      endpoint: string;
+      endpointKind: "unix" | "npipe";
+      startedAt: string;
+      unixSocketMode: string | null;
+    }>(path.join(templateOutput, "service-listener-ready.json"));
+    const serviceVerification = read<{
+      ok: boolean;
+      root: string;
+      findings: unknown[];
+      status: unknown;
+    }>(path.join(templateOutput, "service-verification.json"));
+    const providerVerification = read<{ ok: boolean; findings: unknown[] }>(
+      path.join(templateOutput, "provider-verification.json"),
+    );
+    const brokerVerification = read<{ ok: boolean; findings: unknown[] }>(
+      path.join(templateOutput, "broker-verification.json"),
+    );
+
+    expect(serviceVerification).toEqual({
+      ok: true,
+      root: templateRoot,
+      findings: [],
+      status: expect.any(Object),
+    });
+    expect(providerVerification.ok).toBe(true);
+    expect(providerVerification.findings).toEqual([]);
+    expect(brokerVerification.ok).toBe(true);
+    expect(brokerVerification.findings).toEqual([]);
+    expect(expected.serviceCounts).toEqual({
+      policies: 1,
+      requests: 4,
+      receipts: 4,
+      stateEntries: 1,
+      pendingRequests: 0,
+    });
+    expect(expected.providerCounts).toEqual({
+      profiles: 1,
+      invocations: 2,
+      results: 2,
+      stateEntries: 1,
+    });
+    expect(expected.brokerCounts).toEqual({
+      policies: 1,
+      bindings: 1,
+      invocations: 2,
+      proofs: 1,
+      transportResults: 1,
+    });
+    expect(listenerReady).toEqual({
+      endpoint: expected.localEndpoint,
+      endpointKind: process.platform === "win32" ? "npipe" : "unix",
+      startedAt: expect.any(String),
+      unixSocketMode: process.platform === "win32" ? null : "600",
+    });
+    expect(expected.listenerSummary).toEqual({
+      endpoint: expected.localEndpoint,
+      startedAt: expect.any(String),
+      stoppedAt: expect.any(String),
+      servedRequests: 5,
+    });
+    expect(verifyAsoiafAnswerCredentialBrokerServiceEstate(templateRoot)).toEqual([]);
+  });
+
+  it("replays the exact signed request and terminal receipt without another provider execution", () => {
+    const expected = read<ExpectedFixture>(path.join(templateOutput, "expected.json"));
+    const first = read<Extract<AsoiafAnswerCredentialBrokerServiceWireResponse, { ok: true }>>(
+      path.join(templateOutput, "transport-execute-first-response.json"),
+    );
+    const replay = read<Extract<AsoiafAnswerCredentialBrokerServiceWireResponse, { ok: true }>>(
+      path.join(templateOutput, "transport-execute-replay-response.json"),
+    );
+    const policyReplay = read<{ replayed: boolean }>(
+      path.join(templateOutput, "service-policy-replay.json"),
+    );
+    const status = readAsoiafAnswerCredentialBrokerServiceStatus(templateRoot);
+
+    expect(policyReplay.replayed).toBe(true);
+    expect(first.ok).toBe(true);
+    expect(first.result.requestReplayed).toBe(false);
+    expect(first.result.receiptReplayed).toBe(false);
+    expect(replay.result.requestReplayed).toBe(true);
+    expect(replay.result.receiptReplayed).toBe(true);
+    expect(replay.result.request.requestId).toBe(first.result.request.requestId);
+    expect(replay.result.receipt.receiptId).toBe(first.result.receipt.receiptId);
+    expect(first.result.request.requestId).toBe(expected.transportExecuteRequestId);
+    expect(first.result.receipt.receiptId).toBe(expected.transportExecuteReceiptId);
+    expect(first.result.response.kind).toBe("provider-result");
+    expect(status.requests).toHaveLength(4);
+    expect(status.receipts).toHaveLength(4);
+    expect(status.state?.entries[0]?.pendingRequestIds).toEqual([]);
+  });
+
+  it("retains signed envelopes and public provider evidence without transient keys, selectors, or bodies", () => {
+    const status = readAsoiafAnswerCredentialBrokerServiceStatus(templateRoot);
+    const paths = asoiafAnswerCredentialBrokerServicePaths(templateRoot);
+    const files = fs.readdirSync(paths.serviceRoot, { recursive: true })
+      .map(String)
+      .map((entry) => path.join(paths.serviceRoot, entry))
+      .filter((entry) => fs.existsSync(entry) && fs.statSync(entry).isFile());
+    const retained = files.map((entry) => fs.readFileSync(entry, "utf8")).join("\n");
+
+    expect(fs.existsSync(path.join(templateOutput, "ephemeral-material"))).toBe(false);
+    expect(fs.existsSync(paths.lock)).toBe(false);
+    expect(retained).not.toMatch(/BEGIN (?:RSA |EC |ENCRYPTED )?PRIVATE KEY/);
+    expect(retained).not.toContain("synthetic:qualification:local-service-credential");
+    expect(retained).not.toContain("synthetic:qualification:local-service-agent");
+    expect(retained).not.toContain("authenticated-local-service");
+    expect(retained).not.toMatch(/"(?:payload|clientPrivateKeyPem|credentialPrivateKeyPem|deviceAgentPrivateKeyPem|credentialCertificateThumbprint|deviceAgentCertificateThumbprint|requestBodyBase64|responseBodyBase64)"\s*:/);
+    for (const request of status.requests) {
+      expect("payload" in request).toBe(false);
+      expect(request.privateKeyRetained).toBe(false);
+      expect(request.privateKeyPathRetained).toBe(false);
+      expect(request.rawRequestBodyRetained).toBe(false);
+      expect(request.signatureVerified).toBe(true);
+      expect(request.authority).toBe("none");
+      expect(request.graphEffect).toBe("none");
+      expect(request.canonEffect).toBe("none");
+      expect(request.answerEffect).toBe("none");
+    }
+    for (const receipt of status.receipts) {
+      expect(receipt.privateKeyRetained).toBe(false);
+      expect(receipt.rawRequestBodyRetained).toBe(false);
+      expect(receipt.rawResponseBodyRetained).toBe(false);
+      expect(receipt.authority).toBe("none");
+      expect(receipt.graphEffect).toBe("none");
+      expect(receipt.canonEffect).toBe("none");
+      expect(receipt.answerEffect).toBe("none");
+    }
+  });
+
+  it("parses only normalized Unix sockets and bounded Windows named pipes", () => {
+    expect(asoiafAnswerCredentialBrokerServiceEndpoint(
+      "unix:///tmp/axm-answer-credential-broker-service.sock",
+    )).toEqual({
+      endpoint: "unix:///tmp/axm-answer-credential-broker-service.sock",
+      endpointKind: "unix",
+      address: "/tmp/axm-answer-credential-broker-service.sock",
+    });
+    expect(asoiafAnswerCredentialBrokerServiceEndpoint(
+      "npipe://axm-answer-credential-broker-service",
+    )).toEqual({
+      endpoint: "npipe://axm-answer-credential-broker-service",
+      endpointKind: "npipe",
+      address: "\\\\.\\pipe\\axm-answer-credential-broker-service",
+    });
+    expect(() => asoiafAnswerCredentialBrokerServiceEndpoint(
+      "loopback-https://127.0.0.1:9443",
+    )).toThrow(/separately qualified broker-service TLS listener/);
+    expect(() => asoiafAnswerCredentialBrokerServiceEndpoint(
+      "unix://relative/socket.sock",
+    )).toThrow(/normalized absolute socket path/);
+    expect(() => asoiafAnswerCredentialBrokerServiceEndpoint(
+      "npipe://bad pipe",
+    )).toThrow(/whitespace/);
+  });
+
+  it("rejects changed signatures and payloads before consulting an existing receipt", () => {
+    const root = cloneEstate();
+    const wrapper = read<{ request: AsoiafAnswerCredentialBrokerServiceRequest }>(
+      path.join(templateOutput, "possession-prepare-request.json"),
+    );
+    const request = wrapper.request;
+    const payload: AsoiafAnswerCredentialBrokerServicePayload = {
+      kind: "prepare-provider-invocation",
+      brokerInvocationId: read<ExpectedFixture>(
+        path.join(templateOutput, "expected.json"),
+      ).possessionBrokerInvocationId,
+      providerIdempotencyKey: "qualification-local-service-possession-provider-v1",
+      preparedAt: new Date(Date.parse(request.issuedAt) + 10_000).toISOString(),
+      expiresAt: new Date(Date.parse(request.expiresAt) - 20_000).toISOString(),
+    };
+    const invalidSignature = Buffer.alloc(64, 0x5a);
+    const changedSignature: AsoiafAnswerCredentialBrokerServiceRequest = {
+      ...request,
+      signature

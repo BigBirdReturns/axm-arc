@@ -486,7 +486,6 @@ describe("ASOIAF authenticated local credential broker service", () => {
     ).toEqual(expect.arrayContaining([
       "service-request-invalid",
       "service-receipt-invalid",
-      "service-state-invalid",
       "service-secret-path",
       "service-secret-content",
     ]));

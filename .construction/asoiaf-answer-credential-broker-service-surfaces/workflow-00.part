@@ -1,0 +1,268 @@
+name: ASOIAF authenticated local credential broker service
+
+on:
+  push:
+    branches:
+      - feature/asoiaf-answer-credential-broker-service-v1
+    paths:
+      - '.github/workflows/asoiaf-answer-credential-broker-service.yml'
+      - 'docs/ASOIAF_ANSWER_CREDENTIAL_BROKER_SERVICE.md'
+      - 'package.json'
+      - 'tests/fixtures/emit-asoiaf-answer-credential-broker-service-input.ts'
+      - 'tests/narrative/canon/asoiaf-answer-credential-broker-service.test.ts'
+      - 'tools/asoiaf-answer-credential-broker-service.ts'
+      - 'tools/lib/asoiaf-answer-credential-broker-service.ts'
+  pull_request:
+    branches:
+      - feature/asoiaf-answer-credential-provider-host-v1
+    paths:
+      - '.github/workflows/asoiaf-answer-credential-broker-service.yml'
+      - 'docs/ASOIAF_ANSWER_CREDENTIAL_BROKER_SERVICE.md'
+      - 'package.json'
+      - 'tests/fixtures/emit-asoiaf-answer-credential-broker-service-input.ts'
+      - 'tests/narrative/canon/asoiaf-answer-credential-broker-service.test.ts'
+      - 'tools/asoiaf-answer-credential-broker-service.ts'
+      - 'tools/lib/asoiaf-answer-credential-broker-service.ts'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: asoiaf-answer-credential-broker-service-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux-qualify:
+    if: github.repository == 'BigBirdReturns/axm-arc'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - name: Check out exact broker-service candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+          show-progress: false
+
+      - name: Bind exact Linux candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          candidate_sha="$(git rev-parse HEAD)"
+          test -z "$(git status --porcelain)"
+          echo "CANDIDATE_SHA=$candidate_sha" >> "$GITHUB_ENV"
+          printf '%s\n' "$candidate_sha"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Verify permanent operator registration
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run --silent asoiaf:answer-credential-broker-service -- help \
+            | tee "$RUNNER_TEMP/service-help.txt"
+          grep -q 'ASOIAF authenticated local credential broker service' "$RUNNER_TEMP/service-help.txt"
+          grep -q 'policy' "$RUNNER_TEMP/service-help.txt"
+          grep -q 'sign' "$RUNNER_TEMP/service-help.txt"
+          grep -q 'dispatch' "$RUNNER_TEMP/service-help.txt"
+          grep -q 'serve' "$RUNNER_TEMP/service-help.txt"
+          grep -q 'invoke' "$RUNNER_TEMP/service-help.txt"
+          grep -q 'probe-endpoint' "$RUNNER_TEMP/service-help.txt"
+          grep -q 'verify' "$RUNNER_TEMP/service-help.txt"
+
+      - name: Strict TypeScript
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run typecheck | tee "$RUNNER_TEMP/typecheck.log"
+
+      - name: Focused service, provider, broker, deployment, transport, and answer-stack qualification
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm test -- \
+            tests/narrative/canon/asoiaf-answer-credential-broker-service.test.ts \
+            tests/narrative/canon/asoiaf-answer-credential-provider-host.test.ts \
+            tests/narrative/canon/asoiaf-answer-credential-broker.test.ts \
+            tests/narrative/canon/asoiaf-answer-credential-deployment.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-transport-enrollment.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-transport-operations.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-transport.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-exchange.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-worker.test.ts \
+            tests/narrative/canon/asoiaf-answer-desk-estate.test.ts \
+            tests/narrative/canon/asoiaf-answer-work-lease.test.ts \
+            tests/narrative/canon/asoiaf-answer-work-order.test.ts \
+            tests/narrative/canon/asoiaf-reviewed-answer-packet.test.ts \
+            tests/narrative/canon/asoiaf-research-question-dossier.test.ts \
+            tests/narrative/canon/asoiaf-external-reconciliation-packets.test.ts \
+            | tee "$RUNNER_TEMP/focused-tests.log"
+
+      - name: Exercise authenticated Unix service lifecycle through permanent operators
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture="$RUNNER_TEMP/credential-broker-service-fixture"
+          estate="$RUNNER_TEMP/credential-broker-service-estate"
+          mkdir -p "$fixture"
+          npx vite-node tests/fixtures/emit-asoiaf-answer-credential-broker-service-input.ts \
+            "$fixture" "$estate" \
+            | tee "$RUNNER_TEMP/fixture-emission.json"
+
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const assert = require('node:assert/strict');
+          const temp = process.env.RUNNER_TEMP;
+          const fixture = path.join(temp, 'credential-broker-service-fixture');
+          const estate = path.join(temp, 'credential-broker-service-estate');
+          const read = (name) => JSON.parse(fs.readFileSync(path.join(fixture, name), 'utf8'));
+          const expected = read('expected.json');
+          const ready = read('service-listener-ready.json');
+          const summary = read('service-listener-summary.json');
+          const serviceVerification = read('service-verification.json');
+          const providerVerification = read('provider-verification.json');
+          const brokerVerification = read('broker-verification.json');
+          const serviceStatus = read('service-status.json');
+          const first = read('transport-execute-first-response.json');
+          const replay = read('transport-execute-replay-response.json');
+          const servicePaths = read('service-paths.json');
+
+          assert.deepEqual(expected.serviceCounts, {
+            policies: 1,
+            requests: 4,
+            receipts: 4,
+            stateEntries: 1,
+            pendingRequests: 0,
+          });
+          assert.deepEqual(expected.providerCounts, {
+            profiles: 1,
+            invocations: 2,
+            results: 2,
+            stateEntries: 1,
+          });
+          assert.deepEqual(expected.brokerCounts, {
+            policies: 1,
+            bindings: 1,
+            invocations: 2,
+            proofs: 1,
+            transportResults: 1,
+          });
+          assert.equal(ready.endpointKind, 'unix');
+          assert.equal(ready.unixSocketMode, '600');
+          assert.equal(summary.endpoint, expected.localEndpoint);
+          assert.equal(summary.servedRequests, 5);
+          assert.equal(serviceVerification.ok, true);
+          assert.deepEqual(serviceVerification.findings, []);
+          assert.equal(providerVerification.ok, true);
+          assert.deepEqual(providerVerification.findings, []);
+          assert.equal(brokerVerification.ok, true);
+          assert.deepEqual(brokerVerification.findings, []);
+          assert.equal(serviceStatus.counts.pendingRequests, 0);
+          assert.equal(first.ok, true);
+          assert.equal(first.result.requestReplayed, false);
+          assert.equal(first.result.receiptReplayed, false);
+          assert.equal(replay.ok, true);
+          assert.equal(replay.result.requestReplayed, true);
+          assert.equal(replay.result.receiptReplayed, true);
+          assert.equal(first.result.request.requestId, replay.result.request.requestId);
+          assert.equal(first.result.receipt.receiptId, replay.result.receipt.receiptId);
+          assert.equal(fs.existsSync(path.join(fixture, 'ephemeral-material')), false);
+          assert.equal(fs.existsSync('/tmp/axm-asoiaf-answer-credential-broker-service-qualification.sock'), false);
+          assert.equal(fs.existsSync(servicePaths.lock), false);
+          assert.equal(fs.existsSync(path.join(estate, '.transaction-lock')), false);
+          NODE
+
+      - name: Complete Arc regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm test | tee "$RUNNER_TEMP/full-tests.log"
+
+      - name: Production build
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run build | tee "$RUNNER_TEMP/build.log"
+
+      - name: Assemble Linux broker-service qualification custody
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/credential-broker-service-linux-qualification"
+          mkdir -p "$root/logs" "$root/fixture"
+          cp "$RUNNER_TEMP/service-help.txt" "$root/logs/" 2>/dev/null || true
+          cp "$RUNNER_TEMP/typecheck.log" "$root/logs/" 2>/dev/null || true
+          cp "$RUNNER_TEMP/focused-tests.log" "$root/logs/" 2>/dev/null || true
+          cp "$RUNNER_TEMP/full-tests.log" "$root/logs/" 2>/dev/null || true
+          cp "$RUNNER_TEMP/build.log" "$root/logs/" 2>/dev/null || true
+          cp "$RUNNER_TEMP/fixture-emission.json" "$root/fixture/" 2>/dev/null || true
+          fixture="$RUNNER_TEMP/credential-broker-service-fixture"
+          for file in \
+            expected.json \
+            deployment-verification.json \
+            service-policy-first.json \
+            service-policy-replay.json \
+            service-listener-ready.json \
+            service-listener-summary.json \
+            possession-prepare-request.json \
+            possession-prepare-response.json \
+            possession-execute-request.json \
+            possession-execute-response.json \
+            possession-broker-admission.json \
+            transport-prepare-request.json \
+            transport-prepare-response.json \
+            transport-execute-request.json \
+            transport-execute-first-response.json \
+            transport-execute-replay-response.json \
+            transport-broker-admission.json \
+            service-status.json \
+            service-verification.json \
+            service-paths.json \
+            provider-status.json \
+            provider-verification.json \
+            broker-status.json \
+            broker-verification.json; do
+            cp "$fixture/$file" "$root/fixture/" 2>/dev/null || true
+          done
+          cp -R "$RUNNER_TEMP/credential-broker-service-estate" "$root/estate" 2>/dev/null || true
+          printf '%s\n' "$CANDIDATE_SHA" > "$root/candidate-sha.txt"
+          printf '%s\n' \
+            'platform=linux-unix-domain-socket' \
+            'unixSocketMode=0600' \
+            'signedRequests=4' \
+            'terminalReceipts=4' \
+            'exactReplay=passed' \
+            'pendingRequests=0' \
+            'clientPrivateKeyRetained=false' \
+            'credentialPrivateKeyRetained=false' \
+            'deviceAgentPrivateKeyRetained=false' \
+            'rawProviderSelectorRetained=false' \
+            'providerSecretRetained=false' \
+            'rawRequestBodyRetained=false' \
+            'rawResponseBodyRetained=false' \
+            'serviceAuthority=local-request-admission-only' \
+            'taskAuthority=none' \
+            'graphEffect=none' \
+            'canonEffect=none' \
+            'answerEffect=none' \
+            > "$root/qualification-boundary.txt"
+          if find "$root" -type f \
+            \( -iname '*.key' -o -iname '*.crt' -o -iname '*.pem' -o -iname '*.csr' -o -iname '*.p12' -o -iname '*.pfx' \) \
+            | grep -q .; then
+            echo 'Linux broker-service artifact contains a forbidden secret-material path' >&2
+            exit 1
+          fi
+          artifact_patterns="$RUNNER_TEMP/broker-service-linux-artifact-patterns.txt"
+          cat > "$artifact_patterns" <<'PATTERNS'
+          BEGIN (RSA |EC |ENCRYPTED )?PRIVATE KEY
+          BEGIN CERTIFICA

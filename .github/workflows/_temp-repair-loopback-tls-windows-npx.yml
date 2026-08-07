@@ -1,0 +1,84 @@
+name: TEMP repair loopback TLS Windows npx
+
+on:
+  push:
+    branches:
+      - feature/asoiaf-answer-credential-broker-loopback-tls-v1
+    paths:
+      - '.github/workflows/_temp-repair-loopback-tls-windows-npx.yml'
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: temp-repair-loopback-tls-windows-npx
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    if: github.repository == 'BigBirdReturns/axm-arc'
+    runs-on: windows-2025
+    timeout-minutes: 20
+    steps:
+      - name: Check out latest feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/asoiaf-answer-credential-broker-loopback-tls-v1
+          fetch-depth: 0
+
+      - name: Make fixture spawning platform aware
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          @'
+          from pathlib import Path
+
+          target = Path('tests/narrative/canon/asoiaf-answer-credential-broker-loopback-tls.test.ts')
+          text = target.read_text(encoding='utf-8')
+          declaration = 'const npx = process.platform === "win32" ? "npx.cmd" : "npx";\n'
+          anchor = 'const roots: string[] = [];\n'
+          if declaration not in text:
+              if text.count(anchor) != 1:
+                  raise SystemExit('cannot locate npx declaration anchor')
+              text = text.replace(anchor, anchor + declaration, 1)
+          old = '  execFileSync("npx", ['
+          new = '  execFileSync(npx, ['
+          if old in text:
+              if text.count(old) != 1:
+                  raise SystemExit('unexpected npx invocation multiplicity')
+              text = text.replace(old, new, 1)
+          elif new not in text:
+              raise SystemExit('platform-aware npx invocation is absent')
+          target.write_text(text, encoding='utf-8')
+          '@ | python -
+          git diff --check
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Qualify exact Windows lifecycle
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          npm run typecheck
+          npm test -- tests/narrative/canon/asoiaf-answer-credential-broker-loopback-tls.test.ts
+
+      - name: Commit carrier-free Windows repair
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tests/narrative/canon/asoiaf-answer-credential-broker-loopback-tls.test.ts
+          git rm .github/workflows/_temp-repair-loopback-tls-windows-npx.yml
+          git diff --cached --check
+          git commit -m 'Resolve loopback TLS fixture runner on Windows'
+          git push origin HEAD:feature/asoiaf-answer-credential-broker-loopback-tls-v1

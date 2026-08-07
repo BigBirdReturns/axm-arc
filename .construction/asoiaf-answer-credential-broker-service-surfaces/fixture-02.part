@@ -1,0 +1,35 @@
+ltId,
+  serviceCounts: {
+    policies: serviceStatus.policies.length,
+    requests: serviceStatus.requests.length,
+    receipts: serviceStatus.receipts.length,
+    stateEntries: serviceStatus.state?.entries.length ?? 0,
+    pendingRequests: serviceStatus.state?.entries.reduce(
+      (total, entry) => total + entry.pendingRequestIds.length,
+      0,
+    ) ?? 0,
+  },
+  providerCounts: {
+    profiles: providerStatus.profiles.length,
+    invocations: providerStatus.invocations.length,
+    results: providerStatus.results.length,
+    stateEntries: providerStatus.state?.entries.length ?? 0,
+  },
+  brokerCounts: {
+    policies: brokerStatus.policies.length,
+    bindings: brokerStatus.bindings.length,
+    invocations: brokerStatus.invocations.length,
+    proofs: brokerStatus.proofs.length,
+    transportResults: brokerStatus.transportResults.length,
+  },
+  listenerSummary,
+});
+
+process.stdout.write(`${JSON.stringify({
+  ok: true,
+  outputDirectory,
+  estateRoot,
+  servicePolicyId: servicePolicy.servicePolicyId,
+  requests: serviceStatus.requests.length,
+  receipts: serviceStatus.receipts.length,
+}, null, 2)}\n`);

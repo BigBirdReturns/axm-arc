@@ -1632,10 +1632,7 @@ export async function invokeAsoiafAnswerCredentialBrokerLoopbackTls(
           ) {
             throw new Error("loopback TLS service response format is invalid");
           }
-          resolve(
-            parsedResponse
-              as AsoiafAnswerCredentialBrokerServiceWireResponse,
-          );
+          resolve(parsedResponse as AsoiafAnswerCredentialBrokerServiceWireResponse);
         } catch (error) {
           reject(error instanceof Error ? error : new Error(String(error)));
         }

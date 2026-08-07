@@ -1,0 +1,29 @@
+{
+  "format": "axm-bounded-surface-assembly/1",
+  "surfaces": {
+    "docs": {
+      "target": "docs/ASOIAF_ANSWER_CREDENTIAL_BROKER_SERVICE.md",
+      "chunks": 2,
+      "bytes": 15098,
+      "sha256": "aa2a843950ceaff29fb7a3925527f8c8fb067b32476050870451feb0bc195d60"
+    },
+    "fixture": {
+      "target": "tests/fixtures/emit-asoiaf-answer-credential-broker-service-input.ts",
+      "chunks": 3,
+      "bytes": 25121,
+      "sha256": "d14a2bb3f5fbada1bb6128931ce88aa2ffe5221f1ae6f4e261aef16a2df5bd45"
+    },
+    "test": {
+      "target": "tests/narrative/canon/asoiaf-answer-credential-broker-service.test.ts",
+      "chunks": 2,
+      "bytes": 21720,
+      "sha256": "b055eeab1915c582b8952594c794303294c01957af34e4bb0c13f02d5311efef"
+    },
+    "workflow": {
+      "target": ".github/workflows/asoiaf-answer-credential-broker-service.yml",
+      "chunks": 2,
+      "bytes": 21984,
+      "sha256": "6bf83db326acab42e9da8cfab1b8a2a2187f960b7ec785afb385b81fa57f97ae"
+    }
+  }
+}

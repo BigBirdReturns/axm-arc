@@ -29,79 +29,17 @@ replaceExactlyOnce(
   "ole32 library",
 );
 replaceExactlyOnce(
-  String.raw`std::vector<wchar_t> build_environment(const std::wstring& work_directory, uint16_t port) {
-  wchar_t windows_directory[MAX_PATH]{};
-  require(GetWindowsDirectoryW(windows_directory, MAX_PATH) > 0, "GetWindowsDirectoryW failed");
-  std::vector<std::wstring> entries = {
-      L"AXM_PROBE_PORT=" + std::to_wstring(port),
-      L"LANG=C",
-      L"NODE_DISABLE_COLORS=1",
-      L"SystemRoot=" + std::wstring(windows_directory),
-      L"TEMP=" + work_directory,
-      L"TMP=" + work_directory,
-      L"WINDIR=" + std::wstring(windows_directory),
-  };
-  std::sort(entries.begin(), entries.end(), [](const std::wstring& a, const std::wstring& b) {
-    return _wcsicmp(a.c_str(), b.c_str()) < 0;
-  });
-  std::vector<wchar_t> block;
-  for (const auto& entry : entries) {
-    block.insert(block.end(), entry.begin(), entry.end());
-    block.push_back(L'\0');
-  }
-  block.push_back(L'\0');
-  return block;
-}`,
-  String.raw`std::vector<wchar_t> build_environment(const std::wstring& app_container_folder, uint16_t port) {
-  wchar_t windows_directory[MAX_PATH]{};
-  require(GetWindowsDirectoryW(windows_directory, MAX_PATH) > 0, "GetWindowsDirectoryW failed");
-
-  const wchar_t* overridden_keys[] = {
-      L"AXM_PROBE_PORT", L"LANG", L"NODE_DISABLE_COLORS", L"SystemRoot",
-      L"LOCALAPPDATA", L"TEMP", L"TMP", L"WINDIR",
-      L"AXM_WINDOWS_PROBE_SECRET",
-  };
-  auto is_overridden = [&](const std::wstring& key) {
-    for (const wchar_t* candidate : overridden_keys) {
-      if (_wcsicmp(key.c_str(), candidate) == 0) return true;
-    }
-    return false;
-  };
-
-  LPWCH parent_block = GetEnvironmentStringsW();
-  require(parent_block != nullptr, "GetEnvironmentStringsW failed");
-  std::vector<std::wstring> entries;
-  for (const wchar_t* cursor = parent_block; *cursor != L'\0';) {
-    const std::wstring entry(cursor);
-    cursor += entry.size() + 1;
-    const size_t separator = entry.find(L'=');
-    if (separator == std::wstring::npos) continue;
-    const std::wstring key = entry.substr(0, separator);
-    if (!is_overridden(key)) entries.push_back(entry);
-  }
-  FreeEnvironmentStringsW(parent_block);
-
-  entries.push_back(L"AXM_PROBE_PORT=" + std::to_wstring(port));
-  entries.push_back(L"LANG=C");
-  entries.push_back(L"NODE_DISABLE_COLORS=1");
-  entries.push_back(L"SystemRoot=" + std::wstring(windows_directory));
-  entries.push_back(L"LOCALAPPDATA=" + app_container_folder);
-  entries.push_back(L"TEMP=" + app_container_folder + L"\\Temp");
-  entries.push_back(L"TMP=" + app_container_folder + L"\\Temp");
-  entries.push_back(L"WINDIR=" + std::wstring(windows_directory));
-
-  std::sort(entries.begin(), entries.end(), [](const std::wstring& a, const std::wstring& b) {
-    return _wcsicmp(a.c_str(), b.c_str()) < 0;
-  });
-  std::vector<wchar_t> block;
-  for (const auto& entry : entries) {
-    block.insert(block.end(), entry.begin(), entry.end());
-    block.push_back(L'\0');
-  }
-  block.push_back(L'\0');
-  return block;
-}`,
-  "sanitized inherited profile environment",
+  "std::vector<wchar_t> build_environment(const std::wstring& work_directory, uint16_t port) {",
+  "std::vector<wchar_t> build_environment(const std::wstring& app_container_folder, uint16_t port) {",
+  "environment signature",
+);
+replaceExactlyOnce(
+  String.raw`      L"TEMP=" + work_directory,
+      L"TMP=" + work_directory,`,
+  String.raw`      L"LOCALAPPDATA=" + app_container_folder,
+      L"TEMP=" + app_container_folder + L"\\Temp",
+      L"TMP=" + app_container_folder + L"\\Temp",`,
+  "profile environment entries",
 );
 replaceExactlyOnce(
   "    const std::wstring sid_text(sid_text_raw);\n    LocalFree(sid_text_raw);",
@@ -163,11 +101,12 @@ replaceExactlyOnce(
             "child process policy attribute failed");
 
 `,
-  String.raw`    // Diagnostic isolation: omit the child-process mitigation attribute while
-    // retaining AppContainer identity, exact handle inheritance, and Job Object custody.
+  String.raw`    // The Windows Server 2025 runner returned STATUS_DLL_INIT_FAILED before
+    // process entry whenever this mitigation attribute was present. Child-process denial
+    // is instead supplied by the already attested one-process Job Object.
 
 `,
-  "child-process mitigation isolation",
+  "child-process mitigation replacement",
 );
 replaceExactlyOnce(
   String.raw`    const bool kernel_attested =
@@ -176,19 +115,17 @@ replaceExactlyOnce(
   String.raw`    const bool kernel_attested =
         process_in_job == TRUE && is_app_container != 0 && app_container_sid_exact &&
         active_process_limit_exact && kill_on_close && memory_limit_exact;`,
-  "kernel attestation without child-process mitigation",
+  "kernel attestation without incompatible child mitigation",
 );
 
 for (const marker of [
   "#include <objbase.h>",
   '#pragma comment(lib, "Ole32.lib")',
   "GetAppContainerFolderPath(sid_text.c_str(), &app_container_folder_raw)",
-  "GetEnvironmentStringsW()",
-  'L"AXM_WINDOWS_PROBE_SECRET"',
   'L"LOCALAPPDATA=" + app_container_folder',
   "build_environment(app_container_folder, loopback_port)",
   "app_container_info_storage(app_container_info_bytes)",
-  "Diagnostic isolation: omit the child-process mitigation attribute",
+  "one-process Job Object",
   "active_process_limit_exact && kill_on_close && memory_limit_exact;",
 ]) {
   if (!text.includes(marker)) {
@@ -198,7 +135,10 @@ for (const marker of [
 if (text.includes("PROC_THREAD_ATTRIBUTE_CHILD_PROCESS_POLICY")) {
   throw new Error("patched source still contains child-process policy attribute");
 }
+if (text.includes("AXM_WINDOWS_PROBE_SECRET")) {
+  throw new Error("patched child environment contains the parent secret sentinel");
+}
 
 fs.writeFileSync(outputPath, text, "utf8");
 
-// Diagnostic v10 isolates child-process mitigation from AppContainer startup.
+// Diagnostic v11 binds child-process denial to Job Object active-process custody.

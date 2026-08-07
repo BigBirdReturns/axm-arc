@@ -114,4 +114,4 @@ main().catch((error) => {
   process.exitCode = 1;
 });
 
-// Triggered after registering the receipt-preserving v6 workflow.
+// Retained only as the inert argument surface for the native v7 probe.

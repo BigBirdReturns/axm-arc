@@ -1,0 +1,202 @@
+name: TEMP repair loopback TLS shutdown custody
+
+on:
+  push:
+    branches:
+      - feature/asoiaf-answer-credential-broker-loopback-tls-v1
+    paths:
+      - '.github/workflows/_temp-repair-loopback-tls-shutdown.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: temp-repair-loopback-tls-shutdown
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    if: github.repository == 'BigBirdReturns/axm-arc'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out latest feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/asoiaf-answer-credential-broker-loopback-tls-v1
+          fetch-depth: 0
+
+      - name: Repair deterministic TLS socket ownership
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          target = Path('tools/lib/asoiaf-answer-credential-broker-loopback-tls.ts')
+          text = target.read_text(encoding='utf-8')
+
+          replacements = [
+            (
+              '''  let servedConnections = 0;
+          let servedRequests = 0;
+          let rejectedConnections = 0;
+          let stopReason =''',
+              '''  let servedConnections = 0;
+          let servedRequests = 0;
+          let rejectedConnections = 0;
+          const sockets = new Set<tls.TLSSocket>();
+          let stopReason =''',
+            ),
+            (
+              '''  }, (socket) => {
+            servedConnections += 1;
+            if (!accepting || !socket.authorized) {''',
+              '''  }, (socket) => {
+            servedConnections += 1;
+            sockets.add(socket);
+            socket.once("close", () => sockets.delete(socket));
+            if (!accepting || !socket.authorized) {''',
+            ),
+            (
+              '''      socket.end(rejectionResponse(
+                accepting
+                  ? "loopback TLS peer is not authorized"
+                  : "loopback TLS listener is not ready",
+              ));
+              return;''',
+              '''      socket.end(rejectionResponse(
+                accepting
+                  ? "loopback TLS peer is not authorized"
+                  : "loopback TLS listener is not ready",
+              ), () => socket.destroy());
+              return;''',
+            ),
+            (
+              '''      socket.end(rejectionResponse(
+                "loopback TLS peer certificate differs from retained client custody",
+              ));
+              return;''',
+              '''      socket.end(rejectionResponse(
+                "loopback TLS peer certificate differs from retained client custody",
+              ), () => socket.destroy());
+              return;''',
+            ),
+            (
+              '''      socket.end(response, () => {
+                if (servedRequests >= maxRequests && server.listening) {
+                  server.close();
+                }
+              });''',
+              '''      socket.end(response, () => {
+                socket.destroy();
+                if (servedRequests >= maxRequests && server.listening) {
+                  server.close();
+                }
+              });''',
+            ),
+            (
+              '''    socket.on("end", () => {
+              if (!handled && buffer.length > 0) processFrame(buffer);
+              else if (!handled && buffer.length === 0) {
+                rejectedConnections += 1;
+              }
+            });''',
+              '''    socket.on("end", () => {
+              if (!handled && buffer.length > 0) processFrame(buffer);
+              else if (!handled && buffer.length === 0) {
+                rejectedConnections += 1;
+                socket.destroy();
+              }
+            });''',
+            ),
+            (
+              '''  } catch (error) {
+            await new Promise<void>((resolve) => server.close(() => resolve()));
+            throw error;
+          }''',
+              '''  } catch (error) {
+            if (fs.existsSync(paths.lock)) {
+              try {
+                removeOwnLock(paths, session.sessionId);
+              } catch {
+                fs.rmSync(paths.lock, { force: true });
+              }
+            }
+            await new Promise<void>((resolve) => {
+              server.once("close", resolve);
+              server.close();
+              for (const socket of sockets) socket.destroy();
+            });
+            throw error;
+          }''',
+            ),
+            (
+              '''  server.on("close", () => {
+            try {
+              accepting = false;''',
+              '''  server.on("close", () => {
+            try {
+              accepting = false;
+              for (const socket of sockets) socket.destroy();''',
+            ),
+            (
+              '''      await new Promise<void>((resolve, reject) => {
+                server.close((error) => error ? reject(error) : resolve());
+              });
+              await closed;''',
+              '''      server.close();
+              for (const socket of sockets) socket.destroy();
+              await closed;''',
+            ),
+          ]
+
+          for old, new in replacements:
+              if new in text:
+                  continue
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(
+                      f'expected exactly one shutdown repair target, found {count}: {old[:100]!r}'
+                  )
+              text = text.replace(old, new, 1)
+
+          target.write_text(text, encoding='utf-8')
+          PY
+          git diff --check
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Strict TypeScript
+        run: npm run typecheck
+
+      - name: Qualify complete listener lifecycle
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm test -- tests/narrative/canon/asoiaf-answer-credential-broker-loopback-tls.test.ts
+
+      - name: Commit carrier-free shutdown repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tools/lib/asoiaf-answer-credential-broker-loopback-tls.ts
+          for carrier in \
+            .github/workflows/_temp-diagnose-loopback-tls-runtime.yml \
+            .github/workflows/_temp-repair-loopback-tls-shutdown.yml; do
+            if git ls-files --error-unmatch "$carrier" >/dev/null 2>&1; then
+              git rm "$carrier"
+            fi
+          done
+          git diff --cached --check
+          git commit -m 'Close loopback TLS sockets before listener settlement'
+          git push origin HEAD:feature/asoiaf-answer-credential-broker-loopback-tls-v1

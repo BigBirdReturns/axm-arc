@@ -1267,6 +1267,7 @@ export async function startAsoiafAnswerCredentialBrokerLoopbackTls(
   let servedConnections = 0;
   let servedRequests = 0;
   let rejectedConnections = 0;
+  const sockets = new Set<tls.TLSSocket>();
   let stopReason =
     "The loopback TLS listener completed its bounded runtime and closed normally.";
   let stopLifecycle:
@@ -1295,13 +1296,15 @@ export async function startAsoiafAnswerCredentialBrokerLoopbackTls(
     maxVersion: "TLSv1.3",
   }, (socket) => {
     servedConnections += 1;
+    sockets.add(socket);
+    socket.once("close", () => sockets.delete(socket));
     if (!accepting || !socket.authorized) {
       rejectedConnections += 1;
       socket.end(rejectionResponse(
         accepting
           ? "loopback TLS peer is not authorized"
           : "loopback TLS listener is not ready",
-      ));
+      ), () => socket.destroy());
       return;
     }
     const peer = socket.getPeerCertificate(true);
@@ -1325,7 +1328,7 @@ export async function startAsoiafAnswerCredentialBrokerLoopbackTls(
       rejectedConnections += 1;
       socket.end(rejectionResponse(
         "loopback TLS peer certificate differs from retained client custody",
-      ));
+      ), () => socket.destroy());
       return;
     }
 
@@ -1337,6 +1340,7 @@ export async function startAsoiafAnswerCredentialBrokerLoopbackTls(
       servedRequests += 1;
       if (rejected) rejectedConnections += 1;
       socket.end(response, () => {
+        socket.destroy();
         if (servedRequests >= maxRequests && server.listening) {
           server.close();
         }
@@ -1418,6 +1422,7 @@ export async function startAsoiafAnswerCredentialBrokerLoopbackTls(
       if (!handled && buffer.length > 0) processFrame(buffer);
       else if (!handled && buffer.length === 0) {
         rejectedConnections += 1;
+        socket.destroy();
       }
     });
     socket.on("error", () => {
@@ -1475,13 +1480,25 @@ export async function startAsoiafAnswerCredentialBrokerLoopbackTls(
     })).lifecycle;
     accepting = true;
   } catch (error) {
-    await new Promise<void>((resolve) => server.close(() => resolve()));
+    if (fs.existsSync(paths.lock)) {
+      try {
+        removeOwnLock(paths, session.sessionId);
+      } catch {
+        fs.rmSync(paths.lock, { force: true });
+      }
+    }
+    await new Promise<void>((resolve) => {
+      server.once("close", resolve);
+      server.close();
+      for (const socket of sockets) socket.destroy();
+    });
     throw error;
   }
 
   server.on("close", () => {
     try {
       accepting = false;
+      for (const socket of sockets) socket.destroy();
       const stoppedAt = requireTime(clock(), "listener stop time");
       stopLifecycle = retainLifecycle(input.root, lifecycleBase({
         policy,
@@ -1528,9 +1545,8 @@ export async function startAsoiafAnswerCredentialBrokerLoopbackTls(
         await closed;
         return;
       }
-      await new Promise<void>((resolve, reject) => {
-        server.close((error) => error ? reject(error) : resolve());
-      });
+      server.close();
+      for (const socket of sockets) socket.destroy();
       await closed;
     },
     closed,

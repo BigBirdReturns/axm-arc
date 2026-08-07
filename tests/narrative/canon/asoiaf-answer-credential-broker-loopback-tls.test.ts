@@ -211,7 +211,7 @@ describe("ASOIAF governed loopback mutual-TLS credential broker listener", () =>
     expect(availability.observation.observationId)
       .toBe(expected.availabilityObservationId);
     expect(availability.observation.endpointLeaseId).toBe(expected.endpointLeaseId);
-    expect(availability.observation.serverCertificateFingerprint)
+    expect(availability.observation.expectedServerCertificateFingerprint)
       .toBe(expected.serverCertificateFingerprint);
     expect(availability.observation.clientCertificateFingerprint)
       .toBe(expected.clientCertificateFingerprint);

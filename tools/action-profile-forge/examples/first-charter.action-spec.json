@@ -1,0 +1,131 @@
+{
+  "format": "axm-action-spec/1",
+  "runtimeVersion": "1.0.0",
+  "arcDigest": "cart1_fadfa2d7ba578cd50686220e6d200658bb286b599be3f76b08a2dc811ed75a04",
+  "challengeId": "cellar",
+  "title": "The Cellar",
+  "difficultyModeId": null,
+  "tickRate": 30,
+  "maxTicks": 2700,
+  "arena": {
+    "kit": "ring",
+    "radius": 7070
+  },
+  "player": {
+    "kit": "staff",
+    "maxHealth": 12,
+    "radius": 360,
+    "movePerTick": 180,
+    "dodgePerTick": 480,
+    "dodgeTicks": 10,
+    "dodgeInvulnerableTicks": 6,
+    "parryTicks": 5,
+    "parryActiveTicks": 3,
+    "parryRecoveryTicks": 7,
+    "staggerTicks": 12,
+    "attacks": [
+      {
+        "id": "light",
+        "startupTicks": 4,
+        "activeTicks": 3,
+        "recoveryTicks": 7,
+        "damage": 2,
+        "range": 1550,
+        "coneNumerator": 0,
+        "coneDenominator": 1,
+        "knockback": 320
+      },
+      {
+        "id": "heavy",
+        "startupTicks": 10,
+        "activeTicks": 4,
+        "recoveryTicks": 15,
+        "damage": 4,
+        "range": 1900,
+        "coneNumerator": 1,
+        "coneDenominator": 2,
+        "knockback": 760
+      }
+    ]
+  },
+  "enemyLaws": {
+    "skirmisher": {
+      "kit": "skirmisher",
+      "maxHealth": 3,
+      "radius": 300,
+      "movePerTick": 115,
+      "attackRange": 900,
+      "attackDamage": 1,
+      "telegraphTicks": 18,
+      "activeTicks": 2,
+      "recoveryTicks": 16,
+      "staggerTicks": 20
+    },
+    "duelist": {
+      "kit": "duelist",
+      "maxHealth": 5,
+      "radius": 320,
+      "movePerTick": 125,
+      "attackRange": 980,
+      "attackDamage": 2,
+      "telegraphTicks": 14,
+      "activeTicks": 2,
+      "recoveryTicks": 18,
+      "staggerTicks": 24
+    },
+    "swarm": {
+      "kit": "swarm",
+      "maxHealth": 2,
+      "radius": 270,
+      "movePerTick": 145,
+      "attackRange": 760,
+      "attackDamage": 1,
+      "telegraphTicks": 20,
+      "activeTicks": 2,
+      "recoveryTicks": 20,
+      "staggerTicks": 16
+    },
+    "hexer": {
+      "kit": "hexer",
+      "maxHealth": 4,
+      "radius": 300,
+      "movePerTick": 85,
+      "attackRange": 2600,
+      "attackDamage": 1,
+      "telegraphTicks": 28,
+      "activeTicks": 2,
+      "recoveryTicks": 24,
+      "staggerTicks": 22
+    },
+    "breaker": {
+      "kit": "breaker",
+      "maxHealth": 9,
+      "radius": 430,
+      "movePerTick": 80,
+      "attackRange": 1150,
+      "attackDamage": 3,
+      "telegraphTicks": 32,
+      "activeTicks": 3,
+      "recoveryTicks": 28,
+      "staggerTicks": 30
+    }
+  },
+  "objectives": [
+    {
+      "id": "cellar-sweep",
+      "label": "Cellar Sweep",
+      "brief": "Coordinate to drive the rats out. Brute force works fine.",
+      "enemyKit": "skirmisher",
+      "enemyCount": 1,
+      "targetDefeats": 1,
+      "failureKind": "stress",
+      "severity": 0.1
+    }
+  ],
+  "completion": {
+    "kind": "clear",
+    "successObjectiveCount": 1,
+    "partialObjectiveCount": 1
+  },
+  "specDigest": "actspec1_1a8ba87d551954e85581137338583109f3dc0ab1686ad4815b072d13127d5abd"
+}

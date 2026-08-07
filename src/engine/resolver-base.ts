@@ -176,7 +176,7 @@ function determineOutcome(
   return majorityPassed ? "partial" : "failure";
 }
 
-function rollLoot(
+export function rollLoot(
   challenge: Challenge,
   outcome: "success" | "partial" | "failure",
   agents: Agent[],

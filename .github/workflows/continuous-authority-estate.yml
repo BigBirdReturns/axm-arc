@@ -1,0 +1,117 @@
+name: Continuous authority estate
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/continuous-authority-estate.yml'
+      - 'src/engine/action/**'
+      - 'src/narrative/**'
+      - 'tests/action/**'
+      - 'tests/narrative/**'
+      - 'docs/CONTINUOUS_AUTHORITY_ESTATE.md'
+      - 'package.json'
+      - 'package-lock.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI: 'true'
+  ACTION_AUTHORITY_SHA: 6eef311836ee7cb3a43a94ce51f448a2699c3b04
+  NARRATIVE_BASELINE_SHA: 3c09166af33fb24dd185b0559b5a80183d514d3e
+  CONTINUOUS_PARENT_SHA: 2182d9fb7007d20af46bcdd88fc08b2875b93e3a
+
+jobs:
+  qualify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - name: Check out exact candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          show-progress: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Record exact authority ancestry
+        shell: bash
+        run: |
+          set -euo pipefail
+          candidate='${{ github.event.pull_request.head.sha || github.sha }}'
+          test "$(git rev-parse HEAD)" = "$candidate"
+          git merge-base --is-ancestor "$ACTION_AUTHORITY_SHA" HEAD
+          git merge-base --is-ancestor "$NARRATIVE_BASELINE_SHA" HEAD
+          git merge-base --is-ancestor "$CONTINUOUS_PARENT_SHA" HEAD
+          test -z "$(git status --porcelain)"
+          git diff --check
+
+      - name: Install exact dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Qualify the accepted-receipt narrative seam
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run typecheck
+          npm run test:continuous-authority
+          npm run test:action-profile-forge
+
+      - name: Complete Arc regression and production build
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm test
+          npm run build
+          if git ls-files -- docs/game | grep -q .; then
+            git restore --source=HEAD --staged --worktree -- docs/game
+          fi
+          git clean -fdx -- docs/game
+          test -z "$(git status --porcelain)"
+          git diff --check
+
+      - name: Record continuous authority receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/continuous-authority"
+          node - <<'NODE' > "$RUNNER_TEMP/continuous-authority/receipt.json"
+          const receipt = {
+            format: 'axm-continuous-authority-qualification/1',
+            status: 'pass',
+            candidateCommit: process.env.GITHUB_SHA,
+            actionAuthorityCommit: process.env.ACTION_AUTHORITY_SHA,
+            narrativeBaselineCommit: process.env.NARRATIVE_BASELINE_SHA,
+            continuousParentCommit: process.env.CONTINUOUS_PARENT_SHA,
+            checks: [
+              'exact-authority-ancestry',
+              'typescript',
+              'accepted-action-narrative-seam',
+              'action-estate',
+              'narrative-rails',
+              'action-profile-forge-law',
+              'complete-arc-regression',
+              'production-build',
+              'clean-checkout'
+            ]
+          };
+          process.stdout.write(JSON.stringify(receipt, null, 2) + '\n');
+          NODE
+          sha256sum "$RUNNER_TEMP/continuous-authority/receipt.json" > "$RUNNER_TEMP/continuous-authority/SHA256SUMS"
+
+      - name: Upload qualification receipt
+        uses: actions/upload-artifact@v4
+        with:
+          name: continuous-authority-estate
+          path: ${{ runner.temp }}/continuous-authority
+          if-no-files-found: error
+          retention-days: 30

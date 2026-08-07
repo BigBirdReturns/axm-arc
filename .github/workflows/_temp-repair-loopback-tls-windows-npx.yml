@@ -1,4 +1,4 @@
-name: TEMP repair loopback TLS Windows fixture runner
+name: TEMP repair loopback TLS Windows fixture runners
 
 on:
   push:
@@ -9,8 +9,6 @@ on:
 
 permissions:
   contents: write
-  pull-requests: write
-  issues: write
 
 concurrency:
   group: temp-repair-loopback-tls-windows-npx
@@ -20,7 +18,7 @@ jobs:
   repair:
     if: github.repository == 'BigBirdReturns/axm-arc'
     runs-on: windows-2025
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - name: Check out latest feature branch
         uses: actions/checkout@v4
@@ -28,17 +26,19 @@ jobs:
           ref: feature/asoiaf-answer-credential-broker-loopback-tls-v1
           fetch-depth: 0
 
-      - name: Invoke the installed Vite Node entrypoint directly
+      - name: Invoke every Vite Node entrypoint through Node
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           @'
           from pathlib import Path
 
-          target = Path('tests/narrative/canon/asoiaf-answer-credential-broker-loopback-tls.test.ts')
-          text = target.read_text(encoding='utf-8')
-          npx_declaration = 'const npx = process.platform === "win32" ? "npx.cmd" : "npx";\n'
-          text = text.replace(npx_declaration, '')
+          test_path = Path('tests/narrative/canon/asoiaf-answer-credential-broker-loopback-tls.test.ts')
+          test = test_path.read_text(encoding='utf-8')
+          test = test.replace(
+              'const npx = process.platform === "win32" ? "npx.cmd" : "npx";\n',
+              '',
+          )
           declaration = (
               'const viteNode = path.join(\n'
               '  process.cwd(),\n'
@@ -48,26 +48,51 @@ jobs:
               ');\n'
           )
           anchor = 'const roots: string[] = [];\n'
-          if declaration not in text:
-              if text.count(anchor) != 1:
-                  raise SystemExit('cannot locate Vite Node declaration anchor')
-              text = text.replace(anchor, anchor + declaration, 1)
-          old_candidates = [
+          if declaration not in test:
+              if test.count(anchor) != 1:
+                  raise SystemExit('cannot locate outer Vite Node declaration anchor')
+              test = test.replace(anchor, anchor + declaration, 1)
+          candidates = [
               '  execFileSync("npx", [\n    "vite-node",',
               '  execFileSync(npx, [\n    "vite-node",',
           ]
           replacement = '  execFileSync(process.execPath, [\n    viteNode,'
-          replaced = False
-          for old in old_candidates:
-              if old in text:
-                  if text.count(old) != 1:
-                      raise SystemExit('unexpected fixture runner multiplicity')
-                  text = text.replace(old, replacement, 1)
-                  replaced = True
-                  break
-          if not replaced and replacement not in text:
-              raise SystemExit('direct Vite Node fixture invocation is absent')
-          target.write_text(text, encoding='utf-8')
+          if replacement not in test:
+              matched = [entry for entry in candidates if entry in test]
+              if len(matched) != 1:
+                  raise SystemExit('cannot locate exactly one outer fixture runner')
+              test = test.replace(matched[0], replacement, 1)
+          test_path.write_text(test, encoding='utf-8')
+
+          fixture_path = Path('tests/fixtures/emit-asoiaf-answer-credential-broker-loopback-tls-input.ts')
+          fixture = fixture_path.read_text(encoding='utf-8')
+          fixture_declaration = (
+              'const viteNode = path.join(\n'
+              '  process.cwd(),\n'
+              '  "node_modules",\n'
+              '  "vite-node",\n'
+              '  "vite-node.mjs",\n'
+              ');\n'
+          )
+          fixture_anchor = 'const npm = process.platform === "win32" ? "npm.cmd" : "npm";\n'
+          if fixture_declaration not in fixture:
+              if fixture.count(fixture_anchor) != 1:
+                  raise SystemExit('cannot locate nested Vite Node declaration anchor')
+              fixture = fixture.replace(
+                  fixture_anchor,
+                  fixture_anchor + fixture_declaration,
+                  1,
+              )
+          nested_old = 'run("npx", [\n  "vite-node",\n  "tests/fixtures/'
+          nested_new = 'run(process.execPath, [\n  viteNode,\n  "tests/fixtures/'
+          count = fixture.count(nested_old)
+          if count not in (0, 2):
+              raise SystemExit(f'unexpected nested fixture runner count: {count}')
+          if count == 2:
+              fixture = fixture.replace(nested_old, nested_new)
+          if fixture.count(nested_new) != 2:
+              raise SystemExit('direct nested fixture runners are not both present')
+          fixture_path.write_text(fixture, encoding='utf-8')
           '@ | python -
           git diff --check
 
@@ -93,8 +118,10 @@ jobs:
           $ErrorActionPreference = 'Stop'
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add tests/narrative/canon/asoiaf-answer-credential-broker-loopback-tls.test.ts
+          git add `
+            tests/narrative/canon/asoiaf-answer-credential-broker-loopback-tls.test.ts `
+            tests/fixtures/emit-asoiaf-answer-credential-broker-loopback-tls-input.ts
           git rm .github/workflows/_temp-repair-loopback-tls-windows-npx.yml
           git diff --cached --check
-          git commit -m 'Invoke loopback TLS fixture through Node on Windows'
+          git commit -m 'Invoke loopback TLS fixtures through Node on Windows'
           git push origin HEAD:feature/asoiaf-answer-credential-broker-loopback-tls-v1

@@ -1,0 +1,60 @@
+name: Pulse exact ASOIAF loopback TLS qualification v1
+
+on:
+  push:
+    branches:
+      - observer/asoiaf-loopback-tls-terminal-v1
+    paths:
+      - '.github/workflows/pulse-asoiaf-loopback-tls-terminal-v1.yml'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  pulse:
+    if: github.repository == 'BigBirdReturns/axm-arc'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TARGET_SHA: 0534e419b420fc0c26604bedd650db8f0dbf691e
+      TARGET_BRANCH: feature/asoiaf-answer-credential-broker-loopback-tls-v1
+      TARGET_WORKFLOW: asoiaf-answer-credential-broker-loopback-tls.yml
+    steps:
+      - name: Publish exact status pulse
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/pulse"
+          mkdir -p "$root"
+          gh api --method GET \
+            "repos/$GITHUB_REPOSITORY/actions/workflows/$TARGET_WORKFLOW/runs" \
+            -f branch="$TARGET_BRANCH" \
+            -f event=push \
+            -f per_page=100 > "$root/runs.json"
+          jq -c --arg sha "$TARGET_SHA" '
+            .workflow_runs
+            | map(select(.head_sha == $sha and .event == "push"))
+            | sort_by(.run_number)
+            | last // empty
+          ' "$root/runs.json" > "$root/run.json"
+          test -s "$root/run.json"
+          run_id="$(jq -r '.id' "$root/run.json")"
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/jobs?per_page=100" \
+            > "$root/jobs.json"
+          {
+            echo 'TEMP_LOOPBACK_TLS_OBSERVER_PULSE_V1'
+            echo
+            echo "Exact target: \`$TARGET_SHA\`."
+            echo "Permanent push run: \`$run_id\`; status \`$(jq -r '.status' "$root/run.json")\`; conclusion \`$(jq -r '.conclusion' "$root/run.json")\`."
+            echo
+            echo 'Jobs:'
+            echo '```text'
+            jq -r '.jobs[] | [.name, .status, (.conclusion // "pending")] | @tsv' "$root/jobs.json"
+            echo '```'
+          } > "$root/comment.md"
+          gh pr comment 282 --repo "$GITHUB_REPOSITORY" --body-file "$root/comment.md"

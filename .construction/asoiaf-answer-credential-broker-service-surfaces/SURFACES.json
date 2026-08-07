@@ -1,5 +1,6 @@
 {
   "format": "axm-bounded-surface-assembly/1",
+  "activation": "second-delivery-after-unregistered-first-push",
   "surfaces": {
     "docs": {
       "target": "docs/ASOIAF_ANSWER_CREDENTIAL_BROKER_SERVICE.md",

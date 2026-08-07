@@ -1,6 +1,6 @@
 {
   "name": "axm-arc",
-  "description": "AXM Arc narrative systems and typed answer-desk tooling",
+  "description": "AXM Arc narrative systems and typed answer-desk credential custody",
   "version": "1.0.0",
   "private": true,
   "type": "module",

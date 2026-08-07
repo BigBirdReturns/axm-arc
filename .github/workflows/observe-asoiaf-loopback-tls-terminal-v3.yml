@@ -1,0 +1,330 @@
+name: Observe stable carrier-free ASOIAF loopback TLS head v3
+
+on:
+  push:
+    branches:
+      - observer/asoiaf-loopback-tls-terminal-v1
+    paths:
+      - '.github/workflows/observe-asoiaf-loopback-tls-terminal-v3.yml'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: observe-asoiaf-loopback-tls-terminal-v3
+  cancel-in-progress: false
+
+jobs:
+  observe:
+    if: github.repository == 'BigBirdReturns/axm-arc'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TARGET_PR: '282'
+      TARGET_BRANCH: feature/asoiaf-answer-credential-broker-loopback-tls-v1
+      TARGET_BASE: feature/asoiaf-answer-credential-broker-service-v1
+      TARGET_WORKFLOW: asoiaf-answer-credential-broker-loopback-tls.yml
+      TERMINAL_MARKER: ASOIAF_LOOPBACK_TLS_TERMINAL_RECEIPT_V1
+    steps:
+      - name: Wait for stable carrier-free seven-surface head
+        id: target
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/observer-v3"
+          mkdir -p "$root"
+          cat > "$root/expected-files.txt" <<'FILES'
+          .github/workflows/asoiaf-answer-credential-broker-loopback-tls.yml
+          docs/ASOIAF_ANSWER_CREDENTIAL_BROKER_LOOPBACK_TLS.md
+          package.json
+          tests/fixtures/emit-asoiaf-answer-credential-broker-loopback-tls-input.ts
+          tests/narrative/canon/asoiaf-answer-credential-broker-loopback-tls.test.ts
+          tools/asoiaf-answer-credential-broker-loopback-tls.ts
+          tools/lib/asoiaf-answer-credential-broker-loopback-tls.ts
+          FILES
+          candidate=''
+          stable=0
+          for _ in $(seq 1 360); do
+            gh api "repos/$GITHUB_REPOSITORY/pulls/$TARGET_PR" > "$root/pr.json"
+            jq -e --arg base "$TARGET_BASE" '
+              .state == "open"
+              and .draft == true
+              and .merged == false
+              and .base.ref == $base
+            ' "$root/pr.json" >/dev/null
+            gh api --paginate \
+              "repos/$GITHUB_REPOSITORY/pulls/$TARGET_PR/files?per_page=100" \
+              --jq '.[].filename' | sort > "$root/actual-files.txt"
+            head="$(jq -r '.head.sha' "$root/pr.json")"
+            if diff -q "$root/expected-files.txt" "$root/actual-files.txt" >/dev/null; then
+              if [ "$head" = "$candidate" ]; then
+                stable=$((stable + 1))
+              else
+                candidate="$head"
+                stable=1
+              fi
+              if [ "$stable" -ge 4 ]; then
+                break
+              fi
+            else
+              candidate=''
+              stable=0
+            fi
+            sleep 15
+          done
+          test -n "$candidate"
+          test "$stable" -ge 4
+          echo "sha=$candidate" >> "$GITHUB_OUTPUT"
+          printf '%s\n' "$candidate" > "$root/target-sha.txt"
+
+      - name: Wait for exact permanent push workflow
+        id: run
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/observer-v3"
+          target='${{ steps.target.outputs.sha }}'
+          run_id=''
+          for _ in $(seq 1 540); do
+            gh api --method GET \
+              "repos/$GITHUB_REPOSITORY/actions/workflows/$TARGET_WORKFLOW/runs" \
+              -f branch="$TARGET_BRANCH" \
+              -f event=push \
+              -f per_page=100 > "$root/runs.json"
+            jq -c --arg sha "$target" '
+              .workflow_runs
+              | map(select(.head_sha == $sha and .event == "push"))
+              | sort_by(.run_number)
+              | last // empty
+            ' "$root/runs.json" > "$root/run.json"
+            if [ -s "$root/run.json" ]; then
+              run_id="$(jq -r '.id' "$root/run.json")"
+              [ "$(jq -r '.status' "$root/run.json")" = completed ] && break
+            fi
+            sleep 20
+          done
+          test -n "$run_id"
+          test "$(jq -r '.head_sha' "$root/run.json")" = "$target"
+          test "$(jq -r '.status' "$root/run.json")" = completed
+          echo "id=$run_id" >> "$GITHUB_OUTPUT"
+          echo "conclusion=$(jq -r '.conclusion' "$root/run.json")" >> "$GITHUB_OUTPUT"
+
+      - name: Require all permanent jobs to pass
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/observer-v3"
+          test '${{ steps.run.outputs.conclusion }}' = success
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/${{ steps.run.outputs.id }}/jobs?per_page=100" \
+            > "$root/jobs.json"
+          jq -r '.jobs[] | [.name, .status, .conclusion, (.id|tostring)] | @tsv' \
+            "$root/jobs.json" > "$root/jobs.tsv"
+          for name in linux-qualify windows-qualify combine; do
+            test "$(jq -r --arg name "$name" '.jobs[] | select(.name == $name) | .conclusion' "$root/jobs.json")" = success
+          done
+
+      - name: Download and verify platform and combined artifacts
+        id: artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/observer-v3"
+          run_id='${{ steps.run.outputs.id }}'
+          target='${{ steps.target.outputs.sha }}'
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/artifacts?per_page=100" \
+            > "$root/artifacts.json"
+          names=(
+            asoiaf-answer-credential-broker-loopback-tls-linux
+            asoiaf-answer-credential-broker-loopback-tls-windows
+            asoiaf-answer-credential-broker-loopback-tls-qualification
+          )
+          for name in "${names[@]}"; do
+            jq -e --arg name "$name" '
+              [.artifacts[] | select(.name == $name and .expired == false)] | length == 1
+            ' "$root/artifacts.json" >/dev/null
+            id="$(jq -r --arg name "$name" '.artifacts[] | select(.name == $name) | .id' "$root/artifacts.json")"
+            expected="$(jq -r --arg name "$name" '.artifacts[] | select(.name == $name) | .digest' "$root/artifacts.json")"
+            curl --fail --location --silent --show-error \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H 'Accept: application/vnd.github+json' \
+              -H 'X-GitHub-Api-Version: 2022-11-28' \
+              "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts/$id/zip" \
+              -o "$root/$name.zip"
+            test "sha256:$(sha256sum "$root/$name.zip" | awk '{print $1}')" = "$expected"
+            unzip -t "$root/$name.zip" >/dev/null
+            mkdir -p "$root/$name"
+            unzip -q "$root/$name.zip" -d "$root/$name"
+          done
+          combined=asoiaf-answer-credential-broker-loopback-tls-qualification
+          artifact_root="$root/$combined"
+          sums="$(find "$artifact_root" -type f -name SHA256SUMS -print -quit)"
+          candidate="$(find "$artifact_root" -type f -name candidate-sha.txt -print -quit)"
+          test -n "$sums" && test -n "$candidate"
+          artifact_root="$(dirname "$sums")"
+          test "$(tr -d '\r\n' < "$candidate")" = "$target"
+          (cd "$artifact_root" && sha256sum -c SHA256SUMS) \
+            > "$root/internal-sha256-verification.log"
+          echo "root=$artifact_root" >> "$GITHUB_OUTPUT"
+          for name in "${names[@]}"; do
+            key="${name##*-}"
+            [ "$name" = "$combined" ] && key=combined
+            echo "${key}_id=$(jq -r --arg name "$name" '.artifacts[] | select(.name == $name) | .id' "$root/artifacts.json")" >> "$GITHUB_OUTPUT"
+            echo "${key}_digest=$(jq -r --arg name "$name" '.artifacts[] | select(.name == $name) | .digest' "$root/artifacts.json")" >> "$GITHUB_OUTPUT"
+            echo "${key}_size=$(jq -r --arg name "$name" '.artifacts[] | select(.name == $name) | .size_in_bytes' "$root/artifacts.json")" >> "$GITHUB_OUTPUT"
+          done
+
+      - name: Reconstruct qualification law
+        id: ledger
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/observer-v3"
+          artifact_root='${{ steps.artifacts.outputs.root }}'
+          focused="$(find "$artifact_root" -type f -name focused-tests.log -print -quit)"
+          full="$(find "$artifact_root" -type f -name full-tests.log -print -quit)"
+          build="$(find "$artifact_root" -type f -name build.log -print -quit)"
+          expected="$(find "$artifact_root" -type f -path '*/fixture/expected.json' -print -quit)"
+          verification="$(find "$artifact_root" -type f -path '*/fixture/listener-verification.json' -print -quit)"
+          test -n "$focused" && test -n "$full" && test -n "$build"
+          test -n "$expected" && test -n "$verification"
+          python - "$focused" "$full" "$build" "$expected" "$verification" "$root/totals.json" <<'PY'
+          import json, re, sys
+          from pathlib import Path
+          focused, full, build, expected, verification, output = map(Path, sys.argv[1:])
+          ansi = re.compile(r'\x1b\[[0-?]*[ -/]*[@-~]')
+          def text(path): return ansi.sub('', path.read_text(errors='replace'))
+          def totals(path):
+              value = text(path)
+              files = re.findall(r'Test Files\s+(\d+) passed', value)
+              tests = re.findall(r'Tests\s+(\d+) passed', value)
+              if not files or not tests: raise SystemExit(f'unparseable totals: {path}')
+              return int(files[-1]), int(tests[-1])
+          ff, ft = totals(focused)
+          rf, rt = totals(full)
+          modules = re.findall(r'(\d+) modules transformed', text(build))
+          if not modules: raise SystemExit('unparseable build total')
+          exp = json.loads(expected.read_text())
+          ver = json.loads(verification.read_text())
+          if ver.get('ok') is not True: raise SystemExit('listener verification failed')
+          if [x for x in ver.get('findings', []) if x.get('severity') == 'error']:
+              raise SystemExit('listener verifier retained errors')
+          required = {'policies':1,'sessions':3,'ready':3,'stopped':2,'recovered':1,'activeSessions':0,'preparedSessions':0}
+          if exp.get('listenerCounts') != required: raise SystemExit('lifecycle counts differ')
+          result = {
+              'focusedFiles':ff,'focusedTests':ft,
+              'fullFiles':rf,'fullTests':rt,
+              'modules':int(modules[-1]),
+              'expected':exp,
+          }
+          Path(output).write_text(json.dumps(result, indent=2) + '\n')
+          PY
+          if find "$artifact_root" -type f \
+            \( -iname '*.key' -o -iname '*.crt' -o -iname '*.pem' -o -iname '*.csr' -o -iname '*.p12' -o -iname '*.pfx' \) \
+            | grep -q .; then exit 1; fi
+          patterns="$root/secret-patterns.txt"
+          cat > "$patterns" <<'PATTERNS'
+          BEGIN (RSA |EC |ENCRYPTED )?PRIVATE KEY
+          BEGIN CERTIFICATE( REQUEST)?
+          "(clientPrivateKeyPem|credentialPrivateKeyPem|deviceAgentPrivateKeyPem|serverPrivateKey|clientPrivateKey|credentialCertificateThumbprint|deviceAgentCertificateThumbprint|requestBodyBase64|responseBodyBase64|payload)"[[:space:]]*:
+          provider(Pin|Password|Token|Secret|Session)[[:space:]]*["=:]
+          pkcs11:[^[:space:]"']+
+          PATTERNS
+          if grep -RIEq \
+            --exclude='full-tests.log' --exclude='focused-tests.log' \
+            --exclude='windows-focused-tests.log' --exclude='build.log' \
+            --exclude='typecheck.log' --exclude='windows-typecheck.log' \
+            -f "$patterns" "$artifact_root"; then exit 1; fi
+          echo "focused_files=$(jq -r '.focusedFiles' "$root/totals.json")" >> "$GITHUB_OUTPUT"
+          echo "focused_tests=$(jq -r '.focusedTests' "$root/totals.json")" >> "$GITHUB_OUTPUT"
+          echo "full_files=$(jq -r '.fullFiles' "$root/totals.json")" >> "$GITHUB_OUTPUT"
+          echo "full_tests=$(jq -r '.fullTests' "$root/totals.json")" >> "$GITHUB_OUTPUT"
+          echo "modules=$(jq -r '.modules' "$root/totals.json")" >> "$GITHUB_OUTPUT"
+
+      - name: Publish terminal ledger
+        env:
+          TARGET_SHA: ${{ steps.target.outputs.sha }}
+          RUN_ID: ${{ steps.run.outputs.id }}
+          LINUX_ID: ${{ steps.artifacts.outputs.linux_id }}
+          LINUX_DIGEST: ${{ steps.artifacts.outputs.linux_digest }}
+          LINUX_SIZE: ${{ steps.artifacts.outputs.linux_size }}
+          WINDOWS_ID: ${{ steps.artifacts.outputs.windows_id }}
+          WINDOWS_DIGEST: ${{ steps.artifacts.outputs.windows_digest }}
+          WINDOWS_SIZE: ${{ steps.artifacts.outputs.windows_size }}
+          COMBINED_ID: ${{ steps.artifacts.outputs.combined_id }}
+          COMBINED_DIGEST: ${{ steps.artifacts.outputs.combined_digest }}
+          COMBINED_SIZE: ${{ steps.artifacts.outputs.combined_size }}
+          FOCUSED_FILES: ${{ steps.ledger.outputs.focused_files }}
+          FOCUSED_TESTS: ${{ steps.ledger.outputs.focused_tests }}
+          FULL_FILES: ${{ steps.ledger.outputs.full_files }}
+          FULL_TESTS: ${{ steps.ledger.outputs.full_tests }}
+          MODULES: ${{ steps.ledger.outputs.modules }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/observer-v3"
+          cat > "$root/body.md" <<EOF
+          This stacked draft adds the governed loopback mutual-TLS listener above the qualified authenticated broker service. Its actors are the retained broker-service policy, transport certificate and endpoint operators, listener-policy operator, authenticated client, listener process, broker-service dispatcher, provider host, native provider, and availability observer. The listener does not issue certificates, create deployments, select provider work, schedule answer work, review evidence, reconcile canon, mutate the graph, or render answers.
+
+          The exact carrier-free candidate is \`$TARGET_SHA\`, directly above \`$TARGET_BASE\`. The final diff contains exactly seven permanent surfaces and no repair, diagnostic, private-key, certificate, generated-estate, or receipt carrier.
+
+          The listener separately authenticates the exact TLS peer and the exact signed broker-service request. A listener policy binds the broker-service policy, loopback endpoint lease, server and client certificate admissions, accepted client CA, literal loopback address, explicit port, and bounded ceilings. Runtime validates transient certificate material before binding, owns and destroys every accepted or rejected TLS socket before settlement, and retains no certificate, key, payload, raw request, or raw response body.
+
+          Sessions are content addressed and idempotent. A successful bind receives \`ready\`; normal closure receives \`stopped\`; restart recovery receives \`recovered\` only after a successor binds the exact endpoint. Permanent workflow run \`$RUN_ID\` passed Linux and Windows qualification, $FOCUSED_TESTS focused tests across $FOCUSED_FILES files, the complete $FULL_TESTS-test regression across $FULL_FILES files, and the $MODULES-module production build. The lifecycle contains one policy, three sessions, three ready, two stopped, and one recovered receipt, with no active session or runtime lock. The wrong same-CA client was refused, signed-request replay reused the original request and receipt, and pinned availability passed.
+
+          Linux artifact \`$LINUX_ID\` is $LINUX_SIZE bytes with ZIP digest \`$LINUX_DIGEST\`. Windows artifact \`$WINDOWS_ID\` is $WINDOWS_SIZE bytes with ZIP digest \`$WINDOWS_DIGEST\`. Combined artifact \`$COMBINED_ID\` is $COMBINED_SIZE bytes with ZIP digest \`$COMBINED_DIGEST\`. The observer independently reproduced all ZIP digests, verified ZIP integrity, the combined checksum ledger and candidate binding, test and build totals, lifecycle counts, and secret exclusions.
+
+          Every listener object retains \`authority=none\`, \`graphEffect=none\`, \`canonEffect=none\`, and \`answerEffect=none\`. The evidence tier is exact-head typed implementation, real loopback mutual-TLS execution, signed request admission and replay, restart recovery, Linux and Windows qualification, complete regression, production build, and independently verified artifact custody. The venue is this open draft PR. The target is loopback endpoint admission and lifecycle rather than certificate issuance, deployment, scheduling, task execution, or ASOIAF truth. The upside is complete peer, request, provider, lifecycle, and availability provenance. The downside is transient credential handling, port ownership, and append-only lifecycle growth. The failure mode is accepting the wrong peer, binding beyond loopback, executing payload bytes outside the signed digest, retaining a secret, leaving sockets or locks after closure, fabricating recovery without successful bind, or treating availability as task authority.
+
+          The control question is whether every loopback TLS request can disclose the broker-service policy, endpoint lease, certificate admissions, listener policy, session, authenticated peer, signed request, provider result, lifecycle receipt, and availability observation while no listener object acquires the authority of the underlying task.
+          EOF
+          gh api --method PATCH "repos/$GITHUB_REPOSITORY/pulls/$TARGET_PR" \
+            --input <(jq -n --rawfile body "$root/body.md" '{body:$body}') >/dev/null
+          gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$TARGET_PR/comments?per_page=100" > "$root/comments.json"
+          existing="$(jq --arg marker "$TERMINAL_MARKER" '[.[] | select(.body | contains($marker))] | length' "$root/comments.json")"
+          if [ "$existing" = 0 ]; then
+            cat > "$root/comment.md" <<EOF
+          $TERMINAL_MARKER
+
+          PR #282 is terminally qualified on exact carrier-free head \`$TARGET_SHA\`. Permanent workflow run \`$RUN_ID\` passed Linux and Windows qualification, $FOCUSED_TESTS focused tests across $FOCUSED_FILES files, the complete $FULL_TESTS-test regression across $FULL_FILES files, and the $MODULES-module production build. Combined artifact \`$COMBINED_ID\` is $COMBINED_SIZE bytes with ZIP digest \`$COMBINED_DIGEST\`; the observer independently verified all platform ZIP digests, internal checksums, candidate binding, lifecycle counts, test and build totals, and secret exclusions.
+
+          The object is a governed loopback mutual-TLS endpoint and runtime-lifecycle plane. It separately authenticates the exact TLS peer and exact signed broker-service request. Three sessions produced three ready, two stopped, and one bind-before-recover receipt, with no active session or retained runtime lock. The wrong same-CA client was refused, exact replay reused the original request and receipt, and pinned availability passed.
+
+          The evidence tier is exact-head execution and independently verified artifact custody. The venue is open draft PR #282. The target is loopback endpoint admission and lifecycle rather than certificate issuance, deployment, provider selection, scheduling, research, review, graph, canon, answer authority, or ASOIAF truth. The upside is complete peer, request, provider, lifecycle, and availability provenance. The downside is transient credential handling, port ownership, and append-only lifecycle growth. The failure mode is accepting the wrong peer, retaining a secret, leaving sockets or locks after closure, fabricating recovery without successful bind, or treating availability as task authority.
+
+          The control question is whether every loopback TLS request can disclose the endpoint lease, certificate admissions, listener policy, session, authenticated peer, signed request, provider result, lifecycle receipt, and availability observation while no listener object acquires the authority of the underlying task.
+          EOF
+            gh pr comment "$TARGET_PR" --repo "$GITHUB_REPOSITORY" --body-file "$root/comment.md"
+          fi
+
+      - name: Delete successful observer branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git push origin --delete observer/asoiaf-loopback-tls-terminal-v1
+
+      - name: Publish bounded failure
+        if: failure()
+        shell: bash
+        run: |
+          set -uo pipefail
+          root="$RUNNER_TEMP/observer-v3"
+          {
+            echo 'TEMP_LOOPBACK_TLS_TERMINAL_OBSERVER_V3'
+            echo
+            echo 'The dynamic observer did not admit a stable seven-surface candidate. No terminal claim is issued.'
+            [ -f "$root/target-sha.txt" ] && echo "Target: \`$(cat "$root/target-sha.txt")\`."
+            [ -f "$root/run.json" ] && echo "Run: \`$(jq -r '.id' "$root/run.json")\`, status \`$(jq -r '.status' "$root/run.json")\`, conclusion \`$(jq -r '.conclusion' "$root/run.json")\`."
+            if [ -f "$root/jobs.tsv" ]; then
+              echo
+              echo 'Jobs:'
+              echo '```text'
+              cat "$root/jobs.tsv"
+              echo '```'
+            fi
+          } > "$root/failure.md"
+          gh pr comment "$TARGET_PR" --repo "$GITHUB_REPOSITORY" --body-file "$root/failure.md" || true

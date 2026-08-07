@@ -1,6 +1,6 @@
 {
   "name": "axm-arc",
-  "description": "AXM Arc narrative systems and typed answer-desk tooling",
+  "description": "AXM Arc narrative systems and typed answer-desk endpoint custody",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -37,7 +37,8 @@
     "asoiaf:answer-credential-deployment": "vite-node tools/asoiaf-answer-credential-deployment.ts --",
     "asoiaf:answer-credential-broker": "vite-node tools/asoiaf-answer-credential-broker.ts --",
     "asoiaf:answer-credential-provider-host": "vite-node tools/asoiaf-answer-credential-provider-host.ts --",
-    "asoiaf:answer-credential-broker-service": "vite-node tools/asoiaf-answer-credential-broker-service.ts --"
+    "asoiaf:answer-credential-broker-service": "vite-node tools/asoiaf-answer-credential-broker-service.ts --",
+    "asoiaf:answer-credential-broker-loopback-tls": "vite-node tools/asoiaf-answer-credential-broker-loopback-tls.ts --"
   },
   "dependencies": {
     "react": "^18.3.1",

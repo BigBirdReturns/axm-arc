@@ -1,0 +1,444 @@
+import crypto from "node:crypto";
+import fs from "node:fs";
+import net from "node:net";
+import path from "node:path";
+import {
+  collectorContentId,
+  sha256,
+} from "./asoiaf-external-estate.js";
+import {
+  readAsoiafAnswerCredentialBrokerStatus,
+  verifyAsoiafAnswerCredentialBrokerEstate,
+  type AsoiafAnswerCredentialBrokerPolicy,
+} from "./asoiaf-answer-credential-broker.js";
+import {
+  executeAsoiafAnswerSyntheticPossession,
+  executeAsoiafAnswerSyntheticTransport,
+  executeAsoiafAnswerWindowsCngPossession,
+  executeAsoiafAnswerWindowsCngTransport,
+  prepareAsoiafAnswerCredentialProviderInvocation,
+  readAsoiafAnswerCredentialProviderStatus,
+  verifyAsoiafAnswerCredentialProviderHostEstate,
+  type AsoiafAnswerCredentialProviderHostKind,
+  type AsoiafAnswerCredentialProviderInvocation,
+  type AsoiafAnswerCredentialProviderProfile,
+  type AsoiafAnswerCredentialProviderResult,
+  type AsoiafAnswerCredentialProviderStatus,
+} from "./asoiaf-answer-credential-provider-host.js";
+import type {
+  AsoiafAnswerTransportProofAlgorithm,
+} from "./asoiaf-answer-desk-transport-enrollment.js";
+
+export const ASOIAF_ANSWER_CREDENTIAL_BROKER_SERVICE_POLICY_FORMAT =
+  "axm-asoiaf-answer-credential-broker-service-policy/1" as const;
+export const ASOIAF_ANSWER_CREDENTIAL_BROKER_SERVICE_REQUEST_FORMAT =
+  "axm-asoiaf-answer-credential-broker-service-request/1" as const;
+export const ASOIAF_ANSWER_CREDENTIAL_BROKER_SERVICE_RECEIPT_FORMAT =
+  "axm-asoiaf-answer-credential-broker-service-receipt/1" as const;
+export const ASOIAF_ANSWER_CREDENTIAL_BROKER_SERVICE_STATE_FORMAT =
+  "axm-asoiaf-answer-credential-broker-service-state/1" as const;
+export const ASOIAF_ANSWER_CREDENTIAL_BROKER_SERVICE_WIRE_REQUEST_FORMAT =
+  "axm-asoiaf-answer-credential-broker-service-wire-request/1" as const;
+export const ASOIAF_ANSWER_CREDENTIAL_BROKER_SERVICE_WIRE_RESPONSE_FORMAT =
+  "axm-asoiaf-answer-credential-broker-service-wire-response/1" as const;
+export const ASOIAF_ANSWER_CREDENTIAL_BROKER_SERVICE_ENDPOINT_PROBE_FORMAT =
+  "axm-asoiaf-answer-credential-broker-service-endpoint-probe/1" as const;
+
+export type AsoiafAnswerCredentialBrokerServiceOperation =
+  | "prepare-provider-invocation"
+  | "execute-possession"
+  | "execute-transport";
+
+export type AsoiafAnswerCredentialBrokerServiceEndpointKind =
+  | "unix"
+  | "npipe";
+
+interface NoAuthority {
+  authority: "none";
+  graphEffect: "none";
+  canonEffect: "none";
+  answerEffect: "none";
+}
+
+const NO_AUTHORITY: NoAuthority = {
+  authority: "none",
+  graphEffect: "none",
+  canonEffect: "none",
+  answerEffect: "none",
+};
+
+export interface AsoiafAnswerCredentialBrokerServicePaths {
+  root: string;
+  serviceRoot: string;
+  policies: string;
+  requests: string;
+  receipts: string;
+  state: string;
+  lock: string;
+}
+
+export interface AsoiafAnswerCredentialBrokerServicePolicy extends NoAuthority {
+  format: typeof ASOIAF_ANSWER_CREDENTIAL_BROKER_SERVICE_POLICY_FORMAT;
+  servicePolicyId: string;
+  servicePolicyFingerprint: `sha256:${string}`;
+  brokerPolicyId: string;
+  brokerPolicyFingerprint: `sha256:${string}`;
+  providerProfileId: string;
+  providerProfileFingerprint: `sha256:${string}`;
+  deviceId: string;
+  serviceId: string;
+  providerHostKind: AsoiafAnswerCredentialProviderHostKind;
+  localEndpoint: string;
+  endpointKind: AsoiafAnswerCredentialBrokerServiceEndpointKind;
+  clientId: string;
+  clientPublicKeySpkiBase64: string;
+  clientPublicKeyFingerprint: `sha256:${string}`;
+  clientSignatureAlgorithm: AsoiafAnswerTransportProofAlgorithm;
+  allowedOperations: AsoiafAnswerCredentialBrokerServiceOperation[];
+  maxRequestLifetimeMilliseconds: number;
+  maxRequestBytes: number;
+  maxResponseBytes: number;
+  createdAt: string;
+  operatorId: string;
+  localEndpointOnly: true;
+  privateKeyRetained: false;
+  privateKeyPathRetained: false;
+  rawProviderSelectorRetained: false;
+  providerSecretRetained: false;
+  rawRequestBodyRetained: false;
+  rawResponseBodyRetained: false;
+  serviceAuthority: "local-request-admission-only";
+}
+
+interface ServiceRequestUnsigned extends NoAuthority {
+  format: typeof ASOIAF_ANSWER_CREDENTIAL_BROKER_SERVICE_REQUEST_FORMAT;
+  servicePolicyId: string;
+  servicePolicyFingerprint: `sha256:${string}`;
+  brokerPolicyId: string;
+  brokerPolicyFingerprint: `sha256:${string}`;
+  providerProfileId: string;
+  providerProfileFingerprint: `sha256:${string}`;
+  localEndpoint: string;
+  endpointKind: AsoiafAnswerCredentialBrokerServiceEndpointKind;
+  clientId: string;
+  clientPublicKeyFingerprint: `sha256:${string}`;
+  operation: AsoiafAnswerCredentialBrokerServiceOperation;
+  idempotencyKeyDigest: `sha256:${string}`;
+  payloadDigest: `sha256:${string}`;
+  payloadBytes: number;
+  issuedAt: string;
+  expiresAt: string;
+  privateKeyRetained: false;
+  privateKeyPathRetained: false;
+  rawProviderSelectorRetained: false;
+  providerSecretRetained: false;
+  rawRequestBodyRetained: false;
+  requestAuthority: "caller-request-only";
+}
+
+export interface AsoiafAnswerCredentialBrokerServiceRequest
+  extends ServiceRequestUnsigned {
+  requestId: string;
+  requestFingerprint: `sha256:${string}`;
+  signatureAlgorithm: AsoiafAnswerTransportProofAlgorithm;
+  signatureBase64: string;
+  signatureDigest: `sha256:${string}`;
+  signatureVerified: true;
+}
+
+export interface AsoiafAnswerCredentialBrokerServicePreparePayload {
+  kind: "prepare-provider-invocation";
+  brokerInvocationId: string;
+  providerIdempotencyKey: string;
+  preparedAt: string;
+  expiresAt: string;
+}
+
+export interface AsoiafAnswerCredentialBrokerServiceSyntheticPossessionPayload {
+  kind: "execute-possession";
+  hostKind: "synthetic-fixture";
+  providerInvocationId: string;
+  credentialPrivateKeyPem: string;
+  completedAt: string;
+}
+
+export interface AsoiafAnswerCredentialBrokerServiceWindowsPossessionPayload {
+  kind: "execute-possession";
+  hostKind: "windows-cng";
+  providerInvocationId: string;
+  credentialCertificateThumbprint: string;
+  completedAt: string;
+}
+
+export interface AsoiafAnswerCredentialBrokerServiceSyntheticTransportPayload {
+  kind: "execute-transport";
+  hostKind: "synthetic-fixture";
+  providerInvocationId: string;
+  deviceAgentPrivateKeyPem: string;
+  lowerRequestId: string;
+  lowerRequestFingerprint: `sha256:${string}`;
+  lowerResponseId: string;
+  lowerResponseFingerprint: `sha256:${string}`;
+  observedServerCertificateFingerprint: `sha256:${string}`;
+  observedServerIssuerFingerprint: `sha256:${string}`;
+  httpStatus: number;
+  responseBodyBase64: string;
+  providerReceiptDigest: `sha256:${string}`;
+  startedAt: string;
+  completedAt: string;
+}
+
+export interface AsoiafAnswerCredentialBrokerServiceWindowsTransportPayload {
+  kind: "execute-transport";
+  hostKind: "windows-cng";
+  providerInvocationId: string;
+  credentialCertificateThumbprint: string;
+  deviceAgentCertificateThumbprint: string;
+  requestBodyBase64: string;
+  completedAt: string;
+}
+
+export type AsoiafAnswerCredentialBrokerServicePayload =
+  | AsoiafAnswerCredentialBrokerServicePreparePayload
+  | AsoiafAnswerCredentialBrokerServiceSyntheticPossessionPayload
+  | AsoiafAnswerCredentialBrokerServiceWindowsPossessionPayload
+  | AsoiafAnswerCredentialBrokerServiceSyntheticTransportPayload
+  | AsoiafAnswerCredentialBrokerServiceWindowsTransportPayload;
+
+export interface AsoiafAnswerCredentialBrokerServiceProviderInvocationResponse {
+  kind: "provider-invocation";
+  providerReplayed: boolean;
+  invocation: AsoiafAnswerCredentialProviderInvocation;
+}
+
+export interface AsoiafAnswerCredentialBrokerServiceProviderResultResponse {
+  kind: "provider-result";
+  providerReplayed: boolean;
+  result: AsoiafAnswerCredentialProviderResult;
+}
+
+export type AsoiafAnswerCredentialBrokerServiceResponse =
+  | AsoiafAnswerCredentialBrokerServiceProviderInvocationResponse
+  | AsoiafAnswerCredentialBrokerServiceProviderResultResponse;
+
+export interface AsoiafAnswerCredentialBrokerServiceReceipt extends NoAuthority {
+  format: typeof ASOIAF_ANSWER_CREDENTIAL_BROKER_SERVICE_RECEIPT_FORMAT;
+  receiptId: string;
+  receiptFingerprint: `sha256:${string}`;
+  requestId: string;
+  requestFingerprint: `sha256:${string}`;
+  servicePolicyId: string;
+  servicePolicyFingerprint: `sha256:${string}`;
+  brokerPolicyId: string;
+  providerProfileId: string;
+  providerProfileFingerprint: `sha256:${string}`;
+  clientId: string;
+  operation: AsoiafAnswerCredentialBrokerServiceOperation;
+  idempotencyKeyDigest: `sha256:${string}`;
+  payloadDigest: `sha256:${string}`;
+  acceptedAt: string;
+  completedAt: string;
+  response: AsoiafAnswerCredentialBrokerServiceResponse;
+  responseDigest: `sha256:${string}`;
+  responseBytes: number;
+  privateKeyRetained: false;
+  privateKeyPathRetained: false;
+  rawProviderSelectorRetained: false;
+  providerSecretRetained: false;
+  rawRequestBodyRetained: false;
+  rawResponseBodyRetained: false;
+  receiptAuthority: "provider-execution-reference-only";
+}
+
+export interface AsoiafAnswerCredentialBrokerServiceStateEntry {
+  servicePolicyId: string;
+  servicePolicyFingerprint: `sha256:${string}`;
+  providerProfileId: string;
+  localEndpoint: string;
+  clientId: string;
+  latestRequestId: string | null;
+  latestRequestFingerprint: `sha256:${string}` | null;
+  latestReceiptId: string | null;
+  latestReceiptFingerprint: `sha256:${string}` | null;
+  pendingRequestIds: string[];
+  updatedAt: string;
+}
+
+export interface AsoiafAnswerCredentialBrokerServiceState extends NoAuthority {
+  format: typeof ASOIAF_ANSWER_CREDENTIAL_BROKER_SERVICE_STATE_FORMAT;
+  stateId: string;
+  stateFingerprint: `sha256:${string}`;
+  asOf: string;
+  entries: AsoiafAnswerCredentialBrokerServiceStateEntry[];
+  stateAuthority: "projection-only";
+}
+
+export interface AsoiafAnswerCredentialBrokerServiceStatus {
+  format: "axm-asoiaf-answer-credential-broker-service-status/1";
+  paths: AsoiafAnswerCredentialBrokerServicePaths;
+  policies: AsoiafAnswerCredentialBrokerServicePolicy[];
+  requests: AsoiafAnswerCredentialBrokerServiceRequest[];
+  receipts: AsoiafAnswerCredentialBrokerServiceReceipt[];
+  state: AsoiafAnswerCredentialBrokerServiceState | null;
+}
+
+export interface AsoiafAnswerCredentialBrokerServiceFinding {
+  code: string;
+  severity: "error" | "warning" | "notice";
+  subjectId: string;
+  detail: string;
+}
+
+export interface AsoiafAnswerCredentialBrokerServicePolicyInput {
+  root: string;
+  brokerPolicyId: string;
+  providerProfileId: string;
+  clientId: string;
+  clientPublicKeySpkiBase64: string;
+  allowedOperations: AsoiafAnswerCredentialBrokerServiceOperation[];
+  maxRequestLifetimeMilliseconds: number;
+  maxRequestBytes: number;
+  maxResponseBytes: number;
+  createdAt: string;
+  operatorId: string;
+}
+
+export interface AsoiafAnswerCredentialBrokerServiceRequestInput {
+  root: string;
+  servicePolicyId: string;
+  operation: AsoiafAnswerCredentialBrokerServiceOperation;
+  idempotencyKey: string;
+  payload: AsoiafAnswerCredentialBrokerServicePayload;
+  issuedAt: string;
+  expiresAt: string;
+  clientPrivateKeyPem: string;
+}
+
+export interface AsoiafAnswerCredentialBrokerServiceDispatchInput {
+  root: string;
+  request: AsoiafAnswerCredentialBrokerServiceRequest;
+  payload: AsoiafAnswerCredentialBrokerServicePayload;
+  receivedAt: string;
+  completedAt?: string;
+  powershellExecutable?: string;
+}
+
+export interface AsoiafAnswerCredentialBrokerServiceDispatchResult {
+  request: AsoiafAnswerCredentialBrokerServiceRequest;
+  receipt: AsoiafAnswerCredentialBrokerServiceReceipt;
+  response: AsoiafAnswerCredentialBrokerServiceResponse;
+  requestReplayed: boolean;
+  receiptReplayed: boolean;
+}
+
+export interface AsoiafAnswerCredentialBrokerServiceWireRequest {
+  format: typeof ASOIAF_ANSWER_CREDENTIAL_BROKER_SERVICE_WIRE_REQUEST_FORMAT;
+  request: AsoiafAnswerCredentialBrokerServiceRequest;
+  payload: AsoiafAnswerCredentialBrokerServicePayload;
+}
+
+export type AsoiafAnswerCredentialBrokerServiceWireResponse =
+  | {
+      format: typeof ASOIAF_ANSWER_CREDENTIAL_BROKER_SERVICE_WIRE_RESPONSE_FORMAT;
+      ok: true;
+      result: AsoiafAnswerCredentialBrokerServiceDispatchResult;
+    }
+  | {
+      format: typeof ASOIAF_ANSWER_CREDENTIAL_BROKER_SERVICE_WIRE_RESPONSE_FORMAT;
+      ok: false;
+      error: {
+        code: "service-request-rejected";
+        message: string;
+      };
+    };
+
+export interface AsoiafAnswerCredentialBrokerServiceServerInput {
+  root: string;
+  servicePolicyId: string;
+  maxRequests?: number;
+  powershellExecutable?: string;
+  clock?: () => string;
+}
+
+export interface AsoiafAnswerCredentialBrokerServiceServer {
+  endpoint: string;
+  endpointKind: AsoiafAnswerCredentialBrokerServiceEndpointKind;
+  address: string;
+  startedAt: string;
+  servedRequests: () => number;
+  close: () => Promise<void>;
+  closed: Promise<{
+    endpoint: string;
+    startedAt: string;
+    stoppedAt: string;
+    servedRequests: number;
+  }>;
+}
+
+export interface AsoiafAnswerCredentialBrokerServiceInvokeInput {
+  endpoint: string;
+  request: AsoiafAnswerCredentialBrokerServiceRequest;
+  payload: AsoiafAnswerCredentialBrokerServicePayload;
+  timeoutMilliseconds?: number;
+  maxResponseBytes?: number;
+}
+
+export interface AsoiafAnswerCredentialBrokerServiceEndpointProbe extends NoAuthority {
+  format: typeof ASOIAF_ANSWER_CREDENTIAL_BROKER_SERVICE_ENDPOINT_PROBE_FORMAT;
+  endpoint: string;
+  endpointKind: AsoiafAnswerCredentialBrokerServiceEndpointKind;
+  addressDigest: `sha256:${string}`;
+  challengeDigest: `sha256:${string}`;
+  responseDigest: `sha256:${string}`;
+  startedAt: string;
+  completedAt: string;
+  localEndpointOnly: true;
+  requestBodyRetained: false;
+  responseBodyRetained: false;
+  probeAuthority: "transport-health-only";
+}
+
+const MAX_REQUEST_LIFETIME = 15 * 60 * 1000;
+const MAX_REQUEST_BYTES = 4 * 1024 * 1024;
+const MAX_RESPONSE_BYTES = 8 * 1024 * 1024;
+const MAX_WIRE_OVERHEAD = 256 * 1024;
+
+function stableJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    return `{${Object.keys(record).sort().map((key) =>
+      `${JSON.stringify(key)}:${stableJson(record[key])}`).join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function stableBytes(value: unknown): Buffer {
+  return Buffer.from(stableJson(value), "utf8");
+}
+
+function bytesDigest(value: Buffer): `sha256:${string}` {
+  return `sha256:${crypto.createHash("sha256").update(value).digest("hex")}`;
+}
+
+function requireTime(value: string, label: string): string {
+  if (!value.trim() || !Number.isFinite(Date.parse(value))) {
+    throw new Error(`${label} is invalid`);
+  }
+  return new Date(value).toISOString();
+}
+
+function requireId(value: string, label: string, maximum = 1024): string {
+  const normalized = value.trim();
+  if (
+    normalized.length < 3
+    || normalized.length > maximum
+    || /[\r\n\0]/.test(normalized)
+  ) {
+    throw new Error(`${label} is invalid`);
+  }
+  return normalized;
+}
+
+function requireDigest(value: string, label: string): `sha256:${string}` {
+  const normalized = value.trim().toLowerCase();

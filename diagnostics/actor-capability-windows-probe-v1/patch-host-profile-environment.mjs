@@ -108,3 +108,5 @@ for (const marker of [
 }
 
 fs.writeFileSync(outputPath, text, "utf8");
+
+// Triggered after registering the native Windows capability workflow.

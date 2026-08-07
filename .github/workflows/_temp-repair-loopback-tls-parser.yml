@@ -32,17 +32,18 @@ jobs:
         run: |
           set -euo pipefail
           python - <<'PY'
+          import re
           from pathlib import Path
           target = Path('tools/lib/asoiaf-answer-credential-broker-loopback-tls.ts')
           text = target.read_text(encoding='utf-8')
-          old = '''          resolve(
-            parsedResponse
-              as AsoiafAnswerCredentialBrokerServiceWireResponse,
-          );'''
-          new = '''          resolve(parsedResponse as AsoiafAnswerCredentialBrokerServiceWireResponse);'''
-          if text.count(old) != 1:
+          pattern = re.compile(
+              r'resolve\(\s*parsedResponse\s+as\s+AsoiafAnswerCredentialBrokerServiceWireResponse,\s*\);'
+          )
+          replacement = 'resolve(parsedResponse as AsoiafAnswerCredentialBrokerServiceWireResponse);'
+          repaired, count = pattern.subn(replacement, text, count=1)
+          if count != 1:
               raise SystemExit('expected exactly one multiline listener response assertion')
-          target.write_text(text.replace(old, new), encoding='utf-8')
+          target.write_text(repaired, encoding='utf-8')
           PY
           git diff --check
           git config user.name 'github-actions[bot]'

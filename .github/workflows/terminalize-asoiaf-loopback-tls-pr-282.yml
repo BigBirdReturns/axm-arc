@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
-      GH_TOKEN: \${{ github.token }}
+      GH_TOKEN: ${{ github.token }}
       TARGET_PR: '282'
       TARGET_SHA: 0e90b9adf63a863f986003ec169fa81dc25514db
       TARGET_BASE: feature/asoiaf-answer-credential-broker-service-v1
@@ -310,7 +310,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ASOIAF_LOOPBACK_TLS_TERMINAL_RECEIPT_V2
-          path: \${{ runner.temp }}/terminal-v2/receipt/receipt.json
+          path: ${{ runner.temp }}/terminal-v2/receipt/receipt.json
           if-no-files-found: error
           retention-days: 30
           compression-level: 0
@@ -333,9 +333,9 @@ jobs:
 
       - name: Append body marker and post V2 ledger comment
         env:
-          RECEIPT_ARTIFACT_ID: \${{ steps.receipt.outputs.artifact-id }}
-          RECEIPT_ARTIFACT_URL: \${{ steps.receipt.outputs.artifact-url }}
-          RECEIPT_ARTIFACT_DIGEST: \${{ steps.receipt.outputs.artifact-digest }}
+          RECEIPT_ARTIFACT_ID: ${{ steps.receipt.outputs.artifact-id }}
+          RECEIPT_ARTIFACT_URL: ${{ steps.receipt.outputs.artifact-url }}
+          RECEIPT_ARTIFACT_DIGEST: ${{ steps.receipt.outputs.artifact-digest }}
         shell: bash
         run: |
           set -euo pipefail

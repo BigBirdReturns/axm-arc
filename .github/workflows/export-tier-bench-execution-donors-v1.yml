@@ -1,0 +1,196 @@
+name: Export exact Tier Bench execution donors
+
+on:
+  pull_request:
+    branches:
+      - migration/tier-bench-source-export-v1
+    paths:
+      - '.tier-bench-export-trigger'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: export-tier-bench-execution-donors-v1
+  cancel-in-progress: false
+
+jobs:
+  export:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      PRODUCT_SHA: 202fd8cfb03ec038ae0da2bfedb0bc5727b12e7d
+      LOOPBACK_SHA: 0e90b9adf63a863f986003ec169fa81dc25514db
+      WINDOWS_SHA: 2f02e948e1db34d80243831081cc50ccf4653fd4
+      EXPORT_BRANCH: migration/tier-bench-source-export-v1
+      TRIGGER_BRANCH: migration/tier-bench-source-export-v1-trigger
+    steps:
+      - name: Check out exact terminal product donor
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.PRODUCT_SHA }}
+          fetch-depth: 0
+          show-progress: false
+
+      - name: Bind trigger and exact donor objects
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$PRODUCT_SHA"
+          if test "$GITHUB_EVENT_NAME" = 'pull_request'; then
+            test '${{ github.event.pull_request.base.ref }}' = "$EXPORT_BRANCH"
+            test '${{ github.event.pull_request.head.ref }}' = "$TRIGGER_BRANCH"
+          fi
+          for sha in "$LOOPBACK_SHA" "$WINDOWS_SHA"; do
+            git fetch --no-tags origin "$sha"
+            test "$(git rev-parse "$sha^{commit}")" = "$sha"
+          done
+          test -z "$(git status --porcelain)"
+
+      - name: Export source trees, lineage, and migration census
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/tier-bench-execution-donor-export-v1"
+          mkdir -p "$root/heads"
+
+          for entry in \
+            "execution-product:$PRODUCT_SHA" \
+            "loopback-credential-service:$LOOPBACK_SHA" \
+            "windows-isolation-diagnostic:$WINDOWS_SHA"; do
+            name="${entry%%:*}"
+            sha="${entry#*:}"
+            git archive --format=tar.gz --prefix="$name/" \
+              --output "$root/heads/$name.tar.gz" "$sha"
+            git archive --format=zip --prefix="$name/" \
+              --output "$root/heads/$name.zip" "$sha"
+            git ls-tree -r --name-only "$sha" | LC_ALL=C sort \
+              > "$root/heads/$name.paths.txt"
+            git update-ref "refs/heads/export/$name" "$sha"
+          done
+
+          git bundle create "$root/axm-arc-tier-bench-donors.bundle" \
+            refs/heads/export/execution-product \
+            refs/heads/export/loopback-credential-service \
+            refs/heads/export/windows-isolation-diagnostic
+          git bundle verify "$root/axm-arc-tier-bench-donors.bundle" \
+            > "$root/BUNDLE-VERIFY.txt" 2>&1
+
+          PRODUCT_SHA="$PRODUCT_SHA" LOOPBACK_SHA="$LOOPBACK_SHA" WINDOWS_SHA="$WINDOWS_SHA" \
+          python - <<'PY' > "$root/SOURCE_HEADS.json"
+          import json, os, subprocess
+
+          heads = [
+              {
+                  "name": "execution-product",
+                  "sha": os.environ["PRODUCT_SHA"],
+                  "source": "axm-arc PR #294",
+                  "standing": "terminal Linux product donor",
+                  "destination": "BigBirdReturns/tier-bench",
+              },
+              {
+                  "name": "loopback-credential-service",
+                  "sha": os.environ["LOOPBACK_SHA"],
+                  "source": "axm-arc PR #282",
+                  "standing": "terminal V2-published orthogonal service donor",
+                  "destination": "BigBirdReturns/tier-bench",
+              },
+              {
+                  "name": "windows-isolation-diagnostic",
+                  "sha": os.environ["WINDOWS_SHA"],
+                  "source": "axm-arc PR #298",
+                  "standing": "diagnostic only; retain until clean product reproduction",
+                  "destination": "historical custody, not product ancestry",
+              },
+          ]
+          for head in heads:
+              sha = head["sha"]
+              head["tree"] = subprocess.check_output(
+                  ["git", "show", "-s", "--format=%T", sha], text=True
+              ).strip()
+              head["parents"] = subprocess.check_output(
+                  ["git", "show", "-s", "--format=%P", sha], text=True
+              ).strip().split()
+          print(json.dumps({
+              "format": "tier-bench/axm-arc-execution-donor-export@1",
+              "sourceRepository": "BigBirdReturns/axm-arc",
+              "ownershipCut": {
+                  "portableCanon": "PR #221 -> axm-canon",
+                  "asoiafLore": "PRs #224-248 -> axm-canon/asoiaf",
+                  "executionInfrastructure": "PR #249 onward -> Tier Bench",
+              },
+              "heads": heads,
+              "forbiddenDestinationMaterial": [
+                  "ASOIAF lore packets",
+                  "private book payloads",
+                  "canon authority",
+                  "Arc game-law authority",
+              ],
+              "authority": "migration-custody-only",
+              "executionAuthorized": False,
+              "cleanupAuthorized": False,
+          }, indent=2, sort_keys=True))
+          PY
+
+          python - <<'PY' > "$root/SURFACE_CENSUS.json"
+          import json, os, re, subprocess
+
+          heads = {
+              "execution-product": os.environ["PRODUCT_SHA"],
+              "loopback-credential-service": os.environ["LOOPBACK_SHA"],
+              "windows-isolation-diagnostic": os.environ["WINDOWS_SHA"],
+          }
+          patterns = [
+              re.compile(r"^\.github/workflows/asoiaf-answer-"),
+              re.compile(r"^docs/ASOIAF_ANSWER_"),
+              re.compile(r"^tools/(lib/)?asoiaf-answer-"),
+              re.compile(r"^tests/(fixtures/emit-asoiaf-answer-|narrative/canon/asoiaf-answer-)"),
+              re.compile(r"^diagnostics/actor-capability-windows-probe-v1/"),
+          ]
+          result = {}
+          for name, sha in heads.items():
+              paths = subprocess.check_output(
+                  ["git", "ls-tree", "-r", "--name-only", sha], text=True
+              ).splitlines()
+              selected = sorted(path for path in paths if any(p.search(path) for p in patterns))
+              result[name] = {
+                  "sha": sha,
+                  "selectedPathCount": len(selected),
+                  "selectedPaths": selected,
+              }
+          print(json.dumps({
+              "format": "tier-bench/axm-arc-execution-surface-census@1",
+              "heads": result,
+              "note": "Census identifies candidate execution surfaces. It does not itself authorize import, renaming, deletion, or release.",
+          }, indent=2, sort_keys=True))
+          PY
+
+          cat > "$root/MIGRATION-NOTE.md" <<'EOF'
+          # AXM Arc execution donor export
+
+          This package seals the three exact source heads needed to move the domain-neutral execution train into Tier Bench without carrying the ASOIAF lore corpus with it.
+
+          The terminal Linux product donor is PR #294. The terminal V2-published loopback credential-service donor is PR #282 and remains an orthogonal source line. PR #298 is diagnostic custody only until a clean Windows product candidate reproduces the mechanism above PR #294.
+
+          The package grants no execution, cleanup, merge, release, or migration acceptance authority. The destination must import and qualify a renamed, domain-neutral product before old `asoiaf-answer-*` branches can be closed or collapsed.
+          EOF
+
+          (
+            cd "$root"
+            find . -type f ! -name SHA256SUMS -printf '%P\0' \
+              | sort -z \
+              | xargs -0 sha256sum \
+              > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - name: Upload exact donor export
+        uses: actions/upload-artifact@v4
+        with:
+          name: tier-bench-execution-donor-export-v1
+          path: ${{ runner.temp }}/tier-bench-execution-donor-export-v1
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0

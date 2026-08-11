@@ -1,0 +1,399 @@
+name: Terminalize ASOIAF loopback TLS PR 282
+
+on:
+  push:
+    branches:
+      - observer/asoiaf-loopback-tls-terminal-v1
+    paths:
+      - '.github/workflows/terminalize-asoiaf-loopback-tls-pr-282.yml'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: terminalize-asoiaf-loopback-tls-pr-282
+  cancel-in-progress: false
+
+jobs:
+  terminalize:
+    if: github.repository == 'BigBirdReturns/axm-arc'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      GH_TOKEN: \${{ github.token }}
+      TARGET_PR: '282'
+      TARGET_SHA: 0e90b9adf63a863f986003ec169fa81dc25514db
+      TARGET_BASE: feature/asoiaf-answer-credential-broker-service-v1
+      TARGET_RUN_ID: '31204703881'
+      TERMINAL_MARKER: ASOIAF_LOOPBACK_TLS_TERMINAL_RECEIPT_V2
+      LINUX_ARTIFACT_ID: '9004546826'
+      LINUX_ARTIFACT_DIGEST: sha256:a13f2cfd50c95bfdce1d1e70b5513c55ee4e6fa068260108e322b4540542ee26
+      LINUX_ARTIFACT_SIZE: '369391'
+      WINDOWS_ARTIFACT_ID: '9004419263'
+      WINDOWS_ARTIFACT_DIGEST: sha256:a29d297074d5c280eaafa7f975baff1b0c94e89dd2b44c0ee8427b29c706e350
+      WINDOWS_ARTIFACT_SIZE: '2369'
+      COMBINED_ARTIFACT_ID: '9004551530'
+      COMBINED_ARTIFACT_DIGEST: sha256:96b8652a487227c81add95903fc85033685395a7e5083a16a0ce1366eaaac725
+      COMBINED_ARTIFACT_SIZE: '386347'
+    steps:
+      - name: Verify pinned PR topology
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/terminal-v2"
+          mkdir -p "$root"
+          cat > "$root/expected-files.txt" <<'FILES'
+          .github/workflows/asoiaf-answer-credential-broker-loopback-tls.yml
+          docs/ASOIAF_ANSWER_CREDENTIAL_BROKER_LOOPBACK_TLS.md
+          package.json
+          tests/fixtures/emit-asoiaf-answer-credential-broker-loopback-tls-input.ts
+          tests/narrative/canon/asoiaf-answer-credential-broker-loopback-tls.test.ts
+          tools/asoiaf-answer-credential-broker-loopback-tls.ts
+          tools/lib/asoiaf-answer-credential-broker-loopback-tls.ts
+          FILES
+          gh api "repos/$GITHUB_REPOSITORY/pulls/$TARGET_PR" > "$root/pr-before.json"
+          jq -e \
+            --arg sha "$TARGET_SHA" \
+            --arg base "$TARGET_BASE" \
+            '.state == "open"
+             and .draft == true
+             and .merged == false
+             and .mergeable == true
+             and .head.sha == $sha
+             and .base.ref == $base' \
+            "$root/pr-before.json" >/dev/null
+          gh api --paginate \
+            "repos/$GITHUB_REPOSITORY/pulls/$TARGET_PR/files?per_page=100" \
+            --jq '.[].filename' | sort > "$root/actual-files.txt"
+          diff -u "$root/expected-files.txt" "$root/actual-files.txt"
+
+      - name: Verify pinned permanent run and jobs
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/terminal-v2"
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$TARGET_RUN_ID" \
+            > "$root/run.json"
+          jq -e \
+            --arg sha "$TARGET_SHA" \
+            --argjson id "$TARGET_RUN_ID" \
+            '.id == $id
+             and .head_sha == $sha
+             and .event == "pull_request"
+             and .status == "completed"
+             and .conclusion == "success"' \
+            "$root/run.json" >/dev/null
+          gh api \
+            "repos/$GITHUB_REPOSITORY/actions/runs/$TARGET_RUN_ID/jobs?per_page=100" \
+            > "$root/jobs.json"
+          jq -r '.jobs[] | [.name, .status, .conclusion, (.id | tostring)] | @tsv' \
+            "$root/jobs.json" > "$root/jobs.tsv"
+          for name in linux-qualify windows-qualify combine; do
+            test "$(jq -r --arg name "$name" \
+              '[.jobs[] | select(.name == $name and .status == "completed" and .conclusion == "success")] | length' \
+              "$root/jobs.json")" = 1
+          done
+
+      - name: Download and independently verify pinned artifacts
+        id: custody
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/terminal-v2"
+          gh api \
+            "repos/$GITHUB_REPOSITORY/actions/runs/$TARGET_RUN_ID/artifacts?per_page=100" \
+            > "$root/artifacts.json"
+          verify_artifact() {
+            local name="$1"
+            local id="$2"
+            local digest="$3"
+            local size="$4"
+            test "$(jq -r --arg name "$name" \
+              '[.artifacts[] | select(.name == $name and .expired == false)] | length' \
+              "$root/artifacts.json")" = 1
+            jq -e \
+              --arg name "$name" \
+              --argjson id "$id" \
+              --arg digest "$digest" \
+              --argjson size "$size" \
+              '.artifacts[]
+               | select(.name == $name)
+               | .id == $id
+                 and .digest == $digest
+                 and .size_in_bytes == $size
+                 and .expired == false' \
+              "$root/artifacts.json" >/dev/null
+            curl --fail --location --silent --show-error \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H 'Accept: application/vnd.github+json' \
+              -H 'X-GitHub-Api-Version: 2022-11-28' \
+              "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts/$id/zip" \
+              -o "$root/$name.zip"
+            test "sha256:$(sha256sum "$root/$name.zip" | awk '{print $1}')" = "$digest"
+            unzip -t "$root/$name.zip" >/dev/null
+            mkdir -p "$root/$name"
+            unzip -q "$root/$name.zip" -d "$root/$name"
+          }
+          verify_artifact \
+            asoiaf-answer-credential-broker-loopback-tls-linux \
+            "$LINUX_ARTIFACT_ID" "$LINUX_ARTIFACT_DIGEST" "$LINUX_ARTIFACT_SIZE"
+          verify_artifact \
+            asoiaf-answer-credential-broker-loopback-tls-windows \
+            "$WINDOWS_ARTIFACT_ID" "$WINDOWS_ARTIFACT_DIGEST" "$WINDOWS_ARTIFACT_SIZE"
+          verify_artifact \
+            asoiaf-answer-credential-broker-loopback-tls-qualification \
+            "$COMBINED_ARTIFACT_ID" "$COMBINED_ARTIFACT_DIGEST" "$COMBINED_ARTIFACT_SIZE"
+
+          combined="$root/asoiaf-answer-credential-broker-loopback-tls-qualification"
+          sums="$(find "$combined" -type f -name SHA256SUMS -print -quit)"
+          candidate="$(find "$combined" -type f -name candidate-sha.txt -print -quit)"
+          test -n "$sums"
+          test -n "$candidate"
+          artifact_root="$(dirname "$sums")"
+          test "$(tr -d '\r\n' < "$candidate")" = "$TARGET_SHA"
+          (cd "$artifact_root" && sha256sum -c SHA256SUMS) \
+            > "$root/internal-sha256-verification.log"
+
+          focused="$(find "$artifact_root" -type f -name focused-tests.log -print -quit)"
+          full="$(find "$artifact_root" -type f -name full-tests.log -print -quit)"
+          build="$(find "$artifact_root" -type f -name build.log -print -quit)"
+          expected="$(find "$artifact_root" -type f -path '*/fixture/expected.json' -print -quit)"
+          verification="$(find "$artifact_root" -type f -path '*/fixture/listener-verification.json' -print -quit)"
+          test -n "$focused"
+          test -n "$full"
+          test -n "$build"
+          test -n "$expected"
+          test -n "$verification"
+          python - "$focused" "$full" "$build" "$expected" "$verification" "$root/totals.json" <<'PY'
+          import json
+          import re
+          import sys
+          from pathlib import Path
+
+          focused, full, build, expected, verification, output = map(Path, sys.argv[1:])
+          ansi = re.compile(r'\x1b\[[0-?]*[ -/]*[@-~]')
+
+          def clean(path):
+              return ansi.sub('', path.read_text(errors='replace'))
+
+          def totals(path):
+              value = clean(path)
+              files = re.findall(r'Test Files\s+(\d+) passed', value)
+              tests = re.findall(r'Tests\s+(\d+) passed', value)
+              if not files or not tests:
+                  raise SystemExit(f'unparseable Vitest totals: {path}')
+              return int(files[-1]), int(tests[-1])
+
+          focused_files, focused_tests = totals(focused)
+          full_files, full_tests = totals(full)
+          modules = re.findall(r'(\d+) modules transformed', clean(build))
+          if not modules:
+              raise SystemExit('unparseable production build total')
+          if (focused_files, focused_tests) != (16, 130):
+              raise SystemExit('focused qualification totals drifted')
+          if (full_files, full_tests) != (136, 1109):
+              raise SystemExit('complete regression totals drifted')
+          if int(modules[-1]) != 189:
+              raise SystemExit('production build module total drifted')
+
+          expected_data = json.loads(expected.read_text())
+          verification_data = json.loads(verification.read_text())
+          if verification_data.get('ok') is not True:
+              raise SystemExit('listener verification failed')
+          if [item for item in verification_data.get('findings', [])
+              if item.get('severity') == 'error']:
+              raise SystemExit('listener verifier retained errors')
+          required = {
+              'policies': 1,
+              'sessions': 3,
+              'ready': 3,
+              'stopped': 2,
+              'recovered': 1,
+              'activeSessions': 0,
+              'preparedSessions': 0,
+          }
+          if expected_data.get('listenerCounts') != required:
+              raise SystemExit('listener lifecycle counts drifted')
+          result = {
+              'focusedFiles': focused_files,
+              'focusedTests': focused_tests,
+              'fullFiles': full_files,
+              'fullTests': full_tests,
+              'modulesTransformed': int(modules[-1]),
+              'listenerCounts': required,
+          }
+          output.write_text(json.dumps(result, indent=2) + '\n')
+          PY
+
+          if find "$artifact_root" -type f \
+            \( -iname '*.key' -o -iname '*.crt' -o -iname '*.pem' \
+               -o -iname '*.csr' -o -iname '*.p12' -o -iname '*.pfx' \) \
+            | grep -q .; then
+            echo 'forbidden credential path found in qualification artifact' >&2
+            exit 1
+          fi
+          cat > "$root/secret-patterns.txt" <<'PATTERNS'
+          BEGIN (RSA |EC |ENCRYPTED )?PRIVATE KEY
+          BEGIN CERTIFICATE( REQUEST)?
+          "(clientPrivateKeyPem|credentialPrivateKeyPem|deviceAgentPrivateKeyPem|serverPrivateKey|clientPrivateKey|credentialCertificateThumbprint|deviceAgentCertificateThumbprint|requestBodyBase64|responseBodyBase64|payload)"[[:space:]]*:
+          provider(Pin|Password|Token|Secret|Session)[[:space:]]*["=:]
+          pkcs11:[^[:space:]"']+
+          PATTERNS
+          if grep -RIEq \
+            --exclude='full-tests.log' \
+            --exclude='focused-tests.log' \
+            --exclude='windows-focused-tests.log' \
+            --exclude='build.log' \
+            --exclude='typecheck.log' \
+            --exclude='windows-typecheck.log' \
+            -f "$root/secret-patterns.txt" "$artifact_root"; then
+            echo 'forbidden credential, payload, or raw-body content found' >&2
+            exit 1
+          fi
+
+      - name: Build V2 terminal receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/terminal-v2"
+          mkdir -p "$root/receipt"
+          jq -n \
+            --arg format axm-asoiaf-loopback-tls-terminal-receipt/2 \
+            --arg marker "$TERMINAL_MARKER" \
+            --arg repository "$GITHUB_REPOSITORY" \
+            --argjson pullRequest "$TARGET_PR" \
+            --arg candidateSha "$TARGET_SHA" \
+            --arg baseRef "$TARGET_BASE" \
+            --argjson qualificationRunId "$TARGET_RUN_ID" \
+            --argjson linuxArtifactId "$LINUX_ARTIFACT_ID" \
+            --arg linuxDigest "$LINUX_ARTIFACT_DIGEST" \
+            --argjson windowsArtifactId "$WINDOWS_ARTIFACT_ID" \
+            --arg windowsDigest "$WINDOWS_ARTIFACT_DIGEST" \
+            --argjson combinedArtifactId "$COMBINED_ARTIFACT_ID" \
+            --arg combinedDigest "$COMBINED_ARTIFACT_DIGEST" \
+            --slurpfile totals "$root/totals.json" \
+            '{
+              format: $format,
+              marker: $marker,
+              repository: $repository,
+              pullRequest: $pullRequest,
+              candidateSha: $candidateSha,
+              baseRef: $baseRef,
+              qualificationRunId: $qualificationRunId,
+              qualificationArtifacts: {
+                linux: {id: $linuxArtifactId, digest: $linuxDigest},
+                windows: {id: $windowsArtifactId, digest: $windowsDigest},
+                combined: {id: $combinedArtifactId, digest: $combinedDigest}
+              },
+              reconciliation: $totals[0],
+              terminalClaim: "artifact-qualified-publication-only",
+              authority: "none",
+              graphEffect: "none",
+              canonEffect: "none",
+              answerEffect: "none"
+            }' > "$root/receipt/receipt.json"
+          jq -e \
+            --arg sha "$TARGET_SHA" \
+            --argjson run "$TARGET_RUN_ID" \
+            '.candidateSha == $sha
+             and .qualificationRunId == $run
+             and .reconciliation.fullTests == 1109
+             and .reconciliation.listenerCounts.activeSessions == 0' \
+            "$root/receipt/receipt.json" >/dev/null
+
+      - name: Upload V2 terminal receipt
+        id: receipt
+        uses: actions/upload-artifact@v4
+        with:
+          name: ASOIAF_LOOPBACK_TLS_TERMINAL_RECEIPT_V2
+          path: \${{ runner.temp }}/terminal-v2/receipt/receipt.json
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+      - name: Re-read PR after receipt upload
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/terminal-v2"
+          gh api "repos/$GITHUB_REPOSITORY/pulls/$TARGET_PR" > "$root/pr-after-upload.json"
+          jq -e \
+            --arg sha "$TARGET_SHA" \
+            --arg base "$TARGET_BASE" \
+            '.state == "open"
+             and .draft == true
+             and .merged == false
+             and .head.sha == $sha
+             and .base.ref == $base' \
+            "$root/pr-after-upload.json" >/dev/null
+
+      - name: Append body marker and post V2 ledger comment
+        env:
+          RECEIPT_ARTIFACT_ID: \${{ steps.receipt.outputs.artifact-id }}
+          RECEIPT_ARTIFACT_URL: \${{ steps.receipt.outputs.artifact-url }}
+          RECEIPT_ARTIFACT_DIGEST: \${{ steps.receipt.outputs.artifact-digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/terminal-v2"
+          marker="<!-- $TERMINAL_MARKER candidate=$TARGET_SHA qualification_run=$TARGET_RUN_ID receipt_artifact=$RECEIPT_ARTIFACT_ID -->"
+          current_body="$(jq -r '.body // ""' "$root/pr-after-upload.json")"
+          if ! grep -Fq "$TERMINAL_MARKER" <<<"$current_body"; then
+            printf '%s\n\n%s\n' "$current_body" "$marker" > "$root/body-with-marker.md"
+            gh api --method PATCH \
+              "repos/$GITHUB_REPOSITORY/pulls/$TARGET_PR" \
+              --input <(jq -n --rawfile body "$root/body-with-marker.md" '{body: $body}') \
+              >/dev/null
+          fi
+
+          gh api --paginate \
+            "repos/$GITHUB_REPOSITORY/issues/$TARGET_PR/comments?per_page=100" \
+            > "$root/comments-before.json"
+          count="$(jq --arg marker "$TERMINAL_MARKER" \
+            '[.[] | select(.body | contains($marker))] | length' \
+            "$root/comments-before.json")"
+          test "$count" -le 1
+          if [ "$count" = 0 ]; then
+            cat > "$root/comment.md" <<EOF
+          $TERMINAL_MARKER
+
+          PR #282 is terminally published on exact carrier-free head \`$TARGET_SHA\`, directly above \`$TARGET_BASE\`. Permanent qualification run \`$TARGET_RUN_ID\` passed Linux and Windows qualification, 130 focused tests across 16 files, the complete 1,109-test regression across 136 files, and the 189-module production build.
+
+          Qualification artifacts remain bound as Linux \`$LINUX_ARTIFACT_ID\` / \`$LINUX_ARTIFACT_DIGEST\`, Windows \`$WINDOWS_ARTIFACT_ID\` / \`$WINDOWS_ARTIFACT_DIGEST\`, and combined \`$COMBINED_ARTIFACT_ID\` / \`$COMBINED_ARTIFACT_DIGEST\`. The terminal observer independently reproduced all three ZIP digests, verified ZIP integrity, the combined checksum ledger and candidate SHA, lifecycle counts, test and build totals, and credential, payload, and raw-body exclusions.
+
+          Terminal receipt artifact \`$RECEIPT_ARTIFACT_ID\` has digest \`$RECEIPT_ARTIFACT_DIGEST\`: $RECEIPT_ARTIFACT_URL
+
+          This closes the artifact-qualified publication ledger only. It grants no certificate issuance, deployment, provider-selection, scheduling, research, review, graph, canon, answer, or ASOIAF-truth authority.
+          EOF
+            gh pr comment "$TARGET_PR" \
+              --repo "$GITHUB_REPOSITORY" \
+              --body-file "$root/comment.md"
+          fi
+
+      - name: Verify both live V2 markers
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/terminal-v2"
+          gh api "repos/$GITHUB_REPOSITORY/pulls/$TARGET_PR" > "$root/pr-final.json"
+          jq -e --arg marker "$TERMINAL_MARKER" \
+            '(.body // "") | contains($marker)' "$root/pr-final.json" >/dev/null
+          gh api --paginate \
+            "repos/$GITHUB_REPOSITORY/issues/$TARGET_PR/comments?per_page=100" \
+            > "$root/comments-final.json"
+          test "$(jq --arg marker "$TERMINAL_MARKER" \
+            '[.[] | select(.body | contains($marker))] | length' \
+            "$root/comments-final.json")" = 1
+          jq -e \
+            --arg marker "$TERMINAL_MARKER" \
+            --arg sha "$TARGET_SHA" \
+            --arg run "$TARGET_RUN_ID" \
+            '.[] | select(
+              (.body | contains($marker))
+              and (.body | contains($sha))
+              and (.body | contains($run))
+            )' "$root/comments-final.json" >/dev/null

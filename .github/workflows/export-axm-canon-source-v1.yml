@@ -6,6 +6,11 @@ on:
       - migration/axm-canon-source-export-v1
     paths:
       - '.github/workflows/export-axm-canon-source-v1.yml'
+  pull_request:
+    branches:
+      - migration/axm-canon-source-export-v1
+    paths:
+      - '.axm-canon-export-trigger'
   workflow_dispatch:
 
 permissions:
@@ -17,26 +22,34 @@ concurrency:
 
 jobs:
   export:
+    if: >-
+      github.repository == 'BigBirdReturns/axm-arc' &&
+      (github.event_name != 'pull_request' ||
+       github.event.pull_request.head.ref == 'migration/axm-canon-source-export-v1-trigger')
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
       SOURCE_SHA: a424521e3a7a1c9f7c7f707298f179758daf3d27
       EXPORT_BRANCH: migration/axm-canon-source-export-v1
+      TRIGGER_BRANCH: migration/axm-canon-source-export-v1-trigger
     steps:
-      - name: Check out disposable export carrier
+      - name: Check out exact pre-Tier Bench source
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ env.SOURCE_SHA }}
           fetch-depth: 0
           show-progress: false
 
-      - name: Bind carrier and exact source parent
+      - name: Bind trigger and exact source
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD^)" = "$SOURCE_SHA"
-          test "$(git diff --name-only "$SOURCE_SHA" HEAD)" = '.github/workflows/export-axm-canon-source-v1.yml'
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
           test -z "$(git status --porcelain)"
+          if test "$GITHUB_EVENT_NAME" = 'pull_request'; then
+            test '${{ github.event.pull_request.base.ref }}' = "$EXPORT_BRANCH"
+            test '${{ github.event.pull_request.head.ref }}' = "$TRIGGER_BRANCH"
+          fi
 
       - name: Export exact source tree and provenance
         shell: bash

@@ -1,0 +1,81 @@
+name: Export exact pre-Tier Bench canon source
+
+on:
+  push:
+    branches:
+      - migration/axm-canon-source-export-v1
+    paths:
+      - '.github/workflows/export-axm-canon-source-v1.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: export-axm-canon-source-v1
+  cancel-in-progress: false
+
+jobs:
+  export:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      SOURCE_SHA: a424521e3a7a1c9f7c7f707298f179758daf3d27
+      EXPORT_BRANCH: migration/axm-canon-source-export-v1
+    steps:
+      - name: Check out disposable export carrier
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          show-progress: false
+
+      - name: Bind carrier and exact source parent
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "$SOURCE_SHA"
+          test "$(git diff --name-only "$SOURCE_SHA" HEAD)" = '.github/workflows/export-axm-canon-source-v1.yml'
+          test -z "$(git status --porcelain)"
+
+      - name: Export exact source tree and provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/axm-canon-source-export-v1"
+          mkdir -p "$root"
+          git archive --format=tar.gz --prefix=axm-arc-pre-tier-bench/ \
+            --output "$root/axm-arc-pre-tier-bench.tar.gz" "$SOURCE_SHA"
+          git archive --format=zip --prefix=axm-arc-pre-tier-bench/ \
+            --output "$root/axm-arc-pre-tier-bench.zip" "$SOURCE_SHA"
+          git ls-tree -r --name-only "$SOURCE_SHA" | LC_ALL=C sort > "$root/PATHS.txt"
+          SOURCE_SHA="$SOURCE_SHA" python - <<'PY' > "$root/SOURCE_EXPORT.json"
+          import json, os, subprocess
+          sha = os.environ['SOURCE_SHA']
+          parent = subprocess.check_output(['git', 'show', '-s', '--format=%P', sha], text=True).strip()
+          tree = subprocess.check_output(['git', 'show', '-s', '--format=%T', sha], text=True).strip()
+          print(json.dumps({
+              'format': 'axm-canon-source-export/1',
+              'sourceRepository': 'BigBirdReturns/axm-arc',
+              'sourceCommit': sha,
+              'sourceTree': tree,
+              'sourceParents': parent.split(),
+              'cut': 'PRs 221-248 inclusive; PR 249 and later excluded as Tier Bench',
+              'authority': 'migration-custody-only',
+              'graphEffect': 'none',
+              'canonEffect': 'none'
+          }, indent=2, sort_keys=True))
+          PY
+          (
+            cd "$root"
+            sha256sum axm-arc-pre-tier-bench.tar.gz axm-arc-pre-tier-bench.zip PATHS.txt SOURCE_EXPORT.json > SHA256SUMS
+          )
+
+      - name: Upload exact source export
+        uses: actions/upload-artifact@v4
+        with:
+          name: axm-canon-pre-tier-bench-source-v1
+          path: ${{ runner.temp }}/axm-canon-source-export-v1
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0

@@ -1,0 +1,68 @@
+name: Export exact canon test dependencies
+
+on:
+  pull_request:
+    branches:
+      - migration/axm-canon-source-export-v1
+    paths:
+      - '.axm-canon-deps-trigger'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: export-axm-canon-test-dependencies
+  cancel-in-progress: false
+
+jobs:
+  export:
+    if: >-
+      github.repository == 'BigBirdReturns/axm-arc' &&
+      (github.event_name != 'pull_request' ||
+       github.event.pull_request.head.ref == 'migration/axm-canon-source-export-v1-trigger')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      SOURCE_SHA: a424521e3a7a1c9f7c7f707298f179758daf3d27
+    steps:
+      - name: Check out exact pre-Tier Bench lore head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          fetch-depth: 1
+          show-progress: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install exact dependency tree
+        run: npm ci --no-audit --no-fund
+
+      - name: Pack reusable dependency custody
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/axm-canon-test-dependencies"
+          mkdir -p "$root"
+          tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner \
+            -cf - node_modules | gzip -n > "$root/node_modules.tar.gz"
+          printf '%s\n' "$SOURCE_SHA" > "$root/source-sha.txt"
+          node --version > "$root/node-version.txt"
+          npm --version > "$root/npm-version.txt"
+          cp package-lock.json "$root/source-package-lock.json"
+          (
+            cd "$root"
+            sha256sum node_modules.tar.gz source-sha.txt node-version.txt npm-version.txt source-package-lock.json > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: axm-canon-test-dependencies
+          path: ${{ runner.temp }}/axm-canon-test-dependencies
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0

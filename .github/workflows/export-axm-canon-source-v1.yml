@@ -76,7 +76,10 @@ jobs:
             git ls-tree -r --name-only "$sha" | LC_ALL=C sort > "$root/heads/$name.paths.txt"
             git update-ref "refs/migration/$name" "$sha"
           done
-          git bundle create "$root/axm-canon-material-heads.bundle" 'refs/migration/*'
+          git bundle create "$root/axm-canon-material-heads.bundle" \
+            refs/migration/integrated-lore \
+            refs/migration/private-edition-retrieval \
+            refs/migration/structured-public-acquisition
           python - <<'PY' > "$root/SOURCE_HEADS.json"
           import json
           print(json.dumps({

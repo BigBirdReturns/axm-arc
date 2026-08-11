@@ -27,68 +27,106 @@ jobs:
       (github.event_name != 'pull_request' ||
        github.event.pull_request.head.ref == 'migration/axm-canon-source-export-v1-trigger')
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
     env:
-      SOURCE_SHA: a424521e3a7a1c9f7c7f707298f179758daf3d27
+      INTEGRATED_SHA: a424521e3a7a1c9f7c7f707298f179758daf3d27
+      PRIVATE_SHA: 777b7230f6cbc0555a5e286ac07c8d0f94671543
+      PUBLIC_SHA: 0b502bbeaf4e0e91c5075243f019e5975d860e9e
       EXPORT_BRANCH: migration/axm-canon-source-export-v1
       TRIGGER_BRANCH: migration/axm-canon-source-export-v1-trigger
     steps:
-      - name: Check out exact pre-Tier Bench source
+      - name: Check out exact integrated lore head
         uses: actions/checkout@v4
         with:
-          ref: ${{ env.SOURCE_SHA }}
+          ref: ${{ env.INTEGRATED_SHA }}
           fetch-depth: 0
           show-progress: false
 
-      - name: Bind trigger and exact source
+      - name: Bind trigger and fetch exact sibling heads
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          test "$(git rev-parse HEAD)" = "$INTEGRATED_SHA"
           test -z "$(git status --porcelain)"
           if test "$GITHUB_EVENT_NAME" = 'pull_request'; then
             test '${{ github.event.pull_request.base.ref }}' = "$EXPORT_BRANCH"
             test '${{ github.event.pull_request.head.ref }}' = "$TRIGGER_BRANCH"
           fi
+          for sha in "$PRIVATE_SHA" "$PUBLIC_SHA"; do
+            git fetch --no-tags origin "$sha"
+            test "$(git rev-parse "$sha^{commit}")" = "$sha"
+          done
 
-      - name: Export exact source tree and provenance
+      - name: Export exact material trees and provenance
         shell: bash
         run: |
           set -euo pipefail
-          root="$RUNNER_TEMP/axm-canon-source-export-v1"
-          mkdir -p "$root"
-          git archive --format=tar.gz --prefix=axm-arc-pre-tier-bench/ \
-            --output "$root/axm-arc-pre-tier-bench.tar.gz" "$SOURCE_SHA"
-          git archive --format=zip --prefix=axm-arc-pre-tier-bench/ \
-            --output "$root/axm-arc-pre-tier-bench.zip" "$SOURCE_SHA"
-          git ls-tree -r --name-only "$SOURCE_SHA" | LC_ALL=C sort > "$root/PATHS.txt"
-          SOURCE_SHA="$SOURCE_SHA" python - <<'PY' > "$root/SOURCE_EXPORT.json"
-          import json, os, subprocess
-          sha = os.environ['SOURCE_SHA']
-          parent = subprocess.check_output(['git', 'show', '-s', '--format=%P', sha], text=True).strip()
-          tree = subprocess.check_output(['git', 'show', '-s', '--format=%T', sha], text=True).strip()
+          root="$RUNNER_TEMP/axm-canon-source-export-v2"
+          mkdir -p "$root/heads"
+          for entry in \
+            "integrated-lore:$INTEGRATED_SHA" \
+            "private-edition-retrieval:$PRIVATE_SHA" \
+            "structured-public-acquisition:$PUBLIC_SHA"; do
+            name="${entry%%:*}"
+            sha="${entry#*:}"
+            git archive --format=tar.gz --prefix="$name/" \
+              --output "$root/heads/$name.tar.gz" "$sha"
+            git archive --format=zip --prefix="$name/" \
+              --output "$root/heads/$name.zip" "$sha"
+            git ls-tree -r --name-only "$sha" | LC_ALL=C sort > "$root/heads/$name.paths.txt"
+            git update-ref "refs/migration/$name" "$sha"
+          done
+          git bundle create "$root/axm-canon-material-heads.bundle" 'refs/migration/*'
+          python - <<'PY' > "$root/SOURCE_HEADS.json"
+          import json
           print(json.dumps({
-              'format': 'axm-canon-source-export/1',
-              'sourceRepository': 'BigBirdReturns/axm-arc',
-              'sourceCommit': sha,
-              'sourceTree': tree,
-              'sourceParents': parent.split(),
-              'cut': 'PRs 221-248 inclusive; PR 249 and later excluded as Tier Bench',
-              'authority': 'migration-custody-only',
-              'graphEffect': 'none',
-              'canonEffect': 'none'
+            'format': 'axm-canon-source-heads/2',
+            'sourceRepository': 'BigBirdReturns/axm-arc',
+            'ownershipCut': {
+              'canonCore': 'PR 221',
+              'asoiafLore': 'PRs 224-248, excluding disposable carriers and unrelated PR 245',
+              'tierBench': 'PR 249 and later'
+            },
+            'materialHeads': [
+              {'name':'integrated-lore','sha':'a424521e3a7a1c9f7c7f707298f179758daf3d27','source':'PR 248'},
+              {'name':'private-edition-retrieval','sha':'777b7230f6cbc0555a5e286ac07c8d0f94671543','source':'PR 238, including PR 234'},
+              {'name':'structured-public-acquisition','sha':'0b502bbeaf4e0e91c5075243f019e5975d860e9e','source':'PR 242, including PRs 236 and 239'}
+            ],
+            'qualifiedLineage': {
+              '221':'89b412f1b635267478661500e2d0cfdb31f13429',
+              '224':'2f9f94473272f4a4b26473ff78cb10a31a09ba3b',
+              '225':'8098cea50fe79ec0bd8ae4d8b277813263ad500e',
+              '226':'46d0ddf43b2bc4e498b8ea1bdde86a69bfeb7e4e',
+              '229':'e8b317b8a9c843a25d53511bd3e7aeed8fbc6761',
+              '231':'fc1547347c36bb5f3cbba879b3560dd53aa12e5f',
+              '232':'b0f85019ab35d542697918bf5c2298275029cdeb',
+              '233':'cc5447aec51717497fe48eb0083c4d68a49c6ee6',
+              '234':'ddc0f5cbc0232273764f6489f1389a14a6afa925',
+              '236':'e2eeb50210fc45c1b6561e68e47dfa84b30018f0',
+              '238':'777b7230f6cbc0555a5e286ac07c8d0f94671543',
+              '239':'d1e15c97dd5b51d521ab277378cefe29b29d3daf',
+              '242':'0b502bbeaf4e0e91c5075243f019e5975d860e9e',
+              '243':'747bb7400675dd4f0855c3fe29a19b4008ef5552',
+              '247':'9675ed92f9c244cf4661bc13128629efbacf1307',
+              '248':'a424521e3a7a1c9f7c7f707298f179758daf3d27'
+            },
+            'discardedCarriers': [235,237,240,241,246],
+            'unrelatedInsideNumberRange': [245],
+            'authority': 'migration-custody-only',
+            'graphEffect': 'none',
+            'canonEffect': 'none'
           }, indent=2, sort_keys=True))
           PY
           (
             cd "$root"
-            sha256sum axm-arc-pre-tier-bench.tar.gz axm-arc-pre-tier-bench.zip PATHS.txt SOURCE_EXPORT.json > SHA256SUMS
+            find . -type f ! -name SHA256SUMS -printf '%P\0' | sort -z | xargs -0 sha256sum > SHA256SUMS
           )
 
       - name: Upload exact source export
         uses: actions/upload-artifact@v4
         with:
-          name: axm-canon-pre-tier-bench-source-v1
-          path: ${{ runner.temp }}/axm-canon-source-export-v1
+          name: axm-canon-pre-tier-bench-source-v2
+          path: ${{ runner.temp }}/axm-canon-source-export-v2
           if-no-files-found: error
           retention-days: 30
           compression-level: 0

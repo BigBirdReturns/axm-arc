@@ -1,0 +1,7 @@
+format=axm-arc-axm-canon-export-refresh-trigger/2
+source-run-1=31487125477
+source-run-2=31488623085
+expected-source-artifact-1=9099542397
+expected-source-artifact-2=9100108672
+expand=nested-zip,gzip,zstd,tar
+retrigger=recovery/axm-canon-public-corpus-v1:.recovery/AXM_CANON_PUBLIC_CORPUS_V2_READY

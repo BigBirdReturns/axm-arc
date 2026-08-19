@@ -1,0 +1,379 @@
+name: Recover axm-canon public corpus from all retained Git custody
+
+on:
+  push:
+    branches:
+      - "recovery/axm-canon-public-corpus-v1"
+    paths:
+      - ".recovery/AXM_CANON_PUBLIC_CORPUS_V2_READY"
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: axm-arc-axm-canon-public-corpus-recovery-v2
+  cancel-in-progress: false
+
+jobs:
+  recover:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 210
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install archive dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v zstd >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends zstd
+          fi
+          zstd --version
+
+      - name: Acquire manifests, artifacts, branches, and pull-request refs
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test -f .recovery/AXM_CANON_PUBLIC_CORPUS_V2_READY
+          root="$RUNNER_TEMP/axm-canon-public-corpus-recovery-v2"
+          mkdir -p "$root/downloads" "$root/repos"
+
+          git clone --quiet --no-checkout https://github.com/BigBirdReturns/axm-canon.git "$root/repos/axm-canon"
+          git -C "$root/repos/axm-canon" fetch --quiet origin \
+            '+refs/heads/*:refs/remotes/origin/*' \
+            '+refs/tags/*:refs/tags/*' \
+            '+refs/pull/*/head:refs/remotes/pull/*/head' || true
+          git -C "$root/repos/axm-canon" show 'refs/remotes/origin/asoiaf/public-corpus-v1-carrier:carrier/FILES.txt' > "$root/FILES.txt"
+          git -C "$root/repos/axm-canon" show 'refs/remotes/origin/asoiaf/public-corpus-v1-carrier:carrier/FILES.SHA256SUMS' > "$root/FILES.SHA256SUMS"
+          git -C "$root/repos/axm-canon" show 'refs/remotes/origin/asoiaf/public-corpus-v1-carrier:carrier/TRANSPORT.json' > "$root/TRANSPORT.json" || true
+          test "$(wc -l < "$root/FILES.txt")" = '32'
+          test "$(wc -l < "$root/FILES.SHA256SUMS")" = '32'
+
+          git clone --quiet --mirror https://github.com/BigBirdReturns/axm-arc.git "$root/repos/axm-arc.git"
+          git -C "$root/repos/axm-arc.git" fetch --quiet origin \
+            '+refs/heads/*:refs/heads/*' \
+            '+refs/tags/*:refs/tags/*' \
+            '+refs/pull/*/head:refs/pull/*/head' || true
+
+          printf '%s\n' 9099542397 9100108672 > "$root/requested-artifact-ids.txt"
+          gh api --paginate "repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100" \
+            --jq '.artifacts[] | select(.expired == false) | [.id,.name,.size_in_bytes,.created_at] | @tsv' \
+            > "$root/available-artifacts.tsv"
+          awk -F '\t' 'BEGIN{IGNORECASE=1} $2 ~ /(asoiaf|canon|carrier|source|migration|export|estate|corpus)/ {print $1}' \
+            "$root/available-artifacts.tsv" | head -n 80 >> "$root/requested-artifact-ids.txt"
+          sort -u "$root/requested-artifact-ids.txt" -o "$root/requested-artifact-ids.txt"
+          : > "$root/download-ledger.tsv"
+          while IFS= read -r id; do
+            [ -n "$id" ] || continue
+            target="$root/downloads/artifact-$id.zip"
+            http="$(curl -L --silent --show-error --output "$target" --write-out '%{http_code}' \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H 'Accept: application/vnd.github+json' \
+              -H 'X-GitHub-Api-Version: 2022-11-28' \
+              "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts/$id/zip" || true)"
+            if [ "$http" = '200' ] && [ -s "$target" ]; then
+              printf '%s\tPASS\t%s\t%s\n' "$id" "$(wc -c < "$target")" "$(sha256sum "$target" | cut -d' ' -f1)" >> "$root/download-ledger.tsv"
+            else
+              rm -f "$target"
+              printf '%s\tFAIL\t%s\t-\n' "$id" "$http" >> "$root/download-ledger.tsv"
+            fi
+          done < "$root/requested-artifact-ids.txt"
+          printf 'RECOVERY_ROOT=%s\n' "$root" >> "$GITHUB_ENV"
+
+      - name: Resolve exact file set across artifacts and all reachable Git objects
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+
+          import base64
+          import gzip
+          import hashlib
+          import io
+          import json
+          import os
+          import pathlib
+          import shutil
+          import subprocess
+          import tarfile
+          import zipfile
+
+          ROOT = pathlib.Path(os.environ['RECOVERY_ROOT'])
+          OUTPUT = pathlib.Path('recovery/public-corpus-v1')
+          EXPECTED_B64_BYTES = 826356
+          EXPECTED_B64_SHA = 'd4151d244b0541be1dbb1a1ef5a5ed7c4c808ba11d0ad494450acc58b11e6eaa'
+          EXPECTED_ZST_BYTES = 619766
+          EXPECTED_ZST_SHA = 'a545ed4384238f329f6fa6e6be2dd25150ac3377837defd3e06d26eabdea2476'
+          EXPECTED_TAR_BYTES = 8017920
+          EXPECTED_TAR_SHA = '9b66aff01f12ae3e6f018fd1c5ccd1d9b1fd96810da4343b3d11e3f69bfaab84'
+
+          def sha256(data: bytes) -> str:
+              return hashlib.sha256(data).hexdigest()
+
+          def safe_rel(name: str) -> pathlib.PurePosixPath:
+              path = pathlib.PurePosixPath(name)
+              if path.is_absolute() or '..' in path.parts:
+                  raise ValueError(f'unsafe path: {name}')
+              return path
+
+          expected_paths = (ROOT / 'FILES.txt').read_text().splitlines()
+          expected: dict[str, str] = {}
+          for line in (ROOT / 'FILES.SHA256SUMS').read_text().splitlines():
+              digest, path = line.split('  ', 1)
+              expected[path] = digest
+          if sorted(expected) != sorted(expected_paths) or len(expected) != 32:
+              raise SystemExit('manifest pair is not an exact 32-file inventory')
+          wanted = set(expected.values())
+
+          payloads: list[tuple[str, bytes]] = []
+          seen_payloads: set[str] = set()
+          expanded_rows: list[dict[str, object]] = []
+          queue: list[tuple[str, str, bytes, int]] = []
+          for path in sorted((ROOT / 'downloads').glob('*.zip')):
+              queue.append((path.name, path.name, path.read_bytes(), 0))
+          total = 0
+          while queue:
+              origin, name, data, depth = queue.pop(0)
+              digest = sha256(data)
+              if digest in seen_payloads:
+                  continue
+              seen_payloads.add(digest)
+              total += len(data)
+              if total > 6_000_000_000 or len(expanded_rows) > 150_000:
+                  raise SystemExit('artifact expansion limit exceeded')
+              label = f'artifact:{origin}:{name}'
+              payloads.append((label, data))
+              expanded_rows.append({'label': label, 'bytes': len(data), 'sha256': digest, 'depth': depth})
+              if depth >= 6:
+                  continue
+              try:
+                  if data.startswith(b'PK\x03\x04'):
+                      with zipfile.ZipFile(io.BytesIO(data)) as archive:
+                          for member in archive.infolist():
+                              if member.is_dir():
+                                  continue
+                              safe_rel(member.filename)
+                              if member.file_size <= 1_500_000_000:
+                                  queue.append((label, member.filename, archive.read(member), depth + 1))
+                      continue
+                  if data.startswith(b'\x1f\x8b'):
+                      queue.append((label, name.removesuffix('.gz'), gzip.decompress(data), depth + 1))
+                      continue
+                  if data.startswith(b'\x28\xb5\x2f\xfd'):
+                      source = ROOT / 'nested-input.zst'
+                      target = ROOT / 'nested-output'
+                      source.write_bytes(data)
+                      subprocess.run(['zstd', '-d', '-f', str(source), '-o', str(target)], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                      queue.append((label, name.removesuffix('.zst'), target.read_bytes(), depth + 1))
+                      source.unlink(missing_ok=True)
+                      target.unlink(missing_ok=True)
+                      continue
+                  if len(data) >= 512:
+                      try:
+                          with tarfile.open(fileobj=io.BytesIO(data), mode='r:*') as archive:
+                              for member in archive.getmembers():
+                                  safe_rel(member.name)
+                                  if member.isfile() and not member.issym() and not member.islnk():
+                                      source = archive.extractfile(member)
+                                      if source is not None:
+                                          queue.append((label, member.name, source.read(), depth + 1))
+                      except tarfile.TarError:
+                          pass
+              except Exception:
+                  pass
+          (ROOT / 'expanded-inventory.json').write_text(json.dumps(expanded_rows, indent=2) + '\n')
+
+          found: dict[str, tuple[str, bytes]] = {}
+          carrier: tuple[str, bytes] | None = None
+
+          def inspect(label: str, data: bytes) -> None:
+              nonlocal carrier
+              digest = sha256(data)
+              if digest in wanted and digest not in found:
+                  found[digest] = (label, data)
+              if carrier is not None:
+                  return
+              if len(data) == EXPECTED_ZST_BYTES and digest == EXPECTED_ZST_SHA:
+                  carrier = (label + ':compressed', data)
+                  return
+              canonical = b''.join(data.split())
+              if len(canonical) == EXPECTED_B64_BYTES and sha256(canonical) == EXPECTED_B64_SHA:
+                  try:
+                      decoded = base64.b64decode(canonical, validate=True)
+                  except Exception:
+                      return
+                  if len(decoded) == EXPECTED_ZST_BYTES and sha256(decoded) == EXPECTED_ZST_SHA:
+                      carrier = (label + ':base64', decoded)
+
+          for label, data in payloads:
+              inspect(label, data)
+
+          def scan_repo(repo: pathlib.Path, label: str) -> None:
+              objects = []
+              for row in subprocess.check_output(['git', 'rev-list', '--objects', '--all'], cwd=repo, text=True).splitlines():
+                  objects.append(row.split(' ', 1)[0])
+              objects = list(dict.fromkeys(objects))
+              proc = subprocess.Popen(
+                  ['git', 'cat-file', '--batch'], cwd=repo,
+                  stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+              )
+              assert proc.stdin is not None and proc.stdout is not None
+              try:
+                  for oid in objects:
+                      proc.stdin.write((oid + '\n').encode())
+                      proc.stdin.flush()
+                      header = proc.stdout.readline().decode().rstrip('\n')
+                      parts = header.split()
+                      if len(parts) < 3 or parts[1] != 'blob':
+                          if len(parts) >= 3:
+                              size = int(parts[2]); proc.stdout.read(size); proc.stdout.read(1)
+                          continue
+                      size = int(parts[2])
+                      data = proc.stdout.read(size)
+                      proc.stdout.read(1)
+                      if size <= 20_000_000:
+                          inspect(f'git:{label}:{oid}', data)
+                      if len(found) == len(wanted) and carrier is not None:
+                          break
+              finally:
+                  proc.stdin.close()
+                  proc.terminate()
+                  proc.wait(timeout=30)
+
+          scan_repo(ROOT / 'repos' / 'axm-canon', 'axm-canon-all-refs')
+          if len(found) < len(wanted) or carrier is None:
+              scan_repo(ROOT / 'repos' / 'axm-arc.git', 'axm-arc-all-refs-and-prs')
+
+          if OUTPUT.exists():
+              shutil.rmtree(OUTPUT)
+          files_root = OUTPUT / 'files'
+          files_root.mkdir(parents=True)
+          inventory: list[dict[str, object]] = []
+          mechanism: dict[str, object]
+
+          if carrier is not None:
+              label, compressed = carrier
+              zst = ROOT / 'carrier.tar.zst'
+              tar_path = ROOT / 'carrier.tar'
+              zst.write_bytes(compressed)
+              subprocess.run(['zstd', '-d', '-f', str(zst), '-o', str(tar_path)], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+              tar_bytes = tar_path.read_bytes()
+              if len(tar_bytes) != EXPECTED_TAR_BYTES or sha256(tar_bytes) != EXPECTED_TAR_SHA:
+                  raise SystemExit('authenticated compressed carrier did not yield authenticated tar')
+              with tarfile.open(tar_path, 'r:') as archive:
+                  members = archive.getmembers()
+                  if len(members) != 32:
+                      raise SystemExit(f'expected 32 carrier files, observed {len(members)}')
+                  for member in members:
+                      path = safe_rel(member.name)
+                      if not member.isfile() or member.issym() or member.islnk():
+                          raise SystemExit(f'non-regular carrier member: {member.name}')
+                      source = archive.extractfile(member)
+                      if source is None:
+                          raise SystemExit(f'unreadable carrier member: {member.name}')
+                      data = source.read()
+                      target = files_root.joinpath(*path.parts)
+                      target.parent.mkdir(parents=True, exist_ok=True)
+                      target.write_bytes(data)
+                      target.chmod(member.mode & 0o777)
+                      inventory.append({'path': member.name, 'bytes': len(data), 'sha256': sha256(data), 'mode': oct(member.mode & 0o777), 'source': label})
+              mechanism = {'class': 'exact-carrier-recovery', 'source': label, 'carrierArchiveReconstructed': True}
+          else:
+              missing = {path: digest for path, digest in expected.items() if digest not in found}
+              if missing:
+                  diagnostic = {
+                      'format': 'axm-arc-axm-canon-public-corpus-recovery-diagnostic/2',
+                      'result': 'FAIL',
+                      'resolvedFileCount': len(expected) - len(missing),
+                      'missing': missing,
+                      'downloadLedger': (ROOT / 'download-ledger.tsv').read_text().splitlines(),
+                      'expandedObjectCount': len(expanded_rows),
+                  }
+                  pathlib.Path('recovery/public-corpus-v1-diagnostic.json').write_text(json.dumps(diagnostic, indent=2) + '\n')
+                  raise SystemExit(f'{len(missing)} exact file digests remain unresolved')
+              for path, digest in expected.items():
+                  label, data = found[digest]
+                  target = files_root.joinpath(*safe_rel(path).parts)
+                  target.parent.mkdir(parents=True, exist_ok=True)
+                  target.write_bytes(data)
+                  target.chmod(0o644)
+                  inventory.append({'path': path, 'bytes': len(data), 'sha256': digest, 'mode': '0o644', 'source': label})
+              mechanism = {'class': 'exact-file-digest-recovery', 'source': 'all-retained-artifacts-and-public-git-refs', 'carrierArchiveReconstructed': False}
+
+          inventory.sort(key=lambda row: row['path'])
+          if len(inventory) != 32:
+              raise SystemExit('resolved inventory is not exactly 32 files')
+          receipt = {
+              'format': 'axm-arc-axm-canon-public-corpus-recovery/2',
+              'result': 'PASS',
+              'mechanism': mechanism,
+              'artifactDownloads': (ROOT / 'download-ledger.tsv').read_text().splitlines(),
+              'expandedObjectCount': len(expanded_rows),
+              'files': inventory,
+              'expectedCarrier': {
+                  'canonicalBase64Sha256': EXPECTED_B64_SHA,
+                  'compressedSha256': EXPECTED_ZST_SHA,
+                  'tarSha256': EXPECTED_TAR_SHA,
+              },
+              'authority': 'transport-and-file-specific',
+              'canonEffect': 'none',
+              'graphEffect': 'none',
+          }
+          (OUTPUT / 'RECOVERY_RECEIPT.json').write_text(json.dumps(receipt, indent=2) + '\n')
+          PY
+
+      - name: Verify and publish recovered staging surface
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib
+          import json
+          import pathlib
+          root = pathlib.Path('recovery/public-corpus-v1')
+          receipt = json.loads((root / 'RECOVERY_RECEIPT.json').read_text())
+          if receipt.get('result') != 'PASS' or len(receipt.get('files', [])) != 32:
+              raise SystemExit('recovery receipt is not an exact 32-file PASS')
+          for row in receipt['files']:
+              path = root / 'files' / row['path']
+              if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != row['sha256']:
+                  raise SystemExit(f'bad staged file: {row["path"]}')
+          PY
+          rm -rf .recovery
+          rm -f .github/workflows/axm-canon-public-corpus-recovery.yml
+          rm -f .github/workflows/axm-canon-public-corpus-recovery-v2.yml
+          git add -A
+          git diff --cached --check
+          git config user.name 'BigBirdReturns'
+          git config user.email '219768509+BigBirdReturns@users.noreply.github.com'
+          git commit -m 'Recover exact axm-canon public corpus staging surface v2'
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+
+      - name: Retain recovery diagnostics
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RECOVERY_ROOT"
+          find "$root" -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum | sed "s#  $root/#  #" > "$root/SHA256SUMS" || true
+
+      - name: Upload recovery diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: axm-arc-axm-canon-public-corpus-recovery-v2
+          path: ${{ runner.temp }}/axm-canon-public-corpus-recovery-v2
+          if-no-files-found: warn
+          retention-days: 30

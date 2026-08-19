@@ -1,0 +1,289 @@
+name: Locate exact private ASOIAF v4.1 custody
+
+on:
+  push:
+    branches:
+      - "recovery/asoiaf-private-v4.1-locator-v1"
+    paths:
+      - ".recovery/ASOIAF_PRIVATE_V4_1_LOCATOR_READY"
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: axm-arc-asoiaf-private-v4-1-locator-v1
+  cancel-in-progress: false
+
+jobs:
+  locate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install archive dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v zstd >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends zstd
+          fi
+          zstd --version
+
+      - name: Enumerate and download bounded artifact candidates
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test -f .recovery/ASOIAF_PRIVATE_V4_1_LOCATOR_READY
+          root="$RUNNER_TEMP/asoiaf-private-v4.1-locator-v1"
+          mkdir -p "$root/downloads"
+          gh api --paginate "repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100" \
+            --jq '.artifacts[] | [.id,.name,.size_in_bytes,.expired,.created_at,.updated_at,(.workflow_run.id // 0)] | @tsv' \
+            > "$root/all-artifacts.tsv"
+          python - "$root/all-artifacts.tsv" "$root/candidates.tsv" <<'PY'
+          import csv,pathlib,re,sys
+          source=pathlib.Path(sys.argv[1]);target=pathlib.Path(sys.argv[2])
+          pattern=re.compile(r'(asoiaf|canon|dragon|estate|world|private|corpus|book|source|export|migration|continuation|frontier)',re.I)
+          rows=[]
+          with source.open() as fh:
+              for raw in fh:
+                  parts=raw.rstrip('\n').split('\t')
+                  if len(parts)<7:continue
+                  ident,name,size,expired,created,updated,run=parts[:7]
+                  if expired.lower()=='true':continue
+                  n=int(size)
+                  if pattern.search(name) or 200_000_000<=n<=800_000_000 or ident in {'9099542397','9100108672'}:
+                      rows.append((int(ident),name,n,created,updated,int(run)))
+          rows.sort(key=lambda row:(0 if re.search(r'(asoiaf|dragon|estate|private|world)',row[1],re.I) else 1,-row[2],-row[0]))
+          with target.open('w') as fh:
+              for row in rows[:180]:fh.write('\t'.join(map(str,row))+'\n')
+          PY
+          : > "$root/download-ledger.tsv"
+          total=0
+          while IFS=$'\t' read -r id name bytes created updated run; do
+            [ -n "$id" ] || continue
+            if [ "$total" -gt 18000000000 ]; then
+              printf '%s\t%s\tSKIP_TOTAL_LIMIT\t%s\t%s\n' "$id" "$name" "$bytes" "$run" >> "$root/download-ledger.tsv"
+              continue
+            fi
+            target="$root/downloads/artifact-$id.zip"
+            http="$(curl -L --silent --show-error --output "$target" --write-out '%{http_code}' \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H 'Accept: application/vnd.github+json' \
+              -H 'X-GitHub-Api-Version: 2022-11-28' \
+              "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts/$id/zip" || true)"
+            if [ "$http" = '200' ] && [ -s "$target" ]; then
+              actual="$(wc -c < "$target")"
+              total=$((total+actual))
+              printf '%s\t%s\tPASS\t%s\t%s\t%s\t%s\n' "$id" "$name" "$bytes" "$actual" "$run" "$(sha256sum "$target" | cut -d' ' -f1)" >> "$root/download-ledger.tsv"
+            else
+              rm -f "$target"
+              printf '%s\t%s\tFAIL\t%s\t%s\t%s\t-\n' "$id" "$name" "$bytes" "$http" "$run" >> "$root/download-ledger.tsv"
+            fi
+          done < "$root/candidates.tsv"
+          printf 'LOCATOR_ROOT=%s\n' "$root" >> "$GITHUB_ENV"
+
+      - name: Scan nested custody without retaining private payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+
+          import gzip
+          import hashlib
+          import io
+          import json
+          import os
+          import pathlib
+          import re
+          import subprocess
+          import tarfile
+          import tempfile
+          import zipfile
+
+          ROOT=pathlib.Path(os.environ['LOCATOR_ROOT'])
+          TARGETS={
+            'privateWorldEstateV4_1':{
+              'filename':'asoiaf-private-world-estate-v4.1.tar.zst',
+              'bytes':244_436_743,
+              'sha256':'48428ec5630971e75d0f9e0075b4d7fecacdfd2e61efc516ed01c3aaa17fb9d7',
+            },
+            'fourthGenerationDragonFrontier':{
+              'filename':'asoiaf-fourth-generation-dragon-frontier-renewal-v1.tar.zst',
+              'bytes':249_906,
+              'sha256':'a3df744e910e8d1e20606e773024911182378b3e91e5eab9fca04f991f5a3b02',
+            },
+          }
+          MAX_DEPTH=7
+          MAX_EXPANDED=25_000_000_000
+          MAX_OBJECTS=300_000
+          expanded=0
+          objects=0
+          matches=[]
+          near=[]
+          errors=[]
+          scanned_artifacts=[]
+
+          def sha(data:bytes)->str:
+              return hashlib.sha256(data).hexdigest()
+          def safe(name:str)->pathlib.PurePosixPath:
+              path=pathlib.PurePosixPath(name)
+              if path.is_absolute() or '..' in path.parts:
+                  raise ValueError(f'unsafe path: {name}')
+              return path
+          def artifact_meta(path:pathlib.Path)->dict[str,object]:
+              ident=int(path.stem.split('-')[-1])
+              row=None
+              for raw in (ROOT/'download-ledger.tsv').read_text().splitlines():
+                  parts=raw.split('\t')
+                  if parts and parts[0]==str(ident):row=parts;break
+              return {'artifactId':ident,'artifactName':row[1] if row and len(row)>1 else None,'workflowRunId':int(row[5]) if row and len(row)>5 and row[5].isdigit() else None,'downloadSha256':row[6] if row and len(row)>6 else None}
+
+          def inspect(data:bytes,label:str,name:str,depth:int,meta:dict[str,object])->None:
+              nonlocal expanded,objects
+              objects+=1;expanded+=len(data)
+              if objects>MAX_OBJECTS or expanded>MAX_EXPANDED:
+                  raise RuntimeError('scan limit exceeded')
+              digest=None
+              for target_id,target in TARGETS.items():
+                  filename_match=pathlib.PurePosixPath(name).name==target['filename']
+                  size_match=len(data)==target['bytes']
+                  if filename_match or size_match:
+                      digest=sha(data) if digest is None else digest
+                      row={'target':target_id,'label':label,'name':name,'bytes':len(data),'sha256':digest,**meta}
+                      if size_match and digest==target['sha256']:
+                          matches.append(row)
+                      elif filename_match or abs(len(data)-target['bytes'])<=4096:
+                          near.append(row)
+              if depth>=MAX_DEPTH:
+                  return
+              try:
+                  if data.startswith(b'PK\x03\x04'):
+                      with zipfile.ZipFile(io.BytesIO(data)) as archive:
+                          for member in archive.infolist():
+                              if member.is_dir():continue
+                              safe(member.filename)
+                              if member.file_size>3_000_000_000:raise RuntimeError('oversized zip member')
+                              inspect(archive.read(member),f'{label}!zip:{member.filename}',member.filename,depth+1,meta)
+                      return
+                  if data.startswith(b'\x1f\x8b'):
+                      inspect(gzip.decompress(data),f'{label}!gzip',name.removesuffix('.gz'),depth+1,meta)
+                      return
+                  if data.startswith(b'\x28\xb5\x2f\xfd'):
+                      with tempfile.TemporaryDirectory() as td:
+                          source=pathlib.Path(td)/'input.zst';target=pathlib.Path(td)/'output'
+                          source.write_bytes(data)
+                          subprocess.run(['zstd','-d','-f',str(source),'-o',str(target)],check=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+                          inspect(target.read_bytes(),f'{label}!zstd',name.removesuffix('.zst'),depth+1,meta)
+                      return
+                  if len(data)>=512:
+                      try:
+                          with tarfile.open(fileobj=io.BytesIO(data),mode='r:*') as archive:
+                              for member in archive.getmembers():
+                                  safe(member.name)
+                                  if member.isfile() and not member.issym() and not member.islnk():
+                                      source=archive.extractfile(member)
+                                      if source is not None:
+                                          inspect(source.read(),f'{label}!tar:{member.name}',member.name,depth+1,meta)
+                      except tarfile.TarError:
+                          pass
+              except Exception as exc:
+                  errors.append({'label':label,'name':name,'depth':depth,'error':repr(exc)})
+
+          for artifact in sorted((ROOT/'downloads').glob('artifact-*.zip')):
+              meta=artifact_meta(artifact)
+              before_objects=objects;before_expanded=expanded
+              data=artifact.read_bytes()
+              try:
+                  inspect(data,f'artifact:{meta["artifactId"]}',artifact.name,0,meta)
+                  outcome='scanned'
+              except Exception as exc:
+                  errors.append({'label':f'artifact:{meta["artifactId"]}','name':artifact.name,'depth':0,'error':repr(exc)})
+                  outcome='failed'
+              scanned_artifacts.append({**meta,'archiveBytes':len(data),'objects':objects-before_objects,'expandedBytes':expanded-before_expanded,'outcome':outcome})
+
+          unique={}
+          for row in matches:
+              key=(row['target'],row['artifactId'],row['label'],row['sha256'])
+              unique[key]=row
+          matches=list(unique.values())
+          result={target_id:'located' if any(row['target']==target_id for row in matches) else 'not_located' for target_id in TARGETS}
+          receipt={
+            'format':'axm-asoiaf-private-v4.1-custody-locator/1',
+            'result':'PASS' if all(value=='located' for value in result.values()) else 'PARTIAL' if any(value=='located' for value in result.values()) else 'NOT_LOCATED',
+            'targets':TARGETS,
+            'targetResults':result,
+            'matches':matches,
+            'nearMatches':near[:500],
+            'scannedArtifactCount':len(scanned_artifacts),
+            'scannedArtifacts':scanned_artifacts,
+            'expandedObjectCount':objects,
+            'expandedBytes':expanded,
+            'errorCount':len(errors),
+            'errors':errors[:500],
+            'privatePayloadRetained':False,
+            'privatePayloadCommitted':False,
+            'canonEffect':'none',
+            'graphEffect':'none',
+          }
+          out=pathlib.Path('recovery/asoiaf-private-v4.1-locator-v1')
+          out.mkdir(parents=True,exist_ok=True)
+          (out/'LOCATOR_RECEIPT.json').write_text(json.dumps(receipt,indent=2)+'\n')
+          report=['# ASOIAF private v4.1 custody locator','',f"Terminal: `{receipt['result']}`",'']
+          for target_id,target in TARGETS.items():
+              report.append(f"- `{target_id}`: `{result[target_id]}`; expected `{target['bytes']}` bytes; SHA-256 `{target['sha256']}`")
+          report += ['',f"Scanned artifacts: `{len(scanned_artifacts)}`",f"Expanded objects: `{objects}`",f"Expanded bytes: `{expanded}`",'', 'The workflow committed locator metadata only. It retained and committed no private payload bytes.']
+          (out/'REPORT.md').write_text('\n'.join(report)+'\n')
+          for path in (ROOT/'downloads').glob('*'):
+              path.unlink(missing_ok=True)
+          PY
+          test ! -n "$(find "$LOCATOR_ROOT/downloads" -type f -print -quit)"
+          git diff --check
+
+      - name: Publish locator receipt without private bytes
+        id: publish
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .recovery
+          rm -f .github/workflows/asoiaf-private-v4.1-locator-v1.yml
+          git add -A
+          git diff --cached --check
+          git config user.name 'BigBirdReturns'
+          git config user.email '219768509+BigBirdReturns@users.noreply.github.com'
+          git commit -m 'Record exact private ASOIAF v4.1 custody locator'
+          sha="$(git rev-parse HEAD)"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+          printf 'published_sha=%s\n' "$sha" >> "$GITHUB_OUTPUT"
+
+      - name: Retain locator execution receipt
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$LOCATOR_ROOT"
+          printf '%s\n' \
+            "candidate=${{ github.sha }}" \
+            "published=${{ steps.publish.outputs.published_sha }}" > "$root/terminal.txt"
+          find "$root" -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum | sed "s#  $root/#  #" > "$root/SHA256SUMS" || true
+
+      - name: Upload locator execution receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: axm-arc-asoiaf-private-v4.1-locator-v1
+          path: ${{ runner.temp }}/asoiaf-private-v4.1-locator-v1
+          if-no-files-found: warn
+          retention-days: 30

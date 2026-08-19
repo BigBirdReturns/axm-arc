@@ -1,0 +1,5 @@
+format=axm-asoiaf-private-v4.1-custody-locator-trigger/1
+target-1=asoiaf-private-world-estate-v4.1.tar.zst,244436743,48428ec5630971e75d0f9e0075b4d7fecacdfd2e61efc516ed01c3aaa17fb9d7
+target-2=asoiaf-fourth-generation-dragon-frontier-renewal-v1.tar.zst,249906,a3df744e910e8d1e20606e773024911182378b3e91e5eab9fca04f991f5a3b02
+scope=current-repository-nonexpired-actions-artifacts
+private-payload-retention=false

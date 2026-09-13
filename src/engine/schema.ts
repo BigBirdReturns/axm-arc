@@ -8,6 +8,7 @@ import type {
   CompositionProfile,
 } from "./abi13.js";
 import { compareCodepoints } from "./determinism.js";
+import { RUNTIME_FAMILY_EXTENSION_KEY, RuntimeFamilyContractSchema } from "./runtime-family.js";
 import { validateArc as validateBaseArc } from "./schema-base.js";
 import type { Arc } from "./types.js";
 import { assertEngineCompatible, compareEngineVersions } from "./version.js";
@@ -324,6 +325,15 @@ function buildArc(input: unknown): { arc?: Arc; errors: string[] } {
   }
   const extras = extrasFor(input, errors);
   if (!base) return { errors };
+  const runtimeFamily = base.extensions?.[RUNTIME_FAMILY_EXTENSION_KEY];
+  if (runtimeFamily !== undefined) {
+    const result = RuntimeFamilyContractSchema.safeParse(runtimeFamily);
+    if (!result.success) {
+      for (const issue of result.error.issues) {
+        errors.push(`[extensions.${RUNTIME_FAMILY_EXTENSION_KEY}.${issue.path.join(".")}] ${issue.message}`);
+      }
+    }
+  }
   crossValidate(base, extras, errors);
   if (errors.length > 0) return { errors };
 

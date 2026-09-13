@@ -1,10 +1,11 @@
-// Strategy Board turn machine — NON-BEHAVIORAL scaffold.
+// Strategy Board phase vocabulary and structural-preview compatibility surface.
 //
 // Phase vocabulary, turn-state type, legal-action type, deterministic initial
-// state, and a PURE `listLegalActions` enumerator. This resolves NOTHING: no
+// state, and a PURE `listLegalActions` enumerator. Legacy preview states resolve NOTHING: no
 // executor, no phase advance, no movement, no auction/interference/milestone
 // resolution, no income/toll/obligation settlement, no opponent AI. See
 // docs/design/STRATEGY_BOARD_TURN_MACHINE_DECISION.md.
+// Executable states from executor.ts dispatch enumeration to its runtime gates.
 //
 // Two invariants are honored by construction:
 //   - enumeration mutates nothing (no ledger change without a recorded event);
@@ -16,6 +17,7 @@ import type {
   StrategyPhase,
   ResourceLedgerMutation,
 } from "./types";
+import { listExecutableStrategyActions, type StrategyExecutionState } from './executor';
 
 /** Canonical phase order (see the decision memo §1). */
 export const PHASE_ORDER: readonly StrategyPhase[] = [
@@ -54,7 +56,7 @@ export interface TurnState {
   ownership: Record<string, string | null>;
 }
 
-export type LegalActionKind = "programAction" | "auction" | "interference" | "pass";
+export type LegalActionKind = "programAction" | "purchase" | "auction" | "interference" | "pass";
 
 /** A choice legal in the current phase. Carries the phase that will honor it and
  *  the NAME of the future resolver — a choice with no resolver is not emitted. */
@@ -88,13 +90,11 @@ export function initialStrategyState(
   }
   const seats: SeatState[] = seatIds.map((seatId, i) => {
     const doctrine = def.doctrines[i % def.doctrines.length]!;
-    const balances: Record<string, number> = {};
-    for (const r of def.resources) balances[r.id] = 0;
+    const balances: Record<string, number> = Object.fromEntries(def.resources.map(r => [r.id, 0]));
     for (const sr of doctrine.startingResources) balances[sr.resourceId] = sr.amount;
     return { seatId, doctrineId: doctrine.id, balances };
   });
-  const ownership: Record<string, string | null> = {};
-  for (const a of def.controlAssets) ownership[a.id] = null;
+  const ownership: Record<string, string | null> = Object.fromEntries(def.controlAssets.map(a => [a.id, null]));
   return { boardId: def.id, quarter: 1, phase: "quarterStart", activeSeatIndex: 0, seats, ownership };
 }
 
@@ -103,6 +103,7 @@ export function initialStrategyState(
  *  [] for resolver-driven phases (quarterStart / movementResolution /
  *  milestoneAttempt / receiptLedger). */
 export function listLegalActions(def: StrategyBoardDefinition, state: TurnState): LegalAction[] {
+  if ('execution' in state) return listExecutableStrategyActions(def, state as StrategyExecutionState);
   const active = state.seats[state.activeSeatIndex];
   if (!active) return [];
 

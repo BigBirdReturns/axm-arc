@@ -8,6 +8,7 @@ export { KARAZHAN } from "./karazhan.js";
 export { KARAZHAN_STARTING_ROSTER } from "./karazhan.starting-roster.js";
 
 export { KIND_GODS_OF_ILYON } from "./kind-gods-of-ilyon.js";
+export { ILYON_CROWN_TIDES, ILYON_CROWN_TIDES_PROGRAM, ILYON_CROWN_TIDES_DRIVER } from "./ilyon-crown-tides.js";
 export { LAMP_DISTRICT } from "./lamp-district.js";
 
 export { RELIEF_CIRCUIT } from "./relief-circuit.js";

@@ -36,6 +36,9 @@ export type StrategyInput =
 function requireThat(ok: unknown, message: string): asserts ok {
   if (!ok) throw new Error(`Strategy executor: ${message}`);
 }
+function normalizedDefinitionJson(definition: StrategyBoardDefinition): string {
+  return JSON.stringify(validateStrategyBoard(definition));
+}
 const units = (n: number) => Number.isSafeInteger(n) && n >= 0;
 const activeId = (s: TurnState) => s.seats[s.activeSeatIndex]!.seatId;
 function actorId(s: StrategyExecutionState): string {
@@ -111,7 +114,7 @@ export function initialStrategyExecutionState(
     for (const t of m.requirements.resourceThresholds ?? []) requireThat(units(t.atLeast), 'invalid threshold');
   }
   return { ...initialStrategyState(def, seatIds), execution: {
-    definitionJson: JSON.stringify(input),
+    definitionJson: JSON.stringify(def),
     rules: structuredClone(rules), positions: Object.fromEntries(seatIds.map(id => [id, rules.startSpaceId])),
     reactionIndex: 0, programActionId: null, milestones: Object.fromEntries(seatIds.map(id => [id, []])),
     terminal: null, ledger: [], receipts: [],
@@ -120,7 +123,7 @@ export function initialStrategyExecutionState(
 
 /** Executable choices have exactly one acting seat; reactions follow cyclic seat order. */
 export function listExecutableStrategyActions(def: StrategyBoardDefinition, s: StrategyExecutionState): LegalAction[] {
-  requireThat(JSON.stringify(def) === s.execution.definitionJson, 'definition changed during run');
+  requireThat(normalizedDefinitionJson(def) === s.execution.definitionJson, 'definition changed during run');
   if (s.execution.terminal) return [];
   const id = actorId(s);
   const out: LegalAction[] = [];
@@ -212,7 +215,7 @@ export function applyLegalStrategyAction(def: StrategyBoardDefinition, state: St
 
 export function advanceStrategyPhase(def: StrategyBoardDefinition, state: StrategyExecutionState,
   destinationSpaceId?: string): StrategyExecutionState {
-  requireThat(JSON.stringify(def) === state.execution.definitionJson, 'definition changed during run');
+  requireThat(normalizedDefinitionJson(def) === state.execution.definitionJson, 'definition changed during run');
   requireThat(!state.execution.terminal, 'terminal run');
   requireThat(destinationSpaceId === undefined || state.phase === 'movementResolution', 'unexpected movement input');
   const s = structuredClone(state), id = activeId(s);

@@ -1,11 +1,92 @@
 # Strategy Board Turn Machine — Decision Memo
 
-**Status:** design memo + minimal non-behavioral scaffold. This decides the
-*shape* of the Strategy Board turn machine — phase order, the legal-action
-envelope, the ledger-event model, determinism, and what counts as a player
-choice vs. a resolver-honored choice — and lands a pure, non-executing scaffold
-(`src/engine/strategy-board/turn.ts`) that enumerates legal choices without
-resolving any of them. **No resolution behavior is implemented here.**
+**Current status ? 2026-09-13:** bounded first deterministic executor implemented
+in `src/engine/strategy-board/executor.ts`, with behavioral and generated-sequence
+property tests in `tests/engine/strategy-board-executor.test.ts`. This is generic
+Strategy Board execution, not a Program-of-Record port or a shipped game.
+
+The original scaffold and mini fixture remain available. `initialStrategyState`
+produces the original **structural preview**; its choices are not an execution
+admission claim. `initialStrategyExecutionState(def, seats, rules)` validates the
+supported subset and creates an executable state. `listLegalActions` on that
+state delegates to the executor's affordability, location, ownership, and
+reaction gates. Use executable states for any future player-facing choices.
+
+### Bounded execution contract
+
+- Execution rules are explicit version-1 companion data (`StrategyExecutionRules`),
+  held in run state. They supply the starting space, adjacent-destination input
+  mode, obligation-to-doctrine assignments, reaction limit/effect semantics, and
+  ordered ending predicates. They are **not yet a cartridge schema extension or
+  a custody/save format**. Definition changes during a run are rejected.
+- `advanceStrategyPhase` handles resolver phases; `applyLegalStrategyAction`
+  handles choices. Both return independent state copies. Failed transitions
+  preserve the input state and ledger. `replayStrategyInputs` reconstructs a run
+  from its definition, seat order, execution rules, and ordered inputs.
+- A quarter is one round of seats. Each seat receives its owned-asset income
+  before assigned obligations at its quarter start. Obligations run through their
+  authored term, inclusive. No debt, partial payment, or bankruptcy is invented:
+  an unpayable transition rejects. Safe integer resource units are required.
+- Movement consumes an explicit adjacent destination; no dice, path selection,
+  start-crossing reward, or hazard effect is inferred. Landing settles the exact
+  authored toll with both debit and owner credit, only for a non-owner occupant.
+- Only an unowned asset at the active seat's location can be bought or auctioned.
+  Purchases pay the authored list price. Auctions consume explicit bid inputs;
+  ascending bids start at the minimum increment, rise by at least that increment,
+  and alternate bidders. Sealed bids allow one bid per seat, with seat-order ties.
+  The highest bidder pays its bid; losing seats pay nothing. Empty bids mean no
+  sale. Bid validity includes ability to pay. No random choice is needed.
+- Exactly one permitted, affordable program action executes per turn. Supported
+  targets are self/none; costs and effects mutate the active seat. An empty legal
+  menu blocks progression rather than inventing a free action.
+- Non-active seats react once each in cyclic seat order, by interference or pass.
+  Interference must name the action actually taken. Its costs debit the reacting
+  seat; explicit effect mutations apply to the active seat after the program's
+  effect. No cancellation or yield reduction is inferred from summary text.
+- Milestone eligibility uses a pre-reward snapshot, evaluates the active seat,
+  and locks/rewards each milestone once. Ending rules conjunct their explicit
+  milestone ids and optional minimum quarter; authored rule order arbitrates
+  simultaneous matches. Ending unlocks must correspond to those predicates.
+  An ending emits once and immediately makes the run terminal. No subsequent
+  phase/action is accepted, and no score or winner is inferred from scoring notes.
+- All resource changes pass through a single ledger-writing seam. Ordered
+  receipts record bids, purchases, passes, actions, interference, milestones,
+  endings, and phase execution, with ledger offsets for correlation. The input
+  sequence plus emitted state/ledger is deterministic, without clock or RNG.
+
+**Rejected/deferred:** hazards; fixed initial ownership; non-owner asset effect
+scopes; space/asset/seat-target program semantics; empty prose-only interference;
+non-ending unlocks; fractional/unsafe amounts; implicit obligation assignment or
+ending predicates. The mini fixture intentionally remains schema-only because it
+contains several of these unresolved behaviors. CPU/personality, UI/World,
+scoring, save admission, cartridge custody, and a full reference campaign remain
+unimplemented. Do not claim this executor proves those layers.
+
+**Verification scope:** executor tests cover deterministic replay and ledger
+reconciliation across generated multi-turn sequences; legal-action soundness and
+atomic rejection; purchase and auction payment/ownership; toll symmetry;
+interference limits/recording; income/obligation order and expiry; monotonic
+milestones and once-only terminal endings. Typecheck passes. All 42 Strategy Board
+tests pass (12 executor and 30 existing schema/scaffold tests). The full Arc run
+before the final two executor edge-case tests produced 117 passing files / 920
+passing tests and 2 failing files / 7 failing tests. These seven failures are
+existing subprocess checks in `tests/release/supply-chain.test.ts` and
+`tests/clean-room/creator-recovery-kit.test.ts`; a direct Node spawn probe returns
+`status: null, error: EPERM` in this sandbox. They remain unverified.
+
+Ordinary Vitest startup also hits esbuild `spawn EPERM`. Verification used a
+temporary programmatic Vitest runner with the same includes/environment, a single
+thread pool, `configFile: false`, `esbuild: false`, `preserveSymlinks: true`, and a
+TypeScript `transpileModule` pre-transform (ES2022/ESNext). No tests were excluded
+or assertions changed. No emitted source shadows existed; the tracked,
+hand-authored declaration file was preserved. Standard CI still needs an
+environment that permits subprocesses.
+
+### Historical scaffold decision
+
+The sections below preserve the original non-executing scaffold decision. Their
+?future?, ?not included yet?, and ?no resolution? statements describe that earlier
+artifact; the current execution boundary above supersedes them.
 
 Companion documents:
 - axm-world `docs/runtime/STRATEGY_BOARD_RUNTIME_PROPOSAL.md` — the family proposal.

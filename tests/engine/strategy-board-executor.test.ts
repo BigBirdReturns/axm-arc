@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   initialStrategyExecutionState as initial, advanceStrategyPhase as advance,
-  applyLegalStrategyAction as apply, listLegalActions, replayStrategyInputs,
+  applyLegalStrategyAction as apply, listLegalActions, listExecutableStrategyMoves, replayStrategyInputs,
   loadProgramOfRecordMini, type StrategyBoardDefinition, type StrategyExecutionRules,
   type StrategyExecutionState, type StrategyInput,
 } from '../../src/engine/strategy-board';
@@ -73,8 +73,9 @@ describe('bounded deterministic Strategy Board executor', () => {
     expect(() => apply(board, resolved, action('a', 'programAction', 'build'))).toThrow();
     expect(() => advance(board, after)).toThrow();
     expect(() => apply(board, after, action('b', 'programAction', 'build'))).toThrow();
-    expect(() => apply(board, after, action('a', 'pass', null))).toThrow();
-    reconcile(resolved);
+    const skipped = apply(board, after, action('a', 'pass', null));
+    expect(skipped.phase).toBe('milestoneAttempt'); expect(skipped.execution.programActionId).toBeNull();
+    reconcile(resolved); reconcile(skipped);
   });
 
   it('lists only executable affordable choices, including cumulative resource costs', () => {
@@ -84,7 +85,7 @@ describe('bounded deterministic Strategy Board executor', () => {
       { resourceId: 'coin', delta: -11, eventKind: 'programActionCost' },
     ];
     const s = apply(def, buyState(def), action('a', 'pass', null));
-    expect(listLegalActions(def, s)).toEqual([]);
+    expect(listLegalActions(def, s).map(x => x.kind)).toEqual(['pass']);
     expect(() => apply(def, s, action('a', 'programAction', 'build'))).toThrow();
     const states = [buyState(), programState(), reactionState()];
     for (const state of states) {
@@ -138,8 +139,10 @@ describe('bounded deterministic Strategy Board executor', () => {
     }
     const s = advance(board, initial(board, seats, rules)); s.ownership.lease = 'b'; s.seats[0]!.balances.coin = 0;
     const snapshot = JSON.stringify(s);
+    expect(listExecutableStrategyMoves(board, s)).not.toContain('shop');
     expect(() => advance(board, s, 'shop')).toThrow(); expect(JSON.stringify(s)).toBe(snapshot);
-    expect(() => advance(board, s, 'home')).toThrow(); expect(() => advance(board, s)).toThrow();
+    expect(() => advance(board, s, 'home')).toThrow();
+    const held = advance(board, s); expect(held.execution.positions.a).toBe('home'); expect(held.phase).toBe('buyAuctionPass');
   });
 
   it('records interference against the acted program, once per non-active seat in order', () => {
@@ -157,6 +160,18 @@ describe('bounded deterministic Strategy Board executor', () => {
     reconcile(s);
     const unrelated = reactionState(); unrelated.execution.programActionId = 'other';
     expect(listLegalActions(board, unrelated).map(x => x.kind)).toEqual(['pass']);
+  });
+
+  it('binds endings to authored doctrines instead of letting either side win the other side objective', () => {
+    const def = structuredClone(board);
+    def.doctrines.push({ ...def.doctrines[0]!, id: 'breaker', name: 'Breaker' });
+    const law: StrategyExecutionRules = { ...rules, endings: [{ endingId: 'finish', milestoneIds: ['established'], quarterAtLeast: 3, doctrineIds: ['breaker'] }] };
+    let maker = initial(def, seats, law); maker.quarter = 3; maker.phase = 'milestoneAttempt'; maker.ownership.lease = 'a'; maker.seats[0]!.balances.standing = 2;
+    maker = advance(def, maker);
+    expect(maker.execution.milestones.a).toContain('established'); expect(maker.execution.terminal).toBeNull();
+    let breaker = initial(def, seats, law); breaker.quarter = 3; breaker.activeSeatIndex = 1; breaker.phase = 'milestoneAttempt'; breaker.ownership.lease = 'b'; breaker.seats[1]!.balances.standing = 2;
+    breaker = advance(def, breaker);
+    expect(breaker.execution.terminal).toEqual({ endingId: 'finish', seatId: 'b', quarter: 3 });
   });
 
   it('locks milestones monotonically, pays once, and emits a terminal ending exactly once', () => {
@@ -193,13 +208,14 @@ describe('bounded deterministic Strategy Board executor', () => {
         let input: StrategyInput;
         if (['buyAuctionPass', 'programAction', 'reactionInterference'].includes(s.phase)) {
           const actions = listLegalActions(board, s);
-          if (!actions.length) break; // Insolvency has no invented bailout/pass.
+          expect(actions.length).toBeGreaterThan(0); // Every choice phase has an executable continuation.
           const choice = actions[(scenario + step) % actions.length]!;
           const actor = s.phase === 'reactionInterference' ? seats[1 - s.activeSeatIndex]! : seats[s.activeSeatIndex]!;
           input = action(actor, choice.kind, choice.refId, choice.kind === 'auction' ? [] : undefined);
-        } else input = { type: 'advance', ...(s.phase === 'movementResolution' ? {
-          destinationSpaceId: s.execution.positions[seats[s.activeSeatIndex]!] === 'home' ? 'shop' : 'home',
-        } : {}) };
+        } else if (s.phase === 'movementResolution') {
+          const moves = listExecutableStrategyMoves(board, s);
+          input = moves.length ? { type: 'advance', destinationSpaceId: moves[(scenario + step) % moves.length]! } : { type: 'advance' };
+        } else input = { type: 'advance' };
         const previous = JSON.stringify(s);
         const next = input.type === 'advance' ? advance(board, s, input.destinationSpaceId) : apply(board, s, input);
         expect(JSON.stringify(s)).toBe(previous); inputs.push(input); s = next; reconcile(s);
@@ -254,7 +270,7 @@ describe('bounded deterministic Strategy Board executor', () => {
     def.programActions[0]!.effect.mutations[0]!.delta = Number.MAX_SAFE_INTEGER;
     let s = apply(def, buyState(def), action('a', 'pass', null));
     s.seats[0]!.balances.standing = 1;
-    expect(listLegalActions(def, s)).toEqual([]);
+    expect(listLegalActions(def, s).map(x => x.kind)).toEqual(['pass']);
     expect(() => apply(def, s, action('a', 'programAction', 'build'))).toThrow();
     const opaque = JSON.parse(JSON.stringify(board).replaceAll('coin', '__proto__')) as StrategyBoardDefinition;
     s = initial(opaque, seats, rules);

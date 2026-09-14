@@ -171,7 +171,7 @@ export const ILYON_CROWN_TIDES_PROGRAM: StrategyBoardProgram = {
         interferableActionIds: ["standardize-care", "bind-infrastructure"],
         honoredBy: "reactionInterference",
         cost: [{ resourceId: "evidence", delta: -1, eventKind: "interferenceCost" }],
-        effect: { summary: "Reduce the active Benefactor seat's Integration Lock by 2.", mutations: [{ resourceId: "integration", delta: -2, eventKind: "programActionYield" }] },
+        effect: { summary: "Reduce the active Benefactor seat's Integration Lock by 1.", mutations: [{ resourceId: "integration", delta: -1, eventKind: "programActionYield" }] },
       },
       {
         id: "dependency-leverage", name: "Dependency leverage", description: "Make the immediate human cost of forking an indispensable system impossible to ignore.",
@@ -210,13 +210,13 @@ export const ILYON_CROWN_TIDES_PROGRAM: StrategyBoardProgram = {
       },
       {
         id: "indispensable-grid", name: "Indispensable grid", description: "Benefactor care is materially superior and visibly bound into the systems people rely on.",
-        requirements: { resourceThresholds: [{ resourceId: "care", atLeast: 6 }, { resourceId: "integration", atLeast: 6 }], ownedAssetIds: ["cure-relay"] },
+        requirements: { resourceThresholds: [{ resourceId: "care", atLeast: 6 }, { resourceId: "integration", atLeast: 6 }] },
         reward: { mutations: [{ resourceId: "capacity", delta: 1, eventKind: "milestoneReward" }], unlocks: [] },
         contributesToEndingId: "planetary-crown",
       },
       {
         id: "crown-ready", name: "Planetary closure", description: "The cure relay and interoperability spine make withdrawal look less like sovereignty than deliberate harm.",
-        requirements: { resourceThresholds: [{ resourceId: "integration", atLeast: 10 }], ownedAssetIds: ["cure-relay", "interop-spine"] },
+        requirements: { resourceThresholds: [{ resourceId: "integration", atLeast: 10 }] },
         reward: { mutations: [], unlocks: [] },
         contributesToEndingId: "planetary-crown",
       },
@@ -244,8 +244,8 @@ export const ILYON_CROWN_TIDES_PROGRAM: StrategyBoardProgram = {
     interferenceEffect: "activeSeatMutations",
     obligationDoctrineIds: {},
     endings: [
-      { endingId: "uncrowned-federation", milestoneIds: ["care-without-command", "public-proof", "uncrowned-ready"] },
-      { endingId: "planetary-crown", milestoneIds: ["indispensable-grid", "crown-ready"] },
+      { endingId: "uncrowned-federation", milestoneIds: ["care-without-command", "public-proof", "uncrowned-ready"], doctrineIds: ["uncrowned-compact"] },
+      { endingId: "planetary-crown", milestoneIds: ["indispensable-grid", "crown-ready"], doctrineIds: ["benefactor-mission"] },
     ],
   },
 };

@@ -11,7 +11,7 @@ export interface StrategyExecutionRules {
   reactionLimitPerSeat: 1;
   interferenceEffect: 'activeSeatMutations';
   obligationDoctrineIds: Record<string, string[]>;
-  endings: { endingId: string; milestoneIds: string[]; quarterAtLeast?: number }[];
+  endings: { endingId: string; milestoneIds: string[]; quarterAtLeast?: number; doctrineIds?: string[] }[];
 }
 
 export interface StrategyExecutionState extends TurnState {
@@ -103,7 +103,8 @@ export function initialStrategyExecutionState(
   }
   requireThat(rules.endings.length === def.endings.length && new Set(rules.endings.map(x => x.endingId)).size === rules.endings.length, 'ending law missing/duplicate');
   for (const e of rules.endings) {
-    requireThat(def.endings.some(x => x.id === e.endingId) &&
+    requireThat((e.doctrineIds === undefined || (e.doctrineIds.length > 0 && new Set(e.doctrineIds).size === e.doctrineIds.length && e.doctrineIds.every(id => def.doctrines.some(d => d.id === id)))) &&
+      def.endings.some(x => x.id === e.endingId) &&
       e.milestoneIds.every(id => def.milestones.some(m => m.id === id)) &&
       (e.milestoneIds.length > 0 || e.quarterAtLeast !== undefined) &&
       (e.quarterAtLeast === undefined || (units(e.quarterAtLeast) && e.quarterAtLeast > 0)), 'invalid ending predicate');
@@ -121,6 +122,19 @@ export function initialStrategyExecutionState(
   } };
 }
 
+export function listExecutableStrategyMoves(def: StrategyBoardDefinition, s: StrategyExecutionState): string[] {
+  requireThat(normalizedDefinitionJson(def) === s.execution.definitionJson, 'definition changed during run');
+  if (s.execution.terminal || s.phase !== 'movementResolution') return [];
+  const id = activeId(s), current = def.spaces.find(x => x.id === s.execution.positions[id])!;
+  return current.adjacentSpaceIds.filter(destination => {
+    const asset = def.controlAssets.find(x => x.sitedOnSpaceId === destination);
+    const owner = asset && s.ownership[asset.id];
+    if (!asset?.toll || !owner || owner === id) return true;
+    return affordable(s, id, amount(asset.toll.resourceId, -asset.toll.amount, 'tollPayment'))
+      && affordable(s, owner, amount(asset.toll.resourceId, asset.toll.amount, 'tollPayment'));
+  });
+}
+
 /** Executable choices have exactly one acting seat; reactions follow cyclic seat order. */
 export function listExecutableStrategyActions(def: StrategyBoardDefinition, s: StrategyExecutionState): LegalAction[] {
   requireThat(normalizedDefinitionJson(def) === s.execution.definitionJson, 'definition changed during run');
@@ -133,6 +147,7 @@ export function listExecutableStrategyActions(def: StrategyBoardDefinition, s: S
     const permitted = def.doctrines.find(d => d.id === s.seats[s.activeSeatIndex]!.doctrineId)!.permittedActionIds;
     for (const a of def.programActions) if (permitted.includes(a.id) && affordable(s, id, [...a.cost, ...a.effect.mutations]))
       add('programAction', a.id, 'resolveProgramAction', a.cost);
+    add('pass', null, 'resolvePass');
   } else if (s.phase === 'buyAuctionPass') {
     const asset = def.controlAssets.find(a => a.sitedOnSpaceId === s.execution.positions[id]);
     if (asset && s.ownership[asset.id] === null) {
@@ -174,7 +189,9 @@ export function applyLegalStrategyAction(def: StrategyBoardDefinition, state: St
   requireThat(legal, 'illegal action');
   requireThat(input.kind === 'auction' || input.bids === undefined, 'unexpected bids');
   const s = structuredClone(state), id = input.seatId;
-  if (input.kind === 'purchase') {
+  if (input.kind === 'pass' && s.phase === 'programAction') {
+    s.execution.programActionId = null;
+  } else if (input.kind === 'purchase') {
     post(s, id, legal.declaredMutations, `purchase:${input.refId}`);
     s.ownership[input.refId!] = id;
   } else if (input.kind === 'auction') {
@@ -208,7 +225,7 @@ export function applyLegalStrategyAction(def: StrategyBoardDefinition, state: St
   }
   record(s, input.kind, id, input.refId);
   if (s.phase === 'buyAuctionPass') s.phase = 'programAction';
-  else if (s.phase === 'programAction') s.phase = 'reactionInterference';
+  else if (s.phase === 'programAction') s.phase = input.kind === 'pass' ? 'milestoneAttempt' : 'reactionInterference';
   else if (++s.execution.reactionIndex === s.seats.length - 1) s.phase = 'milestoneAttempt';
   return s;
 }
@@ -227,14 +244,15 @@ export function advanceStrategyPhase(def: StrategyBoardDefinition, state: Strate
       post(s, id, amount(o.resourceId, -o.amountPerQuarter, o.eventKind), `obligation:${o.id}`);
     s.phase = 'movementResolution';
   } else if (s.phase === 'movementResolution') {
-    const from = def.spaces.find(x => x.id === s.execution.positions[id])!;
-    requireThat(destinationSpaceId && from.adjacentSpaceIds.includes(destinationSpaceId), 'movement requires adjacent destination');
-    s.execution.positions[id] = destinationSpaceId;
-    const a = def.controlAssets.find(x => x.sitedOnSpaceId === destinationSpaceId);
-    const owner = a && s.ownership[a.id];
-    if (a?.toll && owner && owner !== id) {
-      post(s, id, amount(a.toll.resourceId, -a.toll.amount, 'tollPayment'), `toll:${a.id}`);
-      post(s, owner, amount(a.toll.resourceId, a.toll.amount, 'tollPayment'), `toll:${a.id}`);
+    if (destinationSpaceId !== undefined) {
+      requireThat(listExecutableStrategyMoves(def, state).includes(destinationSpaceId), 'movement requires executable adjacent destination');
+      s.execution.positions[id] = destinationSpaceId;
+      const a = def.controlAssets.find(x => x.sitedOnSpaceId === destinationSpaceId);
+      const owner = a && s.ownership[a.id];
+      if (a?.toll && owner && owner !== id) {
+        post(s, id, amount(a.toll.resourceId, -a.toll.amount, 'tollPayment'), `toll:${a.id}`);
+        post(s, owner, amount(a.toll.resourceId, a.toll.amount, 'tollPayment'), `toll:${a.id}`);
+      }
     }
     s.phase = 'buyAuctionPass';
   } else if (s.phase === 'milestoneAttempt') {
@@ -247,8 +265,9 @@ export function advanceStrategyPhase(def: StrategyBoardDefinition, state: Strate
       s.execution.milestones[id]!.push(m.id); record(s, 'milestone', id, m.id);
     }
     // Authored rule order arbitrates simultaneous endings. No inferred score/winner.
-    const ending = s.execution.rules.endings.find(e => (e.quarterAtLeast === undefined || s.quarter >= e.quarterAtLeast) &&
-      e.milestoneIds.every(m => s.execution.milestones[id]!.includes(m)));
+    const doctrineId = s.seats[s.activeSeatIndex]!.doctrineId;
+    const ending = s.execution.rules.endings.find(e => (e.doctrineIds === undefined || e.doctrineIds.includes(doctrineId)) &&
+      (e.quarterAtLeast === undefined || s.quarter >= e.quarterAtLeast) && e.milestoneIds.every(m => s.execution.milestones[id]!.includes(m)));
     if (ending) {
       s.execution.terminal = { endingId: ending.endingId, seatId: id, quarter: s.quarter };
       record(s, 'ending', id, ending.endingId);

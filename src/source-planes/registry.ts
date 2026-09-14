@@ -24,13 +24,12 @@ import {
   validateCommonShipPocket,
 } from "../common-ship/index.js";
 import {
-  BURN_PROTOCOL_CHAPTER_1_SOURCE,
   BURN_PROTOCOL_EXTENSION_KEY,
   BURN_PROTOCOL_SOURCE_FORMAT,
-  compileBurnProtocol,
-  recoverBurnProtocol,
-  validateBurnProtocol,
-} from "../burn-protocol/index.js";
+} from "../burn-protocol/types.js";
+import { compileBurnProtocol, recoverBurnProtocol } from "../burn-protocol/compiler.js";
+import { validateBurnProtocol } from "../burn-protocol/schema.js";
+import { newBurnProtocolSkeleton } from "../burn-protocol/starter.js";
 
 export type SourcePlaneId =
   | "godscar-pocket"
@@ -150,7 +149,7 @@ const DEFINITIONS: readonly SourcePlaneDefinition[] = Object.freeze([
     description: "Canonical serialized-story source built from exact episodes, chapters, ordered panel slots, lettering, plate maps, and source custody.",
     sourceFileExtension: ".burn.json",
     arcFileExtension: ".arc.json",
-    starter: () => clone(BURN_PROTOCOL_CHAPTER_1_SOURCE),
+    starter: () => newBurnProtocolSkeleton(),
     validate: (input) => normalizeValidation(validateBurnProtocol(input)),
     compile: compileBurnProtocol,
     recover: recoverBurnProtocol,

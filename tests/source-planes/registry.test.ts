@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { Arc } from "../../src/engine/types.js";
 import {
@@ -33,6 +34,17 @@ describe("creator source-plane registry", () => {
       .toBe(SOURCE_PLANE_REGISTRY.length);
     expect(new Set(SOURCE_PLANE_REGISTRY.map((definition) => definition.extensionKey)).size)
       .toBe(SOURCE_PLANE_REGISTRY.length);
+  });
+
+  it("keeps the Burn registry starter generic and published canon outside the registry module graph", () => {
+    const burn = sourcePlaneById("burn-protocol")!;
+    const starter = JSON.stringify(burn.starter());
+    expect(starter).toContain("E99-C1-P01");
+    expect(starter).not.toContain("E01-C1-P01");
+    expect(starter).not.toContain("site/assets/art/A01C1");
+    const registrySource = readFileSync(new URL("../../src/source-planes/registry.ts", import.meta.url), "utf8");
+    expect(registrySource).not.toContain("BURN_PROTOCOL_CHAPTER_1_SOURCE");
+    expect(registrySource).not.toContain('from "../burn-protocol/index.js"');
   });
 
   it("resolves definitions through id, format, extension, and source without switch statements", () => {

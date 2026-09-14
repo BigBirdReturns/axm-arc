@@ -9,6 +9,10 @@ import type {
 } from "./abi13.js";
 import { compareCodepoints } from "./determinism.js";
 import { RUNTIME_FAMILY_EXTENSION_KEY, RuntimeFamilyContractSchema } from "./runtime-family.js";
+import {
+  STRATEGY_BOARD_DRIVER_EXTENSION_KEY,
+  validateStrategyBoardDriver,
+} from "./strategy-board/driver.js";
 import { STRATEGY_BOARD_PROGRAM_EXTENSION_KEY, validateStrategyBoardProgram } from "./strategy-board/program.js";
 import { validateArc as validateBaseArc } from "./schema-base.js";
 import type { Arc } from "./types.js";
@@ -340,10 +344,11 @@ function buildArc(input: unknown): { arc?: Arc; errors: string[] } {
   }
 
   const strategyProgram = base.extensions?.[STRATEGY_BOARD_PROGRAM_EXTENSION_KEY];
+  let validatedStrategyProgram: ReturnType<typeof validateStrategyBoardProgram> | null = null;
   if (strategyProgram !== undefined) {
-    const result = validateStrategyBoardProgram(strategyProgram);
-    if (!result.ok) {
-      for (const error of result.errors) errors.push(`[extensions.${STRATEGY_BOARD_PROGRAM_EXTENSION_KEY}] ${error}`);
+    validatedStrategyProgram = validateStrategyBoardProgram(strategyProgram);
+    if (!validatedStrategyProgram.ok) {
+      for (const error of validatedStrategyProgram.errors) errors.push(`[extensions.${STRATEGY_BOARD_PROGRAM_EXTENSION_KEY}] ${error}`);
     }
   }
   if (runtimeFamilyName === "strategy-board" && strategyProgram === undefined) {
@@ -351,6 +356,21 @@ function buildArc(input: unknown): { arc?: Arc; errors: string[] } {
   }
   if (strategyProgram !== undefined && runtimeFamilyName !== "strategy-board") {
     errors.push(`[extensions.${STRATEGY_BOARD_PROGRAM_EXTENSION_KEY}] Strategy-board authority requires ${RUNTIME_FAMILY_EXTENSION_KEY} family "strategy-board".`);
+  }
+
+  const strategyDriver = base.extensions?.[STRATEGY_BOARD_DRIVER_EXTENSION_KEY];
+  if (strategyDriver !== undefined) {
+    if (!validatedStrategyProgram?.ok) {
+      errors.push(`[extensions.${STRATEGY_BOARD_DRIVER_EXTENSION_KEY}] Strategy-board driver requires a valid ${STRATEGY_BOARD_PROGRAM_EXTENSION_KEY} program.`);
+    } else {
+      const result = validateStrategyBoardDriver(strategyDriver, validatedStrategyProgram.program.definition);
+      if (!result.ok) {
+        for (const error of result.errors) errors.push(`[extensions.${STRATEGY_BOARD_DRIVER_EXTENSION_KEY}] ${error}`);
+      }
+    }
+    if (runtimeFamilyName !== "strategy-board") {
+      errors.push(`[extensions.${STRATEGY_BOARD_DRIVER_EXTENSION_KEY}] Strategy-board driver requires ${RUNTIME_FAMILY_EXTENSION_KEY} family "strategy-board".`);
+    }
   }
   crossValidate(base, extras, errors);
   if (errors.length > 0) return { errors };

@@ -115,6 +115,17 @@ describe("authored Strategy Board driver", () => {
     });
   });
 
+  it("holds when every adjacent toll is unpayable and passes when no program action is affordable", () => {
+    let state = automaticSeatState();
+    state.ownership.lease = "seat-1";
+    state.seats[1]!.balances.coin = 0;
+    expect(nextStrategyBoardDriverInput(program.definition, state, driver)).toEqual({ type: "advance" });
+    state.phase = "programAction";
+    expect(nextStrategyBoardDriverInput(program.definition, state, driver)).toEqual({
+      type: "action", seatId: "seat-2", kind: "pass", refId: null,
+    });
+  });
+
   it("refuses unknown priorities, missing doctrines, and all-automatic games", () => {
     const bad = structuredClone(driver);
     const automatic = bad.doctrines[1]!;

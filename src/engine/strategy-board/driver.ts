@@ -3,6 +3,7 @@ import type { Arc } from "../types.js";
 import { readRuntimeFamilyContract } from "../runtime-family.js";
 import {
   listExecutableStrategyActions,
+  listExecutableStrategyMoves,
   type StrategyExecutionState,
   type StrategyInput,
 } from "./executor.js";
@@ -154,12 +155,10 @@ export function nextStrategyBoardDriverInput(
 
   if (state.phase === "movementResolution") {
     const seat = state.seats[state.activeSeatIndex]!;
-    const currentId = state.execution.positions[seat.seatId]!;
-    const current = definition.spaces.find((entry) => entry.id === currentId)!;
-    const destination = driver.movementPriority.find((id) => current.adjacentSpaceIds.includes(id))
-      ?? current.adjacentSpaceIds[0];
-    if (!destination) throw new Error(`Automatic doctrine "${driver.doctrineId}" has no legal adjacent movement.`);
-    return { type: "advance", destinationSpaceId: destination };
+    const legalMoves = listExecutableStrategyMoves(definition, state);
+    const destination = driver.movementPriority.find((id) => legalMoves.includes(id))
+      ?? legalMoves[0];
+    return destination ? { type: "advance", destinationSpaceId: destination } : { type: "advance" };
   }
 
   const legal = listExecutableStrategyActions(definition, state);
@@ -180,7 +179,9 @@ export function nextStrategyBoardDriverInput(
     }
     const fallback = legal.find((entry) => entry.kind === "programAction");
     if (fallback) return { type: "action", seatId, kind: "programAction", refId: fallback.refId };
-    throw new Error(`Automatic doctrine "${driver.doctrineId}" has no legal program action.`);
+    const pass = legal.find((entry) => entry.kind === "pass");
+    if (pass) return { type: "action", seatId, kind: "pass", refId: null };
+    throw new Error(`Automatic doctrine "${driver.doctrineId}" has no legal program action or pass.`);
   }
 
   if (state.phase === "reactionInterference") {

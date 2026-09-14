@@ -22,6 +22,7 @@ export const StrategyExecutionRulesSchema: z.ZodType<StrategyExecutionRules> = z
     endingId: z.string().min(1),
     milestoneIds: z.array(z.string().min(1)),
     quarterAtLeast: z.number().int().safe().positive().optional(),
+    doctrineIds: z.array(z.string().min(1)).min(1).optional(),
   }).strict()),
 }).strict();
 

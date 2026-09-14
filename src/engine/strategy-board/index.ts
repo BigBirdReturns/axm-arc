@@ -1,6 +1,7 @@
-// Strategy Board Runtime — schema, structural preview, and bounded executor.
+// Strategy Board Runtime — schema, authored program authority, and bounded executor.
 export * from "./types";
-export * from './executor';
+export * from "./executor";
+export * from "./program";
 export { StrategyBoardSchema, validateStrategyBoard } from "./schema";
 export { PROGRAM_OF_RECORD_MINI, loadProgramOfRecordMini } from "./program-of-record-mini";
 export {

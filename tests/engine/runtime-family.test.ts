@@ -8,13 +8,21 @@ import { compileBurnProtocol, BURN_PROTOCOL_CHAPTER_1_SOURCE } from "../../src/b
 import { advanceCanonicalStory, initialCanonicalStoryCursor } from "../../src/canonical-story/index.js";
 import { MINI_ARC } from "../fixtures/mini-arc.js";
 import { DISPATCH_RUNTIME_ARC } from "../fixtures/runtime-family-arc.js";
+import { strategyBoardProgramExtension } from "../fixtures/strategy-board-program.js";
 
 const storyHost = compileBurnProtocol(BURN_PROTOCOL_CHAPTER_1_SOURCE);
 const storyArc = validateArc({ ...storyHost, extensions: { ...storyHost.extensions, [KEY]: { format: FORMAT, family: "fixed-canonical-sequence" } } });
 
+function familyExtensions(family: (typeof RUNTIME_FAMILIES)[number]) {
+  return {
+    [KEY]: { format: FORMAT, family },
+    ...(family === "strategy-board" ? strategyBoardProgramExtension() : {}),
+  };
+}
+
 describe("authored runtime-family contract", () => {
   it.each(RUNTIME_FAMILIES)("selects %s only with receiver capability", (family) => {
-    const arc = validateArc({ ...DISPATCH_RUNTIME_ARC, extensions: { ...DISPATCH_RUNTIME_ARC.extensions, [KEY]: { format: FORMAT, family } } });
+    const arc = validateArc({ ...DISPATCH_RUNTIME_ARC, extensions: familyExtensions(family) });
     const before = JSON.stringify(arc);
     expect(selectRuntimeFamily(arc, RUNTIME_FAMILIES)).toEqual({ kind: "selected", contract: { format: FORMAT, family } });
     expect(selectRuntimeFamily(arc, RUNTIME_FAMILIES.filter((candidate) => candidate !== family))).toEqual({ kind: "unsupported", reason: "family" });
@@ -49,8 +57,9 @@ describe("authored runtime-family contract", () => {
 
   it("binds selection to authored digest, independent of key insertion order", () => {
     const digests = RUNTIME_FAMILIES.map((family) => {
-      const arc = validateArc({ ...DISPATCH_RUNTIME_ARC, extensions: { [KEY]: { format: FORMAT, family } } });
-      const reordered = validateArc({ ...arc, extensions: { [KEY]: { family, format: FORMAT } } });
+      const authority = family === "strategy-board" ? strategyBoardProgramExtension() : {};
+      const arc = validateArc({ ...DISPATCH_RUNTIME_ARC, extensions: { [KEY]: { format: FORMAT, family }, ...authority } });
+      const reordered = validateArc({ ...arc, extensions: { ...authority, [KEY]: { family, format: FORMAT } } });
       expect(cartridgeDigest(reordered)).toBe(cartridgeDigest(arc));
       return cartridgeDigest(arc);
     });

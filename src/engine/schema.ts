@@ -9,6 +9,7 @@ import type {
 } from "./abi13.js";
 import { compareCodepoints } from "./determinism.js";
 import { RUNTIME_FAMILY_EXTENSION_KEY, RuntimeFamilyContractSchema } from "./runtime-family.js";
+import { STRATEGY_BOARD_PROGRAM_EXTENSION_KEY, validateStrategyBoardProgram } from "./strategy-board/program.js";
 import { validateArc as validateBaseArc } from "./schema-base.js";
 import type { Arc } from "./types.js";
 import { assertEngineCompatible, compareEngineVersions } from "./version.js";
@@ -326,13 +327,30 @@ function buildArc(input: unknown): { arc?: Arc; errors: string[] } {
   const extras = extrasFor(input, errors);
   if (!base) return { errors };
   const runtimeFamily = base.extensions?.[RUNTIME_FAMILY_EXTENSION_KEY];
+  let runtimeFamilyName: string | null = null;
   if (runtimeFamily !== undefined) {
     const result = RuntimeFamilyContractSchema.safeParse(runtimeFamily);
     if (!result.success) {
       for (const issue of result.error.issues) {
         errors.push(`[extensions.${RUNTIME_FAMILY_EXTENSION_KEY}.${issue.path.join(".")}] ${issue.message}`);
       }
+    } else {
+      runtimeFamilyName = result.data.family;
     }
+  }
+
+  const strategyProgram = base.extensions?.[STRATEGY_BOARD_PROGRAM_EXTENSION_KEY];
+  if (strategyProgram !== undefined) {
+    const result = validateStrategyBoardProgram(strategyProgram);
+    if (!result.ok) {
+      for (const error of result.errors) errors.push(`[extensions.${STRATEGY_BOARD_PROGRAM_EXTENSION_KEY}] ${error}`);
+    }
+  }
+  if (runtimeFamilyName === "strategy-board" && strategyProgram === undefined) {
+    errors.push(`[extensions.${RUNTIME_FAMILY_EXTENSION_KEY}] Strategy-board runtime selection requires ${STRATEGY_BOARD_PROGRAM_EXTENSION_KEY} authored authority.`);
+  }
+  if (strategyProgram !== undefined && runtimeFamilyName !== "strategy-board") {
+    errors.push(`[extensions.${STRATEGY_BOARD_PROGRAM_EXTENSION_KEY}] Strategy-board authority requires ${RUNTIME_FAMILY_EXTENSION_KEY} family "strategy-board".`);
   }
   crossValidate(base, extras, errors);
   if (errors.length > 0) return { errors };

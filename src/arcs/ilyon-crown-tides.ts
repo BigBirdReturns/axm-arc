@@ -115,10 +115,10 @@ export const ILYON_CROWN_TIDES_PROGRAM: StrategyBoardProgram = {
         target: "self", honoredBy: "programAction",
         cost: [{ resourceId: "capacity", delta: -2, eventKind: "programActionCost" }],
         effect: {
-          summary: "Trade 1 Care for 3 Refusal Capacity.",
+          summary: "Trade 1 Care for 4 Refusal Capacity.",
           mutations: [
             { resourceId: "care", delta: -1, eventKind: "programActionYield" },
-            { resourceId: "refusal", delta: 3, eventKind: "programActionYield" },
+            { resourceId: "refusal", delta: 4, eventKind: "programActionYield" },
           ],
         },
       },
@@ -126,13 +126,13 @@ export const ILYON_CROWN_TIDES_PROGRAM: StrategyBoardProgram = {
         id: "publish-dependency", name: "Publish the dependency map", description: "Make every indispensable service, owner, failure mode, and possible substitute visible to the public.",
         target: "self", honoredBy: "programAction",
         cost: [{ resourceId: "capacity", delta: -1, eventKind: "programActionCost" }],
-        effect: { summary: "Gain 2 Evidence.", mutations: [{ resourceId: "evidence", delta: 2, eventKind: "programActionYield" }] },
+        effect: { summary: "Gain 3 Evidence.", mutations: [{ resourceId: "evidence", delta: 3, eventKind: "programActionYield" }] },
       },
       {
         id: "convene-ocean", name: "Convene the ocean", description: "Spend verified evidence to give incompatible deep ecologies political standing without inventing one planetary voice.",
         target: "self", honoredBy: "programAction",
         cost: [{ resourceId: "evidence", delta: -2, eventKind: "programActionCost" }],
-        effect: { summary: "Convert 2 Evidence into 3 Refusal Capacity.", mutations: [{ resourceId: "refusal", delta: 3, eventKind: "programActionYield" }] },
+        effect: { summary: "Convert 2 Evidence into 4 Refusal Capacity.", mutations: [{ resourceId: "refusal", delta: 4, eventKind: "programActionYield" }] },
       },
       {
         id: "standardize-care", name: "Standardize care", description: "Improve treatment by moving diagnostics, logistics, and records onto one Benefactor standard.",
@@ -192,19 +192,19 @@ export const ILYON_CROWN_TIDES_PROGRAM: StrategyBoardProgram = {
     milestones: [
       {
         id: "care-without-command", name: "Care without command", description: "Ilyon can keep essential services alive while refusing a single owner.",
-        requirements: { resourceThresholds: [{ resourceId: "care", atLeast: 4 }, { resourceId: "refusal", atLeast: 4 }] },
+        requirements: { resourceThresholds: [{ resourceId: "care", atLeast: 2 }, { resourceId: "refusal", atLeast: 3 }] },
         reward: { mutations: [{ resourceId: "capacity", delta: 1, eventKind: "milestoneReward" }], unlocks: [] },
         contributesToEndingId: "uncrowned-federation",
       },
       {
         id: "public-proof", name: "Public proof", description: "The dependency claim is independently legible and cannot be recalled by either faction.",
-        requirements: { resourceThresholds: [{ resourceId: "evidence", atLeast: 4 }], ownedAssetIds: ["archive-array"] },
+        requirements: { resourceThresholds: [{ resourceId: "evidence", atLeast: 3 }], ownedAssetIds: ["archive-array"] },
         reward: { mutations: [{ resourceId: "capacity", delta: 1, eventKind: "milestoneReward" }], unlocks: [] },
         contributesToEndingId: "uncrowned-federation",
       },
       {
         id: "uncrowned-ready", name: "Uncrowned network", description: "The refusal is no longer symbolic: evidence and independently operated systems can survive withdrawal.",
-        requirements: { resourceThresholds: [{ resourceId: "refusal", atLeast: 8 }, { resourceId: "evidence", atLeast: 5 }], ownedAssetIds: ["archive-array", "reef-listener"] },
+        requirements: { resourceThresholds: [{ resourceId: "refusal", atLeast: 6 }, { resourceId: "evidence", atLeast: 3 }], ownedAssetIds: ["archive-array", "reef-listener"] },
         reward: { mutations: [], unlocks: [] },
         contributesToEndingId: "uncrowned-federation",
       },
